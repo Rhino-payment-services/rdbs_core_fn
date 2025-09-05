@@ -15,95 +15,33 @@ import { usePermissions, useCreateRole } from '@/lib/hooks/useApi'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
 import { 
-  Search, 
-  Filter, 
-  Download, 
   RefreshCw,
-  Save,
   Settings,
-  User,
   Shield,
   Database,
   CreditCard,
-  Bell,
-  Globe,
-  Lock,
-  Key,
-  Eye,
-  EyeOff,
-  Calendar,
-  MapPin,
-  Smartphone,
-  Server,
   FileText,
   BarChart3,
   DollarSign,
-  AlertTriangle,
-  CheckCircle,
-  Info,
-  Clock,
   Activity,
   Users,
-  Building2,
   Cog,
-  Wrench,
-  Palette,
   Bell as BellIcon,
   Shield as ShieldIcon,
-  Database as DatabaseIcon,
   CreditCard as CreditCardIcon,
-  Globe as GlobeIcon,
-  User as UserIcon,
   Settings as SettingsIcon,
   Save as SaveIcon,
-  Trash2,
   Plus,
-  Edit,
-  Copy,
-  ExternalLink,
   Download as DownloadIcon,
   Upload,
   Key as KeyIcon,
-  Lock as LockIcon,
-  Eye as EyeIcon,
-  EyeOff as EyeOffIcon,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  Clock as ClockIcon,
-  TrendingUp,
-  TrendingDown,
-  ChevronDown,
-  ChevronRight,
-  Monitor,
-  Smartphone as SmartphoneIcon,
-  Tablet,
-  Laptop,
-  Wifi,
-  WifiOff,
-  Zap,
-  Target,
-  Fingerprint,
-  ShieldCheck,
-  AlertOctagon,
-  CheckSquare,
-  Clock3,
-  Flag,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  Globe2,
-  Wifi as WifiIcon,
-  WifiOff as WifiOffIcon,
-  Smartphone as SmartphoneIcon2,
-  Monitor as MonitorIcon,
-  Tablet as TabletIcon,
-  Laptop as LaptopIcon,
+  Eye,
+  EyeOff,
   UserCheck
 } from 'lucide-react'
 
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState("general")
-  const [showPassword, setShowPassword] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
 
   // Role creation state
@@ -283,21 +221,6 @@ const SettingsPage = () => {
     }))
   }
 
-  const isResourceFullySelected = (resource: string) => {
-    const permissions = permissionsData?.permissions || []
-    const resourcePermissions = permissions.filter((p: any) => p.resource === resource)
-    const resourcePermissionIds = resourcePermissions.map((p: any) => p.id)
-    return resourcePermissionIds.every((id: string) => roleForm.permissionIds.includes(id))
-  }
-
-  const isResourcePartiallySelected = (resource: string) => {
-    const permissions = permissionsData?.permissions || []
-    const resourcePermissions = permissions.filter((p: any) => p.resource === resource)
-    const resourcePermissionIds = resourcePermissions.map((p: any) => p.id)
-    const selectedCount = resourcePermissionIds.filter((id: string) => roleForm.permissionIds.includes(id)).length
-    return selectedCount > 0 && selectedCount < resourcePermissionIds.length
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -385,7 +308,7 @@ const SettingsPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="timezone">Timezone</Label>
-                      <Select value={generalSettings.timezone} onValueChange={(value) => setGeneralSettings({...generalSettings, timezone: value})}>
+                      <Select value={generalSettings.timezone} onValueChange={(value: string) => setGeneralSettings({...generalSettings, timezone: value})}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -398,7 +321,7 @@ const SettingsPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="language">Language</Label>
-                      <Select value={generalSettings.language} onValueChange={(value) => setGeneralSettings({...generalSettings, language: value})}>
+                      <Select value={generalSettings.language} onValueChange={(value: string) => setGeneralSettings({...generalSettings, language: value})}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -1123,4 +1046,4 @@ const SettingsPage = () => {
   )
 }
 
-export default SettingsPage 
+export default SettingsPage

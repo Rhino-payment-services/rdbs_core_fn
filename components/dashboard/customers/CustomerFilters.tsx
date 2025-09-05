@@ -6,7 +6,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { 
   Search,
-  Filter,
   Download,
   Plus
 } from 'lucide-react'

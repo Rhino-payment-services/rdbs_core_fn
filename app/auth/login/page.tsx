@@ -6,8 +6,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
+import { Formik, Form, Field, ErrorMessage } from 'formik'
 import toast from 'react-hot-toast'
 
 const LoginPage = () => {
@@ -28,7 +28,10 @@ const LoginPage = () => {
       .required('Password is required'),
   })
 
-  const handleSubmit = async (values: { email: string; password: string }, { setSubmitting }: any) => {
+  const handleSubmit = async (
+    values: { email: string; password: string }, 
+    { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
+  ) => {
     setIsLoading(true)
     setError('')
 
@@ -362,9 +365,6 @@ const LoginPage = () => {
               )}
 
               {/* Divider */}
-            
-
-           
 
               {/* Sign Up Link */}
             

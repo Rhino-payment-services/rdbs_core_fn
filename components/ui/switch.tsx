@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import React from "react"
 import { cn } from "@/lib/utils"
 
 export interface SwitchProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -9,7 +9,7 @@ export interface SwitchProps extends React.InputHTMLAttributes<HTMLInputElement>
 }
 
 const Switch = React.forwardRef<HTMLInputElement, SwitchProps>(
-  ({ className, checked, onCheckedChange, ...props }, ref) => {
+  ({checked, onCheckedChange, ...props }, ref) => {
     const handleClick = () => {
       onCheckedChange?.(!checked)
     }

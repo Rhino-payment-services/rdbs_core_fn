@@ -14,7 +14,6 @@ import type {
   CustomerFilters,
   AnalyticsFilters,
   Role,
-  Permission,
   CreateRoleRequest,
   AssignRoleRequest,
   PermissionsResponse,
@@ -32,11 +31,12 @@ import type {
   KycApproval,
   SystemLog,
   SystemLogsResponse,
-  TransactionSystemStats
+  TransactionSystemStats,
+  ApiFetchOptions
 } from '@/lib/types/api'
 
 // Generic API wrapper using centralized Axios instance
-const apiFetch = async (endpoint: string, options: any = {}) => {
+const apiFetch = async (endpoint: string, options: ApiFetchOptions = {}) => {
   try {
     const response = await api({
       url: endpoint,
@@ -46,7 +46,7 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
     })
     
     return response.data
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Error is already handled by Axios interceptors
     throw error
   }
@@ -299,8 +299,8 @@ export const useOptimisticUpdate = <T>(
 ) => {
   const queryClient = useQueryClient()
   
-  return (newData: T) => {
-    queryClient.setQueryData(queryKey, updateFn)
+  return () => {
+    queryClient.setQueryData(queryKey, updateFn(queryClient.getQueryData(queryKey)) )
   }
 }
 
@@ -595,7 +595,7 @@ export const useSystemLogsStats = (filters?: {
   endDate?: string; 
 }) => {
   const queryString = filters ? new URLSearchParams(filters as Record<string, string>).toString() : ''
-  return useQuery<ApiResponse<any>>({
+  return useQuery<ApiResponse<TransactionSystemStats>>({
     queryKey: [...queryKeys.systemLogs, 'stats', filters],
     queryFn: () => apiFetch(`/activity-logs/stats${queryString ? `?${queryString}` : ''}`),
     staleTime: 5 * 60 * 1000, // 5 minutes

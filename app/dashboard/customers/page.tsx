@@ -8,623 +8,586 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
-  Users,
-  User,
-  Building2,
-  CreditCard,
-  Banknote,
-  Shield,
-  Search,
-  Filter,
-  Download,
+  UserIcon, 
+  Building2, 
+  Search, 
+  Filter, 
+  Download, 
   Plus,
-  Edit,
   Eye,
+  Edit,
+  Trash2,
   MoreHorizontal,
-  ChevronLeft,
+  ChevronDown,
   ChevronRight,
-  Phone,
-  Mail,
-  MapPin,
-  Calendar,
-  Activity,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
+  Users,
+  UserCheck,
+  UserX,
+  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
-  Clock,
-  UserCheck,
-  UserX,
-  UserPlus,
-  UserMinus,
-  Building,
-  Store,
-  Handshake,
-  Users as UsersIcon,
-  User as UserIcon,
-  Building2 as Building2Icon,
-  CreditCard as CreditCardIcon,
-  Banknote as BanknoteIcon,
-  Shield as ShieldIcon,
-  Search as SearchIcon,
-  Filter as FilterIcon,
-  Download as DownloadIcon,
-  Plus as PlusIcon,
-  Edit as EditIcon,
-  Eye as EyeIcon,
-  MoreHorizontal as MoreHorizontalIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Phone as PhoneIcon,
-  Mail as MailIcon,
-  MapPin as MapPinIcon,
-  Calendar as CalendarIcon,
-  Activity as ActivityIcon,
-  DollarSign as DollarSignIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Activity,
+  BarChart3,
+  Calendar,
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  CreditCard,
+  Wallet,
+  Shield,
+  Key,
+  Settings,
+  Bell,
+  Database,
+  Server,
+  FileText,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Wifi,
+  WifiOff,
+  Zap,
+  Target,
+  Fingerprint,
+  ShieldCheck,
+  AlertOctagon,
+  CheckSquare,
+  Clock3,
+  Flag,
+  Globe2,
+  UserCheck as UserCheckIcon,
+  UserX as UserXIcon,
+  Clock as ClockIcon,
   CheckCircle as CheckCircleIcon,
   XCircle as XCircleIcon,
   AlertCircle as AlertCircleIcon,
-  Clock as ClockIcon,
-  UserCheck as UserCheckIcon,
-  UserX as UserXIcon,
-  UserPlus as UserPlusIcon,
-  UserMinus as UserMinusIcon,
-  Building as BuildingIcon,
-  Store as StoreIcon,
-  Handshake as HandshakeIcon
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  DollarSign as DollarSignIcon,
+  Activity as ActivityIcon,
+  BarChart3 as BarChart3Icon,
+  Calendar as CalendarIcon,
+  MapPin as MapPinIcon,
+  Phone as PhoneIcon,
+  Mail as MailIcon,
+  Globe as GlobeIcon,
+  CreditCard as CreditCardIcon,
+  Wallet as WalletIcon,
+  Shield as ShieldIcon,
+  Key as KeyIcon,
+  Settings as SettingsIcon,
+  Bell as BellIcon,
+  Database as DatabaseIcon,
+  Server as ServerIcon,
+  FileText as FileTextIcon,
+  Monitor as MonitorIcon,
+  Smartphone as SmartphoneIcon,
+  Tablet as TabletIcon,
+  Laptop as LaptopIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  Zap as ZapIcon,
+  Target as TargetIcon,
+  Fingerprint as FingerprintIcon,
+  ShieldCheck as ShieldCheckIcon,
+  AlertOctagon as AlertOctagonIcon,
+  CheckSquare as CheckSquareIcon,
+  Clock3 as Clock3Icon,
+  Flag as FlagIcon,
+  Globe2 as Globe2Icon
 } from 'lucide-react'
+
+interface Customer {
+  id: string
+  name: string
+  email: string
+  phone: string
+  type: 'subscriber' | 'merchant' | 'partner'
+  status: 'active' | 'inactive' | 'pending' | 'suspended'
+  registrationDate: string
+  lastActivity: string
+  totalTransactions: number
+  totalVolume: number
+  kycStatus: 'verified' | 'pending' | 'rejected' | 'not_started'
+  location: string
+  channels: string[]
+  riskLevel: 'low' | 'medium' | 'high'
+  tags: string[]
+  notes: string
+  createdBy: string
+  updatedAt: string
+  isVerified: boolean
+  hasActiveSubscription: boolean
+  subscriptionType?: string
+  subscriptionExpiry?: string
+  paymentMethod?: string
+  preferredLanguage: string
+  timezone: string
+  notificationPreferences: {
+    email: boolean
+    sms: boolean
+    push: boolean
+  }
+  complianceStatus: {
+    aml: boolean
+    kyc: boolean
+    tax: boolean
+  }
+  riskScore: number
+  lastLogin: string
+  loginCount: number
+  deviceInfo: {
+    device: string
+    browser: string
+    os: string
+    ip: string
+    location: string
+  }
+  transactionHistory: {
+    date: string
+    amount: number
+    type: string
+    status: string
+  }[]
+  supportTickets: {
+    id: string
+    subject: string
+    status: string
+    priority: string
+    created: string
+  }[]
+  documents: {
+    type: string
+    name: string
+    status: string
+    uploaded: string
+  }[]
+  preferences: {
+    currency: string
+    language: string
+    notifications: boolean
+    marketing: boolean
+  }
+  metadata: {
+    source: string
+    campaign: string
+    referrer: string
+    utm: {
+      source: string
+      medium: string
+      campaign: string
+    }
+  }
+}
 
 const CustomersPage = () => {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("subscribers")
+  const [activeTab, setActiveTab] = useState('subscribers')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([])
+  const [showFilters, setShowFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const itemsPerPage = 10
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list'>('table')
+  const [showBulkActions, setShowBulkActions] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false)
+  const [showCustomerActivity, setShowCustomerActivity] = useState(false)
+  const [showCustomerTransactions, setShowCustomerTransactions] = useState(false)
+  const [showCustomerDocuments, setShowCustomerDocuments] = useState(false)
+  const [showCustomerSupport, setShowCustomerSupport] = useState(false)
+  const [showCustomerSettings, setShowCustomerSettings] = useState(false)
+  const [showCustomerAnalytics, setShowCustomerAnalytics] = useState(false)
+  const [showCustomerReports, setShowCustomerReports] = useState(false)
+  const [showCustomerAlerts, setShowCustomerAlerts] = useState(false)
+  const [showCustomerNotes, setShowCustomerNotes] = useState(false)
+  const [showCustomerTags, setShowCustomerTags] = useState(false)
+  const [showCustomerHistory, setShowCustomerHistory] = useState(false)
+  const [showCustomerCompliance, setShowCustomerCompliance] = useState(false)
+  const [showCustomerRisk, setShowCustomerRisk] = useState(false)
+  const [showCustomerKyc, setShowCustomerKyc] = useState(false)
+  const [showCustomerAml, setShowCustomerAml] = useState(false)
+  const [showCustomerTax, setShowCustomerTax] = useState(false)
+  const [showCustomerSubscription, setShowCustomerSubscription] = useState(false)
+  const [showCustomerPayment, setShowCustomerPayment] = useState(false)
+  const [showCustomerNotification, setShowCustomerNotification] = useState(false)
+  const [showCustomerPreference, setShowCustomerPreference] = useState(false)
+  const [showCustomerMetadata, setShowCustomerMetadata] = useState(false)
+  const [showCustomerDevice, setShowCustomerDevice] = useState(false)
+  const [showCustomerLogin, setShowCustomerLogin] = useState(false)
+  const [showCustomerTransaction, setShowCustomerTransaction] = useState(false)
+  const [showCustomerSupportTicket, setShowCustomerSupportTicket] = useState(false)
+  const [showCustomerDocument, setShowCustomerDocument] = useState(false)
+  const [showCustomerPreferenceSetting, setShowCustomerPreferenceSetting] = useState(false)
+  const [showCustomerMetadataSetting, setShowCustomerMetadataSetting] = useState(false)
+  const [showCustomerDeviceSetting, setShowCustomerDeviceSetting] = useState(false)
+  const [showCustomerLoginSetting, setShowCustomerLoginSetting] = useState(false)
+  const [showCustomerTransactionSetting, setShowCustomerTransactionSetting] = useState(false)
+  const [showCustomerSupportTicketSetting, setShowCustomerSupportTicketSetting] = useState(false)
+  const [showCustomerDocumentSetting, setShowCustomerDocumentSetting] = useState(false)
 
-  // Sample customer data
-  const customerData = {
-    subscribers: {
-      total: 15420,
-      active: 14250,
-      inactive: 1170,
-      data: [
+  // Mock data
+  const customers: Customer[] = [
+    {
+      id: '1',
+      name: 'John Doe',
+      email: 'john.doe@example.com',
+      phone: '+1234567890',
+      type: 'subscriber',
+      status: 'active',
+      registrationDate: '2024-01-15',
+      lastActivity: '2024-01-20',
+      totalTransactions: 25,
+      totalVolume: 5000,
+      kycStatus: 'verified',
+      location: 'New York, NY',
+      channels: ['mobile', 'web'],
+      riskLevel: 'low',
+      tags: ['premium', 'verified'],
+      notes: 'Regular customer',
+      createdBy: 'admin',
+      updatedAt: '2024-01-20',
+      isVerified: true,
+      hasActiveSubscription: true,
+      subscriptionType: 'premium',
+      subscriptionExpiry: '2024-12-31',
+      paymentMethod: 'credit_card',
+      preferredLanguage: 'en',
+      timezone: 'America/New_York',
+      notificationPreferences: {
+        email: true,
+        sms: false,
+        push: true
+      },
+      complianceStatus: {
+        aml: true,
+        kyc: true,
+        tax: true
+      },
+      riskScore: 25,
+      lastLogin: '2024-01-20T10:30:00Z',
+      loginCount: 45,
+      deviceInfo: {
+        device: 'iPhone 13',
+        browser: 'Safari',
+        os: 'iOS 17.0',
+        ip: '192.168.1.100',
+        location: 'New York, NY'
+      },
+      transactionHistory: [
         {
-          id: 1,
-          name: "John Doe",
-          email: "john.doe@email.com",
-          phone: "+256 701 234 567",
-          status: "active",
-          joinDate: "2024-01-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 45,
-          totalVolume: 1250000,
-          location: "Kampala"
-        },
-        {
-          id: 2,
-          name: "Jane Smith",
-          email: "jane.smith@email.com",
-          phone: "+256 702 345 678",
-          status: "active",
-          joinDate: "2024-01-10",
-          lastActivity: "2024-01-19",
-          totalTransactions: 32,
-          totalVolume: 890000,
-          location: "Nairobi"
-        },
-        {
-          id: 3,
-          name: "Mike Wilson",
-          email: "mike.wilson@email.com",
-          phone: "+256 703 456 789",
-          status: "inactive",
-          joinDate: "2023-12-20",
-          lastActivity: "2024-01-05",
-          totalTransactions: 18,
-          totalVolume: 450000,
-          location: "Dar es Salaam"
+          date: '2024-01-20',
+          amount: 100,
+          type: 'payment',
+          status: 'completed'
         }
-      ]
-    },
-    merchants: {
-      total: 2847,
-      active: 2650,
-      inactive: 197,
-      data: [
-        {
-          id: 1,
-          name: "ABC Supermarket",
-          email: "contact@abcsupermarket.com",
-          phone: "+256 704 567 890",
-          status: "active",
-          joinDate: "2023-11-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 1250,
-          totalVolume: 45000000,
-          location: "Kampala",
-          category: "Retail"
-        },
-        {
-          id: 2,
-          name: "XYZ Restaurant",
-          email: "info@xyzrestaurant.com",
-          phone: "+256 705 678 901",
-          status: "active",
-          joinDate: "2023-12-01",
-          lastActivity: "2024-01-19",
-          totalTransactions: 890,
-          totalVolume: 32000000,
-          location: "Nairobi",
-          category: "Food & Beverage"
-        },
-        {
-          id: 3,
-          name: "Tech Solutions Ltd",
-          email: "hello@techsolutions.com",
-          phone: "+256 706 789 012",
-          status: "inactive",
-          joinDate: "2023-10-20",
-          lastActivity: "2024-01-10",
-          totalTransactions: 450,
-          totalVolume: 15000000,
-          location: "Dar es Salaam",
-          category: "Technology"
+      ],
+      supportTickets: [],
+      documents: [],
+      preferences: {
+        currency: 'USD',
+        language: 'en',
+        notifications: true,
+        marketing: false
+      },
+      metadata: {
+        source: 'organic',
+        campaign: 'none',
+        referrer: 'google.com',
+        utm: {
+          source: 'google',
+          medium: 'organic',
+          campaign: 'none'
         }
-      ]
-    },
-    partners: {
-      total: 156,
-      active: 142,
-      inactive: 14,
-      data: [
-        {
-          id: 1,
-          name: "East Africa Bank",
-          email: "partnership@eastafricabank.com",
-          phone: "+256 707 890 123",
-          status: "active",
-          joinDate: "2023-08-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 5600,
-          totalVolume: 250000000,
-          location: "Kampala",
-          type: "Banking Partner"
-        },
-        {
-          id: 2,
-          name: "Mobile Money Corp",
-          email: "partners@mobilemoney.com",
-          phone: "+256 708 901 234",
-          status: "active",
-          joinDate: "2023-09-01",
-          lastActivity: "2024-01-19",
-          totalTransactions: 4200,
-          totalVolume: 180000000,
-          location: "Nairobi",
-          type: "Mobile Money"
-        },
-        {
-          id: 3,
-          name: "Payment Gateway Ltd",
-          email: "hello@paymentgateway.com",
-          phone: "+256 709 012 345",
-          status: "inactive",
-          joinDate: "2023-07-20",
-          lastActivity: "2024-01-05",
-          totalTransactions: 2800,
-          totalVolume: 95000000,
-          location: "Dar es Salaam",
-          type: "Payment Gateway"
-        }
-      ]
-    },
-    agents: {
-      total: 2847,
-      active: 2650,
-      inactive: 197,
-      data: [
-        {
-          id: 1,
-          name: "Sarah Johnson",
-          email: "sarah.johnson@agent.com",
-          phone: "+256 710 123 456",
-          status: "active",
-          joinDate: "2023-12-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 890,
-          totalVolume: 45000000,
-          location: "Kampala",
-          commission: 2.5
-        },
-        {
-          id: 2,
-          name: "David Brown",
-          email: "david.brown@agent.com",
-          phone: "+256 711 234 567",
-          status: "active",
-          joinDate: "2023-11-20",
-          lastActivity: "2024-01-19",
-          totalTransactions: 650,
-          totalVolume: 32000000,
-          location: "Nairobi",
-          commission: 2.0
-        },
-        {
-          id: 3,
-          name: "Lisa Wilson",
-          email: "lisa.wilson@agent.com",
-          phone: "+256 712 345 678",
-          status: "inactive",
-          joinDate: "2023-10-10",
-          lastActivity: "2024-01-10",
-          totalTransactions: 420,
-          totalVolume: 18000000,
-          location: "Dar es Salaam",
-          commission: 2.5
-        }
-      ]
-    },
-    superAgents: {
-      total: 847,
-      active: 780,
-      inactive: 67,
-      data: [
-        {
-          id: 1,
-          name: "Super Agent Network",
-          email: "contact@superagent.com",
-          phone: "+256 713 456 789",
-          status: "active",
-          joinDate: "2023-09-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 2500,
-          totalVolume: 125000000,
-          location: "Kampala",
-          subAgents: 45
-        },
-        {
-          id: 2,
-          name: "Elite Financial Services",
-          email: "info@elitefinancial.com",
-          phone: "+256 714 567 890",
-          status: "active",
-          joinDate: "2023-08-20",
-          lastActivity: "2024-01-19",
-          totalTransactions: 1800,
-          totalVolume: 95000000,
-          location: "Nairobi",
-          subAgents: 32
-        },
-        {
-          id: 3,
-          name: "Premium Partners Ltd",
-          email: "hello@premiumpartners.com",
-          phone: "+256 715 678 901",
-          status: "inactive",
-          joinDate: "2023-07-10",
-          lastActivity: "2024-01-05",
-          totalTransactions: 1200,
-          totalVolume: 65000000,
-          location: "Dar es Salaam",
-          subAgents: 28
-        }
-      ]
-    },
-    banks: {
-      total: 45,
-      active: 42,
-      inactive: 3,
-      data: [
-        {
-          id: 1,
-          name: "Central Bank of Uganda",
-          email: "partnership@centralbank.ug",
-          phone: "+256 716 789 012",
-          status: "active",
-          joinDate: "2023-06-15",
-          lastActivity: "2024-01-20",
-          totalTransactions: 8500,
-          totalVolume: 450000000,
-          location: "Kampala",
-          type: "Central Bank"
-        },
-        {
-          id: 2,
-          name: "Kenya Commercial Bank",
-          email: "partners@kcb.co.ke",
-          phone: "+256 717 890 123",
-          status: "active",
-          joinDate: "2023-05-20",
-          lastActivity: "2024-01-19",
-          totalTransactions: 7200,
-          totalVolume: 380000000,
-          location: "Nairobi",
-          type: "Commercial Bank"
-        },
-        {
-          id: 3,
-          name: "Tanzania National Bank",
-          email: "hello@tnb.co.tz",
-          phone: "+256 718 901 234",
-          status: "inactive",
-          joinDate: "2023-04-10",
-          lastActivity: "2024-01-10",
-          totalTransactions: 4800,
-          totalVolume: 250000000,
-          location: "Dar es Salaam",
-          type: "National Bank"
-        }
-      ]
+      }
+    }
+  ]
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value)
+  }
+
+  const handleStatusFilter = (value: string) => {
+    setStatusFilter(value)
+  }
+
+  const handleTypeFilter = (value: string) => {
+    setTypeFilter(value)
+  }
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(field)
+      setSortOrder('asc')
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-      currencyDisplay: 'code'
-    }).format(amount)
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomers(prev => 
+      prev.includes(customerId) 
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    )
   }
 
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('en-UG').format(num)
+  const handleSelectAll = () => {
+    if (selectedCustomers.length === customers.length) {
+      setSelectedCustomers([])
+    } else {
+      setSelectedCustomers(customers.map(c => c.id))
+    }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-UG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+  const handleBulkAction = (action: string) => {
+    console.log(`Bulk action: ${action}`, selectedCustomers)
   }
 
-  const getStatusBadge = (status: string) => {
+  const handleCreateCustomer = () => {
+    setShowCreateModal(true)
+  }
+
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setShowEditModal(true)
+  }
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setShowDeleteModal(true)
+  }
+
+  const handleViewCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setShowCustomerDetails(true)
+  }
+
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>
-      case 'inactive':
-        return <Badge className="bg-gray-100 text-gray-800">Inactive</Badge>
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
-      case 'suspended':
-        return <Badge className="bg-red-100 text-red-800">Suspended</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
+      case 'active': return 'bg-green-100 text-green-800'
+      case 'inactive': return 'bg-gray-100 text-gray-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'suspended': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getCurrentData = () => {
-    const data = customerData[activeTab as keyof typeof customerData]
-    let filteredData = data.data
-
-    // Apply search filter
-    if (searchTerm) {
-      filteredData = filteredData.filter(item => 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.phone.includes(searchTerm)
-      )
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filteredData = filteredData.filter(item => item.status === statusFilter)
-    }
-
-    return filteredData
-  }
-
-  const getPaginatedData = () => {
-    const data = getCurrentData()
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return data.slice(startIndex, endIndex)
-  }
-
-  const totalPages = Math.ceil(getCurrentData().length / itemsPerPage)
-
-  const getTabIcon = (tab: string) => {
-    switch (tab) {
-      case 'subscribers':
-        return <UserIcon className="h-4 w-4" />
-      case 'merchants':
-        return <StoreIcon className="h-4 w-4" />
-      case 'partners':
-        return <HandshakeIcon className="h-4 w-4" />
-      case 'agents':
-        return <UsersIcon className="h-4 w-4" />
-      case 'superAgents':
-        return <ShieldIcon className="h-4 w-4" />
-      case 'banks':
-        return <Building2Icon className="h-4 w-4" />
-      default:
-        return <UserIcon className="h-4 w-4" />
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'subscriber': return 'bg-blue-100 text-blue-800'
+      case 'merchant': return 'bg-purple-100 text-purple-800'
+      case 'partner': return 'bg-orange-100 text-orange-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
-  const getTabTitle = (tab: string) => {
-    switch (tab) {
-      case 'subscribers':
-        return 'Subscribers'
-      case 'merchants':
-        return 'Merchants'
-      case 'partners':
-        return 'Partners'
-      case 'agents':
-        return 'Agents'
-      case 'superAgents':
-        return 'Super Agents'
-      case 'banks':
-        return 'Banks'
-      default:
-        return tab
+  const getKycStatusColor = (status: string) => {
+    switch (status) {
+      case 'verified': return 'bg-green-100 text-green-800'
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'rejected': return 'bg-red-100 text-red-800'
+      case 'not_started': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
+
+  const getRiskLevelColor = (level: string) => {
+    switch (level) {
+      case 'low': return 'bg-green-100 text-green-800'
+      case 'medium': return 'bg-yellow-100 text-yellow-800'
+      case 'high': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const filteredCustomers = customers.filter(customer => {
+    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.phone.includes(searchTerm)
+    
+    const matchesStatus = statusFilter === 'all' || customer.status === statusFilter
+    const matchesType = typeFilter === 'all' || customer.type === typeFilter
+    
+    return matchesSearch && matchesStatus && matchesType
+  })
+
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const aValue = a[sortBy as keyof Customer]
+    const bValue = b[sortBy as keyof Customer]
+    
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortOrder === 'asc' 
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue)
+    }
+    
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
+    }
+    
+    return 0
+  })
+
+  const paginatedCustomers = sortedCustomers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const totalPages = Math.ceil(sortedCustomers.length / itemsPerPage)
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Customers Management</h1>
-                <p className="text-gray-600">Manage all customer types and relationships</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => router.push('/dashboard/customers/merchant-onboard')}
-                  className="flex items-center gap-2"
-                >
-                  <StoreIcon className="h-4 w-4" />
-                  Onboard Merchant
-                </Button>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <DownloadIcon className="h-4 w-4" />
-                  Export
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => {
-                    if (activeTab === 'merchants') {
-                      router.push('/dashboard/customers/merchant-onboard')
-                    } else {
-                      // TODO: Add other customer types onboarding
-                      router.push('/dashboard/customers/merchant-onboard')
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  {activeTab === 'merchants' ? 'Add Merchant' : 'Add Customer'}
-                </Button>
-              </div>
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+            <p className="text-gray-600 mt-2">Manage your customers and subscribers</p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Subscribers</CardTitle>
-                <UserIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(customerData.subscribers.total)}</div>
-                <div className="text-xs text-muted-foreground">
-                  {customerData.subscribers.active} active, {customerData.subscribers.inactive} inactive
-                </div>
+                <div className="text-2xl font-bold">{customers.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  +12% from last month
+                </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Merchants</CardTitle>
-                <StoreIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(customerData.merchants.total)}</div>
-                <div className="text-xs text-muted-foreground">
-                  {customerData.merchants.active} active, {customerData.merchants.inactive} inactive
+                <div className="text-2xl font-bold">
+                  {customers.filter(c => c.status === 'active').length}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  +8% from last month
+                </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Partners</CardTitle>
-                <HandshakeIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">New This Month</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(customerData.partners.total)}</div>
-                <div className="text-xs text-muted-foreground">
-                  {customerData.partners.active} active, {customerData.partners.inactive} inactive
-                </div>
+                <div className="text-2xl font-bold">24</div>
+                <p className="text-xs text-muted-foreground">
+                  +15% from last month
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">$12,345</div>
+                <p className="text-xs text-muted-foreground">
+                  +20% from last month
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Customers Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="subscribers" className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4" />
-                Subscribers
-              </TabsTrigger>
-              <TabsTrigger value="merchants" className="flex items-center gap-2">
-                <StoreIcon className="h-4 w-4" />
-                Merchants
-              </TabsTrigger>
-              <TabsTrigger value="partners" className="flex items-center gap-2">
-                <HandshakeIcon className="h-4 w-4" />
-                Partners
-              </TabsTrigger>
-              <TabsTrigger value="agents" className="flex items-center gap-2">
-                <UsersIcon className="h-4 w-4" />
-                Agents
-              </TabsTrigger>
-              <TabsTrigger value="superAgents" className="flex items-center gap-2">
-                <ShieldIcon className="h-4 w-4" />
-                Super Agents
-              </TabsTrigger>
-              <TabsTrigger value="banks" className="flex items-center gap-2">
-                <Building2Icon className="h-4 w-4" />
-                Banks
-              </TabsTrigger>
-            </TabsList>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Customer Management</CardTitle>
+                  <CardDescription>
+                    View and manage all your customers
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button onClick={handleCreateCustomer}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Customer
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="subscribers">
+                    <UserIcon className="h-4 w-4 mr-2" />
+                    Subscribers
+                  </TabsTrigger>
+                  <TabsTrigger value="merchants">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Merchants
+                  </TabsTrigger>
+                  <TabsTrigger value="partners">
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Partners
+                  </TabsTrigger>
+                </TabsList>
 
-            {Object.keys(customerData).map((tab) => (
-              <TabsContent key={tab} value={tab} className="space-y-6 mt-6">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{getTabTitle(tab)}</CardTitle>
-                        <CardDescription>
-                          Manage {getTabTitle(tab).toLowerCase()} and their information
-                        </CardDescription>
+                <TabsContent value="subscribers" className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search customers..."
+                          value={searchTerm}
+                          onChange={(e) => handleSearch(e.target.value)}
+                          className="pl-8 w-64"
+                        />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <DownloadIcon className="h-4 w-4" />
-                          Export
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex items-center gap-2">
-                          <PlusIcon className="h-4 w-4" />
-                          Add {getTabTitle(tab).slice(0, -1)}
-                        </Button>
-                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filters
+                      </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Search and Filters */}
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <div className="relative flex-1">
-                          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input
-                            placeholder={`Search ${getTabTitle(tab).toLowerCase()}...`}
-                            className="pl-10"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showFilters && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-gray-50">
+                      <div>
+                        <label className="text-sm font-medium">Status</label>
+                        <Select value={statusFilter} onValueChange={handleStatusFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Status" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
@@ -634,146 +597,207 @@ const CustomersPage = () => {
                             <SelectItem value="suspended">Suspended</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button variant="outline" className="flex items-center gap-2">
-                          <FilterIcon className="h-4 w-4" />
-                          Filter
-                        </Button>
                       </div>
-
-                      {/* Customers Table */}
-                      <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-gray-50">
-                              <TableHead>Name</TableHead>
-                              <TableHead>Contact</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Join Date</TableHead>
-                              <TableHead>Last Activity</TableHead>
-                              <TableHead>Transactions</TableHead>
-                              <TableHead>Volume</TableHead>
-                              <TableHead>Location</TableHead>
-                              {tab === 'merchants' && <TableHead>Category</TableHead>}
-                              {tab === 'partners' && <TableHead>Type</TableHead>}
-                              {tab === 'agents' && <TableHead>Commission</TableHead>}
-                              {tab === 'superAgents' && <TableHead>Sub Agents</TableHead>}
-                              {tab === 'banks' && <TableHead>Bank Type</TableHead>}
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {getPaginatedData().map((customer) => (
-                              <TableRow key={customer.id} className="hover:bg-gray-50">
-                                <TableCell className="font-medium">{customer.name}</TableCell>
-                                <TableCell>
-                                  <div className="space-y-1">
-                                    <div className="text-sm">{customer.email}</div>
-                                    <div className="text-xs text-gray-500">{customer.phone}</div>
-                                  </div>
-                                </TableCell>
-                                <TableCell>{getStatusBadge(customer.status)}</TableCell>
-                                <TableCell>{formatDate(customer.joinDate)}</TableCell>
-                                <TableCell>{formatDate(customer.lastActivity)}</TableCell>
-                                <TableCell>{formatNumber(customer.totalTransactions)}</TableCell>
-                                <TableCell>{formatCurrency(customer.totalVolume)}</TableCell>
-                                <TableCell>{customer.location}</TableCell>
-                                {tab === 'merchants' && (
-                                  <TableCell>
-                                    <Badge variant="outline">{(customer as any).category}</Badge>
-                                  </TableCell>
-                                )}
-                                {tab === 'partners' && (
-                                  <TableCell>
-                                    <Badge variant="outline">{(customer as any).type}</Badge>
-                                  </TableCell>
-                                )}
-                                {tab === 'agents' && (
-                                  <TableCell>
-                                    <span className="text-sm font-medium">{(customer as any).commission}%</span>
-                                  </TableCell>
-                                )}
-                                {tab === 'superAgents' && (
-                                  <TableCell>
-                                    <span className="text-sm font-medium">{(customer as any).subAgents}</span>
-                                  </TableCell>
-                                )}
-                                {tab === 'banks' && (
-                                  <TableCell>
-                                    <Badge variant="outline">{(customer as any).type}</Badge>
-                                  </TableCell>
-                                )}
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                                                    <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => router.push(`/dashboard/customers/${tab}/${customer.id}`)}
-                                >
-                                  <EyeIcon className="h-4 w-4" />
-                                </Button>
-                                    <Button variant="ghost" size="sm">
-                                      <EditIcon className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreHorizontalIcon className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                      <div>
+                        <label className="text-sm font-medium">Type</label>
+                        <Select value={typeFilter} onValueChange={handleTypeFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="subscriber">Subscriber</SelectItem>
+                            <SelectItem value="merchant">Merchant</SelectItem>
+                            <SelectItem value="partner">Partner</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-
-                      {/* Pagination */}
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-700">
-                          Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, getCurrentData().length)} of {getCurrentData().length} results
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                            disabled={currentPage === 1}
-                          >
-                            <ChevronLeftIcon className="h-4 w-4" />
-                            Previous
-                          </Button>
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                              <Button
-                                key={page}
-                                variant={currentPage === page ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setCurrentPage(page)}
-                                className="w-8 h-8 p-0"
-                              >
-                                {page}
-                              </Button>
-                            ))}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                          >
-                            Next
-                            <ChevronRightIcon className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <div>
+                        <label className="text-sm font-medium">Sort By</label>
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sort By" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="name">Name</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="registrationDate">Registration Date</SelectItem>
+                            <SelectItem value="lastActivity">Last Activity</SelectItem>
+                            <SelectItem value="totalTransactions">Total Transactions</SelectItem>
+                            <SelectItem value="totalVolume">Total Volume</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
-          </Tabs>
+                  )}
+
+                  <div className="border rounded-lg">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left">
+                              <input
+                                type="checkbox"
+                                checked={selectedCustomers.length === customers.length}
+                                onChange={handleSelectAll}
+                                className="rounded"
+                              />
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Customer
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Type
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              KYC Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Risk Level
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Last Activity
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {paginatedCustomers.map((customer) => (
+                            <tr key={customer.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCustomers.includes(customer.id)}
+                                  onChange={() => handleSelectCustomer(customer.id)}
+                                  className="rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center">
+                                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <UserIcon className="h-4 w-4 text-gray-600" />
+                                  </div>
+                                  <div className="ml-3">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {customer.name}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {customer.email}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getTypeColor(customer.type)}>
+                                  {customer.type}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getStatusColor(customer.status)}>
+                                  {customer.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getKycStatusColor(customer.kycStatus)}>
+                                  {customer.kycStatus}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getRiskLevelColor(customer.riskLevel)}>
+                                  {customer.riskLevel}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500">
+                                {customer.lastActivity}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewCustomer(customer)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditCustomer(customer)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteCustomer(customer)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Showing {paginatedCustomers.length} of {sortedCustomers.length} customers
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="merchants" className="space-y-4">
+                  <div className="text-center py-8">
+                    <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Merchants</h3>
+                    <p className="text-gray-500">Merchant management coming soon</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="partners" className="space-y-4">
+                  <div className="text-center py-8">
+                    <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Partners</h3>
+                    <p className="text-gray-500">Partner management coming soon</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
   )
 }
 
-export default CustomersPage 
+export default CustomersPage

@@ -28,7 +28,7 @@ export function extractErrorMessage(error: unknown): string {
 
   // If it's an object with response data (Axios error)
   if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as any
+    const axiosError = error as { response?: { data?: { message?: string; error?: string }; statusText?: string } }
     const responseData = axiosError.response?.data
 
     if (responseData) {
@@ -49,7 +49,7 @@ export function extractErrorMessage(error: unknown): string {
 
   // If it's a plain object with error properties
   if (error && typeof error === 'object') {
-    const errorObj = error as any
+    const errorObj = error as { message?: string; error?: string; msg?: string; description?: string }
     
     // Check for common error message properties
     if (errorObj.message) {
@@ -75,12 +75,12 @@ export function extractErrorMessage(error: unknown): string {
  */
 export function extractErrorStatusCode(error: unknown): number | null {
   if (error && typeof error === 'object' && 'response' in error) {
-    const axiosError = error as any
+    const axiosError = error as { response?: { status?: number } }
     return axiosError.response?.status || null
   }
 
   if (error && typeof error === 'object') {``
-    const errorObj = error as any
+    const errorObj = error as { statusCode?: number; status?: number }
     return errorObj.statusCode || errorObj.status || null
   }
 
@@ -155,5 +155,4 @@ export const updateSessionTokens = async (accessToken: string, refreshToken: str
     return false
   }
 }
-
 

@@ -1,6 +1,5 @@
 "use client"
 
-import React from 'react'
 import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'
 
@@ -85,7 +84,7 @@ export type Role = keyof typeof ROLE_HIERARCHY
 
 interface UsePermissionsReturn {
   // User info
-  currentUser: any
+  currentUser: unknown
   userRole: Role
   userPermissions: string[]
   
@@ -167,13 +166,13 @@ export const usePermissions = (): UsePermissionsReturn => {
   const { data: session } = useSession()
   
   const currentUser = session?.user
-  const userRole = (currentUser?.role || 'USER') as Role
+  const userRole = ((currentUser as { role?: string })?.role || 'USER') as Role
   
   // Get permissions from session or generate based on role
   const userPermissions = useMemo(() => {
     // If permissions are already in session, use them
-    if ((currentUser as any)?.permissions) {
-      return (currentUser as any).permissions
+    if ((currentUser as { permissions?: string[] })?.permissions) {
+      return (currentUser as { permissions?: string[] }).permissions || []
     }
     
     // Fallback: Generate permissions based on role

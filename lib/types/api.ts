@@ -2,6 +2,8 @@
 export interface User {
   id: string
   old_id?: string | null
+  firstName?: string | null
+  lastName?: string | null
   email?: string | null
   phone?: string | null
   pin?: string | null
@@ -15,6 +17,7 @@ export interface User {
   lastLoginAt?: string | null
   createdAt: string
   updatedAt: string
+  permissions?: Permission[]
 }
 
 export interface Role {
@@ -346,7 +349,7 @@ export interface SystemLog {
   category: string
   description: string
   status: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   channel: string
   requestId: string
   ipAddress?: string
@@ -417,3 +420,8 @@ export interface TransactionSystemStats {
   transactionsByStatus: Record<string, number>
   transactionsByCurrency: Record<string, number>
 } 
+export interface ApiFetchOptions {
+  method?: string
+  data?: unknown
+  params?: Record<string, string>
+}

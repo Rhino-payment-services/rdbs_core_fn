@@ -50,10 +50,8 @@ const CreateUserPage = () => {
 
   // Available user types
   const userTypes = [
-    { value: "END_USER", label: "End User (Phone-based)" },
-    { value: "STAFF_USER", label: "Staff User (Internal)" },
-    { value: "PARTNER", label: "Partner (Business)" },
-    { value: "AGENT", label: "Agent (Field/Distributor)" }
+    { value: "SUBSCRIBER", label: "Subscriber (Customer)" },
+    { value: "STAFF", label: "Staff (Internal)" }
   ]
 
   // Countries
@@ -234,7 +232,7 @@ const CreateUserPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="country">Country *</Label>
-                    <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
+                    <Select value={formData.country} onValueChange={(value: string) => handleInputChange('country', value)}>
                       <SelectTrigger className={errors.country ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
@@ -257,7 +255,7 @@ const CreateUserPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="department">Department *</Label>
-                    <Select value={formData.department} onValueChange={(value) => handleInputChange('department', value)}>
+                    <Select value={formData.department} onValueChange={(value: string) => handleInputChange('department', value)}>
                       <SelectTrigger className={errors.department ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
@@ -278,7 +276,7 @@ const CreateUserPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="position">Position *</Label>
-                    <Select value={formData.position} onValueChange={(value) => handleInputChange('position', value)}>
+                    <Select value={formData.position} onValueChange={(value: string) => handleInputChange('position', value)}>
                       <SelectTrigger className={errors.position ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select position" />
                       </SelectTrigger>
@@ -346,7 +344,7 @@ const CreateUserPage = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role *</Label>
-                    <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                    <Select value={formData.role} onValueChange={(value: string) => handleInputChange('role', value)}>
                       <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
@@ -369,7 +367,7 @@ const CreateUserPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="userType">User Type *</Label>
-                    <Select value={formData.userType} onValueChange={(value) => handleInputChange('userType', value)}>
+                    <Select value={formData.userType} onValueChange={(value: string) => handleInputChange('userType', value)}>
                       <SelectTrigger className={errors.userType ? 'border-red-500' : ''}>
                         <SelectValue placeholder="Select user type" />
                       </SelectTrigger>

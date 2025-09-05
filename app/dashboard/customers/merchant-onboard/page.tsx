@@ -483,7 +483,7 @@ const MerchantOnboardingPage = () => {
                         </div>
                         <div>
                           <Label htmlFor="gender">Gender *</Label>
-                          <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
+                          <Select value={formData.gender} onValueChange={(value: string) => setFormData(prev => ({ ...prev, gender: value }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select gender" />
                             </SelectTrigger>
@@ -585,7 +585,7 @@ const MerchantOnboardingPage = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="businessType">Business Type *</Label>
-                          <Select value={formData.businessType} onValueChange={(value) => setFormData(prev => ({ ...prev, businessType: value }))}>
+                          <Select value={formData.businessType} onValueChange={(value: string) => setFormData(prev => ({ ...prev, businessType: value }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select business type" />
                             </SelectTrigger>
@@ -724,7 +724,7 @@ const MerchantOnboardingPage = () => {
                         </div>
                         <div>
                           <Label htmlFor="mobileMoneyProvider">Mobile Money Provider *</Label>
-                          <Select value={formData.mobileMoneyProvider} onValueChange={(value) => setFormData(prev => ({ ...prev, mobileMoneyProvider: value }))}>
+                          <Select value={formData.mobileMoneyProvider} onValueChange={(value: string) => setFormData(prev => ({ ...prev, mobileMoneyProvider: value }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select provider" />
                             </SelectTrigger>
