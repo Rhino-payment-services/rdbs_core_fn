@@ -13,11 +13,13 @@ const PermissionsDemo = () => {
     userPermissions, 
     canCreateUser, 
     canViewUsers, 
-    canAccessSecurity,
-    canViewCustomers,
     canViewTransactions,
     canViewWallets,
-    canViewReports,
+    canViewKyc,
+    canViewMerchants,
+    canViewDocuments,
+    canViewTariffs,
+    canViewSystemLogs,
     hasPermission 
   } = usePermissions()
 
@@ -73,18 +75,6 @@ const PermissionsDemo = () => {
             <span>View Users</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={canAccessSecurity ? "default" : "secondary"}>
-              {canAccessSecurity ? "✅" : "❌"}
-            </Badge>
-            <span>Access Security</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={canViewCustomers ? "default" : "secondary"}>
-              {canViewCustomers ? "✅" : "❌"}
-            </Badge>
-            <span>View Customers</span>
-          </div>
-          <div className="flex items-center gap-2">
             <Badge variant={canViewTransactions ? "default" : "secondary"}>
               {canViewTransactions ? "✅" : "❌"}
             </Badge>
@@ -97,10 +87,34 @@ const PermissionsDemo = () => {
             <span>View Wallets</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={canViewReports ? "default" : "secondary"}>
-              {canViewReports ? "✅" : "❌"}
+            <Badge variant={canViewKyc ? "default" : "secondary"}>
+              {canViewKyc ? "✅" : "❌"}
             </Badge>
-            <span>View Reports</span>
+            <span>View KYC</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={canViewMerchants ? "default" : "secondary"}>
+              {canViewMerchants ? "✅" : "❌"}
+            </Badge>
+            <span>View Merchants</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={canViewDocuments ? "default" : "secondary"}>
+              {canViewDocuments ? "✅" : "❌"}
+            </Badge>
+            <span>View Documents</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={canViewTariffs ? "default" : "secondary"}>
+              {canViewTariffs ? "✅" : "❌"}
+            </Badge>
+            <span>View Tariffs</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant={canViewSystemLogs ? "default" : "secondary"}>
+              {canViewSystemLogs ? "✅" : "❌"}
+            </Badge>
+            <span>View System Logs</span>
           </div>
         </CardContent>
       </Card>
@@ -126,10 +140,10 @@ const PermissionsDemo = () => {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant={hasPermission(PERMISSIONS.SYSTEM_SETTINGS) ? "default" : "secondary"}>
-              {hasPermission(PERMISSIONS.SYSTEM_SETTINGS) ? "✅" : "❌"}
+            <Badge variant={hasPermission(PERMISSIONS.SYSTEM_CONFIGURE) ? "default" : "secondary"}>
+              {hasPermission(PERMISSIONS.SYSTEM_CONFIGURE) ? "✅" : "❌"}
             </Badge>
-            <span>System Settings Access</span>
+            <span>System Configure</span>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={hasPermission(PERMISSIONS.DELETE_USER) ? "default" : "secondary"}>
@@ -138,10 +152,10 @@ const PermissionsDemo = () => {
             <span>Delete User</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={hasPermission(PERMISSIONS.MANAGE_API_KEYS) ? "default" : "secondary"}>
-              {hasPermission(PERMISSIONS.MANAGE_API_KEYS) ? "✅" : "❌"}
+            <Badge variant={hasPermission(PERMISSIONS.CREATE_ROLE) ? "default" : "secondary"}>
+              {hasPermission(PERMISSIONS.CREATE_ROLE) ? "✅" : "❌"}
             </Badge>
-            <span>Manage API Keys</span>
+            <span>Create Role</span>
           </div>
         </CardContent>
       </Card>
@@ -149,4 +163,4 @@ const PermissionsDemo = () => {
   )
 }
 
-export default PermissionsDemo 
+export default PermissionsDemo

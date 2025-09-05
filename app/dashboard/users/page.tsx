@@ -35,8 +35,8 @@ const UsersPage = () => {
   
   // Get current user permissions
   const { 
-    canCreateUser, canUpdateUser, canDeleteUser, canAssignRole, canAssignPermissions, 
-    canManageRoles, canManagePermissions, canViewUsers, userRole
+    canCreateUser, canUpdateUser, canDeleteUser, canAssignRoles, 
+    canViewUsers, userRole
   } = useUserPermissions()
   
   console.log("users====>",users)
@@ -134,7 +134,7 @@ const UsersPage = () => {
           <div className="text-center">
             <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You don't have permission to view users.</p>
+            <p className="text-gray-600">You don&apos;t have permission to view users.</p>
           </div>
         </div>
       }
@@ -154,7 +154,7 @@ const UsersPage = () => {
                   <p className="text-sm text-gray-600">Available Roles</p>
                   <p className="text-lg font-semibold text-gray-900">{rolesArray.length}</p>
                 </div>
-                <PermissionGuard permission={PERMISSIONS.MANAGE_PERMISSIONS}>
+                <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
                   <Link href="/dashboard/users/permissions">
                     <Button variant="outline" className="border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white">
                       <Key className="w-4 h-4 mr-2" />
@@ -337,7 +337,6 @@ const UsersPage = () => {
               </div>
             </CardContent>
           </Card>
-
 
         </div>
       </main>

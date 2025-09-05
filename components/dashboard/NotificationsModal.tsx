@@ -1,10 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { X, Bell, CheckCircle, AlertCircle, Info, Clock, Search } from "lucide-react"
+import { X, Bell, CheckCircle, AlertCircle, Info, Clock} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 
 interface Notification {
   id: string
@@ -78,7 +77,7 @@ export default function NotificationsModal({ isOpen, onClose }: NotificationsMod
     return `${Math.floor(diffInMinutes / 1440)}d ago`
   }
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter((n: Notification) => !n.read).length
 
   if (!isOpen) return null
 

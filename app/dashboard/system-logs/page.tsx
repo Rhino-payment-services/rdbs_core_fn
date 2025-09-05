@@ -138,7 +138,7 @@ const SystemLogsPage = () => {
           <div className="text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You don't have permission to view system logs.</p>
+            <p className="text-gray-600">You don&apos;t have permission to view system logs.</p>
           </div>
         </div>
       }

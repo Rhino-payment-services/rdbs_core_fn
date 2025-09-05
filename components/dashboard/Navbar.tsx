@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home, BarChart3, Users, CreditCard, Shield, Activity, FileText, Database, Cog, HelpCircle, DollarSign, AlertCircle } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 // import NotificationsModal from './NotificationsModal'
 
@@ -14,15 +14,8 @@ const Navbar = () => {
   const pathname = usePathname()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const { user, logout } = useAuth()
-  const { 
-    canViewTransactions,
-    canViewUsers,
-    canViewSystemLogs,
-    canConfigureSystem,
-    canViewWallets,
-    canViewKyc,
-    userRole
-  } = usePermissions()
+
+  console.log(isNotificationsOpen)
   
   const isActive = (path: string) => {
     if (path === '/dashboard') {

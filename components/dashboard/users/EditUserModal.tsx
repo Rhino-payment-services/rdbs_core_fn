@@ -13,22 +13,17 @@ import {
   Edit, 
   Shield, 
   User as UserIcon, 
-  Mail, 
-  Phone, 
-  Calendar,
   Key,
   Trash2,
   Save,
   X,
   AlertTriangle,
   CheckCircle,
-  Clock,
-  Eye,
-  EyeOff
+  Clock
 } from 'lucide-react'
 import { useRoles, usePermissions, useUpdateUserRole, useRemoveRole, useAssignPermissions } from '@/lib/hooks/useApi'
 import type { User, Role, Permission } from '@/lib/types/api'
-import { usePermissions as useUserPermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
@@ -43,12 +38,11 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const [activeTab, setActiveTab] = useState("profile")
   const [selectedRole, setSelectedRole] = useState<string>("")
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
-  const [showPassword, setShowPassword] = useState(false)
   
   // Form states
   const [formData, setFormData] = useState({
-    firstName: (user as any).firstName || '',
-    lastName: (user as any).lastName || '',
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
     email: user.email || '',
     phone: user.phone || '',
     userType: user.userType || '',
@@ -56,14 +50,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   })
 
   // API hooks
-  const { data: roles, isLoading: isRolesLoading } = useRoles()
+  const { data: roles } = useRoles()
   const { data: permissions, isLoading: isPermissionsLoading } = usePermissions()
   const updateUserRole = useUpdateUserRole()
   const removeRole = useRemoveRole()
   const assignPermissions = useAssignPermissions()
   
-  // Current user permissions
-  const { canUpdateUser, canAssignRole, canAssignPermissions, canDeleteUser } = useUserPermissions()
 
   // Get data arrays
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
@@ -72,17 +64,17 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   // Initialize selected role
   useEffect(() => {
     if (user.role && rolesArray.length > 0) {
-      const currentRole = rolesArray.find(role => role.name === user.role)
+      const currentRole = rolesArray.find((role: Role) => role.name === user.role)
       setSelectedRole(currentRole?.id || "")
     }
   }, [user.role, rolesArray])
 
   // Initialize selected permissions
   useEffect(() => {
-    if ((user as any).permissions) {
-      setSelectedPermissions((user as any).permissions.map((p: any) => p.id || p))
+    if (user.permissions) {
+      setSelectedPermissions(user.permissions.map((p: Permission) => p.id || p.name || ''))
     }
-  }, [(user as any).permissions])
+  }, [user.permissions])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -201,7 +193,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     try {
       await assignPermissions.mutateAsync({ 
         userId: user.id, 
-        permissions: selectedPermissions 
+        permissions: selectedPermissions as string[]
       })
       toast.success('Permissions assigned successfully!')
     } catch (error: unknown) {
@@ -231,7 +223,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
-            Edit User: {(user as any).firstName} {(user as any).lastName}
+            Edit User: {user.firstName} {user.lastName}
           </DialogTitle>
         </DialogHeader>
 
@@ -309,7 +301,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="userType">User Type</Label>
-                      <Select value={formData.userType} onValueChange={(value) => setFormData(prev => ({ ...prev, userType: value }))}>
+                      <Select value={formData.userType} onValueChange={(value: string) => setFormData(prev => ({ ...prev, userType: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select user type" />
                         </SelectTrigger>
@@ -323,7 +315,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                     </div>
                     <div>
                       <Label htmlFor="status">Status</Label>
-                      <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                      <Select value={formData.status} onValueChange={(value: string) => setFormData(prev => ({ ...prev, status: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
@@ -387,7 +379,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                   <div>
                     <Label className="text-sm font-medium text-gray-600">Last Login</Label>
                     <div className="mt-1 text-sm text-gray-600">
-                      {user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Never'}
+                      {user.lastLoginAt ? formatDate(user.lastLoginAt || '') : 'Never'}
                     </div>
                   </div>
                 </div>
@@ -397,7 +389,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
 
           {/* Roles & Permissions Tab */}
           <TabsContent value="roles" className="space-y-6">
-            <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLE}>
+            <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -416,7 +408,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const currentRole = rolesArray.find(role => role.name === user.role)
+                            const currentRole = rolesArray.find((role: Role) => role.name === user.role)
                             if (currentRole) {
                               handleRoleRemove(currentRole.id)
                             }
@@ -438,7 +430,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                           <SelectValue placeholder="Select a role" />
                         </SelectTrigger>
                         <SelectContent>
-                          {rolesArray.map((role) => (
+                          {rolesArray.map((role: Role) => (
                             <SelectItem key={role.id} value={role.id}>
                               {role.name}
                             </SelectItem>
@@ -468,7 +460,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
               </Card>
             </PermissionGuard>
 
-            <PermissionGuard permission={PERMISSIONS.ASSIGN_PERMISSIONS}>
+            <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -486,20 +478,20 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                   ) : (
                     <>
                       <div className="max-h-60 overflow-y-auto space-y-2">
-                        {permissionsArray.map((permission) => (
+                        {permissionsArray.map((permission: Permission) => (
                           <div key={permission.id} className="flex items-center space-x-2">
                             <Checkbox
                               id={`permission-${permission.id}`}
                               checked={selectedPermissions.includes(permission.id)}
-                              onCheckedChange={() => handlePermissionToggle(permission.id)}
+                              onCheckedChange={() => handlePermissionToggle(permission.id || '')}
                             />
                             <label
-                              htmlFor={`permission-${permission.id}`}
+                              htmlFor={`permission-${permission.id || ''}`}
                               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
                               <div className="font-medium">{permission.name}</div>
                               <div className="text-xs text-gray-500">
-                                {permission.resource} - {permission.action}
+                                {permission.resource || ''} - {permission.action || ''}
                               </div>
                             </label>
                           </div>
@@ -508,7 +500,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                       
                       <div className="flex justify-between items-center pt-4 border-t">
                         <div className="text-sm text-gray-600">
-                          {selectedPermissions.length} permission(s) selected
+                          {selectedPermissions.length} permission(s) selected asdasd
                         </div>
                         <Button
                           onClick={handleAssignPermissions}
@@ -578,7 +570,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                 <div>
                   <Label className="text-sm font-medium">Account Created</Label>
                   <div className="mt-1 text-sm text-gray-600">
-                    {formatDate(user.createdAt)}
+                    {formatDate(user.createdAt || '')}
                   </div>
                 </div>
 
