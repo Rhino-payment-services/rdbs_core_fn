@@ -1,22 +1,43 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { ArrowLeft, Eye, EyeOff, Lock, Mail, Loader2, Fingerprint, Smartphone, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import * as Yup from 'yup'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import toast from 'react-hot-toast'
 
-const LoginPage = () => {
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [error, setError] = useState('')
   const [loginMethod, setLoginMethod] = useState<'credentials' | 'fingerprint'>('credentials')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Get callback URL from search params
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      console.log("🔄 Login page: Checking existing session...")
+      const existingSession = await getSession()
+      if (existingSession) {
+        console.log("✅ User already authenticated, redirecting to:", callbackUrl)
+        setIsRedirecting(true)
+        // Use window.location.href for more reliable redirect
+        window.location.href = callbackUrl
+      } else {
+        console.log("❌ No existing session found")
+      }
+    }
+    checkExistingSession()
+  }, [callbackUrl])
 
   // Validation schema
   const validationSchema = Yup.object({
@@ -42,6 +63,7 @@ const LoginPage = () => {
         email: values.email,
         password: values.password,
         redirect: false,
+        callbackUrl: callbackUrl,
       })
 
       console.log('📊 signIn result:', result)
@@ -51,7 +73,7 @@ const LoginPage = () => {
         setError('Invalid email or password')
         toast.error('Login failed. Please check your credentials.')
       } else if (result?.ok) {
-        console.log('✅ signIn successful, redirecting to dashboard')
+        console.log('✅ signIn successful, redirecting to:', callbackUrl)
         
         // Show success toast
         toast.success('Login successful! Redirecting to dashboard...', {
@@ -61,10 +83,26 @@ const LoginPage = () => {
         // Set redirecting state
         setIsRedirecting(true)
         
-        // Small delay to show the success message before redirect
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 1500)
+        // Use window.location.href for more reliable redirect with session check
+        setTimeout(async () => {
+          console.log("🔄 Executing redirect to:", callbackUrl)
+          
+          // Wait a bit for the session to be fully established
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          // Check if session is available before redirecting
+          const sessionCheck = await getSession()
+          if (sessionCheck) {
+            console.log("✅ Session confirmed, redirecting to:", callbackUrl)
+            window.location.href = callbackUrl
+          } else {
+            console.log("⚠️ Session not available yet, retrying...")
+            // Retry after another delay
+            setTimeout(() => {
+              window.location.href = callbackUrl
+            }, 1000)
+          }
+        }, 1000)
       } else {
         console.log('⚠️ signIn result unclear:', result)
         setError('Authentication response unclear. Please try again.')
@@ -96,10 +134,26 @@ const LoginPage = () => {
       // Set redirecting state
       setIsRedirecting(true)
       
-      // Small delay to show the success message before redirect
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
+      // Use window.location.href for more reliable redirect with session check
+      setTimeout(async () => {
+        console.log("🔄 Executing fingerprint redirect to:", callbackUrl)
+        
+        // Wait a bit for the session to be fully established
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Check if session is available before redirecting
+        const sessionCheck = await getSession()
+        if (sessionCheck) {
+          console.log("✅ Session confirmed, redirecting to:", callbackUrl)
+          window.location.href = callbackUrl
+        } else {
+          console.log("⚠️ Session not available yet, retrying...")
+          // Retry after another delay
+          setTimeout(() => {
+            window.location.href = callbackUrl
+          }, 1000)
+        }
+      }, 1000)
     } catch (error) {
       setError('Fingerprint authentication failed. Please try again.')
       toast.error('Fingerprint authentication failed. Please try again.')
@@ -414,4 +468,21 @@ const LoginPage = () => {
   )
 }
 
-export default LoginPage 
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#08163d] mx-auto mb-4" />
+        <p className="text-gray-600">Loading login form...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <LoginForm />
+    </Suspense>
+  )
+}

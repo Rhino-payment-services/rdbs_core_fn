@@ -1,0 +1,27 @@
+{
+  "name": "RDBS - Database Management System",
+  "short_name": "RDBS",
+  "description": "RukaPay Database Management System - Secure financial data management platform",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#08163d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/logoRukapay2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/logoRukapay2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "business", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
+}
