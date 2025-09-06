@@ -113,6 +113,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // 1 hour - update session every hour
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -160,9 +161,37 @@ export const authOptions: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
-      if (url.startsWith("/")) return `${baseUrl}${url}`
-      // Allows callback URLs on the same origin
+      console.log("🔄 Redirect callback:", { url, baseUrl })
+      
+      if (!url) {
+        console.log("🔄 No URL provided, redirecting to dashboard")
+        return `${baseUrl}/dashboard`
+      }
+      
+      if (url.startsWith("/")) {
+        console.log("🔄 Relative URL, making absolute:", url)
+        return `${baseUrl}${url}`
+      }
+      
+      try {
+        const urlObj = new URL(url)
+        if (urlObj.origin === baseUrl) {
+          console.log("🔄 Same origin URL, allowing:", url)
+          return url
+        }
+      } catch (e) {
+        console.log("🔄 Invalid URL, redirecting to dashboard")
+        return `${baseUrl}/dashboard`
+      }
+      
+      console.log("🔄 Default fallback to dashboard")
+      return `${baseUrl}/dashboard`
+      
+      if (url.includes("/auth/login")) {
+        console.log("🔄 Redirecting authenticated user to dashboard")
+        return `${baseUrl}/dashboard`
+      }
+      
       else if (new URL(url).origin === baseUrl) return url
       return baseUrl + "/dashboard"
     }
