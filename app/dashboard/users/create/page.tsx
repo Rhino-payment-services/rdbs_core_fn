@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   ArrowLeft, 
   Save,
@@ -16,7 +17,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
-import { useCreateUser } from '@/lib/hooks/useApi'
+import { useCreateUser, useSendWelcomeEmail } from '@/lib/hooks/useApi'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
@@ -24,10 +25,12 @@ import { extractErrorMessage } from '@/lib/utils'
 const CreateUserPage = () => {
   const router = useRouter()
   const createUserMutation = useCreateUser()
+  const sendWelcomeEmailMutation = useSendWelcomeEmail()
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    phone: '+256',
     role: '',
     userType: '',
     firstName: '',
@@ -39,7 +42,7 @@ const CreateUserPage = () => {
 
   const [showPassword, setShowPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true)
   // Available roles
   const roles = [
     { value: "USER", label: "User" },
@@ -114,6 +117,7 @@ const CreateUserPage = () => {
     const newErrors: Record<string, string> = {}
     
     if (!formData.email) newErrors.email = 'Email is required'
+    if (!formData.phone) newErrors.phone = 'Phone number is required'
     if (!formData.password) newErrors.password = 'Password is required'
     if (!formData.role) newErrors.role = 'Role is required'
     if (!formData.userType) newErrors.userType = 'User type is required'
@@ -139,8 +143,38 @@ const CreateUserPage = () => {
     }
 
     try {
-      await createUserMutation.mutateAsync(formData)
-      toast.success('User created successfully!')
+      // Create the user first
+      const userResponse = await createUserMutation.mutateAsync(formData)
+      const createdUser = (userResponse.data || userResponse) as any
+      console.log('Created user:', userResponse)
+      
+      // Send welcome email after successful user creation (if enabled)
+      if (sendWelcomeEmail) {
+        try {
+          const emailData = {
+            email: formData.email,
+            userName: `${formData.firstName} ${formData.lastName}`,
+            userId: createdUser.id,
+            metadata: {
+              channel: "BACKOFFICE",
+              referralCode: `REF${Date.now()}` // Generate a simple referral code
+            }
+          }
+          console.log('Sending welcome email with data:', emailData)
+          console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL)
+          await sendWelcomeEmailMutation.mutateAsync(emailData)
+          toast.success('User created successfully and welcome email sent!')
+        } catch (emailError: unknown) {
+          // User was created successfully, but email failed
+          console.error('Failed to send welcome email:', emailError)
+          const emailErrorMessage = extractErrorMessage(emailError)
+          console.error('Email error details:', emailErrorMessage)
+          toast.error(`User created successfully, but email failed: ${emailErrorMessage}`)
+        }
+      } else {
+        toast.success('User created successfully!')
+      }
+      
       router.push('/dashboard/users')
     } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error)
@@ -230,6 +264,25 @@ const CreateUserPage = () => {
                       </div>
                     )}
                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="Enter phone number with country code"
+                      className={errors.phone ? 'border-red-500' : ''}
+                    />
+                    {errors.phone && (
+                      <div className="flex items-center gap-1 text-red-500 text-sm">
+                        <AlertCircle className="h-4 w-4" />
+                        {errors.phone}
+                      </div>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="country">Country *</Label>
                     <Select value={formData.country} onValueChange={(value: string) => handleInputChange('country', value)}>
@@ -246,7 +299,6 @@ const CreateUserPage = () => {
                     </Select>
                     {errors.country && (
                       <div className="flex items-center gap-1 text-red-500 text-sm">
-                        <AlertCircle className="h-4 w-4" />
                         {errors.country}
                       </div>
                     )}
@@ -387,7 +439,23 @@ const CreateUserPage = () => {
                     )}
                   </div>
                 </div>
-              </CardContent>
+                
+                {/* Email Options */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="sendWelcomeEmail"
+                      checked={sendWelcomeEmail}
+                      onCheckedChange={(checked) => setSendWelcomeEmail(checked as boolean)}
+                    />
+                    <Label htmlFor="sendWelcomeEmail" className="text-sm font-medium">
+                      Send welcome email to the new user
+                    </Label>
+                  </div>
+                  <p className="text-xs text-gray-500 ml-6">
+                    A welcome email will be sent to the user with their login credentials and account information.
+                  </p>
+                </div>              </CardContent>
             </Card>
 
             {/* Action Buttons */}
@@ -400,12 +468,12 @@ const CreateUserPage = () => {
               <Button 
                 type="submit" 
                 className="flex items-center gap-2"
-                disabled={createUserMutation.isPending}
+                disabled={createUserMutation.isPending || sendWelcomeEmailMutation.isPending}
               >
-                {createUserMutation.isPending ? (
+                {createUserMutation.isPending || sendWelcomeEmailMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Creating...
+                    Creating User...
                   </>
                 ) : (
                   <>

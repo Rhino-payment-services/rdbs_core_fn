@@ -338,9 +338,9 @@ function LoginForm() {
                         </label>
                       </div>
                       <div className="text-sm">
-                        <a href="#" className="font-medium text-[#08163d] hover:text-[#0a1f4f] transition-colors">
+                        <Link href="/auth/forgot-password" className="cursor-pointer font-medium text-[#08163d] hover:text-[#0a1f4f] transition-colors">
                           Forgot password?
-                        </a>
+                        </Link>
                       </div>
                     </div>
 

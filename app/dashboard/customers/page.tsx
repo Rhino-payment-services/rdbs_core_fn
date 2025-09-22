@@ -3,11 +3,13 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useUsers } from '@/lib/hooks/useApi'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { User, Role, Permission } from '@/lib/types/api'
 import { 
   UserIcon, 
   Building2, 
@@ -207,7 +209,7 @@ const CustomersPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null)
   const [showCustomerDetails, setShowCustomerDetails] = useState(false)
   const [showCustomerActivity, setShowCustomerActivity] = useState(false)
   const [showCustomerTransactions, setShowCustomerTransactions] = useState(false)
@@ -242,6 +244,10 @@ const CustomersPage = () => {
   const [showCustomerTransactionSetting, setShowCustomerTransactionSetting] = useState(false)
   const [showCustomerSupportTicketSetting, setShowCustomerSupportTicketSetting] = useState(false)
   const [showCustomerDocumentSetting, setShowCustomerDocumentSetting] = useState(false)
+
+  const {data: users,isLoading: loading} = useUsers()
+   // Handle different API response structures
+   const usersArray: any[] = Array.isArray(users) ? users : []
 
   // Mock data
   const customers: Customer[] = [
@@ -362,22 +368,45 @@ const CustomersPage = () => {
   }
 
   const handleCreateCustomer = () => {
-    setShowCreateModal(true)
+    if (activeTab === 'subscribers') {
+      router.push('/dashboard/customers/subscriber-onboard')
+    } else if (activeTab === 'merchants') {
+      router.push('/dashboard/customers/merchant-onboard')
+    } else if (activeTab === 'partners') {
+      router.push('/dashboard/customers/partner-onboard')
+    }
   }
 
-  const handleEditCustomer = (customer: Customer) => {
+  const handleEditCustomer = (customer: User) => {
     setSelectedCustomer(customer)
     setShowEditModal(true)
   }
 
-  const handleDeleteCustomer = (customer: Customer) => {
+  const handleDeleteCustomer = (customer: User) => {
     setSelectedCustomer(customer)
     setShowDeleteModal(true)
   }
 
-  const handleViewCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer)
-    setShowCustomerDetails(true)
+  const handleViewCustomer = (customer: User) => {
+    // Map user types to customer detail page types
+    let customerType = 'subscribers' // default
+    
+    if (customer.userType === 'SUBSCRIBER') {
+      if (customer.subscriberType === 'INDIVIDUAL') {
+        customerType = 'subscribers'
+      } else if (customer.subscriberType === 'MERCHANT') {
+        customerType = 'merchants'
+      }
+    } else if (customer.userType === 'PARTNER') {
+      customerType = 'partners'
+    } else if (customer.userType === 'AGENT') {
+      customerType = 'agents'
+    } else if (customer.userType === 'BANK') {
+      customerType = 'banks'
+    }
+    
+    // Navigate to customer detail page
+    router.push(`/dashboard/customers/${customerType}/${customer.id}`)
   }
 
   const getStatusColor = (status: string) => {
@@ -466,11 +495,11 @@ const CustomersPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Subscribers</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{customers.length}</div>
+                <div className="text-2xl font-bold">{usersArray.filter((user: User) => user.subscriberType === 'INDIVIDUAL' && user.userType === "SUBSCRIBER").length}</div>
                 <p className="text-xs text-muted-foreground">
                   +12% from last month
                 </p>
@@ -479,12 +508,12 @@ const CustomersPage = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
+                <CardTitle className="text-sm font-medium">Active Merchants</CardTitle>
                 <UserCheck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {customers.filter(c => c.status === 'active').length}
+                  {usersArray.filter((user: User) => user.subscriberType === 'MERCHANT' && user.userType === "SUBSCRIBER").length}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   +8% from last month
@@ -494,11 +523,11 @@ const CustomersPage = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">New This Month</CardTitle>
+                <CardTitle className="text-sm font-medium">This Month's Merchants</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">24</div>
+                <div className="text-2xl font-bold">{usersArray.filter((user: User) => user.subscriberType === 'MERCHANT' && user.userType === "SUBSCRIBER" && new Date(user.createdAt).getMonth() === new Date().getMonth() && new Date(user.createdAt).getFullYear() === new Date().getFullYear()).length}</div>
                 <p className="text-xs text-muted-foreground">
                   +15% from last month
                 </p>
@@ -507,11 +536,11 @@ const CustomersPage = () => {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+                <CardTitle className="text-sm font-medium">This Month's Subscribers</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">$12,345</div>
+                <div className="text-2xl font-bold">{usersArray.filter((user: User) => user.subscriberType === 'INDIVIDUAL' && user.userType === "SUBSCRIBER" && new Date(user.createdAt).getMonth() === new Date().getMonth() && new Date(user.createdAt).getFullYear() === new Date().getFullYear()).length}</div>
                 <p className="text-xs text-muted-foreground">
                   +20% from last month
                 </p>
@@ -529,9 +558,9 @@ const CustomersPage = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button onClick={handleCreateCustomer}>
+                  <Button onClick={handleCreateCustomer} className='cursor-pointer'>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Customer
+                    Add {activeTab === 'subscribers' ? 'Subscriber' : activeTab === 'merchants' ? 'Merchant' : 'Partner'}
                   </Button>
                 </div>
               </div>
@@ -648,6 +677,9 @@ const CustomersPage = () => {
                               Customer
                             </th>
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Phone Number
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
                               Type
                             </th>
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
@@ -656,9 +688,7 @@ const CustomersPage = () => {
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
                               KYC Status
                             </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Risk Level
-                            </th>
+                          
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
                               Last Activity
                             </th>
@@ -668,7 +698,7 @@ const CustomersPage = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {paginatedCustomers.map((customer) => (
+                          {!loading && usersArray.filter((user: any) => user.subscriberType === 'INDIVIDUAL' && user.userType === "SUBSCRIBER").map((customer: User) => (
                             <tr key={customer.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3">
                                 <input
@@ -681,11 +711,11 @@ const CustomersPage = () => {
                               <td className="px-4 py-3">
                                 <div className="flex items-center">
                                   <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                    <UserIcon className="h-4 w-4 text-gray-600" />
+                                    <span className='text-xs'>{customer.profile?.firstName?.charAt(0) || 'U'}</span>
                                   </div>
                                   <div className="ml-3">
                                     <div className="text-sm font-medium text-gray-900">
-                                      {customer.name}
+                                      {customer.profile?.firstName} {customer.profile?.lastName}
                                     </div>
                                     <div className="text-sm text-gray-500">
                                       {customer.email}
@@ -694,8 +724,13 @@ const CustomersPage = () => {
                                 </div>
                               </td>
                               <td className="px-4 py-3">
-                                <Badge className={getTypeColor(customer.type)}>
-                                  {customer.type}
+                                <Badge className={getRiskLevelColor(customer.createdAt)}>
+                                  {customer.phone}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getTypeColor(customer.userType)}>
+                                  {customer.subscriberType}
                                 </Badge>
                               </td>
                               <td className="px-4 py-3">
@@ -708,13 +743,9 @@ const CustomersPage = () => {
                                   {customer.kycStatus}
                                 </Badge>
                               </td>
-                              <td className="px-4 py-3">
-                                <Badge className={getRiskLevelColor(customer.riskLevel)}>
-                                  {customer.riskLevel}
-                                </Badge>
-                              </td>
+                              
                               <td className="px-4 py-3 text-sm text-gray-500">
-                                {customer.lastActivity}
+                                {customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : 'Never'}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center space-x-2">
@@ -777,10 +808,225 @@ const CustomersPage = () => {
                 </TabsContent>
 
                 <TabsContent value="merchants" className="space-y-4">
-                  <div className="text-center py-8">
-                    <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Merchants</h3>
-                    <p className="text-gray-500">Merchant management coming soon</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search customers..."
+                          value={searchTerm}
+                          onChange={(e) => handleSearch(e.target.value)}
+                          className="pl-8 w-64"
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filters
+                      </Button>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
+                  </div>
+
+                  {showFilters && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-gray-50">
+                      <div>
+                        <label className="text-sm font-medium">Status</label>
+                        <Select value={statusFilter} onValueChange={handleStatusFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Type</label>
+                        <Select value={typeFilter} onValueChange={handleTypeFilter}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="subscriber">Subscriber</SelectItem>
+                            <SelectItem value="merchant">Merchant</SelectItem>
+                            <SelectItem value="partner">Partner</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Sort By</label>
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sort By" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="name">Name</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="registrationDate">Registration Date</SelectItem>
+                            <SelectItem value="lastActivity">Last Activity</SelectItem>
+                            <SelectItem value="totalTransactions">Total Transactions</SelectItem>
+                            <SelectItem value="totalVolume">Total Volume</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border rounded-lg">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left">
+                              <input
+                                type="checkbox"
+                                checked={selectedCustomers.length === customers.length}
+                                onChange={handleSelectAll}
+                                className="rounded"
+                              />
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Customer
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Type
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              KYC Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Risk Level
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Last Activity
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {!loading && usersArray.filter((user: User) => user.subscriberType === 'MERCHANT').map((customer: User) => (
+                            <tr key={customer.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCustomers.includes(customer.id)}
+                                  onChange={() => handleSelectCustomer(customer.id)}
+                                  className="rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center">
+                                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <UserIcon className="h-4 w-4 text-gray-600" />
+                                  </div>
+                                  <div className="ml-3">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {customer.firstName}  {customer.lastName}  
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {customer.email}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getTypeColor(customer.userType)}>
+                                  {customer.subscriberType}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getStatusColor(customer.status)}>
+                                  {customer.status}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getKycStatusColor(customer.verificationLevel)}>
+                                  {customer.kycStatus}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge className={getRiskLevelColor(customer.createdAt)}>
+                                  {customer.email}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500">
+                                {customer.lastLoginAt}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewCustomer(customer)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditCustomer(customer)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteCustomer(customer)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Showing {paginatedCustomers.length} of {sortedCustomers.length} customers
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
 

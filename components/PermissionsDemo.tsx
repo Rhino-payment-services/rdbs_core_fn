@@ -146,14 +146,14 @@ const PermissionsDemo = () => {
             <span>System Configure</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={hasPermission(PERMISSIONS.DELETE_USER) ? "default" : "secondary"}>
-              {hasPermission(PERMISSIONS.DELETE_USER) ? "✅" : "❌"}
+            <Badge variant={hasPermission(PERMISSIONS.USERS_DELETE) ? "default" : "secondary"}>
+              {hasPermission(PERMISSIONS.USERS_DELETE) ? "✅" : "❌"}
             </Badge>
             <span>Delete User</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={hasPermission(PERMISSIONS.CREATE_ROLE) ? "default" : "secondary"}>
-              {hasPermission(PERMISSIONS.CREATE_ROLE) ? "✅" : "❌"}
+            <Badge variant={hasPermission(PERMISSIONS.ROLES_CREATE) ? "default" : "secondary"}>
+              {hasPermission(PERMISSIONS.ROLES_CREATE) ? "✅" : "❌"}
             </Badge>
             <span>Create Role</span>
           </div>

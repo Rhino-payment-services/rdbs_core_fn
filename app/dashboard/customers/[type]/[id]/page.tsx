@@ -7,7 +7,8 @@ import {
   User,
   CreditCard,
   Activity,
-  Settings
+  Settings,
+  AlertTriangle
 } from 'lucide-react'
 import CustomerProfileHeader from '@/components/dashboard/customers/profile/CustomerProfileHeader'
 import toast from 'react-hot-toast'
@@ -16,222 +17,158 @@ import CustomerOverview from '@/components/dashboard/customers/profile/CustomerO
 import CustomerTransactions from '@/components/dashboard/customers/profile/CustomerTransactions'
 import CustomerActivity from '@/components/dashboard/customers/profile/CustomerActivity'
 import CustomerSettings from '@/components/dashboard/customers/profile/CustomerSettings'
+import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs } from '@/lib/hooks/useApi'
+import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
 
 const CustomerProfilePage = () => {
   const params = useParams()
   const router = useRouter()
   const { type, id } = params
+
+  console.log("id====>", id)
   const [activeTab, setActiveTab] = useState("overview")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageLimit] = useState(10) // You can make this configurable
 
-  // Sample customer profile data
-  const customerProfile = {
-    id: id,
-    type: type,
-    name: "John Doe",
-    email: "john.doe@email.com",
-    phone: "+256 701 234 567",
-    status: "active",
-    joinDate: "2024-01-15",
-    lastActivity: "2024-01-20",
-    location: "Kampala, Uganda",
-    address: "Plot 123, Kampala Road, Kampala",
-    totalTransactions: 45,
-    totalVolume: 1250000,
-    avgTransactionValue: 27777,
-    successRate: 98.5,
-    kycStatus: "verified",
-    kycLevel: "level_2",
-    riskLevel: "low",
-    tags: ["Premium", "Verified", "Active"],
-    notes: "Reliable customer with consistent transaction patterns",
-    
-    // Profile details based on type
-    profileDetails: {
-      subscribers: {
-        dateOfBirth: "1990-05-15",
-        gender: "Male",
-        occupation: "Software Engineer",
-        company: "Tech Solutions Ltd",
-        emergencyContact: "+256 702 345 678",
-        preferredLanguage: "English",
-        notificationPreferences: {
-          email: true,
-          sms: true,
-          push: true
-        }
-      },
-      merchants: {
-        businessName: "ABC Supermarket",
-        businessType: "Retail",
-        registrationNumber: "REG123456",
-        taxNumber: "TAX789012",
-        businessAddress: "Plot 456, Commercial Street, Kampala",
-        contactPerson: "Jane Manager",
-        contactPhone: "+256 704 567 890",
-        businessCategory: "Retail",
-        annualRevenue: 500000000,
-        employeeCount: 25,
-        operatingHours: "8:00 AM - 8:00 PM",
-        website: "www.abcsupermarket.com"
-      },
-      partners: {
-        companyName: "East Africa Bank",
-        partnershipType: "Banking Partner",
-        partnershipDate: "2023-08-15",
-        contractNumber: "CONTRACT-2023-001",
-        contactPerson: "Sarah Partner",
-        contactPhone: "+256 707 890 123",
-        partnershipLevel: "Strategic",
-        integrationStatus: "Active",
-        apiAccess: true,
-        revenueShare: 2.5,
-        serviceLevel: "Premium"
-      },
-      agents: {
-        agentId: "AGT-001",
-        agentType: "Field Agent",
-        supervisor: "Mike Supervisor",
-        supervisorPhone: "+256 710 123 456",
-        territory: "Kampala Central",
-        commissionRate: 2.5,
-        performanceRating: 4.8,
-        trainingCompleted: true,
-        lastTraining: "2024-01-10",
-        equipment: ["POS Device", "Mobile App", "ID Card"],
-        workingHours: "9:00 AM - 6:00 PM"
-      },
-      superAgents: {
-        superAgentId: "SAGT-001",
-        networkName: "Super Agent Network",
-        subAgentsCount: 45,
-        territoryCoverage: "Kampala Region",
-        commissionStructure: "Tiered",
-        performanceMetrics: {
-          totalVolume: 125000000,
-          totalTransactions: 2500,
-          successRate: 99.2,
-          customerSatisfaction: 4.9
-        },
-        networkHealth: "Excellent",
-        expansionPlans: "Planning to expand to Jinja"
-      },
-      banks: {
-        bankName: "Central Bank of Uganda",
-        bankType: "Central Bank",
-        licenseNumber: "LIC-001",
-        regulatoryStatus: "Compliant",
-        integrationDate: "2023-06-15",
-        apiEndpoints: 5,
-        transactionVolume: 450000000,
-        uptime: 99.9,
-        supportLevel: "24/7",
-        complianceStatus: "Fully Compliant"
-      }
-    },
+  // Fetch customer data
+  const { data: customerData, isLoading: customerLoading, error: customerError } = useUsers()
 
-    // Transaction history
-    transactions: [
-      {
-        id: 1,
-        type: "Wallet to Wallet",
-        amount: 50000,
-        fee: 2500,
-        status: "completed",
-        date: "2024-01-20 14:30:00",
-        sender: {
-          id: 1,
-          name: "John Doe",
-          type: "subscribers",
-          phone: "+256 701 234 567"
-        },
-        receiver: {
-          id: 2,
-          name: "Jane Smith",
-          type: "subscribers",
-          phone: "+256 702 345 678"
-        },
-        reference: "TXN-2024-001",
-        description: "Monthly rent payment"
-      },
-      {
-        id: 2,
-        type: "Wallet to Mobile Money",
-        amount: 25000,
-        fee: 1250,
-        status: "completed",
-        date: "2024-01-19 10:15:00",
-        sender: {
-          id: 1,
-          name: "John Doe",
-          type: "subscribers",
-          phone: "+256 701 234 567"
-        },
-        receiver: {
-          id: 7,
-          name: "MTN Mobile Money",
-          type: "partners",
-          phone: "+256 777 123 456"
-        },
-        reference: "TXN-2024-002",
-        description: "Send to mobile money"
-      }
-    ],
+  console.log("customerData====>", customerData)
+  
+  // Fetch wallet transactions for this user with pagination
+  const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
+    id as string, 
+    currentPage, 
+    pageLimit
+  )
+  
+  // Fetch wallet balance if customer has wallet
+  const { data: walletBalance, isLoading: balanceLoading, error: walletError } = useWalletBalance(id as string)
 
-    // Activity log
-    activities: [
-      {
-        id: 1,
-        type: "login",
-        description: "User logged in successfully",
-        timestamp: "2024-01-20 14:30:00",
-        ipAddress: "192.168.1.100",
-        device: "iPhone 14",
-        location: "Kampala, Uganda"
-      },
-      {
-        id: 2,
-        type: "transaction",
-        description: "Completed money transfer of UGX 50,000",
-        timestamp: "2024-01-20 14:25:00",
-        ipAddress: "192.168.1.100",
-        device: "iPhone 14",
-        location: "Kampala, Uganda"
-      }
-    ]
+  // Fetch user activity logs
+  const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
+    id as string,
+    currentPage,
+    pageLimit
+  )
+
+  console.log("walletBalance====>", walletBalance)
+  console.log("transactionsData====>", transactionsData)
+  console.log("activityLogsData====>", activityLogsData)
+  console.log("walletError====>", walletError)
+  console.log("activityLogsError====>", activityLogsError)
+
+  // Handle loading and error states
+  if (customerLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading customer profile...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
-  const handleBack = () => {
-    router.back()
+  if (customerError || !customerData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Customer Not Found</h1>
+                <p className="text-gray-600 mb-4">The customer you're looking for doesn't exist or you don't have permission to view it.</p>
+                <button 
+                  onClick={() => router.back()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
+  const customer: any = customerData.filter((customer: any) => customer.id == id)[0] || {
+    id: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    status: '',
+    createdAt: '',
+  }
+  console.log("customer====>", customer)
+  
+  // Update to match the new API response structure
+  const transactions = transactionsData?.transactions || []
+  const totalTransactions = transactionsData?.total || 0
+  const totalPages = Math.ceil(totalTransactions / (transactionsData?.limit || 10))
+  const wallet = walletBalance
+
+  console.log("activityLogsData====>", activityLogsData)
+
+  // Activity logs data with error handling
+  const activities = activityLogsData?.logs || []
+  const totalActivities = activityLogsData?.total || 0
+  const activityPages = Math.ceil(totalActivities / (activityLogsData?.limit || 10))
+
+  // Create wallet balance object for components
+  const balance: WalletBalance = wallet ? {
+    walletId: wallet.id,
+    balance: wallet.balance,
+    currency: wallet.currency,
+    lastUpdated: wallet.updatedAt
+  } : {
+    walletId: '',
+    balance: 0,
+    currency: 'UGX',
+    lastUpdated: new Date().toISOString()
+  }
+
+  // Calculate stats from real data
+  const currentBalance = wallet?.balance || 0
+  const avgTransactionValue = transactions.length > 0 ? 
+    transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0) / transactions.length : 0
+  const successRate = transactions.length > 0 ? 
+    (transactions.filter((tx: any) => tx.status === 'SUCCESS').length / transactions.length) * 100 : 0
+
+  // Event handlers
   const handleExport = () => {
     toast.success('Exporting customer data...')
-    // TODO: Implement export functionality
   }
 
   const handleEdit = () => {
     toast.success('Opening edit form...')
-    // TODO: Implement edit functionality
   }
 
   const handleActions = () => {
     toast.success('Opening actions menu...')
-    // TODO: Implement actions menu
   }
 
   const handleConfigureNotifications = () => {
-    toast.success('Opening notification settings...')
-    // TODO: Implement notification configuration
+    toast.success('Configuring notifications...')
   }
 
   const handleConfigureSecurity = () => {
-    toast.success('Opening security settings...')
-    // TODO: Implement security configuration
+    toast.success('Configuring security settings...')
   }
 
   const handleViewLoginHistory = () => {
     toast.success('Opening login history...')
-    // TODO: Implement login history view
   }
 
   return (
@@ -239,14 +176,29 @@ const CustomerProfilePage = () => {
       <Navbar />
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* Customer Profile Header */}
           <CustomerProfileHeader
             customer={{
-              id: customerProfile.id as string,
-              name: customerProfile.name,
-              type: customerProfile.type as string
+              id: customer.id || id as string,
+              name: `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
+              type: type as string,
+              email: customer.email || 'N/A',
+              phone: customer.profile?.phone || 'N/A',
+              status: customer.status || 'unknown',
+              joinDate: customer.createdAt || 'N/A',
+              location: 'Kampala, Uganda',
+              address: 'N/A',
+              totalTransactions,
+              currentBalance: currentBalance, // Replace with current balance
+              avgTransactionValue,
+              successRate,
+              kycStatus: customer.kycStatus || 'unknown',
+              riskLevel: 'low',
+              tags: customer.isVerified ? ['Verified'] : [],
+              notes: 'Customer profile from database',
+              walletBalance: wallet as Wallet
             }}
-            onBack={handleBack}
+            onBack={() => router.back()}
             onExport={handleExport}
             onEdit={handleEdit}
             onActions={handleActions}
@@ -255,14 +207,15 @@ const CustomerProfilePage = () => {
           {/* Stats Cards */}
           <CustomerStatsCards
             stats={{
-              totalTransactions: customerProfile.totalTransactions,
-              totalVolume: customerProfile.totalVolume,
-              avgTransactionValue: customerProfile.avgTransactionValue,
-              successRate: customerProfile.successRate,
-              status: customerProfile.status,
-              joinDate: customerProfile.joinDate,
-              kycStatus: customerProfile.kycStatus,
-              riskLevel: customerProfile.riskLevel
+              totalTransactions,
+              currentBalance: currentBalance, // Replace with current balance
+              suspensionFund: avgTransactionValue,
+              successRate,
+              status: customer.status || 'unknown',
+              joinDate: customer.createdAt || 'N/A',
+              kycStatus: customer.kycStatus || 'unknown',
+              riskLevel: 'low',
+              currency: wallet?.currency || 'UGX'
             }}
           />
 
@@ -290,40 +243,67 @@ const CustomerProfilePage = () => {
             <TabsContent value="overview" className="space-y-6 mt-6">
               <CustomerOverview
                 customer={{
-                  name: customerProfile.name,
-                  email: customerProfile.email,
-                  phone: customerProfile.phone,
-                  status: customerProfile.status,
-                  joinDate: customerProfile.joinDate,
-                  location: customerProfile.location,
-                  address: customerProfile.address
+                  name: `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
+                  email: customer?.email || 'N/A',
+                  phone: customer?.phone || 'N/A',
+                  status: customer.status || 'unknown',
+                  joinDate: customer.createdAt || 'N/A',
+                  location: 'Kampala, Uganda',
+                  address: 'N/A',
+                  walletBalance: wallet?.balance || 0
                 }}
-                type={customerProfile.type as string}
-                profileDetails={customerProfile.profileDetails}
+                type={type as string}
+                profileDetails={{
+                  // You can add more detailed profile information here
+                  // based on the customer type and available data
+                }}
+              
               />
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6 mt-6">
               <CustomerTransactions
-                transactions={customerProfile.transactions}
+                transactions={transactions}
                 onExport={handleExport}
                 onFilter={() => toast.success('Opening transaction filters...')}
+                isLoading={transactionsLoading}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
               />
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6 mt-6">
-              <CustomerActivity
-                activities={customerProfile.activities}
-                onExport={handleExport}
-                onFilter={() => toast.success('Opening activity filters...')}
-              />
+              {activityLogsError ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
+                  <p className="text-gray-500">Unable to retrieve activity logs for this user.</p>
+                </div>
+              ) : activityLogsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading activity logs...</p>
+                </div>
+              ) : (
+                <CustomerActivity
+                  activities={activities}
+                  onExport={handleExport}
+                  onFilter={() => toast.success('Opening activity filters...')}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6 mt-6">
               <CustomerSettings
-                onConfigureNotifications={handleConfigureNotifications}
-                onConfigureSecurity={handleConfigureSecurity}
-                onViewLoginHistory={handleViewLoginHistory}
+                customerId={customer.id || id as string}
+                customerStatus={customer.status || 'unknown'}
+                walletBalance={wallet?.balance || 0}
+                currency={wallet?.currency || 'UGX'}
+                onActionComplete={() => {
+                  // Refresh data after actions
+                  window.location.reload()
+                }}
               />
             </TabsContent>
           </Tabs>

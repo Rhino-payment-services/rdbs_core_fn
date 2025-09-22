@@ -13,53 +13,82 @@ import {
   CreditCard,
   Shield,
   MapPin,
-  Smartphone
+  Smartphone,
+  DollarSign,
+  AlertCircle
 } from 'lucide-react'
 
-interface Activity {
-  id: number
-  type: string
+interface ActivityLog {
+  _id: string
+  userId: string
+  userEmail: string | null
+  action: string
+  category: string
   description: string
-  timestamp: string
-  ipAddress: string
-  device: string
-  location: string
+  status: string
+  metadata: {
+    transactionId?: string
+    amount?: string
+    currency?: string
+    source?: string
+    timestamp: string
+    [key: string]: any
+  }
+  channel: string
+  requestId: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface CustomerActivityProps {
-  activities: Activity[]
+  activities: ActivityLog[]
   onExport: () => void
   onFilter: () => void
 }
 
 const CustomerActivity = ({ activities, onExport, onFilter }: CustomerActivityProps) => {
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'login':
-        return <LogIn className="h-4 w-4 text-blue-600" />
-      case 'transaction':
-        return <CreditCard className="h-4 w-4 text-green-600" />
-      case 'security':
-        return <Shield className="h-4 w-4 text-red-600" />
-      case 'profile':
-        return <Activity className="h-4 w-4 text-purple-600" />
-      default:
-        return <Activity className="h-4 w-4 text-gray-600" />
+  const getActivityIcon = (category: string, action: string) => {
+    if (category === 'TRANSACTION' || action.includes('TRANSACTION')) {
+      return <CreditCard className="h-4 w-4 text-green-600" />
     }
+    if (category === 'REVENUE' || action.includes('REVENUE')) {
+      return <DollarSign className="h-4 w-4 text-yellow-600" />
+    }
+    if (action.includes('LOGIN') || action.includes('AUTH')) {
+      return <LogIn className="h-4 w-4 text-blue-600" />
+    }
+    if (action.includes('SECURITY') || action.includes('SECURITY')) {
+      return <Shield className="h-4 w-4 text-red-600" />
+    }
+    return <Activity className="h-4 w-4 text-gray-600" />
   }
 
-  const getActivityTypeBadge = (type: string) => {
-    switch (type) {
-      case 'login':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Login</Badge>
-      case 'transaction':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Transaction</Badge>
-      case 'security':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Security</Badge>
-      case 'profile':
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Profile</Badge>
+  const getActivityTypeBadge = (category: string, action: string) => {
+    if (category === 'TRANSACTION') {
+      return <Badge className="bg-green-100 text-green-800 border-green-200">Transaction</Badge>
+    }
+    if (category === 'REVENUE') {
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Revenue</Badge>
+    }
+    if (action.includes('LOGIN')) {
+      return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Login</Badge>
+    }
+    if (action.includes('SECURITY')) {
+      return <Badge className="bg-red-100 text-red-800 border-red-200">Security</Badge>
+    }
+    return <Badge variant="secondary">{category}</Badge>
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Success</Badge>
+      case 'FAILED':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Failed</Badge>
+      case 'PENDING':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>
       default:
-        return <Badge variant="secondary">{type}</Badge>
+        return <Badge variant="secondary">{status}</Badge>
     }
   }
 
@@ -81,7 +110,7 @@ const CustomerActivity = ({ activities, onExport, onFilter }: CustomerActivityPr
           <div>
             <CardTitle>Activity Log</CardTitle>
             <CardDescription>
-              Recent activity and login history for this customer
+              Recent activity and transaction history for this customer
             </CardDescription>
           </div>
           <div className="flex items-center gap-3">
@@ -101,47 +130,53 @@ const CustomerActivity = ({ activities, onExport, onFilter }: CustomerActivityPr
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
-                <TableHead className="w-32">Time</TableHead>
+                <TableHead className="w-40">Time</TableHead>
                 <TableHead className="w-32">Type</TableHead>
+                <TableHead className="w-48">Action</TableHead>
                 <TableHead className="w-64">Description</TableHead>
-                <TableHead className="w-32">IP Address</TableHead>
-                <TableHead className="w-40">Device</TableHead>
-                <TableHead className="w-40">Location</TableHead>
+                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-32">Channel</TableHead>
                 <TableHead className="w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {activities.map((activity) => (
-                <TableRow key={activity.id} className="hover:bg-gray-50">
+                <TableRow key={activity._id} className="hover:bg-gray-50">
                   <TableCell>
                     <div className="text-sm">
-                      <div className="font-medium">{formatTimestamp(activity.timestamp)}</div>
+                      <div className="font-medium">
+                        {formatTimestamp(activity.metadata?.timestamp || activity.createdAt)}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {getActivityIcon(activity.type)}
-                      {getActivityTypeBadge(activity.type)}
+                      {getActivityIcon(activity.category, activity.action)}
+                      {getActivityTypeBadge(activity.category, activity.action)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium text-gray-900">
+                      {activity.action.replace(/_/g, ' ')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600 max-w-64 truncate" title={activity.description}>
                       {activity.description}
                     </div>
+                    {activity.metadata?.amount && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Amount: {activity.metadata.amount} {activity.metadata.currency || 'UGX'}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm font-mono text-gray-600">{activity.ipAddress}</div>
+                    {getStatusBadge(activity.status)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Smartphone className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">{activity.device}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">{activity.location}</span>
+                      <span className="text-sm text-gray-600">{activity.channel}</span>
                     </div>
                   </TableCell>
                   <TableCell>

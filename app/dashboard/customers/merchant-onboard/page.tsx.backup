@@ -151,11 +151,12 @@ const MerchantOnboardingPage = () => {
   // const { canCreateMerchant } = usePermissions() // Remove unused variable
 
   const businessTypes = [
-    'SOLE_PROPRIETORSHIP',
-    'PARTNERSHIP', 
     'LIMITED_COMPANY',
-    'PUBLIC_COMPANY',
-    'NGO',
+    'PRIVATE_LIMITED_COMPANY',
+    'PUBLIC_LIMITED_COMPANY',
+    'PARTNERSHIP',
+    'SOLE_PROPRIETORSHIP',
+    'NON_PROFIT_ORGANIZATION',
     'COOPERATIVE',
     'OTHER'
   ]
@@ -273,47 +274,6 @@ const MerchantOnboardingPage = () => {
     }
   }
 
-  // Helper function to normalize phone number to E.164 format
-  const normalizePhoneNumber = (phone: string, countryCode: string = 'UG'): string => {
-    // Remove all non-digit characters
-    const digits = phone.replace(/[^0-9]/g, '')
-    
-    // Handle different formats
-    if (digits.startsWith('0')) {
-      // Remove leading 0 and add country code
-      const withoutZero = digits.substring(1)
-      return `+${countryCode === 'UG' ? '256' : countryCode === 'RW' ? '250' : '256'}${withoutZero}`
-    } else if (digits.startsWith('256') || digits.startsWith('250')) {
-      // Already has country code, just add +
-      return `+${digits}`
-    } else if (digits.length >= 9) {
-      // Assume it's a local number without country code
-      return `+${countryCode === 'UG' ? '256' : countryCode === 'RW' ? '250' : '256'}${digits}`
-    }
-    
-    return phone // Return as-is if can't normalize
-  }
-
-  // Helper function to ensure URL has protocol
-  const ensureUrlProtocol = (url: string): string => {
-    if (!url) return url
-    const trimmed = url.trim()
-    if (!trimmed) return trimmed
-    
-    // If it already has a protocol, return as-is
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed
-    }
-    
-    // If it starts with www., add https://
-    if (trimmed.startsWith('www.')) {
-      return `https://${trimmed}`
-    }
-    
-    // For other cases, add https://
-    return `https://${trimmed}`
-  }
-
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -323,7 +283,7 @@ const MerchantOnboardingPage = () => {
       const payload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        middleName: formData.middleName || undefined,
+        middleName: formData.middleName,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
         nationalId: formData.nationalId,
@@ -342,24 +302,24 @@ const MerchantOnboardingPage = () => {
           bankName: formData.bankName,
           bankAccountName: formData.bankAccountName,
           bankAccountNumber: formData.bankAccountNumber,
-          mobileMoneyNumber: normalizePhoneNumber(formData.mobileMoneyNumber, formData.businessCountry),
+          mobileMoneyNumber: formData.mobileMoneyNumber,
           mobileMoneyProvider: formData.mobileMoneyProvider,
           additionalBankAccounts: [],
         },
         contactInfo: {
-          registeredPhoneNumber: normalizePhoneNumber(formData.registeredPhoneNumber, formData.businessCountry),
+          registeredPhoneNumber: formData.registeredPhoneNumber,
           businessEmail: formData.businessEmail,
-          website: formData.website && formData.website.trim() !== '' ? ensureUrlProtocol(formData.website) : undefined,
+          website: formData.website,
         },
         documentInfo: {
-          certificateOfIncorporationUrl: ensureUrlProtocol(formData.certificateOfIncorporationUrl || ''),
-          taxRegistrationCertificateUrl: formData.taxRegistrationCertificateUrl && formData.taxRegistrationCertificateUrl.trim() !== '' ? ensureUrlProtocol(formData.taxRegistrationCertificateUrl) : undefined,
-          businessPermitUrl: formData.businessPermitUrl && formData.businessPermitUrl.trim() !== '' ? ensureUrlProtocol(formData.businessPermitUrl) : undefined,
-          bankStatementUrl: formData.bankStatementUrl && formData.bankStatementUrl.trim() !== '' ? ensureUrlProtocol(formData.bankStatementUrl) : undefined,
+          certificateOfIncorporationUrl: formData.certificateOfIncorporationUrl,
+          taxRegistrationCertificateUrl: formData.taxRegistrationCertificateUrl,
+          businessPermitUrl: formData.businessPermitUrl,
+          bankStatementUrl: formData.bankStatementUrl,
         },
-        referralCode: formData.referralCode && formData.referralCode.trim() !== '' ? formData.referralCode : undefined,
-        country: formData.businessCountry,
-        onboardedBy: 'current-user-id',
+        referralCode: formData.referralCode,
+        country: formData.country,
+        onboardedBy: 'current-user-id', // This should be the current user's ID
       }
 
       const response = await api.post('/merchant-kyc/create', payload)
@@ -388,40 +348,15 @@ const MerchantOnboardingPage = () => {
   }
 
   const isBusinessInfoComplete = () => {
-    return formData.businessTradeName && 
-           formData.registeredBusinessName && 
-           formData.certificateOfIncorporation &&
-           formData.taxIdentificationNumber &&
-           formData.businessType && 
-           formData.businessRegistrationDate &&
-           formData.businessAddress && 
-           formData.businessAddress.length >= 10 && // Backend requires min 10 characters
-           formData.businessCity && 
-           formData.businessCountry
+    return formData.businessTradeName && formData.registeredBusinessName && 
+           formData.businessType && formData.businessAddress && 
+           formData.businessCity && formData.businessCountry
   }
 
   const isFinancialInfoComplete = () => {
     return formData.bankName && formData.bankAccountName && 
            formData.bankAccountNumber && formData.mobileMoneyNumber && 
            formData.mobileMoneyProvider
-  }
-
-  const isDocumentsComplete = () => {
-    // Check if certificate of incorporation URL is provided
-    const hasCertificateUrl = formData.certificateOfIncorporationUrl && 
-                             formData.certificateOfIncorporationUrl.trim() !== ''
-    
-    // Check if at least one identity document is uploaded (National ID or Passport)
-    const hasIdentityDocument = uploadedDocuments.some(doc => 
-      doc.documentType === 'NATIONAL_ID' || doc.documentType === 'PASSPORT'
-    )
-    
-    // Check if bank statement is uploaded
-    const hasBankStatement = uploadedDocuments.some(doc => 
-      doc.documentType === 'BANK_STATEMENT'
-    )
-    
-    return hasCertificateUrl && hasIdentityDocument && hasBankStatement
   }
 
   const isContactInfoComplete = () => {
@@ -684,7 +619,6 @@ const MerchantOnboardingPage = () => {
                           placeholder="Enter business address"
                           required
                         />
-                        <p className="text-sm text-gray-500 mt-1">Address must be at least 10 characters long</p>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -787,7 +721,6 @@ const MerchantOnboardingPage = () => {
                             placeholder="Enter mobile money number"
                             required
                           />
-                          <p className="text-sm text-gray-500 mt-1">Phone number will be converted to E.164 format (+256...) automatically</p>
                         </div>
                         <div>
                           <Label htmlFor="mobileMoneyProvider">Mobile Money Provider *</Label>
@@ -849,7 +782,6 @@ const MerchantOnboardingPage = () => {
                             placeholder="Enter phone number"
                             required
                           />
-                          <p className="text-sm text-gray-500 mt-1">Phone number will be converted to E.164 format (+256...) automatically</p>
                         </div>
                         <div>
                           <Label htmlFor="businessEmail">Business Email *</Label>
@@ -872,7 +804,6 @@ const MerchantOnboardingPage = () => {
                           onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
                           placeholder="Enter website URL"
                         />
-                        <p className="text-sm text-gray-500 mt-1">Enter website URL (https:// will be added automatically if missing)</p>
                       </div>
 
                       <div className="flex justify-between">
@@ -908,24 +839,6 @@ const MerchantOnboardingPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {/* Certificate of Incorporation URL */}
-                      <div className="border rounded-lg p-6 bg-blue-50">
-                        <h3 className="text-lg font-medium mb-4">Certificate of Incorporation Document</h3>
-                        <div>
-                          <Label htmlFor="certificateOfIncorporationUrl">Certificate of Incorporation Document URL *</Label>
-                          <Input
-                            id="certificateOfIncorporationUrl"
-                            value={formData.certificateOfIncorporationUrl}
-                            onChange={(e) => setFormData(prev => ({ ...prev, certificateOfIncorporationUrl: e.target.value }))}
-                            placeholder="Enter document URL (e.g., https://storage.example.com/docs/certificate.pdf)"
-                            required
-                          />
-                          <p className="text-sm text-gray-500 mt-1">
-                            This document URL is required for merchant onboarding. Upload the document first, then paste the URL here.
-                          </p>
-                        </div>
-                      </div>
-
                       {/* Document Upload Form */}
                       <div className="border rounded-lg p-6 bg-gray-50">
                         <h3 className="text-lg font-medium mb-4">Upload Document</h3>
@@ -1042,7 +955,7 @@ const MerchantOnboardingPage = () => {
                         </Button>
                         <Button 
                           onClick={() => setActiveTab("review")}
-                          disabled={!isDocumentsComplete()}
+                          disabled={uploadedDocuments.length === 0}
                           className="bg-[#08163d] hover:bg-[#0a1f4f]"
                         >
                           Next: Review & Submit

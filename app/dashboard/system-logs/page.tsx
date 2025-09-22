@@ -132,7 +132,7 @@ const SystemLogsPage = () => {
 
   return (
     <PermissionGuard 
-      permission={PERMISSIONS.VIEW_SYSTEM_LOGS} 
+      permission={PERMISSIONS.SYSTEM_LOGS} 
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">

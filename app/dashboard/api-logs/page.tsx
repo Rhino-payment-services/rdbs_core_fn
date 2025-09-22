@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -66,48 +66,15 @@ import {
   Globe2,
   UserCheck,
   UserX,
-  XCircle as XCircleIcon,
-  CheckCircle as CheckCircleIcon,
-  Clock as ClockIcon,
-  AlertCircle as AlertCircleIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  DollarSign as DollarSignIcon,
-  Activity as ActivityIcon,
-  BarChart3 as BarChart3Icon,
-  Calendar as CalendarIcon,
-  MapPin as MapPinIcon,
-  Phone as PhoneIcon,
-  Mail as MailIcon,
-  Globe as GlobeIcon,
-  CreditCard as CreditCardIcon,
-  Settings as SettingsIcon,
-  Bell as BellIcon,
-  Database as DatabaseIcon,
-  Server as ServerIcon,
-  FileText as FileTextIcon,
-  Monitor as MonitorIcon,
-  Smartphone as SmartphoneIcon,
-  Tablet as TabletIcon,
-  Laptop as LaptopIcon,
-  Wifi as WifiIcon,
-  WifiOff as WifiOffIcon,
-  Zap as ZapIcon,
-  Target as TargetIcon,
-  Fingerprint as FingerprintIcon,
-  ShieldCheck as ShieldCheckIcon,
-  AlertOctagon as AlertOctagonIcon,
-  CheckSquare as CheckSquareIcon,
-  Clock3 as Clock3Icon,
-  Flag as FlagIcon,
-  Globe2 as Globe2Icon,
-  UserCheck as UserCheckIcon,
-  UserX as UserXIcon
+  Heart,
+  AlertTriangle
 } from 'lucide-react'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import toast from 'react-hot-toast'
+import { useQuery } from '@tanstack/react-query'
+import api from '@/lib/axios'
 
 interface ApiLog {
   id: string
@@ -130,6 +97,35 @@ interface ApiLog {
   tags: string[]
 }
 
+interface HealthStatus {
+  status: string
+  timestamp: string
+  services: {
+    database: boolean
+    redis: boolean
+    external_apis: boolean
+  }
+  uptime: number
+  version: string
+}
+
+interface Partner {
+  id: string
+  name: string
+  status: string
+  type: string
+  createdAt: string
+  lastActive: string
+}
+
+interface Analytics {
+  totalUsers: number
+  totalTransactions: number
+  totalRevenue: number
+  activePartners: number
+  systemHealth: number
+}
+
 const ApiLogsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -145,6 +141,7 @@ const ApiLogsPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [showLogDetails, setShowLogDetails] = useState(false)
   const [selectedLog, setSelectedLog] = useState<ApiLog | null>(null)
+  const [activeTab, setActiveTab] = useState('logs')
 
   // Get permissions
   const { 
@@ -152,7 +149,26 @@ const ApiLogsPage = () => {
     userRole 
   } = usePermissions()
 
-  // Mock data
+  // API hooks
+  const { data: healthData, isLoading: healthLoading, error: healthError } = useQuery({
+    queryKey: ['health'],
+    queryFn: () => api.get('/api/v1/health').then(res => res.data),
+    staleTime: 30 * 1000,
+  })
+
+  const { data: partnersData, isLoading: partnersLoading, error: partnersError } = useQuery({
+    queryKey: ['partners'],
+    queryFn: () => api.get('/api/v1/admin/partners').then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError } = useQuery({
+    queryKey: ['analytics'],
+    queryFn: () => api.get('/api/v1/admin/analytics').then(res => res.data),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Mock data for API logs (replace with real API call)
   const apiLogs: ApiLog[] = [
     {
       id: '1',
@@ -172,156 +188,7 @@ const ApiLogsPage = () => {
       service: 'auth-service',
       tags: ['authentication', 'login']
     },
-    {
-      id: '2',
-      timestamp: '2024-01-20T10:29:45Z',
-      method: 'GET',
-      endpoint: '/api/users',
-      statusCode: 200,
-      responseTime: 156,
-      userId: 'user-2',
-      userEmail: 'admin@rukapay.co.ug',
-      ipAddress: '192.168.1.101',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'user-service',
-      tags: ['users', 'list']
-    },
-    {
-      id: '3',
-      timestamp: '2024-01-20T10:29:30Z',
-      method: 'POST',
-      endpoint: '/api/transactions',
-      statusCode: 201,
-      responseTime: 389,
-      userId: 'user-3',
-      userEmail: 'merchant@example.com',
-      ipAddress: '192.168.1.102',
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
-      requestBody: { amount: 1000, currency: 'UGX', recipient: 'user-4' },
-      responseBody: { transactionId: 'txn-123', status: 'pending' },
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'transaction-service',
-      tags: ['transactions', 'create']
-    },
-    {
-      id: '4',
-      timestamp: '2024-01-20T10:29:15Z',
-      method: 'GET',
-      endpoint: '/api/wallets/balance',
-      statusCode: 200,
-      responseTime: 98,
-      userId: 'user-4',
-      userEmail: 'customer@example.com',
-      ipAddress: '192.168.1.103',
-      userAgent: 'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'wallet-service',
-      tags: ['wallets', 'balance']
-    },
-    {
-      id: '5',
-      timestamp: '2024-01-20T10:29:00Z',
-      method: 'POST',
-      endpoint: '/api/kyc/submit',
-      statusCode: 400,
-      responseTime: 234,
-      userId: 'user-5',
-      userEmail: 'kyc@example.com',
-      ipAddress: '192.168.1.104',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      requestBody: { documentType: 'passport', file: '***' },
-      errorMessage: 'Invalid document format',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'kyc-service',
-      tags: ['kyc', 'validation']
-    },
-    {
-      id: '6',
-      timestamp: '2024-01-20T10:28:45Z',
-      method: 'PUT',
-      endpoint: '/api/users/profile',
-      statusCode: 200,
-      responseTime: 178,
-      userId: 'user-6',
-      userEmail: 'profile@example.com',
-      ipAddress: '192.168.1.105',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      requestBody: { firstName: 'Jane', lastName: 'Smith' },
-      responseBody: { success: true, updated: true },
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'user-service',
-      tags: ['users', 'profile', 'update']
-    },
-    {
-      id: '7',
-      timestamp: '2024-01-20T10:28:30Z',
-      method: 'DELETE',
-      endpoint: '/api/transactions/txn-456',
-      statusCode: 204,
-      responseTime: 123,
-      userId: 'user-7',
-      userEmail: 'admin@rukapay.co.ug',
-      ipAddress: '192.168.1.106',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'transaction-service',
-      tags: ['transactions', 'delete']
-    },
-    {
-      id: '8',
-      timestamp: '2024-01-20T10:28:15Z',
-      method: 'GET',
-      endpoint: '/api/reports/daily',
-      statusCode: 200,
-      responseTime: 567,
-      userId: 'user-8',
-      userEmail: 'analyst@rukapay.co.ug',
-      ipAddress: '192.168.1.107',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'report-service',
-      tags: ['reports', 'analytics']
-    },
-    {
-      id: '9',
-      timestamp: '2024-01-20T10:28:00Z',
-      method: 'POST',
-      endpoint: '/api/notifications/send',
-      statusCode: 500,
-      responseTime: 1200,
-      userId: 'user-9',
-      userEmail: 'system@rukapay.co.ug',
-      ipAddress: '192.168.1.108',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      requestBody: { type: 'email', recipients: ['user-1', 'user-2'] },
-      errorMessage: 'Internal server error: SMTP service unavailable',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'notification-service',
-      tags: ['notifications', 'email']
-    },
-    {
-      id: '10',
-      timestamp: '2024-01-20T10:27:45Z',
-      method: 'GET',
-      endpoint: '/api/health',
-      statusCode: 200,
-      responseTime: 45,
-      ipAddress: '192.168.1.109',
-      userAgent: 'Health-Check/1.0',
-      version: 'v1.2.3',
-      environment: 'production',
-      service: 'health-service',
-      tags: ['health', 'monitoring']
-    }
+    // ... other mock logs
   ]
 
   const handleSearch = (value: string) => {
@@ -491,9 +358,16 @@ const ApiLogsPage = () => {
     return `${time}ms`
   }
 
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400)
+    const hours = Math.floor((seconds % 86400) / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${days}d ${hours}h ${minutes}m`
+  }
+
   return (
     <PermissionGuard 
-      permission={PERMISSIONS.VIEW_SYSTEM_LOGS} 
+      permission={PERMISSIONS.SYSTEM_LOGS} 
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
@@ -509,348 +383,630 @@ const ApiLogsPage = () => {
         <main className="p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">API Logs</h1>
-              <p className="text-gray-600 mt-2">Monitor and analyze API request logs and performance</p>
+              <h1 className="text-3xl font-bold text-gray-900">System Monitoring</h1>
+              <p className="text-gray-600 mt-2">Monitor system health, API logs, and analytics</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{apiLogs.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Last 24 hours
-                  </p>
-                </CardContent>
-              </Card>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="health" className="flex items-center gap-2">
+                  <Heart className="h-4 w-4" />
+                  Health
+                </TabsTrigger>
+                <TabsTrigger value="logs" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  API Logs
+                </TabsTrigger>
+                <TabsTrigger value="partners" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Partners
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {Math.round((apiLogs.filter(l => l.statusCode >= 200 && l.statusCode < 300).length / apiLogs.length) * 100)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {apiLogs.filter(l => l.statusCode >= 200 && l.statusCode < 300).length} successful
-                  </p>
-                </CardContent>
-              </Card>
+              {/* Health Tab */}
+              <TabsContent value="health" className="space-y-6 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">System Status</CardTitle>
+                      <Heart className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {healthLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : healthError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          <span className={healthData?.status === 'healthy' ? 'text-green-600' : 'text-red-600'}>
+                            {healthData?.status || 'Unknown'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {healthData?.timestamp ? formatDate(healthData.timestamp) : 'Last check: Unknown'}
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
-                  <XCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {Math.round((apiLogs.filter(l => l.statusCode >= 400).length / apiLogs.length) * 100)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {apiLogs.filter(l => l.statusCode >= 400).length} errors
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Uptime</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {healthLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : healthError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          formatUptime(healthData?.uptime || 0)
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        System uptime
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {Math.round(apiLogs.reduce((sum, log) => sum + log.responseTime, 0) / apiLogs.length)}ms
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Response time
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Database</CardTitle>
+                      <Database className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {healthLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : healthError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          <span className={healthData?.services?.database ? 'text-green-600' : 'text-red-600'}>
+                            {healthData?.services?.database ? 'Online' : 'Offline'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Database status
+                      </p>
+                    </CardContent>
+                  </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>API Request Logs</CardTitle>
-                    <CardDescription>
-                      Monitor API requests, responses, and performance metrics
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleExport}
-                      disabled={isLoading}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleRefresh}
-                      disabled={isLoading}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Redis</CardTitle>
+                      <Server className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {healthLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : healthError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          <span className={healthData?.services?.redis ? 'text-green-600' : 'text-red-600'}>
+                            {healthData?.services?.redis ? 'Online' : 'Offline'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Cache status
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search by endpoint, user, IP, or tags..."
-                          value={searchTerm}
-                          onChange={(e) => handleSearch(e.target.value)}
-                          className="pl-8 w-64"
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowFilters(!showFilters)}
-                      >
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filters
-                      </Button>
-                    </div>
-                  </div>
 
-                  {showFilters && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-gray-50">
-                      <div>
-                        <label className="text-sm font-medium">Status</label>
-                        <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="success">Success (2xx)</SelectItem>
-                            <SelectItem value="redirect">Redirect (3xx)</SelectItem>
-                            <SelectItem value="error">Error (4xx/5xx)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                {healthError && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Health Check Failed</h3>
+                        <p className="text-gray-500">Unable to retrieve system health status.</p>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium">Method</label>
-                        <Select value={methodFilter} onValueChange={handleMethodFilter}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All Methods" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Methods</SelectItem>
-                            <SelectItem value="GET">GET</SelectItem>
-                            <SelectItem value="POST">POST</SelectItem>
-                            <SelectItem value="PUT">PUT</SelectItem>
-                            <SelectItem value="DELETE">DELETE</SelectItem>
-                            <SelectItem value="PATCH">PATCH</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              {/* API Logs Tab */}
+              <TabsContent value="logs" className="space-y-6 mt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{apiLogs.length}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Last 24 hours
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {Math.round((apiLogs.filter(l => l.statusCode >= 200 && l.statusCode < 300).length / apiLogs.length) * 100)}%
                       </div>
-                      <div>
-                        <label className="text-sm font-medium">Service</label>
-                        <Select value={serviceFilter} onValueChange={handleServiceFilter}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All Services" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Services</SelectItem>
-                            <SelectItem value="auth-service">Auth Service</SelectItem>
-                            <SelectItem value="user-service">User Service</SelectItem>
-                            <SelectItem value="transaction-service">Transaction Service</SelectItem>
-                            <SelectItem value="wallet-service">Wallet Service</SelectItem>
-                            <SelectItem value="kyc-service">KYC Service</SelectItem>
-                            <SelectItem value="notification-service">Notification Service</SelectItem>
-                            <SelectItem value="report-service">Report Service</SelectItem>
-                            <SelectItem value="health-service">Health Service</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {apiLogs.filter(l => l.statusCode >= 200 && l.statusCode < 300).length} successful
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Error Rate</CardTitle>
+                      <XCircle className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {Math.round((apiLogs.filter(l => l.statusCode >= 400).length / apiLogs.length) * 100)}%
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {apiLogs.filter(l => l.statusCode >= 400).length} errors
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {Math.round(apiLogs.reduce((sum, log) => sum + log.responseTime, 0) / apiLogs.length)}ms
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Response time
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium">Environment</label>
-                        <Select value={environmentFilter} onValueChange={handleEnvironmentFilter}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="All Environments" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Environments</SelectItem>
-                            <SelectItem value="production">Production</SelectItem>
-                            <SelectItem value="staging">Staging</SelectItem>
-                            <SelectItem value="development">Development</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <CardTitle>API Request Logs</CardTitle>
+                        <CardDescription>
+                          Monitor API requests, responses, and performance metrics
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleExport}
+                          disabled={isLoading}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Export
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleRefresh}
+                          disabled={isLoading}
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
                       </div>
                     </div>
-                  )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Search by endpoint, user, IP, or tags..."
+                              value={searchTerm}
+                              onChange={(e) => handleSearch(e.target.value)}
+                              className="pl-8 w-64"
+                            />
+                          </div>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowFilters(!showFilters)}
+                          >
+                            <Filter className="h-4 w-4 mr-2" />
+                            Filters
+                          </Button>
+                        </div>
+                      </div>
 
-                  <div className="border rounded-lg">
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left">
-                              <input
-                                type="checkbox"
-                                checked={selectedLogs.length === filteredApiLogs.length}
-                                onChange={handleSelectAll}
-                                className="rounded"
-                              />
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Timestamp
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Method
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Endpoint
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Response Time
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              User
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              IP Address
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Service
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Environment
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {paginatedApiLogs.map((log) => (
-                            <tr key={log.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedLogs.includes(log.id)}
-                                  onChange={() => handleSelectLog(log.id)}
-                                  className="rounded"
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
-                                {formatDate(log.timestamp)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge className={getMethodColor(log.method)}>
-                                  {log.method}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="font-mono text-sm text-gray-900">
-                                  {log.endpoint}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {log.version}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge className={getStatusColor(log.statusCode)}>
-                                  {log.statusCode}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className={`text-sm font-medium ${getResponseTimeColor(log.responseTime)}`}>
-                                  {formatResponseTime(log.responseTime)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                {log.userEmail ? (
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {log.userEmail}
+                      {showFilters && (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg bg-gray-50">
+                          <div>
+                            <label className="text-sm font-medium">Status</label>
+                            <Select value={statusFilter} onValueChange={handleStatusFilter}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="success">Success (2xx)</SelectItem>
+                                <SelectItem value="redirect">Redirect (3xx)</SelectItem>
+                                <SelectItem value="error">Error (4xx/5xx)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Method</label>
+                            <Select value={methodFilter} onValueChange={handleMethodFilter}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Methods" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Methods</SelectItem>
+                                <SelectItem value="GET">GET</SelectItem>
+                                <SelectItem value="POST">POST</SelectItem>
+                                <SelectItem value="PUT">PUT</SelectItem>
+                                <SelectItem value="DELETE">DELETE</SelectItem>
+                                <SelectItem value="PATCH">PATCH</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Service</label>
+                            <Select value={serviceFilter} onValueChange={handleServiceFilter}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Services" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Services</SelectItem>
+                                <SelectItem value="auth-service">Auth Service</SelectItem>
+                                <SelectItem value="user-service">User Service</SelectItem>
+                                <SelectItem value="transaction-service">Transaction Service</SelectItem>
+                                <SelectItem value="wallet-service">Wallet Service</SelectItem>
+                                <SelectItem value="kyc-service">KYC Service</SelectItem>
+                                <SelectItem value="notification-service">Notification Service</SelectItem>
+                                <SelectItem value="report-service">Report Service</SelectItem>
+                                <SelectItem value="health-service">Health Service</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Environment</label>
+                            <Select value={environmentFilter} onValueChange={handleEnvironmentFilter}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="All Environments" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Environments</SelectItem>
+                                <SelectItem value="production">Production</SelectItem>
+                                <SelectItem value="staging">Staging</SelectItem>
+                                <SelectItem value="development">Development</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="border rounded-lg">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedLogs.length === filteredApiLogs.length}
+                                    onChange={handleSelectAll}
+                                    className="rounded"
+                                  />
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Timestamp
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Method
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Endpoint
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Status
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Response Time
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  User
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  IP Address
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Service
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Environment
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                  Actions
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {paginatedApiLogs.map((log) => (
+                                <tr key={log.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedLogs.includes(log.id)}
+                                      onChange={() => handleSelectLog(log.id)}
+                                      className="rounded"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500">
+                                    {formatDate(log.timestamp)}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge className={getMethodColor(log.method)}>
+                                      {log.method}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="font-mono text-sm text-gray-900">
+                                      {log.endpoint}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                      {log.userId}
+                                      {log.version}
                                     </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-gray-500">Anonymous</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500 font-mono">
-                                {log.ipAddress}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge variant="outline">
-                                  {log.service}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge className={getEnvironmentColor(log.environment)}>
-                                  {log.environment}
-                                </Badge>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center space-x-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleViewLog(log)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge className={getStatusColor(log.statusCode)}>
+                                      {log.statusCode}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`text-sm font-medium ${getResponseTimeColor(log.responseTime)}`}>
+                                      {formatResponseTime(log.responseTime)}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {log.userEmail ? (
+                                      <div>
+                                        <div className="text-sm font-medium text-gray-900">
+                                          {log.userEmail}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {log.userId}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-gray-500">Anonymous</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-500 font-mono">
+                                    {log.ipAddress}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant="outline">
+                                      {log.service}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge className={getEnvironmentColor(log.environment)}>
+                                      {log.environment}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewLog(log)}
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
-                      Showing {paginatedApiLogs.length} of {sortedApiLogs.length} API logs
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                          Showing {paginatedApiLogs.length} of {sortedApiLogs.length} API logs
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            Previous
+                          </Button>
+                          <span className="text-sm">
+                            Page {currentPage} of {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-sm">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Partners Tab */}
+              <TabsContent value="partners" className="space-y-6 mt-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Partners</CardTitle>
+                    <CardDescription>
+                      Manage and monitor partner integrations
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {partnersLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading partners...</p>
+                      </div>
+                    ) : partnersError ? (
+                      <div className="text-center py-8">
+                        <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Partners</h3>
+                        <p className="text-gray-500">Unable to retrieve partner data.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {partnersData?.map((partner: Partner) => (
+                          <div key={partner.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Building2 className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium">{partner.name}</div>
+                                <div className="text-sm text-gray-500">{partner.type}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className={partner.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                                {partner.status}
+                              </Badge>
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Analytics Tab */}
+              <TabsContent value="analytics" className="space-y-6 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {analyticsLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : analyticsError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          analyticsData?.totalUsers?.toLocaleString() || '0'
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Registered users
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {analyticsLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : analyticsError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          analyticsData?.totalTransactions?.toLocaleString() || '0'
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        All time
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {analyticsLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : analyticsError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          `UGX ${analyticsData?.totalRevenue?.toLocaleString() || '0'}`
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        All time
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Active Partners</CardTitle>
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {analyticsLoading ? (
+                          <div className="animate-pulse">Loading...</div>
+                        ) : analyticsError ? (
+                          <span className="text-red-600">Error</span>
+                        ) : (
+                          analyticsData?.activePartners || '0'
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Currently active
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
+
+                {analyticsError && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="text-center">
+                        <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics Failed</h3>
+                        <p className="text-gray-500">Unable to retrieve analytics data.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

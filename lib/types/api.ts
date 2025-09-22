@@ -18,6 +18,25 @@ export interface User {
   createdAt: string
   updatedAt: string
   permissions?: Permission[]
+  subscriberType: string
+  profile?: {
+    id: string
+    userId: string
+    firstName: string
+    middleName?: string | null
+    lastName: string
+    dateOfBirth?: string | null
+    gender?: string | null
+    nationalId?: string | null
+    address?: string | null
+    city?: string | null
+    country: string
+    typeData: any
+    profileType: string
+    isActive: boolean
+    createdAt: string
+    updatedAt: string
+  }
 }
 
 export interface Role {
@@ -175,9 +194,14 @@ export interface Notification {
 export interface Wallet {
   id: string
   userId: string
-  currency: string
   balance: number
-  status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+  currency: string
+  isActive: boolean
+  isSuspended: boolean
+  suspendedAt?: string
+  suspendedBy?: string
+  suspensionReason?: string
+  walletType: string
   description?: string
   createdAt: string
   updatedAt: string

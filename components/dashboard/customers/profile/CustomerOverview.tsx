@@ -11,8 +11,10 @@ import {
   User,
   Building,
   CreditCard,
-  Shield
+  Shield,
+  Wallet
 } from 'lucide-react'
+import type { WalletBalance } from '@/lib/types/api'
 
 interface CustomerOverviewProps {
   customer: {
@@ -23,12 +25,14 @@ interface CustomerOverviewProps {
     joinDate: string
     location: string
     address: string
+    walletBalance?: any
   }
   type: string
   profileDetails: any
+  walletBalance?: any
 }
 
-const CustomerOverview = ({ customer, type, profileDetails }: CustomerOverviewProps) => {
+const CustomerOverview = ({ customer, type, profileDetails, walletBalance }: CustomerOverviewProps) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
@@ -223,6 +227,15 @@ const CustomerOverview = ({ customer, type, profileDetails }: CustomerOverviewPr
                 <div>
                   <div className="text-sm font-medium">Phone Number</div>
                   <div className="text-sm text-gray-600">{customer.phone}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Wallet className="h-4 w-4 text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium">Wallet Balance</div>
+                  <div className="text-sm text-gray-600">
+                   {Number(customer.walletBalance).toLocaleString()} UGX
+                  </div>
                 </div>
               </div>
             </div>
