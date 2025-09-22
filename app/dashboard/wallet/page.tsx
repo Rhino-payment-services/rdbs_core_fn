@@ -41,16 +41,13 @@ const WalletPage = () => {
   // Handle different API response structures
   const walletsArray: WalletType[] = Array.isArray(wallets) ? wallets : []
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>
-      case 'SUSPENDED':
-        return <Badge className="bg-red-100 text-red-800">Suspended</Badge>
-      case 'CLOSED':
-        return <Badge className="bg-gray-100 text-gray-800">Closed</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
+  const getStatusBadge = (wallet: WalletType) => {
+    if (wallet.isSuspended) {
+      return <Badge className="bg-red-100 text-red-800">Suspended</Badge>
+    } else if (wallet.isActive) {
+      return <Badge className="bg-green-100 text-green-800">Active</Badge>
+    } else {
+      return <Badge className="bg-gray-100 text-gray-800">Inactive</Badge>
     }
   }
 
@@ -120,7 +117,8 @@ const WalletPage = () => {
   }
 
   const totalBalance = walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
-  const activeWallets = walletsArray.filter(wallet => wallet.status === 'ACTIVE').length
+  const activeWallets = walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
+  const suspendedWallets = walletsArray.filter(wallet => wallet.isSuspended).length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -252,7 +250,7 @@ const WalletPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {walletsArray.filter(wallet => wallet.status === 'SUSPENDED').length}
+                  {suspendedWallets}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Require attention
@@ -297,7 +295,7 @@ const WalletPage = () => {
                             <Wallet className="h-5 w-5 text-[#08163d]" />
                             <CardTitle className="text-lg">{wallet.description || 'Main Wallet'}</CardTitle>
                           </div>
-                          {getStatusBadge(wallet.status)}
+                          {getStatusBadge(wallet)}
                         </div>
                         <CardDescription>
                           {getCurrencyBadge(wallet.currency)} • Created {formatDate(wallet.createdAt)}

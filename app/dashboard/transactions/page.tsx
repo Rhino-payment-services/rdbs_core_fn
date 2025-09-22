@@ -31,7 +31,7 @@ const TransactionsPage = () => {
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
   
   // Get stats data
-  const stats = transactionStats?.data || {
+  const stats = transactionStats || {
     totalTransactions: 0,
     totalVolume: 0,
     totalFees: 0,

@@ -1,20 +1,30 @@
 "use client"
 import React from 'react'
 import Navbar from '@/components/dashboard/Navbar'
-import { TrendingUp, Users, CreditCard, DollarSign, ShoppingCart, Building2, Activity, AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { TrendingUp, Users, CreditCard, DollarSign, ShoppingCart, Building2, Activity, AlertTriangle, CheckCircle, Clock, ArrowUpRight, ArrowDownRight, Shield, Lock, DollarSignIcon } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useTransactionSystemStats } from '@/lib/hooks/useApi'
+import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 
 const DashboardPage = () => {
-  // Fetch real transaction system stats
+  const { hasPermission, hasAnyPermission } = usePermissions()
+  
+  // Check if user has any transaction viewing permissions
+  const canViewTransactions = hasAnyPermission([
+    PERMISSIONS.TRANSACTIONS_VIEW,
+    PERMISSIONS.TRANSACTIONS_APPROVE,
+    PERMISSIONS.TRANSACTIONS_REVERSE
+  ])
+
+  // Fetch real transaction system stats only if user has permission
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
   
   // Get stats data
-  const stats = transactionStats?.data || {
+  const stats = transactionStats || {
     totalTransactions: 0,
     totalVolume: 0,
     totalFees: 0,
@@ -24,6 +34,38 @@ const DashboardPage = () => {
     transactionsByStatus: {},
     transactionsByCurrency: {}
   }
+
+  // If user doesn't have transaction permissions, show access denied message
+  if (!canViewTransactions) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Access Denied Card */}
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <Card className="w-full max-w-md text-center">
+                <CardContent className="p-12">
+                  <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Lock className="w-12 h-12 text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h2>
+                  <p className="text-gray-600 mb-6">
+                    You don't have permission to view the dashboard .
+                  </p>
+          
+                  <p className="text-sm text-gray-500">
+                    Please contact your administrator to request access to transaction data.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   // Real data for charts and analytics
   const transactionData = [
     { day: 'Mon', volume: 125000, transactions: 1247 },
@@ -80,12 +122,6 @@ const DashboardPage = () => {
       <Navbar />
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to RDBS Dashboard</h1>
-            <p className="text-gray-600">Monitor your fintech operations, money transfers, and merchant payments</p>
-          </div>
-
           {/* Loading State for Stats */}
           {statsLoading && (
             <div className="mb-8">
@@ -142,7 +178,7 @@ const DashboardPage = () => {
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-purple-600" />
+                  <DollarSignIcon className="w-6 h-6 text-purple-600" />
                 </div>
               </div>
               <div className="mt-4">

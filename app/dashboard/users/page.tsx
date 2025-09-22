@@ -45,12 +45,16 @@ const UsersPage = () => {
   // Handle different API response structures
   const usersArray: User[] = Array.isArray(users) ? users : []
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
-  const usersCount = usersArray.length
+  
+  // Filter for staff users only
+  const staffUsersArray = usersArray.filter(user => user.userType === 'STAFF')
+  const staffUsersCount = staffUsersArray.length
 
   console.log('Users API Response:', users)
   console.log('Users data:', users)
   console.log('Users array:', usersArray)
-  console.log('Users count:', usersCount)
+  console.log('Staff users array:', staffUsersArray)
+  console.log('Staff users count:', staffUsersCount)
   console.log('Is loading:', isLoading)
   console.log('Error:', error)
 
@@ -128,7 +132,7 @@ const UsersPage = () => {
 
   return (
     <PermissionGuard 
-      permission={PERMISSIONS.VIEW_USERS} 
+      permission={PERMISSIONS.USERS_VIEW} 
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
@@ -154,7 +158,7 @@ const UsersPage = () => {
                   <p className="text-sm text-gray-600">Available Roles</p>
                   <p className="text-lg font-semibold text-gray-900">{rolesArray.length}</p>
                 </div>
-                <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
+                <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
                   <Link href="/dashboard/users/permissions">
                     <Button variant="outline" className="border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white">
                       <Key className="w-4 h-4 mr-2" />
@@ -162,7 +166,7 @@ const UsersPage = () => {
                     </Button>
                   </Link>
                 </PermissionGuard>
-                <PermissionGuard permission={PERMISSIONS.CREATE_USER}>
+                <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
                   <Link href="/dashboard/users/create">
                     <Button className="bg-[#08163d] hover:bg-[#0a1f4f]">
                       <UserPlus className="w-4 h-4 mr-2" />
@@ -177,43 +181,43 @@ const UsersPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Staff Users</CardTitle>
                 <UserIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{usersCount}</div>
+                <div className="text-2xl font-bold">{staffUsersCount}</div>
                 <p className="text-xs text-muted-foreground">
-                  {usersCount > 0 ? `${Math.round((usersCount / usersCount) * 100)}%` : '0%'} of total
+                  Staff users in system
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+                <CardTitle className="text-sm font-medium">Active Staff Users</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {usersArray.filter(user => user.status === 'ACTIVE').length}
+                  {staffUsersArray.filter(user => user.status === 'ACTIVE').length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {usersCount > 0 ? `${Math.round((usersArray.filter(user => user.status === 'ACTIVE').length / usersCount) * 100)}%` : '0%'} of total
+                  {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.status === 'ACTIVE').length / staffUsersCount) * 100)}%` : '0%'} of staff users
                 </p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Verified Users</CardTitle>
+                <CardTitle className="text-sm font-medium">Verified Staff Users</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {usersArray.filter(user => user.isVerified).length}
+                  {staffUsersArray.filter(user => user.isVerified).length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {usersCount > 0 ? `${Math.round((usersArray.filter(user => user.isVerified).length / usersCount) * 100)}%` : '0%'} of total
+                  {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.isVerified).length / staffUsersCount) * 100)}%` : '0%'} of staff users
                 </p>
               </CardContent>
             </Card>
@@ -237,13 +241,13 @@ const UsersPage = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Users</CardTitle>
-                  <CardDescription>Manage system users and their permissions</CardDescription>
+                  <CardTitle>Staff Users</CardTitle>
+                  <CardDescription>Manage system staff users and their permissions</CardDescription>
                 </div>
                 <Link href="/dashboard/users/create">
                   <Button className="flex items-center gap-2">
                     <UserPlus className="h-4 w-4" />
-                    Create New User
+                    Create New Staff User
                   </Button>
                 </Link>
               </div>
@@ -255,7 +259,7 @@ const UsersPage = () => {
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                     <Input
-                      placeholder="Search users..."
+                      placeholder="Search staff users..."
                       className="pl-10"
                     />
                   </div>
@@ -276,15 +280,15 @@ const UsersPage = () => {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
                       <p className="text-gray-600">Loading users...</p>
                     </div>
-                  ) : (!usersArray || usersArray.length === 0) ? (
+                  ) : (!staffUsersArray || staffUsersArray.length === 0) ? (
                     <div className="p-8 text-center">
                       <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-                      <p className="text-gray-600 mb-4">Get started by creating your first user.</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No staff users found</h3>
+                      <p className="text-gray-600 mb-4">Get started by creating your first staff user.</p>
                       <Link href="/dashboard/users/create">
                         <Button className="flex items-center gap-2">
                           <UserPlus className="h-4 w-4" />
-                          Create New User
+                          Create New Staff User
                         </Button>
                       </Link>
                     </div>
@@ -303,7 +307,7 @@ const UsersPage = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {usersArray.map((user) => (
+                        {staffUsersArray.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
                             <TableCell>{user.phone || 'N/A'}</TableCell>
@@ -314,14 +318,14 @@ const UsersPage = () => {
                             <TableCell>{user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Never'}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    <PermissionGuard permission={PERMISSIONS.UPDATE_USER}>
+                                    <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
                                         <EditUserModal user={user} />
                                     </PermissionGuard>
                                     <Button variant="ghost" size="sm">
                                         <Eye className="h-4 w-4" />
                                     </Button>
                                     
-                                    <PermissionGuard permission={PERMISSIONS.DELETE_USER}>
+                                    <PermissionGuard permission={PERMISSIONS.USERS_DELETE}>
                                         <Button variant="ghost" size="sm">
                                             <Trash2 className="h-4 w-4" />
                                         </Button>

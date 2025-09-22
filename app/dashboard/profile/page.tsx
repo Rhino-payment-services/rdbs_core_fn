@@ -21,7 +21,8 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
-  Users
+  Users,
+  CreditCard // Add this import for PIN icon
 } from 'lucide-react'
 import { useProfile } from '@/lib/hooks/useApi'
 import { useSession } from 'next-auth/react'
@@ -86,6 +87,21 @@ const ProfilePage = () => {
   const [showCreatePassword, setShowCreatePassword] = useState(false)
   const [isCreatingUser, setIsCreatingUser] = useState(false)
 
+  // Add PIN state
+  const [showPinSection, setShowPinSection] = useState(false)
+  const [showCurrentPin, setShowCurrentPin] = useState(false)
+  const [showNewPin, setShowNewPin] = useState(false)
+  const [showConfirmPin, setShowConfirmPin] = useState(false)
+  const [isUpdatingPin, setIsUpdatingPin] = useState(false)
+  
+  const [pinData, setPinData] = useState({
+    currentPin: '',
+    newPin: '',
+    confirmPin: ''
+  })
+
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -118,7 +134,7 @@ const ProfilePage = () => {
     setIsEditing(false)
   }
 
-  const handlePasswordUpdate = () => {
+  const handlePasswordUpdate = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('New passwords do not match!')
       return
@@ -129,13 +145,33 @@ const ProfilePage = () => {
       return
     }
     
-    // TODO: Implement password update API call
-    toast.success('Password updated successfully!')
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
+    if (!passwordData.currentPassword) {
+      toast.error('Please enter your current password!')
+      return
+    }
+
+    setIsUpdatingPassword(true)
+
+    try {
+      const response = await api.post('/auth/pin/setup', {
+        newPin: passwordData.newPassword,
+        confirmPin: passwordData.confirmPassword,
+        currentPin: passwordData.currentPassword
+      })
+      
+      toast.success('Password updated successfully!')
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      })
+    } catch (error: any) {
+      console.error('Password update error:', error)
+      const errorMessage = extractErrorMessage(error)
+      toast.error(errorMessage)
+    } finally {
+      setIsUpdatingPassword(false)
+    }
   }
 
   const handleCreateUser = async () => {
@@ -185,6 +221,57 @@ const ProfilePage = () => {
       ...prev,
       [name]: value
     }))
+  }
+
+  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    // Only allow numeric input and limit to 4 digits
+    const numericValue = value.replace(/\D/g, '').slice(0, 4)
+    setPinData(prev => ({
+      ...prev,
+      [name]: numericValue
+    }))
+  }
+
+  const handlePinUpdate = async () => {
+    if (pinData.newPin !== pinData.confirmPin) {
+      toast.error('New PINs do not match!')
+      return
+    }
+    
+    if (pinData.newPin.length !== 4) {
+      toast.error('PIN must be exactly 4 digits!')
+      return
+    }
+    
+    if (pinData.currentPin.length !== 4) {
+      toast.error('Current PIN must be exactly 4 digits!')
+      return
+    }
+
+    setIsUpdatingPin(true)
+
+    try {
+      const response = await api.post('/auth/pin/setup', {
+        newPin: pinData.newPin,
+        confirmPin: pinData.confirmPin,
+        currentPin: pinData.currentPin
+      })
+      
+      toast.success('PIN updated successfully!')
+      setPinData({
+        currentPin: '',
+        newPin: '',
+        confirmPin: ''
+      })
+      setShowPinSection(false)
+    } catch (error: any) {
+      console.error('PIN update error:', error)
+      const errorMessage = extractErrorMessage(error)
+      toast.error(errorMessage)
+    } finally {
+      setIsUpdatingPin(false)
+    }
   }
 
   const getStatusBadge = (status: string | undefined) => {
@@ -556,12 +643,142 @@ const ProfilePage = () => {
                     
                     <button
                       onClick={handlePasswordUpdate}
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-[#08163d] hover:bg-[#0a1f4f] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#08163d] transition-colors"
+                      disabled={isUpdatingPassword}
+                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-[#08163d] hover:bg-[#0a1f4f] disabled:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#08163d] transition-colors"
                     >
-                      <Save className="w-4 h-4 mr-2" />
-                      Update Password
+                      {isUpdatingPassword ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Update Password
+                        </>
+                      )}
                     </button>
                   </div>
+                </div>
+
+                {/* Change PIN */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <CreditCard className="w-5 h-5 text-gray-600 mr-3" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Change PIN</h3>
+                        <p className="text-gray-600 text-sm">Update your transaction PIN for security</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowPinSection(!showPinSection)}
+                      className="inline-flex items-center px-4 py-2 border border-[#08163d] rounded-lg text-sm font-medium text-[#08163d] bg-white hover:bg-[#08163d] hover:text-white transition-colors"
+                    >
+                      {showPinSection ? (
+                        <>
+                          <X className="w-4 h-4 mr-2" />
+                          Cancel
+                        </>
+                      ) : (
+                        <>
+                          <Key className="w-4 h-4 mr-2" />
+                          Change PIN
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {showPinSection && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Current PIN</label>
+                        <div className="relative">
+                          <input
+                            type={showCurrentPin ? "text" : "password"}
+                            name="currentPin"
+                            value={pinData.currentPin}
+                            onChange={handlePinChange}
+                            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent transition-colors"
+                            placeholder="Enter current PIN"
+                            maxLength={4}
+                          />
+                          <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPin(!showCurrentPin)}
+                            className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                          >
+                            {showCurrentPin ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">New PIN</label>
+                        <div className="relative">
+                          <input
+                            type={showNewPin ? "text" : "password"}
+                            name="newPin"
+                            value={pinData.newPin}
+                            onChange={handlePinChange}
+                            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent transition-colors"
+                            placeholder="Enter new PIN"
+                            maxLength={4}
+                          />
+                          <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPin(!showNewPin)}
+                            className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                          >
+                            {showNewPin ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New PIN</label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPin ? "text" : "password"}
+                            name="confirmPin"
+                            value={pinData.confirmPin}
+                            onChange={handlePinChange}
+                            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent transition-colors"
+                            placeholder="Confirm new PIN"
+                            maxLength={4}
+                          />
+                          <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPin(!showConfirmPin)}
+                            className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                          >
+                            {showConfirmPin ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={handlePinUpdate}
+                        disabled={isUpdatingPin}
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-[#08163d] hover:bg-[#0a1f4f] disabled:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#08163d] transition-colors"
+                      >
+                        {isUpdatingPin ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Update PIN
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Preferences */}

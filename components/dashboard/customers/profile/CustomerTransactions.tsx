@@ -12,37 +12,19 @@ import {
   ArrowUpRight,
   ArrowDownLeft
 } from 'lucide-react'
-
-interface Transaction {
-  id: number
-  type: string
-  amount: number
-  fee: number
-  status: string
-  date: string
-  sender: {
-    id: number
-    name: string
-    type: string
-    phone: string
-  }
-  receiver: {
-    id: number
-    name: string
-    type: string
-    phone: string
-  }
-  reference: string
-  description: string
-}
+import type { Transaction } from '@/lib/types/api'
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
   onExport: () => void
   onFilter: () => void
+  isLoading?: boolean
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
 }
 
-const CustomerTransactions = ({ transactions, onExport, onFilter }: CustomerTransactionsProps) => {
+const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading }: CustomerTransactionsProps) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',

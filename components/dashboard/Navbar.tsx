@@ -123,19 +123,22 @@ const Navbar = () => {
                   <span>Dashboard</span>
                 </Link>
                 
-                <Link 
-                  href="/dashboard/transactions" 
-                  className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActive('/dashboard/transactions')
-                      ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                      : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
-                  }`}
-                >
-                  <CreditCard className="h-4 w-4" />
-                  <span>Transactions</span>
-                </Link>
+                {/* Transactions Menu - Only show if user has transaction permissions */}
+                <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
+                  <Link 
+                    href="/dashboard/transactions" 
+                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive('/dashboard/transactions')
+                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
+                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                    }`}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    <span>Transactions</span>
+                  </Link>
+                </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_USERS}>
+                <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
                     href="/dashboard/users" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -149,7 +152,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_USERS}>
+                <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
                     href="/dashboard/customers" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -163,21 +166,21 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_WALLETS}>
+                <PermissionGuard permission={PERMISSIONS.TARIFFS_VIEW}>
                   <Link 
-                    href="/dashboard/wallet" 
+                    href="/dashboard/tariffs" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
-                      isActive('/dashboard/wallet')
+                      isActive('/dashboard/tariffs')
                         ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
                         : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
                     }`}
                   >
-                    <DollarSign className="h-4 w-4" />
-                    <span>Wallets</span>
+                    <CreditCard className="h-4 w-4" />
+                    <span>Tariffs</span>
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_KYC}>
+                <PermissionGuard permission={PERMISSIONS.KYC_VIEW}>
                   <Link 
                     href="/dashboard/kyc" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -191,7 +194,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_SYSTEM_LOGS}>
+                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
                     href="/dashboard/reports" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -233,7 +236,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_SYSTEM_LOGS}>
+                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
                     href="/dashboard/api-logs" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -247,7 +250,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.VIEW_SYSTEM_LOGS}>
+                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
                     href="/dashboard/system-logs" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${

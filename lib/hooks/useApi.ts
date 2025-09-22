@@ -85,7 +85,7 @@ export const useTransaction = (id: string) => {
 
 // Hook to get transaction system stats
 export const useTransactionSystemStats = () => {
-  return useQuery<ApiResponse<TransactionSystemStats>>({
+  return useQuery({
     queryKey: [...queryKeys.transactions, 'system', 'stats'],
     queryFn: () => apiFetch('/transactions/system/stats'),
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -94,7 +94,7 @@ export const useTransactionSystemStats = () => {
 
 // Custom hooks for users
 export const useUsers = () => {
-  return useQuery<ApiResponse<User[]>>({
+  return useQuery({
     queryKey: queryKeys.users,
     queryFn: () => apiFetch('/users'),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -251,7 +251,7 @@ export const useNotifications = () => {
 export const useCreateUser = () => {
   const queryClient = useQueryClient()
   
-  return useMutation<ApiResponse<User>, Error, CreateUserRequest>({
+  return useMutation<ApiResponse<any>, Error, CreateUserRequest>({
     mutationFn: (userData) => apiFetch('/admin/users', {
       method: 'POST',
       data: userData,
@@ -315,7 +315,7 @@ export const useWallets = () => {
 }
 
 export const useWallet = (id: string) => {
-  return useQuery<ApiResponse<Wallet>>({
+  return useQuery({
     queryKey: ['wallet', id],
     queryFn: () => apiFetch(`/wallet/${id}`),
     enabled: !!id,
@@ -323,9 +323,9 @@ export const useWallet = (id: string) => {
 }
 
 export const useWalletBalance = (id: string) => {
-  return useQuery<ApiResponse<WalletBalance>>({
-    queryKey: ['wallet', id, 'balance'],
-    queryFn: () => apiFetch(`/wallet/${id}/balance`),
+  return useQuery({
+    queryKey: ['wallet', id],
+    queryFn: () => apiFetch(`/wallet/${id}`),
     enabled: !!id,
     staleTime: 30 * 1000, // 30 seconds
   })
@@ -550,6 +550,35 @@ export const useAdminKycApprovals = () => {
   })
 }
 
+export const usePendingKyc = () => {
+  return useQuery<any[]>({
+    queryKey: ['admin', 'kyc', 'pending'],
+    queryFn: () => apiFetch('/admin/kyc/pending'),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
+}
+
+export const useVerifyKyc = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<any>, Error, {
+    userId: string
+    status: 'APPROVED' | 'REJECTED'
+    rejectionReason?: string
+    verificationLevel: 'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'
+  }>({
+    mutationFn: (verifyData) => 
+      apiFetch('/admin/kyc/verify', {
+        method: 'POST',
+        data: verifyData,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'kyc', 'pending'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'kyc', 'approvals'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+    },
+  })
+}
+
 export const useApproveKyc = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<KycStatus>, Error, { userId: string; status: 'APPROVED' | 'REJECTED'; reason?: string }>({
@@ -609,3 +638,163 @@ export const useActivityLogs = () => {
     staleTime: 1 * 60 * 1000, // 1 minute
   })
 } 
+// Email sending hooks
+export const useSendWelcomeEmail = () => {
+  return useMutation<ApiResponse<any>, Error, {
+    email: string;
+    userName: string;
+    userId: string;
+    metadata?: {
+      channel?: string;
+      referralCode?: string;
+    };
+  }>({
+    mutationFn: (emailData) => apiFetch('/mail/send-welcome', {
+      method: 'POST',
+      data: emailData,
+    }),
+  })
+}
+
+// Set password hook
+export const useSetPassword = () => {
+  return useMutation<ApiResponse<any>, Error, {
+    token: string;
+    newPassword: string;
+    confirmPassword: string;
+  }>({
+    mutationFn: (passwordData) => apiFetch('/auth/set-password', {
+      method: 'POST',
+      data: passwordData,
+    }),
+  })
+}
+
+// Forgot password hook
+export const useForgotPassword = () => {
+  return useMutation<ApiResponse<any>, Error, {
+    email: string;
+  }>({
+    mutationFn: (emailData) => apiFetch('/auth/forgot-password', {
+      method: 'POST',
+      data: emailData,
+    }),
+  })
+}
+
+// Tariff hooks
+export const useTariffs = (filters?: {
+  transactionType?: string;
+  currency?: string;
+  feeType?: string;
+  userType?: string;
+  subscriberType?: string;
+  isActive?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  const queryString = filters ? new URLSearchParams(filters as Record<string, string>).toString() : ''
+  return useQuery<ApiResponse<PaginatedResponse<any>>>({
+    queryKey: ['tariffs', filters],
+    queryFn: () => apiFetch(`/finance/tariffs${queryString ? `?${queryString}` : ''}`),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+export const useTariff = (id: string) => {
+  return useQuery<ApiResponse<any>>({
+    queryKey: ['tariff', id],
+    queryFn: () => apiFetch(`/finance/tariffs/${id}`),
+    enabled: !!id,
+  })
+}
+
+export const useCreateTariff = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<any>, Error, any>({
+    mutationFn: (tariffData) => apiFetch('/finance/tariffs', {
+      method: 'POST',
+      data: tariffData,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tariffs'] })
+    },
+  })
+}
+
+export const useUpdateTariff = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<any>, Error, { id: string; tariffData: any }>({
+    mutationFn: ({ id, tariffData }) => apiFetch(`/finance/tariffs/${id}`, {
+      method: 'PUT',
+      data: tariffData,
+    }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['tariffs'] })
+      queryClient.invalidateQueries({ queryKey: ['tariff', id] })
+    },
+  })
+}
+
+export const useDeleteTariff = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<void>, Error, string>({
+    mutationFn: (id) => apiFetch(`/finance/tariffs/${id}`, {
+      method: 'DELETE',
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tariffs'] })
+    },
+  })
+}
+
+export const useCalculateFee = () => {
+  return useMutation<ApiResponse<any>, Error, {
+    transactionType: string;
+    amount: number;
+    currency?: string;
+    userType?: string;
+    subscriberType?: string;
+  }>({
+    mutationFn: (calculationData) => apiFetch('/finance/tariffs/calculate-fee', {
+      method: 'POST',
+      data: calculationData,
+    }),
+  })
+}
+
+export const useWalletTransactions = (userId: string, page: number = 1, limit: number = 10) => {
+  const queryParams = new URLSearchParams({
+    userId,
+    page: page.toString(),
+    limit: limit.toString()
+  })
+  
+  return useQuery({
+    queryKey: ['wallet', userId, 'transactions', page, limit],
+    queryFn: () => apiFetch(`/wallet/${userId}/transactions?${queryParams}`),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+export const useUserActivityLogs = (userId: string, page: number = 1, limit: number = 10) => {
+  const queryParams = new URLSearchParams({
+    userId,
+    page: page.toString(),
+    limit: limit.toString()
+  })
+  
+  return useQuery<{
+    logs: any[]
+    total: number
+    page: number
+    limit: number
+  }>({
+    queryKey: ['activity-logs', userId, page, limit],
+    queryFn: () => apiFetch(`/activity-logs/user/${userId}?${queryParams}`),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}

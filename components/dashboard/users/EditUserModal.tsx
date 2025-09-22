@@ -389,7 +389,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
 
           {/* Roles & Permissions Tab */}
           <TabsContent value="roles" className="space-y-6">
-            <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
+            <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -460,7 +460,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
               </Card>
             </PermissionGuard>
 
-            <PermissionGuard permission={PERMISSIONS.ASSIGN_ROLES}>
+            <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

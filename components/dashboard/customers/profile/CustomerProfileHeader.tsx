@@ -9,12 +9,28 @@ import {
   Edit,
   MoreHorizontal
 } from 'lucide-react'
+import { Wallet } from '@/lib/types/api'
 
 interface CustomerProfileHeaderProps {
   customer: {
     id: string
     name: string
-    type: string
+    type: string,
+    email: string,
+    phone: string,
+    status: string,
+    joinDate: string,
+    location: string,
+    address: string,
+    totalTransactions: number,
+    currentBalance: number,
+    avgTransactionValue: number,
+    successRate: number,
+    kycStatus: string,
+    riskLevel: string,
+    tags: string[],
+    notes: string,
+    walletBalance: Wallet
   }
   onBack: () => void
   onExport: () => void

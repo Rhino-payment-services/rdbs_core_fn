@@ -3,70 +3,71 @@
 import { useSession } from 'next-auth/react'
 import { useMemo } from 'react'
 
+// Updated permissions to match backend format (uppercase with underscores)
 export const PERMISSIONS = {
-  // User Management (5 permissions)
-  CREATE_USER: 'users:create',
-  UPDATE_USER: 'users:update', 
-  DELETE_USER: 'users:delete',
-  VIEW_USERS: 'users:view',
-  VERIFY_USER: 'users:verify',
+  // User Management
+  USERS_VIEW: 'USERS_VIEW',
+  USERS_CREATE: 'USERS_CREATE',
+  USERS_UPDATE: 'USERS_UPDATE',
+  USERS_DELETE: 'USERS_DELETE',
+  USERS_VERIFY: 'USERS_VERIFY',
   
-  // Role Management (5 permissions)
-  CREATE_ROLE: 'roles:create',
-  UPDATE_ROLE: 'roles:update',
-  DELETE_ROLE: 'roles:delete',
-  VIEW_ROLES: 'roles:view',
-  ASSIGN_ROLES: 'roles:assign',
+  // Role Management
+  ROLES_VIEW: 'ROLES_VIEW',
+  ROLES_CREATE: 'ROLES_CREATE',
+  ROLES_UPDATE: 'ROLES_UPDATE',
+  ROLES_DELETE: 'ROLES_DELETE',
+  ROLES_ASSIGN: 'ROLES_ASSIGN',
   
-  // Wallet Management (3 permissions)
-  VIEW_WALLETS: 'wallets:view',
-  APPROVE_WALLET: 'wallets:approve',
-  SUSPEND_WALLET: 'wallets:suspend',
+  // Wallet Management
+  WALLETS_VIEW: 'WALLETS_VIEW',
+  WALLETS_APPROVE: 'WALLETS_APPROVE',
+  WALLETS_SUSPEND: 'WALLETS_SUSPEND',
   
-  // KYC Management (4 permissions)
-  VIEW_KYC: 'kyc:view',
-  VERIFY_KYC: 'kyc:verify',
-  APPROVE_KYC: 'kyc:approve',
-  REJECT_KYC: 'kyc:reject',
+  // KYC Management
+  KYC_VIEW: 'KYC_VIEW',
+  KYC_VERIFY: 'KYC_VERIFY',
+  KYC_APPROVE: 'KYC_APPROVE',
+  KYC_REJECT: 'KYC_REJECT',
   
-  // 🆕 Merchant KYC Management (7 permissions)
-  VIEW_MERCHANT_KYC: 'merchant_kyc:view',
-  VERIFY_MERCHANT_KYC: 'merchant_kyc:verify',
-  APPROVE_MERCHANT_KYC: 'merchant_kyc:approve',
-  REJECT_MERCHANT_KYC: 'merchant_kyc:reject',
-  CREATE_MERCHANT_KYC: 'merchant_kyc:create',
-  UPDATE_MERCHANT_KYC: 'merchant_kyc:update',
-  DELETE_MERCHANT_KYC: 'merchant_kyc:delete',
+  // Merchant KYC Management
+  MERCHANT_KYC_VIEW: 'MERCHANT_KYC_VIEW',
+  MERCHANT_KYC_VERIFY: 'MERCHANT_KYC_VERIFY',
+  MERCHANT_KYC_APPROVE: 'MERCHANT_KYC_APPROVE',
+  MERCHANT_KYC_REJECT: 'MERCHANT_KYC_REJECT',
+  MERCHANT_KYC_CREATE: 'MERCHANT_KYC_CREATE',
+  MERCHANT_KYC_UPDATE: 'MERCHANT_KYC_UPDATE',
+  MERCHANT_KYC_ONBOARD: 'MERCHANT_KYC_ONBOARD',
   
-  // 🆕 Merchant Management (6 permissions)
-  VIEW_MERCHANTS: 'merchant:view',
-  CREATE_MERCHANT: 'merchant:create',
-  UPDATE_MERCHANT: 'merchant:update',
-  DELETE_MERCHANT: 'merchant:delete',
-  APPROVE_MERCHANT: 'merchant:approve',
-  SUSPEND_MERCHANT: 'merchant:suspend',
+  // Merchant Management
+  MERCHANT_VIEW: 'MERCHANT_VIEW',
+  MERCHANT_CREATE: 'MERCHANT_CREATE',
+  MERCHANT_UPDATE: 'MERCHANT_UPDATE',
+  MERCHANT_DELETE: 'MERCHANT_DELETE',
+  MERCHANT_SUSPEND: 'MERCHANT_SUSPEND',
+  MERCHANT_ACTIVATE: 'MERCHANT_ACTIVATE',
   
-  // Document Management (4 permissions)
-  VIEW_DOCUMENTS: 'documents:view',
-  VERIFY_DOCUMENTS: 'documents:verify',
-  APPROVE_DOCUMENTS: 'documents:approve',
-  REJECT_DOCUMENTS: 'documents:reject',
+  // Document Management
+  DOCUMENTS_VIEW: 'DOCUMENTS_VIEW',
+  DOCUMENTS_VERIFY: 'DOCUMENTS_VERIFY',
+  DOCUMENTS_APPROVE: 'DOCUMENTS_APPROVE',
+  DOCUMENTS_REJECT: 'DOCUMENTS_REJECT',
   
-  // Transaction Management (3 permissions)
-  VIEW_TRANSACTIONS: 'transactions:view',
-  APPROVE_TRANSACTIONS: 'transactions:approve',
-  REVERSE_TRANSACTIONS: 'transactions:reverse',
+  // Transaction Management
+  TRANSACTIONS_VIEW: 'TRANSACTIONS_VIEW',
+  TRANSACTIONS_APPROVE: 'TRANSACTIONS_APPROVE',
+  TRANSACTIONS_REVERSE: 'TRANSACTIONS_REVERSE',
   
-  // Tariff Management (4 permissions)
-  VIEW_TARIFFS: 'tariffs:view',
-  CREATE_TARIFFS: 'tariffs:create',
-  UPDATE_TARIFFS: 'tariffs:update',
-  DELETE_TARIFFS: 'tariffs:delete',
+  // Tariff Management
+  TARIFFS_VIEW: 'TARIFFS_VIEW',
+  TARIFFS_CREATE: 'TARIFFS_CREATE',
+  TARIFFS_UPDATE: 'TARIFFS_UPDATE',
+  TARIFFS_DELETE: 'TARIFFS_DELETE',
   
-  // System Management (3 permissions)
-  SYSTEM_CONFIGURE: 'system:configure',
-  VIEW_SYSTEM_LOGS: 'system:logs',
-  SYSTEM_BACKUP: 'system:backup',
+  // System Management
+  SYSTEM_CONFIGURE: 'SYSTEM_CONFIGURE',
+  SYSTEM_LOGS: 'SYSTEM_LOGS',
+  SYSTEM_BACKUP: 'SYSTEM_BACKUP',
 } as const
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]
@@ -129,15 +130,15 @@ interface UsePermissionsReturn {
   canRejectMerchantKyc: boolean
   canCreateMerchantKyc: boolean
   canUpdateMerchantKyc: boolean
-  canDeleteMerchantKyc: boolean
+  canOnboardMerchantKyc: boolean
   
   // Action checks - Merchant Management
   canViewMerchants: boolean
   canCreateMerchant: boolean
   canUpdateMerchant: boolean
   canDeleteMerchant: boolean
-  canApproveMerchant: boolean
   canSuspendMerchant: boolean
+  canActivateMerchant: boolean
   
   // Action checks - Document Management
   canViewDocuments: boolean
@@ -168,84 +169,85 @@ export const usePermissions = (): UsePermissionsReturn => {
   const currentUser = session?.user
   const userRole = ((currentUser as { role?: string })?.role || 'USER') as Role
   
-  // Get permissions from session or generate based on role
+  // Get permissions from session - now using the new backend format
   const userPermissions = useMemo(() => {
-    // If permissions are already in session, use them
+    // If permissions are already in session, use them directly
     if ((currentUser as { permissions?: string[] })?.permissions) {
       return (currentUser as { permissions?: string[] }).permissions || []
     }
     
-    // Fallback: Generate permissions based on role
+    // Fallback: Generate permissions based on role (using new format)
     const rolePermissions: Record<Role, Permission[]> = {
       SUPERADMIN: Object.values(PERMISSIONS),
       ADMIN: [
         // User Management
-        PERMISSIONS.CREATE_USER, PERMISSIONS.UPDATE_USER, PERMISSIONS.VIEW_USERS,
-        PERMISSIONS.VERIFY_USER, PERMISSIONS.DELETE_USER,
+        PERMISSIONS.USERS_CREATE, PERMISSIONS.USERS_UPDATE, PERMISSIONS.USERS_VIEW,
+        PERMISSIONS.USERS_VERIFY, PERMISSIONS.USERS_DELETE,
         // Role Management
-        PERMISSIONS.VIEW_ROLES, PERMISSIONS.CREATE_ROLE, PERMISSIONS.UPDATE_ROLE, 
-        PERMISSIONS.DELETE_ROLE, PERMISSIONS.ASSIGN_ROLES,
+        PERMISSIONS.ROLES_VIEW, PERMISSIONS.ROLES_CREATE, PERMISSIONS.ROLES_UPDATE, 
+        PERMISSIONS.ROLES_DELETE, PERMISSIONS.ROLES_ASSIGN,
         // Wallet Management
-        PERMISSIONS.VIEW_WALLETS, PERMISSIONS.APPROVE_WALLET, PERMISSIONS.SUSPEND_WALLET,
+        PERMISSIONS.WALLETS_VIEW, PERMISSIONS.WALLETS_APPROVE, PERMISSIONS.WALLETS_SUSPEND,
         // KYC Management
-        PERMISSIONS.VIEW_KYC, PERMISSIONS.VERIFY_KYC, PERMISSIONS.APPROVE_KYC, PERMISSIONS.REJECT_KYC,
+        PERMISSIONS.KYC_VIEW, PERMISSIONS.KYC_VERIFY, PERMISSIONS.KYC_APPROVE, PERMISSIONS.KYC_REJECT,
         // Merchant KYC Management
-        PERMISSIONS.VIEW_MERCHANT_KYC, PERMISSIONS.VERIFY_MERCHANT_KYC, PERMISSIONS.APPROVE_MERCHANT_KYC,
-        PERMISSIONS.REJECT_MERCHANT_KYC, PERMISSIONS.CREATE_MERCHANT_KYC, PERMISSIONS.UPDATE_MERCHANT_KYC,
+        PERMISSIONS.MERCHANT_KYC_VIEW, PERMISSIONS.MERCHANT_KYC_VERIFY, PERMISSIONS.MERCHANT_KYC_APPROVE,
+        PERMISSIONS.MERCHANT_KYC_REJECT, PERMISSIONS.MERCHANT_KYC_CREATE, PERMISSIONS.MERCHANT_KYC_UPDATE,
+        PERMISSIONS.MERCHANT_KYC_ONBOARD,
         // Merchant Management
-        PERMISSIONS.VIEW_MERCHANTS, PERMISSIONS.CREATE_MERCHANT, PERMISSIONS.UPDATE_MERCHANT,
-        PERMISSIONS.APPROVE_MERCHANT, PERMISSIONS.SUSPEND_MERCHANT,
+        PERMISSIONS.MERCHANT_VIEW, PERMISSIONS.MERCHANT_CREATE, PERMISSIONS.MERCHANT_UPDATE,
+        PERMISSIONS.MERCHANT_SUSPEND, PERMISSIONS.MERCHANT_ACTIVATE,
         // Document Management
-        PERMISSIONS.VIEW_DOCUMENTS, PERMISSIONS.VERIFY_DOCUMENTS, PERMISSIONS.APPROVE_DOCUMENTS, PERMISSIONS.REJECT_DOCUMENTS,
+        PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_VERIFY, PERMISSIONS.DOCUMENTS_APPROVE, PERMISSIONS.DOCUMENTS_REJECT,
         // Transaction Management
-        PERMISSIONS.VIEW_TRANSACTIONS, PERMISSIONS.APPROVE_TRANSACTIONS, PERMISSIONS.REVERSE_TRANSACTIONS,
+        PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE,
         // Tariff Management
-        PERMISSIONS.VIEW_TARIFFS, PERMISSIONS.CREATE_TARIFFS, PERMISSIONS.UPDATE_TARIFFS, PERMISSIONS.DELETE_TARIFFS,
+        PERMISSIONS.TARIFFS_VIEW, PERMISSIONS.TARIFFS_CREATE, PERMISSIONS.TARIFFS_UPDATE, PERMISSIONS.TARIFFS_DELETE,
         // System Management
-        PERMISSIONS.VIEW_SYSTEM_LOGS, PERMISSIONS.SYSTEM_CONFIGURE,
+        PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.SYSTEM_CONFIGURE,
       ],
       MANAGER: [
         // User Management
-        PERMISSIONS.VIEW_USERS, PERMISSIONS.UPDATE_USER, PERMISSIONS.VERIFY_USER,
+        PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_UPDATE, PERMISSIONS.USERS_VERIFY,
         // Wallet Management
-        PERMISSIONS.VIEW_WALLETS, PERMISSIONS.APPROVE_WALLET,
+        PERMISSIONS.WALLETS_VIEW, PERMISSIONS.WALLETS_APPROVE,
         // KYC Management
-        PERMISSIONS.VIEW_KYC, PERMISSIONS.APPROVE_KYC, PERMISSIONS.REJECT_KYC,
+        PERMISSIONS.KYC_VIEW, PERMISSIONS.KYC_APPROVE, PERMISSIONS.KYC_REJECT,
         // Merchant KYC Management
-        PERMISSIONS.VIEW_MERCHANT_KYC, PERMISSIONS.APPROVE_MERCHANT_KYC, PERMISSIONS.REJECT_MERCHANT_KYC,
+        PERMISSIONS.MERCHANT_KYC_VIEW, PERMISSIONS.MERCHANT_KYC_APPROVE, PERMISSIONS.MERCHANT_KYC_REJECT,
         // Merchant Management
-        PERMISSIONS.VIEW_MERCHANTS, PERMISSIONS.APPROVE_MERCHANT,
+        PERMISSIONS.MERCHANT_VIEW, PERMISSIONS.MERCHANT_ACTIVATE,
         // Document Management
-        PERMISSIONS.VIEW_DOCUMENTS, PERMISSIONS.APPROVE_DOCUMENTS, PERMISSIONS.REJECT_DOCUMENTS,
+        PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_APPROVE, PERMISSIONS.DOCUMENTS_REJECT,
         // Transaction Management
-        PERMISSIONS.VIEW_TRANSACTIONS, PERMISSIONS.APPROVE_TRANSACTIONS,
+        PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE,
         // Tariff Management
-        PERMISSIONS.VIEW_TARIFFS,
+        PERMISSIONS.TARIFFS_VIEW,
       ],
       SUPPORT: [
         // User Management
-        PERMISSIONS.VIEW_USERS,
+        PERMISSIONS.USERS_VIEW,
         // Wallet Management
-        PERMISSIONS.VIEW_WALLETS,
+        PERMISSIONS.WALLETS_VIEW,
         // KYC Management
-        PERMISSIONS.VIEW_KYC, PERMISSIONS.VERIFY_KYC,
+        PERMISSIONS.KYC_VIEW, PERMISSIONS.KYC_VERIFY,
         // Merchant KYC Management
-        PERMISSIONS.VIEW_MERCHANT_KYC, PERMISSIONS.VERIFY_MERCHANT_KYC,
+        PERMISSIONS.MERCHANT_KYC_VIEW, PERMISSIONS.MERCHANT_KYC_VERIFY,
         // Merchant Management
-        PERMISSIONS.VIEW_MERCHANTS,
+        PERMISSIONS.MERCHANT_VIEW,
         // Document Management
-        PERMISSIONS.VIEW_DOCUMENTS, PERMISSIONS.VERIFY_DOCUMENTS,
+        PERMISSIONS.DOCUMENTS_VIEW, PERMISSIONS.DOCUMENTS_VERIFY,
         // Transaction Management
-        PERMISSIONS.VIEW_TRANSACTIONS,
+        PERMISSIONS.TRANSACTIONS_VIEW,
       ],
       MERCHANT: [
         // View own data
-        PERMISSIONS.VIEW_TRANSACTIONS, PERMISSIONS.VIEW_WALLETS,
+        PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.WALLETS_VIEW,
         // Manage own KYC
-        PERMISSIONS.VIEW_MERCHANT_KYC, PERMISSIONS.CREATE_MERCHANT_KYC, PERMISSIONS.UPDATE_MERCHANT_KYC,
+        PERMISSIONS.MERCHANT_KYC_VIEW, PERMISSIONS.MERCHANT_KYC_CREATE, PERMISSIONS.MERCHANT_KYC_UPDATE,
       ],
       USER: [
-        PERMISSIONS.VIEW_TRANSACTIONS, PERMISSIONS.VIEW_WALLETS,
+        PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.WALLETS_VIEW,
       ],
     }
     
@@ -285,67 +287,67 @@ export const usePermissions = (): UsePermissionsReturn => {
   
   // Pre-computed permission checks for common actions
   // User Management
-  const canCreateUser = hasPermission(PERMISSIONS.CREATE_USER)
-  const canUpdateUser = hasPermission(PERMISSIONS.UPDATE_USER)
-  const canDeleteUser = hasPermission(PERMISSIONS.DELETE_USER)
-  const canViewUsers = hasPermission(PERMISSIONS.VIEW_USERS)
-  const canVerifyUser = hasPermission(PERMISSIONS.VERIFY_USER)
+  const canCreateUser = hasPermission(PERMISSIONS.USERS_CREATE)
+  const canUpdateUser = hasPermission(PERMISSIONS.USERS_UPDATE)
+  const canDeleteUser = hasPermission(PERMISSIONS.USERS_DELETE)
+  const canViewUsers = hasPermission(PERMISSIONS.USERS_VIEW)
+  const canVerifyUser = hasPermission(PERMISSIONS.USERS_VERIFY)
   
   // Role Management
-  const canCreateRole = hasPermission(PERMISSIONS.CREATE_ROLE)
-  const canUpdateRole = hasPermission(PERMISSIONS.UPDATE_ROLE)
-  const canDeleteRole = hasPermission(PERMISSIONS.DELETE_ROLE)
-  const canViewRoles = hasPermission(PERMISSIONS.VIEW_ROLES)
-  const canAssignRoles = hasPermission(PERMISSIONS.ASSIGN_ROLES)
+  const canCreateRole = hasPermission(PERMISSIONS.ROLES_CREATE)
+  const canUpdateRole = hasPermission(PERMISSIONS.ROLES_UPDATE)
+  const canDeleteRole = hasPermission(PERMISSIONS.ROLES_DELETE)
+  const canViewRoles = hasPermission(PERMISSIONS.ROLES_VIEW)
+  const canAssignRoles = hasPermission(PERMISSIONS.ROLES_ASSIGN)
   
   // Wallet Management
-  const canViewWallets = hasPermission(PERMISSIONS.VIEW_WALLETS)
-  const canApproveWallet = hasPermission(PERMISSIONS.APPROVE_WALLET)
-  const canSuspendWallet = hasPermission(PERMISSIONS.SUSPEND_WALLET)
+  const canViewWallets = hasPermission(PERMISSIONS.WALLETS_VIEW)
+  const canApproveWallet = hasPermission(PERMISSIONS.WALLETS_APPROVE)
+  const canSuspendWallet = hasPermission(PERMISSIONS.WALLETS_SUSPEND)
   
   // KYC Management
-  const canViewKyc = hasPermission(PERMISSIONS.VIEW_KYC)
-  const canVerifyKyc = hasPermission(PERMISSIONS.VERIFY_KYC)
-  const canApproveKyc = hasPermission(PERMISSIONS.APPROVE_KYC)
-  const canRejectKyc = hasPermission(PERMISSIONS.REJECT_KYC)
+  const canViewKyc = hasPermission(PERMISSIONS.KYC_VIEW)
+  const canVerifyKyc = hasPermission(PERMISSIONS.KYC_VERIFY)
+  const canApproveKyc = hasPermission(PERMISSIONS.KYC_APPROVE)
+  const canRejectKyc = hasPermission(PERMISSIONS.KYC_REJECT)
   
   // Merchant KYC Management
-  const canViewMerchantKyc = hasPermission(PERMISSIONS.VIEW_MERCHANT_KYC)
-  const canVerifyMerchantKyc = hasPermission(PERMISSIONS.VERIFY_MERCHANT_KYC)
-  const canApproveMerchantKyc = hasPermission(PERMISSIONS.APPROVE_MERCHANT_KYC)
-  const canRejectMerchantKyc = hasPermission(PERMISSIONS.REJECT_MERCHANT_KYC)
-  const canCreateMerchantKyc = hasPermission(PERMISSIONS.CREATE_MERCHANT_KYC)
-  const canUpdateMerchantKyc = hasPermission(PERMISSIONS.UPDATE_MERCHANT_KYC)
-  const canDeleteMerchantKyc = hasPermission(PERMISSIONS.DELETE_MERCHANT_KYC)
+  const canViewMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_VIEW)
+  const canVerifyMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_VERIFY)
+  const canApproveMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_APPROVE)
+  const canRejectMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_REJECT)
+  const canCreateMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_CREATE)
+  const canUpdateMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_UPDATE)
+  const canOnboardMerchantKyc = hasPermission(PERMISSIONS.MERCHANT_KYC_ONBOARD)
   
   // Merchant Management
-  const canViewMerchants = hasPermission(PERMISSIONS.VIEW_MERCHANTS)
-  const canCreateMerchant = hasPermission(PERMISSIONS.CREATE_MERCHANT)
-  const canUpdateMerchant = hasPermission(PERMISSIONS.UPDATE_MERCHANT)
-  const canDeleteMerchant = hasPermission(PERMISSIONS.DELETE_MERCHANT)
-  const canApproveMerchant = hasPermission(PERMISSIONS.APPROVE_MERCHANT)
-  const canSuspendMerchant = hasPermission(PERMISSIONS.SUSPEND_MERCHANT)
+  const canViewMerchants = hasPermission(PERMISSIONS.MERCHANT_VIEW)
+  const canCreateMerchant = hasPermission(PERMISSIONS.MERCHANT_CREATE)
+  const canUpdateMerchant = hasPermission(PERMISSIONS.MERCHANT_UPDATE)
+  const canDeleteMerchant = hasPermission(PERMISSIONS.MERCHANT_DELETE)
+  const canSuspendMerchant = hasPermission(PERMISSIONS.MERCHANT_SUSPEND)
+  const canActivateMerchant = hasPermission(PERMISSIONS.MERCHANT_ACTIVATE)
   
   // Document Management
-  const canViewDocuments = hasPermission(PERMISSIONS.VIEW_DOCUMENTS)
-  const canVerifyDocuments = hasPermission(PERMISSIONS.VERIFY_DOCUMENTS)
-  const canApproveDocuments = hasPermission(PERMISSIONS.APPROVE_DOCUMENTS)
-  const canRejectDocuments = hasPermission(PERMISSIONS.REJECT_DOCUMENTS)
+  const canViewDocuments = hasPermission(PERMISSIONS.DOCUMENTS_VIEW)
+  const canVerifyDocuments = hasPermission(PERMISSIONS.DOCUMENTS_VERIFY)
+  const canApproveDocuments = hasPermission(PERMISSIONS.DOCUMENTS_APPROVE)
+  const canRejectDocuments = hasPermission(PERMISSIONS.DOCUMENTS_REJECT)
   
   // Transaction Management
-  const canViewTransactions = hasPermission(PERMISSIONS.VIEW_TRANSACTIONS)
-  const canApproveTransactions = hasPermission(PERMISSIONS.APPROVE_TRANSACTIONS)
-  const canReverseTransactions = hasPermission(PERMISSIONS.REVERSE_TRANSACTIONS)
+  const canViewTransactions = hasPermission(PERMISSIONS.TRANSACTIONS_VIEW)
+  const canApproveTransactions = hasPermission(PERMISSIONS.TRANSACTIONS_APPROVE)
+  const canReverseTransactions = hasPermission(PERMISSIONS.TRANSACTIONS_REVERSE)
   
   // Tariff Management
-  const canViewTariffs = hasPermission(PERMISSIONS.VIEW_TARIFFS)
-  const canCreateTariffs = hasPermission(PERMISSIONS.CREATE_TARIFFS)
-  const canUpdateTariffs = hasPermission(PERMISSIONS.UPDATE_TARIFFS)
-  const canDeleteTariffs = hasPermission(PERMISSIONS.DELETE_TARIFFS)
+  const canViewTariffs = hasPermission(PERMISSIONS.TARIFFS_VIEW)
+  const canCreateTariffs = hasPermission(PERMISSIONS.TARIFFS_CREATE)
+  const canUpdateTariffs = hasPermission(PERMISSIONS.TARIFFS_UPDATE)
+  const canDeleteTariffs = hasPermission(PERMISSIONS.TARIFFS_DELETE)
   
   // System Management
   const canConfigureSystem = hasPermission(PERMISSIONS.SYSTEM_CONFIGURE)
-  const canViewSystemLogs = hasPermission(PERMISSIONS.VIEW_SYSTEM_LOGS)
+  const canViewSystemLogs = hasPermission(PERMISSIONS.SYSTEM_LOGS)
   const canSystemBackup = hasPermission(PERMISSIONS.SYSTEM_BACKUP)
   
   return {
@@ -385,14 +387,14 @@ export const usePermissions = (): UsePermissionsReturn => {
     canRejectMerchantKyc,
     canCreateMerchantKyc,
     canUpdateMerchantKyc,
-    canDeleteMerchantKyc,
+    canOnboardMerchantKyc,
     // Merchant Management
     canViewMerchants,
     canCreateMerchant,
     canUpdateMerchant,
     canDeleteMerchant,
-    canApproveMerchant,
     canSuspendMerchant,
+    canActivateMerchant,
     // Document Management
     canViewDocuments,
     canVerifyDocuments,
@@ -414,4 +416,4 @@ export const usePermissions = (): UsePermissionsReturn => {
   }
 }
 
-export default usePermissions 
+export default usePermissions
