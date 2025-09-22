@@ -144,6 +144,7 @@ const WalletPage = () => {
                   <DialogDescription>
                     Create a new wallet to store your funds
                   </DialogDescription>
+                  
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
