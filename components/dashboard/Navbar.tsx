@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -122,6 +122,21 @@ const Navbar = () => {
                   <Home className="h-4 w-4" />
                   <span>Dashboard</span>
                 </Link>
+                
+                {/* Analytics Menu - Only show if user has analytics permissions */}
+                <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW}>
+                  <Link 
+                    href="/dashboard/analytics" 
+                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive('/dashboard/analytics')
+                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
+                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                    }`}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Analytics</span>
+                  </Link>
+                </PermissionGuard>
                 
                 {/* Transactions Menu - Only show if user has transaction permissions */}
                 <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>

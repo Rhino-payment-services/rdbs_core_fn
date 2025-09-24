@@ -43,7 +43,9 @@ export interface Role {
   id: string
   name: string
   description?: string
-  permissions?: string[]
+  isActive: boolean
+  permissions?: Permission[]
+  userRoles?: any[]
   createdAt: string
   updatedAt: string
 }
@@ -448,4 +450,59 @@ export interface ApiFetchOptions {
   method?: string
   data?: unknown
   params?: Record<string, string>
+}
+
+// Merchant types
+export interface Merchant {
+  id: string
+  businessName: string
+  businessType: string
+  registrationNumber: string
+  taxId?: string
+  contactPerson: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  country: string
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED'
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  createdAt: string
+  updatedAt: string
+  wallet?: {
+    id: string
+    balance: number
+    currency: string
+    status: string
+  }
+}
+
+// KYC Stats types
+export interface KycStats {
+  totalSubmissions: number
+  approved: number
+  pending: number
+  rejected: number
+  approvalRate: number
+  averageProcessingTime: number
+}
+
+// System Stats types
+export interface SystemStats {
+  totalUsers: number
+  activeUsers: number
+  totalTransactions: number
+  totalVolume: number
+  totalFees: number
+  successRate: number
+  averageTransactionAmount: number
+  transactionsByType: Record<string, number>
+  transactionsByStatus: Record<string, number>
+  transactionsByCurrency: Record<string, number>
+  systemHealth: {
+    apiResponseTime: number
+    uptime: number
+    activeSessions: number
+    failedTransactions: number
+  }
 }

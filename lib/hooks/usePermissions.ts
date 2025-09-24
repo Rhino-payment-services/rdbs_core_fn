@@ -5,6 +5,12 @@ import { useMemo } from 'react'
 
 // Updated permissions to match backend format (uppercase with underscores)
 export const PERMISSIONS = {
+  // Dashboard
+  DASHBOARD_VIEW: 'DASHBOARD_VIEW',
+  
+  // Analytics
+  ANALYTICS_VIEW: 'ANALYTICS_VIEW',
+  
   // User Management
   USERS_VIEW: 'USERS_VIEW',
   USERS_CREATE: 'USERS_CREATE',
@@ -180,6 +186,10 @@ export const usePermissions = (): UsePermissionsReturn => {
     const rolePermissions: Record<Role, Permission[]> = {
       SUPERADMIN: Object.values(PERMISSIONS),
       ADMIN: [
+        // Dashboard
+        PERMISSIONS.DASHBOARD_VIEW,
+        // Analytics
+        PERMISSIONS.ANALYTICS_VIEW,
         // User Management
         PERMISSIONS.USERS_CREATE, PERMISSIONS.USERS_UPDATE, PERMISSIONS.USERS_VIEW,
         PERMISSIONS.USERS_VERIFY, PERMISSIONS.USERS_DELETE,
@@ -207,6 +217,8 @@ export const usePermissions = (): UsePermissionsReturn => {
         PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.SYSTEM_CONFIGURE,
       ],
       MANAGER: [
+        // Dashboard
+        PERMISSIONS.DASHBOARD_VIEW,
         // User Management
         PERMISSIONS.USERS_VIEW, PERMISSIONS.USERS_UPDATE, PERMISSIONS.USERS_VERIFY,
         // Wallet Management
@@ -225,6 +237,8 @@ export const usePermissions = (): UsePermissionsReturn => {
         PERMISSIONS.TARIFFS_VIEW,
       ],
       SUPPORT: [
+        // Dashboard
+        PERMISSIONS.DASHBOARD_VIEW,
         // User Management
         PERMISSIONS.USERS_VIEW,
         // Wallet Management

@@ -148,7 +148,14 @@ api.interceptors.response.use(
           console.error('Access forbidden')
           break
         case 404:
-          console.error('Resource not found')
+          // Don't log 404 errors for endpoints that might not be implemented yet
+          const url = originalRequest?.url || ''
+          const silent404Endpoints = ['/merchants', '/kyc/stats', '/transactions/system/stats', '/analytics']
+          const shouldLog404 = !silent404Endpoints.some(endpoint => url.includes(endpoint))
+          
+          if (shouldLog404) {
+            console.error('Resource not found')
+          }
           break
         case 500:
           console.error('Server error')

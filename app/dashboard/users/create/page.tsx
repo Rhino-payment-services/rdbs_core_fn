@@ -12,8 +12,6 @@ import {
   Save,
   Shield,
   User,
-  Eye,
-  EyeOff,
   AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
@@ -29,33 +27,20 @@ const CreateUserPage = () => {
   
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
     phone: '+256',
-    role: '',
-    userType: '',
+    role: 'ADMIN', // Default to ADMIN for staff users
+    userType: 'STAFF_USER', // Default to STAFF_USER for staff creation
     firstName: '',
     lastName: '',
     department: '',
     position: '',
-    country: ''
+    country: 'UG' // Default to Uganda
   })
 
-  const [showPassword, setShowPassword] = useState(false)
+  // Removed showPassword state as password field is no longer needed
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true)
-  // Available roles
-  const roles = [
-    { value: "USER", label: "User" },
-    { value: "ADMIN", label: "Administrator" },
-    { value: "MANAGER", label: "Manager" },
-    { value: "SUPPORT", label: "Support" }
-  ]
-
-  // Available user types
-  const userTypes = [
-    { value: "SUBSCRIBER", label: "Subscriber (Customer)" },
-    { value: "STAFF", label: "Staff (Internal)" }
-  ]
+  // Staff users are always ADMIN role and STAFF_USER type - no need for dropdowns
 
   // Countries
   const countries = [
@@ -117,19 +102,11 @@ const CreateUserPage = () => {
     const newErrors: Record<string, string> = {}
     
     if (!formData.email) newErrors.email = 'Email is required'
-    if (!formData.phone) newErrors.phone = 'Phone number is required'
-    if (!formData.password) newErrors.password = 'Password is required'
-    if (!formData.role) newErrors.role = 'Role is required'
-    if (!formData.userType) newErrors.userType = 'User type is required'
     if (!formData.firstName) newErrors.firstName = 'First name is required'
     if (!formData.lastName) newErrors.lastName = 'Last name is required'
-    if (!formData.department) newErrors.department = 'Department is required'
-    if (!formData.position) newErrors.position = 'Position is required'
-    if (!formData.country) newErrors.country = 'Country is required'
     
-    if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
-    }
+    // Optional fields - no validation required
+    // Phone, role, userType, department, position, country have defaults
     
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -163,16 +140,16 @@ const CreateUserPage = () => {
           console.log('Sending welcome email with data:', emailData)
           console.log('API Base URL:', process.env.NEXT_PUBLIC_API_URL)
           await sendWelcomeEmailMutation.mutateAsync(emailData)
-          toast.success('User created successfully and welcome email sent!')
+          toast.success('Staff user created successfully! They will receive an email to set their password.')
         } catch (emailError: unknown) {
           // User was created successfully, but email failed
           console.error('Failed to send welcome email:', emailError)
           const emailErrorMessage = extractErrorMessage(emailError)
           console.error('Email error details:', emailErrorMessage)
-          toast.error(`User created successfully, but email failed: ${emailErrorMessage}`)
+          toast.error(`Staff user created successfully, but email failed: ${emailErrorMessage}`)
         }
       } else {
-        toast.success('User created successfully!')
+        toast.success('Staff user created successfully!')
       }
       
       router.push('/dashboard/users')
@@ -197,8 +174,8 @@ const CreateUserPage = () => {
                 </Button>
               </Link>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New User</h1>
-            <p className="text-gray-600">Add a new user to the system with appropriate permissions</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Staff User</h1>
+            <p className="text-gray-600">Add a new staff member to the system. They will receive an email to set their own password.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -351,92 +328,25 @@ const CreateUserPage = () => {
               </CardContent>
             </Card>
 
-            {/* Security Information */}
+            {/* Staff User Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
-                  Security Information
+                  Staff User Information
                 </CardTitle>
-                <CardDescription>Set up the user&apos;s login credentials and access level</CardDescription>
+                <CardDescription>This user will be created as an Administrator with Staff privileges</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password *</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={formData.password}
-                        onChange={(e) => handleInputChange('password', e.target.value)}
-                        placeholder="Enter password"
-                        className={errors.password ? 'border-red-500 pr-10' : 'pr-10'}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    {errors.password && (
-                      <div className="flex items-center gap-1 text-red-500 text-sm">
-                        <AlertCircle className="h-4 w-4" />
-                        {errors.password}
-                      </div>
-                    )}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Staff User Configuration</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role *</Label>
-                    <Select value={formData.role} onValueChange={(value: string) => handleInputChange('role', value)}>
-                      <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.role && (
-                      <div className="flex items-center gap-1 text-red-500 text-sm">
-                        <AlertCircle className="h-4 w-4" />
-                        {errors.role}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="userType">User Type *</Label>
-                    <Select value={formData.userType} onValueChange={(value: string) => handleInputChange('userType', value)}>
-                      <SelectTrigger className={errors.userType ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select user type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.userType && (
-                      <div className="flex items-center gap-1 text-red-500 text-sm">
-                        <AlertCircle className="h-4 w-4" />
-                        {errors.userType}
-                      </div>
-                    )}
+                  <div className="text-sm text-blue-700">
+                    <p>• <strong>Role:</strong> Administrator</p>
+                    <p>• <strong>User Type:</strong> Staff (Internal)</p>
+                    <p>• <strong>Privileges:</strong> Determined by assigned role</p>
                   </div>
                 </div>
                 
@@ -453,9 +363,10 @@ const CreateUserPage = () => {
                     </Label>
                   </div>
                   <p className="text-xs text-gray-500 ml-6">
-                    A welcome email will be sent to the user with their login credentials and account information.
+                    A welcome email will be sent to the user with a password setup link. The user will set their own password.
                   </p>
-                </div>              </CardContent>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Action Buttons */}
@@ -473,12 +384,12 @@ const CreateUserPage = () => {
                 {createUserMutation.isPending || sendWelcomeEmailMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Creating User...
+                    Creating Staff User...
                   </>
                 ) : (
                   <>
                     <Save className="h-4 w-4" />
-                    Create User
+                    Create Staff User
                   </>
                 )}
               </Button>
