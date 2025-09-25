@@ -354,64 +354,63 @@ const ReportsPage = () => {
           </div>
 
           {/* Key Metrics Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-                <CreditCardIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(reportData.overview.totalTransactions)}</div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {getGrowthIcon(reportData.overview.growthRate)}
-                  <span className={reportData.overview.growthRate > 0 ? "text-green-600" : "text-red-600"}>
-                    +{reportData.overview.growthRate}% from last period
-                  </span>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Transactions</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <CreditCardIcon className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatNumber(reportData.overview.totalTransactions)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-                <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(reportData.overview.totalVolume)}</div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {getGrowthIcon(reportData.overview.growthRate)}
-                  <span className={reportData.overview.growthRate > 0 ? "text-green-600" : "text-red-600"}>
-                    +{reportData.overview.growthRate}% from last period
-                  </span>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Volume</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <DollarSignIcon className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(reportData.overview.totalVolume)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-                <UsersIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatNumber(reportData.overview.activeUsers)}</div>
-                <div className="text-xs text-muted-foreground">
-                  {reportData.overview.successRate}% success rate
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Active Users</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <UsersIcon className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatNumber(reportData.overview.activeUsers)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">{reportData.overview.successRate}% success rate</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(reportData.overview.totalRevenue)}</div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {getGrowthIcon(reportData.overview.growthRate)}
-                  <span className={reportData.overview.growthRate > 0 ? "text-green-600" : "text-red-600"}>
-                    +{reportData.overview.growthRate}% from last period
-                  </span>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Revenue</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <TrendingUpIcon className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(reportData.overview.totalRevenue)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>
               </CardContent>
             </Card>

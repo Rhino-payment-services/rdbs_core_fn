@@ -162,111 +162,126 @@ const RevenueTaxPage = () => {
           </div>
 
           {/* Revenue Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalRevenue)}</div>
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <ArrowUpRight className="h-3 w-3 text-green-600 mr-1" />
-                  +{taxSummary.monthlyGrowth}% from last month
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Revenue</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalRevenue)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">+{taxSummary.monthlyGrowth}% from last month</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalNetRevenue)}</div>
-                <div className="text-xs text-muted-foreground">
-                  After all deductions
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Net Revenue</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalNetRevenue)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">After all deductions</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Taxes</CardTitle>
-                <Calculator className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalGovernmentTax + taxSummary.totalVat + taxSummary.totalExciseDuty)}</div>
-                <div className="text-xs text-muted-foreground">
-                  Government & VAT
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Taxes</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Calculator className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalGovernmentTax + taxSummary.totalVat + taxSummary.totalExciseDuty)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">Government & VAT</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tax Compliance</CardTitle>
-                <Receipt className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{taxSummary.taxCompliance}%</div>
-                <div className="text-xs text-muted-foreground">
-                  Compliance rate
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Tax Compliance</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Receipt className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{taxSummary.taxCompliance}%</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">Compliance rate</span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Tax Breakdown Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Government Tax</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalGovernmentTax)}</div>
-                <div className="text-xs text-muted-foreground">
-                  1% of transaction value
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Government Tax</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalGovernmentTax)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">1% of transaction value</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">RukaPay Charges</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalRukaCharge)}</div>
-                <div className="text-xs text-muted-foreground">
-                  0.5% service fee
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">RukaPay Charges</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalRukaCharge)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">0.5% service fee</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Excise Duty</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalExciseDuty)}</div>
-                <div className="text-xs text-muted-foreground">
-                  0.2% excise tax
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Excise Duty</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalExciseDuty)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">0.2% excise tax</span>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">VAT</CardTitle>
-                <Calculator className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatAmount(taxSummary.totalVat)}</div>
-                <div className="text-xs text-muted-foreground">
-                  1.5% value added tax
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">VAT</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Calculator className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatAmount(taxSummary.totalVat)}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">1.5% value added tax</span>
                 </div>
               </CardContent>
             </Card>

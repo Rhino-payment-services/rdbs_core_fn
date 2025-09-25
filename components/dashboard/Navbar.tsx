@@ -1,21 +1,54 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3 } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 // import NotificationsModal from './NotificationsModal'
 
 const Navbar = () => {
   const pathname = usePathname()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { user, logout } = useAuth()
+  const { canViewSystemLogs } = usePermissions()
 
   console.log(isNotificationsOpen)
+
+  // Check scroll position and update button states
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth)
+    }
+  }
+
+  // Scroll functions
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' })
+    }
+  }
+
+  // Check scroll position on mount and when window resizes
+  useEffect(() => {
+    checkScrollPosition()
+    window.addEventListener('resize', checkScrollPosition)
+    return () => window.removeEventListener('resize', checkScrollPosition)
+  }, [])
   
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -109,7 +142,11 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto">
           <div className="relative">
             {/* Scrollable Menu Container */}
-            <div className="flex items-center overflow-x-auto scrollbar-hide">
+            <div 
+              ref={scrollContainerRef}
+              className="flex items-center overflow-x-auto scrollbar-hide"
+              onScroll={checkScrollPosition}
+            >
               <div className="flex items-center space-x-1 px-4 py-3 min-w-max">
                 <Link 
                   href="/dashboard" 
@@ -138,7 +175,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                {/* Transactions Menu - Only show if user has transaction permissions */}
+                {/* Ledgers Menu - Only show if user has transaction permissions */}
                 <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
                   <Link 
                     href="/dashboard/transactions" 
@@ -149,7 +186,22 @@ const Navbar = () => {
                     }`}
                   >
                     <CreditCard className="h-4 w-4" />
-                    <span>Transactions</span>
+                    <span>Ledgers</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Finance Menu - Only show if user has tariff permissions */}
+                <PermissionGuard permission={PERMISSIONS.TARIFFS_VIEW}>
+                  <Link 
+                    href="/dashboard/finance" 
+                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive('/dashboard/finance')
+                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
+                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                    }`}
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    <span>Finance</span>
                   </Link>
                 </PermissionGuard>
                 
@@ -251,7 +303,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
+                {canViewSystemLogs && (
                   <Link 
                     href="/dashboard/api-logs" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -263,7 +315,7 @@ const Navbar = () => {
                     <Database className="h-4 w-4" />
                     <span>API Logs</span>
                   </Link>
-                </PermissionGuard>
+                )}
                 
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
@@ -293,6 +345,26 @@ const Navbar = () => {
               </div>
             </div>
             
+            {/* Left Scroll Button */}
+            {canScrollLeft && (
+              <button
+                onClick={scrollLeft}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+              >
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+
+            {/* Right Scroll Button */}
+            {canScrollRight && (
+              <button
+                onClick={scrollRight}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+              >
+                <ChevronRight className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+
             {/* Gradient Overlays for Scroll Indication */}
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-50 to-transparent pointer-events-none"></div>
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none"></div>

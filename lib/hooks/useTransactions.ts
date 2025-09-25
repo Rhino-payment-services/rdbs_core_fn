@@ -37,6 +37,7 @@ export const transactionQueryKeys = {
   transaction: (id: string) => ['transaction', id] as const,
   stats: ['transactions', 'stats'] as const,
   systemStats: ['transactions', 'system', 'stats'] as const,
+  list: ['transactions', 'all'] as const,
 }
 
 // Custom hooks for transactions
@@ -63,6 +64,31 @@ export const useTransactionSystemStats = () => {
     queryKey: transactionQueryKeys.systemStats,
     queryFn: () => apiFetch('/transactions/system/stats'),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+// Hook to get all transactions (admin view)
+export const useAllTransactions = (params?: {
+  page?: number;
+  limit?: number;
+  type?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}) => {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.type) queryParams.append('type', params.type);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+  return useQuery({
+    queryKey: [...transactionQueryKeys.list, params],
+    queryFn: () => apiFetch(`/transactions/all?${queryParams.toString()}`),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    keepPreviousData: true, // Keep previous data while loading new page
   })
 }
 

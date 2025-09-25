@@ -15,7 +15,6 @@ interface PreferencesFormProps {
     twoFactorAuth: boolean
     language: string
     timezone: string
-    currency: string
     theme: string
   }
   onPreferencesChange: (preferences: any) => void
@@ -155,23 +154,6 @@ export const PreferencesForm: React.FC<PreferencesFormProps> = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Select 
-                value={preferences.currency} 
-                onValueChange={(value) => handlePreferenceChange('currency', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UGX">Ugandan Shilling (UGX)</SelectItem>
-                  <SelectItem value="KES">Kenyan Shilling (KES)</SelectItem>
-                  <SelectItem value="TZS">Tanzanian Shilling (TZS)</SelectItem>
-                  <SelectItem value="USD">US Dollar (USD)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="theme">Theme</Label>

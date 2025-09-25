@@ -18,6 +18,9 @@ import {
   BarChart3,
   Calendar,
   Clock,
+  UserIcon,
+  Building,
+  Key,
   Database
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -148,27 +151,27 @@ const DashboardPage = () => {
             </div>
 
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
               <Card className="bg-white border-gray-200">
-                <CardContent className="p-3 ">
+                <CardContent className="px-4 py-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-gray-600">
+                      <p className="text-sm font-medium text-gray-600 mb-0">
                         Total Transactions
                       </p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-xl font-bold text-gray-900">
                         {statsLoading ? '...' : (transactionStats?.totalTransactions || 0).toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-blue-600" />
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-1">
-                    <span className="text-xs text-green-600 font-medium">
+                  <div className="mt-0">
+                    <span className="text-sm text-green-600 font-medium">
                       {transactionStats?.successRate?.toFixed(1) || 0}%
                     </span>
-                    <span className="text-xs ml-1 text-gray-600">
+                    <span className="text-sm ml-1 text-gray-500">
                       success rate
                     </span>
                   </div>
@@ -176,25 +179,25 @@ const DashboardPage = () => {
               </Card>
 
               <Card className="bg-white border-gray-200">
-                <CardContent className="p-3">
+                <CardContent className="px-4 py-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-gray-600">
+                      <p className="text-sm font-medium text-gray-600 mb-0">
                         Total Volume
                       </p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-xl font-bold text-gray-900">
                         {statsLoading ? '...' : `UGX ${((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M`}
                       </p>
                     </div>
-                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-purple-600" />
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-1">
-                    <span className="text-xs text-green-600 font-medium">
+                  <div className="mt-0">
+                    <span className="text-sm text-green-600 font-medium">
                       UGX {(transactionStats?.averageTransactionAmount || 0).toFixed(0)}
                     </span>
-                    <span className="text-xs ml-1 text-gray-600">
+                    <span className="text-sm ml-1 text-gray-500">
                       avg transaction
                     </span>
                   </div>
@@ -202,25 +205,25 @@ const DashboardPage = () => {
               </Card>
 
               <Card className="bg-white border-gray-200">
-                <CardContent className="p-3">
+                <CardContent className="px-4 py-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-gray-600">
+                      <p className="text-sm font-medium text-gray-600 mb-0">
                         Total Fees
                       </p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-xl font-bold text-gray-900">
                         {statsLoading ? '...' : `UGX ${(transactionStats?.totalFees || 0).toLocaleString()}`}
                       </p>
                     </div>
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-green-600" />
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-1">
-                    <span className="text-xs text-blue-600 font-medium">
+                  <div className="mt-0">
+                    <span className="text-sm text-blue-600 font-medium">
                       {transactionStats?.successRate?.toFixed(1) || 0}%
                     </span>
-                    <span className="text-xs ml-1 text-gray-600">
+                    <span className="text-sm ml-1 text-gray-500">
                       success rate
                     </span>
                   </div>
@@ -228,25 +231,25 @@ const DashboardPage = () => {
               </Card>
 
               <Card className="bg-white border-gray-200">
-                <CardContent className="p-3">
+                <CardContent className="px-4 py-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-gray-600">
+                      <p className="text-sm font-medium text-gray-600 mb-0">
                         Active Users
                       </p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-xl font-bold text-gray-900">
                         {usersLoading ? '...' : (usersData?.data?.pagination?.total || 0).toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-4 h-4 text-orange-600" />
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-1">
-                    <span className="text-xs text-purple-600 font-medium">
+                  <div className="mt-0">
+                    <span className="text-sm text-purple-600 font-medium">
                       {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
                     </span>
-                    <span className="text-xs ml-1 text-gray-600">
+                    <span className="text-sm ml-1 text-gray-500">
                       online now
                     </span>
                   </div>

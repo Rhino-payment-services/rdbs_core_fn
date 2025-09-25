@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Search, Filter, X, Download, Plus } from 'lucide-react'
+import { Search, Filter, X, Download, Plus, FileText, FileSpreadsheet, File } from 'lucide-react'
 
 interface CustomerFiltersProps {
   searchTerm: string
@@ -21,10 +21,13 @@ interface CustomerFiltersProps {
   showFilters: boolean
   onToggleFilters: () => void
   onClearFilters: () => void
-  onExport: () => void
+  onExport: (format: 'csv' | 'excel' | 'pdf') => void
   onCreateNew: () => void
   selectedCount: number
   totalCount: number
+  showAdvancedFilters?: boolean
+  onToggleAdvancedFilters?: () => void
+  isProcessing?: boolean
 }
 
 export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
@@ -44,7 +47,10 @@ export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
   onExport,
   onCreateNew,
   selectedCount,
-  totalCount
+  totalCount,
+  showAdvancedFilters = false,
+  onToggleAdvancedFilters,
+  isProcessing = false
 }) => {
   const activeFiltersCount = [
     searchTerm,
@@ -83,14 +89,35 @@ export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={onExport}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+          <div className="relative">
+            <Select
+              onValueChange={(value) => onExport(value as 'csv' | 'excel' | 'pdf')}
+              disabled={isProcessing}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Export" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  CSV
+                </SelectItem>
+                <SelectItem value="excel" className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Excel
+                </SelectItem>
+                <SelectItem value="pdf" className="flex items-center gap-2">
+                  <File className="h-4 w-4" />
+                  PDF
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            {isProcessing && (
+              <div className="absolute -top-1 -right-1">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+              </div>
+            )}
+          </div>
           <Button
             onClick={onCreateNew}
             className="flex items-center gap-2"
@@ -98,6 +125,17 @@ export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
             <Plus className="h-4 w-4" />
             Add Customer
           </Button>
+          {onToggleAdvancedFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleAdvancedFilters}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              {showAdvancedFilters ? 'Hide' : 'Advanced'} Filters
+            </Button>
+          )}
         </div>
       </div>
 
@@ -171,7 +209,114 @@ export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date Range</label>
+                <Select defaultValue="all">
+                  <SelectTrigger>
+                    <SelectValue placeholder="All time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="quarter">This Quarter</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Verification Status</label>
+                <Select defaultValue="all">
+                  <SelectTrigger>
+                    <SelectValue placeholder="All verifications" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Verifications</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="pending">Pending Verification</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="expired">Expired Documents</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {/* Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="text-lg font-medium mb-4">Advanced Filters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Country</label>
+                    <Select defaultValue="all">
+                      <SelectTrigger>
+                        <SelectValue placeholder="All countries" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Countries</SelectItem>
+                        <SelectItem value="ug">Uganda</SelectItem>
+                        <SelectItem value="ke">Kenya</SelectItem>
+                        <SelectItem value="tz">Tanzania</SelectItem>
+                        <SelectItem value="rw">Rwanda</SelectItem>
+                        <SelectItem value="ss">South Sudan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Region</label>
+                    <Select defaultValue="all">
+                      <SelectTrigger>
+                        <SelectValue placeholder="All regions" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Regions</SelectItem>
+                        <SelectItem value="central">Central</SelectItem>
+                        <SelectItem value="eastern">Eastern</SelectItem>
+                        <SelectItem value="northern">Northern</SelectItem>
+                        <SelectItem value="western">Western</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Transaction Volume</label>
+                    <Select defaultValue="all">
+                      <SelectTrigger>
+                        <SelectValue placeholder="All volumes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Volumes</SelectItem>
+                        <SelectItem value="high">High (&gt; UGX 1M)</SelectItem>
+                        <SelectItem value="medium">Medium (UGX 100K - 1M)</SelectItem>
+                        <SelectItem value="low">Low (&lt; UGX 100K)</SelectItem>
+                        <SelectItem value="zero">No Transactions</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Activity Level</label>
+                    <Select defaultValue="all">
+                      <SelectTrigger>
+                        <SelectValue placeholder="All activity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Activity</SelectItem>
+                        <SelectItem value="active">Active (Daily)</SelectItem>
+                        <SelectItem value="regular">Regular (Weekly)</SelectItem>
+                        <SelectItem value="occasional">Occasional (Monthly)</SelectItem>
+                        <SelectItem value="inactive">Inactive (&gt;30 days)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div className="flex items-center gap-2">

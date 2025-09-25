@@ -178,60 +178,108 @@ const UsersPage = () => {
             </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Staff Users</CardTitle>
-                <UserIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{staffUsersCount}</div>
-                <p className="text-xs text-muted-foreground">
-                  Staff users in system
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Staff Users</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staffUsersArray.filter(user => user.status === 'ACTIVE').length}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Total Staff Users
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {staffUsersCount}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <Users className="w-4 h-4 text-gray-600" />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.status === 'ACTIVE').length / staffUsersCount) * 100)}%` : '0%'} of staff users
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Verified Staff Users</CardTitle>
-                <Shield className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staffUsersArray.filter(user => user.isVerified).length}
+                <div className="mt-0">
+                  <span className="text-sm text-blue-600 font-medium">
+                    Staff users
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    in system
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.isVerified).length / staffUsersCount) * 100)}%` : '0%'} of staff users
-                </p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Available Roles</CardTitle>
-                <Building className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{rolesArray.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Roles in system
-                </p>
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Active Staff Users
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {staffUsersArray.filter(user => user.status === 'ACTIVE').length}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <UserIcon className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-green-600 font-medium">
+                    {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.status === 'ACTIVE').length / staffUsersCount) * 100)}%` : '0%'}
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    of staff users
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Verified Staff Users
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {staffUsersArray.filter(user => user.isVerified).length}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <Shield className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-purple-600 font-medium">
+                    {staffUsersCount > 0 ? `${Math.round((staffUsersArray.filter(user => user.isVerified).length / staffUsersCount) * 100)}%` : '0%'}
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    of staff users
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Available Roles
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {rolesArray.length}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <Key className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-orange-600 font-medium">
+                    Roles
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    in system
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>

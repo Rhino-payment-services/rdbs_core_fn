@@ -154,7 +154,7 @@ api.interceptors.response.use(
           const shouldLog404 = !silent404Endpoints.some(endpoint => url.includes(endpoint))
           
           if (shouldLog404) {
-            console.error('Resource not found')
+            console.error('Resource not found:', url)
           }
           break
         case 500:

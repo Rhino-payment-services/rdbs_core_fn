@@ -43,116 +43,124 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.total.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">
-            All registered customers
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-          <UserCheck className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">{stats.active.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">
-            {((stats.active / stats.total) * 100).toFixed(1)}% of total
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending Verification</CardTitle>
-          <UserX className="h-4 w-4 text-yellow-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-yellow-600">{stats.pending.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">
-            Awaiting KYC completion
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-          <DollarSign className="h-4 w-4 text-blue-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.totalRevenue)}</div>
-          <div className="flex items-center gap-1 text-xs">
-            {stats.revenueGrowth >= 0 ? (
-              <TrendingUp className="h-3 w-3 text-green-600" />
-            ) : (
-              <TrendingDown className="h-3 w-3 text-red-600" />
-            )}
-            <span className={stats.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}>
-              {formatPercentage(stats.revenueGrowth)}
-            </span>
-            <span className="text-muted-foreground">from last month</span>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Total Customers</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Users className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{stats.total.toLocaleString()}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">All registered customers</span>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-          <BarChart3 className="h-4 w-4 text-purple-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-purple-600">{formatCurrency(stats.monthlyRevenue)}</div>
-          <p className="text-xs text-muted-foreground">
-            Current month
-          </p>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Active Customers</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <UserCheck className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{stats.active.toLocaleString()}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">{((stats.active / stats.total) * 100).toFixed(1)}% of total</span>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avg Transaction</CardTitle>
-          <Activity className="h-4 w-4 text-orange-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{formatCurrency(stats.avgTransactionValue)}</div>
-          <p className="text-xs text-muted-foreground">
-            Per transaction
-          </p>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Pending Verification</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <UserX className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{stats.pending.toLocaleString()}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">Awaiting KYC completion</span>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-          <TrendingUp className="h-4 w-4 text-green-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">{stats.conversionRate.toFixed(1)}%</div>
-          <p className="text-xs text-muted-foreground">
-            Signup to active
-          </p>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Total Revenue</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <DollarSign className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(stats.totalRevenue)}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">{formatPercentage(stats.revenueGrowth)} from last month</span>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Churn Rate</CardTitle>
-          <TrendingDown className="h-4 w-4 text-red-600" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-600">{stats.churnRate.toFixed(1)}%</div>
-          <p className="text-xs text-muted-foreground">
-            Monthly churn
-          </p>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Monthly Revenue</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(stats.monthlyRevenue)}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">Current month</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Avg Transaction</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(stats.avgTransactionValue)}</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">Per transaction</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Conversion Rate</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{stats.conversionRate.toFixed(1)}%</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">Signup to active</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="px-4 py-1">
+          <div className="flex items-center justify-between mb-0">
+            <p className="text-sm font-medium text-gray-600 mb-0">Churn Rate</p>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <TrendingDown className="w-4 h-4 text-gray-600" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-gray-900 leading-tight">{stats.churnRate.toFixed(1)}%</p>
+          <div className="mt-0">
+            <span className="text-sm text-gray-500">Monthly churn</span>
+          </div>
         </CardContent>
       </Card>
     </div>

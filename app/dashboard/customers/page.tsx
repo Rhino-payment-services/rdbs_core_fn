@@ -25,10 +25,161 @@ const CustomersPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   // API hooks
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
   const users: User[] = usersData?.users || []
+
+  // Export functionality
+  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+    setIsProcessing(true)
+    try {
+      // Mock export - replace with actual export API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Customer data exported as ${format.toUpperCase()}`)
+    } catch (error) {
+      toast.error('Failed to export customer data')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Handler functions
+  const handleClearFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setTypeFilter('all')
+    setSortBy('name')
+    setSortOrder('asc')
+    setCurrentPage(1)
+  }
+
+  const handleCreateNew = () => {
+    router.push('/dashboard/customers/create')
+  }
+
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomers(prev => 
+      prev.includes(customerId) 
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    )
+  }
+
+  const handleSelectAll = () => {
+    const currentPageCustomers = paginatedUsers.filter(user => {
+      if (activeTab === 'subscribers') return user.userType === 'SUBSCRIBER'
+      if (activeTab === 'merchants') return user.userType === 'MERCHANT'
+      if (activeTab === 'partners') return user.userType === 'PARTNER'
+      return true
+    })
+
+    const allSelected = currentPageCustomers.every(customer =>
+      selectedCustomers.includes(customer.id)
+    )
+
+    if (allSelected) {
+      setSelectedCustomers(prev =>
+        prev.filter(id => !currentPageCustomers.some(customer => customer.id === id))
+      )
+    } else {
+      setSelectedCustomers(prev => [
+        ...prev,
+        ...currentPageCustomers.filter(customer => !prev.includes(customer.id)).map(c => c.id)
+      ])
+    }
+  }
+
+  const handleViewCustomer = (customer: User) => {
+    router.push(`/dashboard/customers/${customer.id}`)
+  }
+
+  const handleEditCustomer = (customer: User) => {
+    router.push(`/dashboard/customers/${customer.id}/edit`)
+  }
+
+  const handleDeleteCustomer = (customer: User) => {
+    toast.error(`Delete customer ${customer.firstName} ${customer.lastName} not implemented yet`)
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  // Bulk action handlers
+  const handleBulkStatusChange = async (status: string) => {
+    setIsProcessing(true)
+    try {
+      // Mock bulk status change - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      toast.success(`Updated ${selectedCustomers.length} customers to ${status}`)
+      setSelectedCustomers([])
+      refetch()
+    } catch (error) {
+      toast.error('Failed to update customer status')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBulkEmail = async () => {
+    setIsProcessing(true)
+    try {
+      // Mock bulk email - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Email sent to ${selectedCustomers.length} customers`)
+      setSelectedCustomers([])
+    } catch (error) {
+      toast.error('Failed to send bulk email')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBulkExport = async () => {
+    setIsProcessing(true)
+    try {
+      // Mock bulk export - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Exported ${selectedCustomers.length} customers`)
+      setSelectedCustomers([])
+    } catch (error) {
+      toast.error('Failed to export customers')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    setIsProcessing(true)
+    try {
+      // Mock bulk delete - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Deleted ${selectedCustomers.length} customers`)
+      setSelectedCustomers([])
+      refetch()
+    } catch (error) {
+      toast.error('Failed to delete customers')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBulkVerify = async () => {
+    setIsProcessing(true)
+    try {
+      // Mock bulk verification - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      toast.success(`Verified ${selectedCustomers.length} customers`)
+      setSelectedCustomers([])
+      refetch()
+    } catch (error) {
+      toast.error('Failed to verify customers')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   // Mock stats data
   const stats = {
@@ -99,89 +250,14 @@ const CustomersPage = () => {
     currentPage * itemsPerPage
   )
 
-  // Event handlers
-  const handleSelectCustomer = (customerId: string) => {
-    setSelectedCustomers(prev => 
-      prev.includes(customerId) 
-        ? prev.filter(id => id !== customerId)
-        : [...prev, customerId]
-    )
-  }
-
-  const handleSelectAll = () => {
-    if (selectedCustomers.length === paginatedUsers.length) {
-      setSelectedCustomers([])
-    } else {
-      setSelectedCustomers(paginatedUsers.map(user => user.id))
-    }
-  }
-
-  const handleClearFilters = () => {
-    setSearchTerm('')
-    setStatusFilter('all')
-    setTypeFilter('all')
-    setSortBy('name')
-    setSortOrder('asc')
-    setCurrentPage(1)
-  }
-
-  const handleViewCustomer = (customer: User) => {
-    router.push(`/dashboard/customers/${customer.id}`)
-  }
-
-  const handleEditCustomer = (customer: User) => {
-    router.push(`/dashboard/customers/${customer.id}/edit`)
-  }
-
-  const handleDeleteCustomer = (customer: User) => {
-    if (confirm(`Are you sure you want to delete ${customer.firstName} ${customer.lastName}?`)) {
-      toast.success('Customer deleted successfully')
-      refetch()
-    }
-  }
-
-  const handleBulkStatusChange = async (status: string) => {
-    setIsProcessing(true)
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      toast.success(`${selectedCustomers.length} customers updated to ${status}`)
-      setSelectedCustomers([])
-      refetch()
-    } catch (error) {
-      toast.error('Failed to update customers')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleBulkEmail = () => toast.success(`Email sent to ${selectedCustomers.length} customers`)
-  const handleBulkExport = () => toast.success(`Exporting ${selectedCustomers.length} customers`)
-  const handleBulkDelete = () => {
-    if (confirm(`Are you sure you want to delete ${selectedCustomers.length} customers?`)) {
-      toast.success(`${selectedCustomers.length} customers deleted`)
-      setSelectedCustomers([])
-      refetch()
-    }
-  }
-  const handleBulkVerify = () => {
-    toast.success(`${selectedCustomers.length} customers verified`)
-    setSelectedCustomers([])
-  }
-  const handleExport = () => toast.success('Exporting all customers')
-  const handleCreateNew = () => router.push('/dashboard/customers/create')
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-    setSelectedCustomers([])
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+          <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
               <p className="text-gray-600 mt-2">Manage your customer base</p>
             </div>
             <button
@@ -192,7 +268,7 @@ const CustomersPage = () => {
               Add Customer
             </button>
           </div>
-        </div>
+          </div>
 
         <CustomerStats stats={stats} />
 
@@ -214,6 +290,9 @@ const CustomersPage = () => {
           onCreateNew={handleCreateNew}
           selectedCount={selectedCustomers.length}
           totalCount={filteredUsers.length}
+          showAdvancedFilters={showAdvancedFilters}
+          onToggleAdvancedFilters={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          isProcessing={isProcessing}
         />
 
         <CustomerBulkActions
@@ -231,17 +310,17 @@ const CustomersPage = () => {
           <TabsList>
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Subscribers
-            </TabsTrigger>
+                    Subscribers
+                  </TabsTrigger>
             <TabsTrigger value="merchants" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              Merchants
-            </TabsTrigger>
+                    Merchants
+                  </TabsTrigger>
             <TabsTrigger value="partners" className="flex items-center gap-2">
               <Handshake className="h-4 w-4" />
-              Partners
-            </TabsTrigger>
-          </TabsList>
+                    Partners
+                  </TabsTrigger>
+                </TabsList>
 
           <TabsContent value="subscribers">
             <CustomerTable
@@ -257,7 +336,7 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-          </TabsContent>
+                </TabsContent>
 
           <TabsContent value="merchants">
             <CustomerTable
@@ -273,7 +352,7 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-          </TabsContent>
+                </TabsContent>
 
           <TabsContent value="partners">
             <CustomerTable
@@ -289,9 +368,9 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-          </TabsContent>
-        </Tabs>
-      </div>
+                </TabsContent>
+              </Tabs>
+        </div>
     </div>
   )
 }
