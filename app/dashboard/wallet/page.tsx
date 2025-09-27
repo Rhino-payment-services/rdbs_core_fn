@@ -94,7 +94,6 @@ const WalletPage = () => {
       await updateWalletBalance.mutateAsync({
         walletId: 'temp-wallet-id',
         amount: 0,
-        currency: walletForm.currency,
         reason: 'Initial balance'
       })
       

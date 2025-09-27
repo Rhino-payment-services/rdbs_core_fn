@@ -77,16 +77,16 @@ const ProfilePage = () => {
     if (user) {
       setFormData({
         email: user.email || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        middleName: user.middleName || '',
+        firstName: (user as any)?.firstName || (user as any)?.profile?.firstName || '',
+        lastName: (user as any)?.lastName || (user as any)?.profile?.lastName || '',
+        middleName: (user as any)?.middleName || (user as any)?.profile?.middleName || '',
         phone: user.phone || '',
-        dateOfBirth: user.dateOfBirth || '',
-        gender: user.gender || '',
-        address: user.address || '',
-        city: user.city || '',
-        country: user.country || 'UG',
-        bio: user.bio || ''
+        dateOfBirth: (user as any)?.dateOfBirth || (user as any)?.profile?.dateOfBirth || '',
+        gender: (user as any)?.gender || (user as any)?.profile?.gender || '',
+        address: (user as any)?.address || (user as any)?.profile?.address || '',
+        city: (user as any)?.city || (user as any)?.profile?.city || '',
+        country: (user as any)?.country || (user as any)?.profile?.country || 'UG',
+        bio: (user as any)?.bio || (user as any)?.profile?.bio || ''
       })
     }
   }, [user])
@@ -101,16 +101,16 @@ const ProfilePage = () => {
     if (user) {
       setFormData({
         email: user.email || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        middleName: user.middleName || '',
+        firstName: (user as any)?.firstName || (user as any)?.profile?.firstName || '',
+        lastName: (user as any)?.lastName || (user as any)?.profile?.lastName || '',
+        middleName: (user as any)?.middleName || (user as any)?.profile?.middleName || '',
         phone: user.phone || '',
-        dateOfBirth: user.dateOfBirth || '',
-        gender: user.gender || '',
-        address: user.address || '',
-        city: user.city || '',
-        country: user.country || 'UG',
-        bio: user.bio || ''
+        dateOfBirth: (user as any)?.dateOfBirth || (user as any)?.profile?.dateOfBirth || '',
+        gender: (user as any)?.gender || (user as any)?.profile?.gender || '',
+        address: (user as any)?.address || (user as any)?.profile?.address || '',
+        city: (user as any)?.city || (user as any)?.profile?.city || '',
+        country: (user as any)?.country || (user as any)?.profile?.country || 'UG',
+        bio: (user as any)?.bio || (user as any)?.profile?.bio || ''
       })
     }
   }
@@ -223,16 +223,18 @@ const ProfilePage = () => {
 
         <div className="space-y-8">
                 {/* Personal Information */}
-          <PersonalInfoForm
-            user={user}
-            isEditing={isEditing}
-            formData={formData}
-            onFormDataChange={setFormData}
-            onEdit={handleEdit}
-            onSave={handleSaveProfile}
-            onCancel={handleCancel}
-            isLoading={isLoadingAction}
-          />
+          {user && (
+            <PersonalInfoForm
+              user={user as any}
+              isEditing={isEditing}
+              formData={formData}
+              onFormDataChange={setFormData}
+              onEdit={handleEdit}
+              onSave={handleSaveProfile}
+              onCancel={handleCancel}
+              isLoading={isLoadingAction}
+            />
+          )}
 
           {/* Password Change */}
           <PasswordChangeForm

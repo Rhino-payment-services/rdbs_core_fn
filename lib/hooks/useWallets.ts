@@ -82,3 +82,40 @@ export const useWalletTransactions = (userId: string, page: number = 1, limit: n
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
+
+// Admin wallet hooks
+export const useAdminWallets = () => {
+  return useQuery<ApiResponse<Wallet[]>>({
+    queryKey: ['admin', 'wallets'],
+    queryFn: () => apiFetch('/admin/wallets'),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
+}
+
+export const useUpdateWalletBalance = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<Wallet>, Error, { walletId: string; amount: number; reason?: string }>({
+    mutationFn: ({ walletId, amount, reason }) => apiFetch(`/admin/wallets/${walletId}/balance`, {
+      method: 'PATCH',
+      data: { amount, reason },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export const useSuspendWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<Wallet>, Error, { walletId: string; reason?: string }>({
+    mutationFn: ({ walletId, reason }) => apiFetch(`/admin/wallets/${walletId}/suspend`, {
+      method: 'PATCH',
+      data: { reason },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}

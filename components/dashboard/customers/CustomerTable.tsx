@@ -185,7 +185,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                   <td className="p-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-3 w-3" />
-                      {customer.country || 'Unknown'}
+                      {(customer as any)?.country || (customer as any)?.profile?.country || 'Unknown'}
                     </div>
                   </td>
                   <td className="p-4">
@@ -200,10 +200,10 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         <Activity className="h-3 w-3 text-gray-400" />
                         {customer.lastLoginAt ? formatDate(customer.lastLoginAt) : 'Never'}
                       </div>
-                      {customer.totalTransactions && (
+                      {(customer as any)?.totalTransactions && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <DollarSign className="h-3 w-3 text-gray-400" />
-                          {customer.totalTransactions} transactions
+                          {(customer as any).totalTransactions} transactions
                         </div>
                       )}
                     </div>

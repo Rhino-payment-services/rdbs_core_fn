@@ -587,7 +587,7 @@ const FinancePage = () => {
                   <Input
                     id="feePercentage"
                     type="number"
-                    value={tariffForm.feePercentage * 100}
+                    value={(tariffForm.feePercentage || 0) * 100}
                     onChange={(e) => setTariffForm({ ...tariffForm, feePercentage: Number(e.target.value) / 100 })}
                     min="0"
                     max="100"

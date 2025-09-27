@@ -71,9 +71,9 @@ const TransactionsPage = () => {
   }
 
   // Get transactions data  
-  const transactions = transactionsData?.transactions || []
-  const totalTransactions = transactionsData?.total || 0
-  const totalPages = transactionsData?.totalPages || 1
+  const transactions = (transactionsData as any)?.transactions || []
+  const totalTransactions = (transactionsData as any)?.total || 0
+  const totalPages = (transactionsData as any)?.totalPages || 1
 
   // Format amount
   const formatAmount = (amount: number) => {
@@ -144,7 +144,7 @@ const TransactionsPage = () => {
   }, [])
 
   // Calculate enhanced fee statistics from current page
-  const pageStats = transactions.reduce((acc, tx) => {
+  const pageStats = transactions.reduce((acc: any, tx: any) => {
     if (tx.status === 'SUCCESS') {
       acc.totalFees += Number(tx.fee) || 0
       acc.rukapayFees += Number(tx.rukapayFee) || 0
@@ -524,7 +524,7 @@ const TransactionsPage = () => {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium">
+                              <TableCell className="font-medium">
                             {formatAmount(Number(transaction.amount))}
                           </TableCell>
                           <TableCell className="font-medium text-blue-600">

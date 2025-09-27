@@ -120,8 +120,11 @@ const CreateUserPage = () => {
     }
 
     try {
-      // Create the user first
-      const userResponse = await createUserMutation.mutateAsync(formData)
+      // Create the user first - add a temporary password since it will be set via OTP
+      const userResponse = await createUserMutation.mutateAsync({
+        ...formData,
+        password: 'temp-password-will-be-set-via-otp' // Temporary password, will be replaced via OTP flow
+      })
       const createdUser = (userResponse.data || userResponse) as any
       console.log('Created user:', userResponse)
       

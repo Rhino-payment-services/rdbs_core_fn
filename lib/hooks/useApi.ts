@@ -35,7 +35,10 @@ export {
   useWallet,
   useWalletBalance,
   useCreateWallet,
-  useWalletTransactions
+  useWalletTransactions,
+  useAdminWallets,
+  useUpdateWalletBalance,
+  useSuspendWallet
 } from './useWallets'
 
 // Role hooks
