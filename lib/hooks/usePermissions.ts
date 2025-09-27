@@ -69,6 +69,16 @@ export const PERMISSIONS = {
   TARIFFS_CREATE: 'TARIFFS_CREATE',
   TARIFFS_UPDATE: 'TARIFFS_UPDATE',
   TARIFFS_DELETE: 'TARIFFS_DELETE',
+  TARIFFS_APPROVE: 'TARIFFS_APPROVE',
+  TARIFFS_REJECT: 'TARIFFS_REJECT',
+  
+  // Partner Management
+  PARTNERS_VIEW: 'PARTNERS_VIEW',
+  PARTNERS_CREATE: 'PARTNERS_CREATE',
+  PARTNERS_UPDATE: 'PARTNERS_UPDATE',
+  PARTNERS_DELETE: 'PARTNERS_DELETE',
+  PARTNERS_APPROVE: 'PARTNERS_APPROVE',
+  PARTNERS_REJECT: 'PARTNERS_REJECT',
   
   // System Management
   SYSTEM_CONFIGURE: 'SYSTEM_CONFIGURE',
@@ -79,7 +89,7 @@ export const PERMISSIONS = {
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]
 
 export const ROLE_HIERARCHY = {
-  SUPERADMIN: 100,
+  SUPER_ADMIN: 100,
   ADMIN: 80,
   MANAGER: 60,
   SUPPORT: 40,
@@ -162,6 +172,16 @@ interface UsePermissionsReturn {
   canCreateTariffs: boolean
   canUpdateTariffs: boolean
   canDeleteTariffs: boolean
+  canApproveTariffs: boolean
+  canRejectTariffs: boolean
+  
+  // Action checks - Partner Management
+  canViewPartners: boolean
+  canCreatePartners: boolean
+  canUpdatePartners: boolean
+  canDeletePartners: boolean
+  canApprovePartners: boolean
+  canRejectPartners: boolean
   
   // Action checks - System Management
   canConfigureSystem: boolean
@@ -184,7 +204,7 @@ export const usePermissions = (): UsePermissionsReturn => {
     
     // Fallback: Generate permissions based on role (using new format)
     const rolePermissions: Record<Role, Permission[]> = {
-      SUPERADMIN: Object.values(PERMISSIONS),
+      SUPER_ADMIN: Object.values(PERMISSIONS),
       ADMIN: [
         // Dashboard
         PERMISSIONS.DASHBOARD_VIEW,
@@ -213,6 +233,10 @@ export const usePermissions = (): UsePermissionsReturn => {
         PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE,
         // Tariff Management
         PERMISSIONS.TARIFFS_VIEW, PERMISSIONS.TARIFFS_CREATE, PERMISSIONS.TARIFFS_UPDATE, PERMISSIONS.TARIFFS_DELETE,
+        PERMISSIONS.TARIFFS_APPROVE, PERMISSIONS.TARIFFS_REJECT,
+        // Partner Management
+        PERMISSIONS.PARTNERS_VIEW, PERMISSIONS.PARTNERS_CREATE, PERMISSIONS.PARTNERS_UPDATE, PERMISSIONS.PARTNERS_DELETE,
+        PERMISSIONS.PARTNERS_APPROVE, PERMISSIONS.PARTNERS_REJECT,
         // System Management
         PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.SYSTEM_CONFIGURE,
       ],
@@ -234,7 +258,9 @@ export const usePermissions = (): UsePermissionsReturn => {
         // Transaction Management
         PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE,
         // Tariff Management
-        PERMISSIONS.TARIFFS_VIEW,
+        PERMISSIONS.TARIFFS_VIEW, PERMISSIONS.TARIFFS_APPROVE, PERMISSIONS.TARIFFS_REJECT,
+        // Partner Management
+        PERMISSIONS.PARTNERS_VIEW, PERMISSIONS.PARTNERS_APPROVE, PERMISSIONS.PARTNERS_REJECT,
       ],
       SUPPORT: [
         // Dashboard
@@ -272,8 +298,8 @@ export const usePermissions = (): UsePermissionsReturn => {
   const hasPermission = (permission: Permission): boolean => {
     if (!currentUser) return false
     
-    // SUPERADMIN can do everything
-    if (userRole === 'SUPERADMIN') return true
+    // SUPER_ADMIN can do everything
+    if (userRole === 'SUPER_ADMIN') return true
     
     // For other roles, check specific permissions
     return userPermissions.includes(permission)
@@ -358,6 +384,16 @@ export const usePermissions = (): UsePermissionsReturn => {
   const canCreateTariffs = hasPermission(PERMISSIONS.TARIFFS_CREATE)
   const canUpdateTariffs = hasPermission(PERMISSIONS.TARIFFS_UPDATE)
   const canDeleteTariffs = hasPermission(PERMISSIONS.TARIFFS_DELETE)
+  const canApproveTariffs = hasPermission(PERMISSIONS.TARIFFS_APPROVE)
+  const canRejectTariffs = hasPermission(PERMISSIONS.TARIFFS_REJECT)
+  
+  // Partner Management
+  const canViewPartners = hasPermission(PERMISSIONS.PARTNERS_VIEW)
+  const canCreatePartners = hasPermission(PERMISSIONS.PARTNERS_CREATE)
+  const canUpdatePartners = hasPermission(PERMISSIONS.PARTNERS_UPDATE)
+  const canDeletePartners = hasPermission(PERMISSIONS.PARTNERS_DELETE)
+  const canApprovePartners = hasPermission(PERMISSIONS.PARTNERS_APPROVE)
+  const canRejectPartners = hasPermission(PERMISSIONS.PARTNERS_REJECT)
   
   // System Management
   const canConfigureSystem = hasPermission(PERMISSIONS.SYSTEM_CONFIGURE)
@@ -423,6 +459,15 @@ export const usePermissions = (): UsePermissionsReturn => {
     canCreateTariffs,
     canUpdateTariffs,
     canDeleteTariffs,
+    canApproveTariffs,
+    canRejectTariffs,
+    // Partner Management
+    canViewPartners,
+    canCreatePartners,
+    canUpdatePartners,
+    canDeletePartners,
+    canApprovePartners,
+    canRejectPartners,
     // System Management
     canConfigureSystem,
     canViewSystemLogs,

@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { 
-  Plus, 
   Edit, 
   Trash2, 
   Search, 
@@ -27,16 +26,18 @@ import {
   Settings,
   AlertTriangle,
   CheckCircle,
-  Loader2
+  Loader2,
+  ArrowLeftRight
 } from 'lucide-react'
-import { useTariffs, useCreateTariff, useUpdateTariff, useDeleteTariff, useCalculateEnhancedFee, TRANSACTION_TYPES, FEE_TYPES, USER_TYPES, SUBSCRIBER_TYPES, CURRENCIES, CreateTariffRequest } from '@/lib/hooks/useTariffs'
+import { useTariffs, useUpdateTariff, useDeleteTariff, useCalculateEnhancedFee, TRANSACTION_TYPES, FEE_TYPES, USER_TYPES, SUBSCRIBER_TYPES, CURRENCIES, CreateTariffRequest } from '@/lib/hooks/useTariffs'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import FeeBreakdownChart from '@/components/finance/FeeBreakdownChart'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 
 const FinancePage = () => {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("tariffs")
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false)
   const [editingTariff, setEditingTariff] = useState<any>(null)
@@ -44,8 +45,8 @@ const FinancePage = () => {
   // Filters and pagination
   const [filters, setFilters] = useState({
     search: '',
-    transactionType: '',
-    feeType: '',
+    transactionType: 'all', // Use 'all' for filters to show all types
+    feeType: 'all', // Use 'all' for filters to show all types
     isActive: true,
     page: 1,
     limit: 20
@@ -55,7 +56,7 @@ const FinancePage = () => {
   const [tariffForm, setTariffForm] = useState<CreateTariffRequest>({
     name: '',
     description: '',
-    transactionType: '',
+    transactionType: 'WALLET_TO_WALLET', // Default to first valid transaction type
     currency: 'UGX',
     feeType: 'FIXED',
     feeAmount: 0,
@@ -64,13 +65,13 @@ const FinancePage = () => {
     maxFee: 0,
     minAmount: 0,
     maxAmount: 0,
-    userType: '',
+    userType: 'SUBSCRIBER', // Default to first valid user type
     subscriberType: '',
     isActive: true
   })
 
   const [calculatorForm, setCalculatorForm] = useState({
-    transactionType: '',
+    transactionType: 'WALLET_TO_WALLET', // Default to first valid transaction type
     amount: 0,
     currency: 'UGX',
     userType: 'SUBSCRIBER',
@@ -80,7 +81,6 @@ const FinancePage = () => {
   // API hooks
   const { data: tariffsData, isLoading: tariffsLoading, error: tariffsError } = useTariffs(filters)
   const { data: systemStats, isLoading: statsLoading } = useTransactionSystemStats()
-  const createTariffMutation = useCreateTariff()
   const updateTariffMutation = useUpdateTariff()
   const deleteTariffMutation = useDeleteTariff()
   const calculateFeeMutation = useCalculateEnhancedFee()
@@ -98,18 +98,6 @@ const FinancePage = () => {
   }
 
   // Handle form submissions
-  const handleCreateTariff = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      await createTariffMutation.mutateAsync(tariffForm)
-      toast.success('Tariff created successfully')
-      setIsCreateDialogOpen(false)
-      resetForm()
-    } catch (error) {
-      toast.error('Failed to create tariff')
-    }
-  }
-
   const handleUpdateTariff = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTariff) return
@@ -153,7 +141,7 @@ const FinancePage = () => {
     setTariffForm({
       name: '',
       description: '',
-      transactionType: '',
+      transactionType: 'WALLET_TO_WALLET', // Default to first valid transaction type
       currency: 'UGX',
       feeType: 'FIXED',
       feeAmount: 0,
@@ -162,7 +150,7 @@ const FinancePage = () => {
       maxFee: 0,
       minAmount: 0,
       maxAmount: 0,
-      userType: '',
+      userType: 'SUBSCRIBER', // Default to first valid user type
       subscriberType: '',
       isActive: true
     })
@@ -210,86 +198,99 @@ const FinancePage = () => {
                 <Calculator className="h-4 w-4" />
                 <span>Fee Calculator</span>
               </Button>
-              <Button 
-                onClick={() => setIsCreateDialogOpen(true)}
-                className="flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Create Tariff</span>
-              </Button>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Active Tariffs</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {tariffsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        totalTariffs
-                      )}
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Active Tariffs
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {tariffsLoading ? '...' : totalTariffs}
                     </p>
                   </div>
-                  <Settings className="h-8 w-8 text-blue-600" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Settings className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-blue-600 font-medium">
+                    Configured
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        formatAmount(systemStats?.data?.totalFees || 0)
-                      )}
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Total Fees
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {statsLoading ? '...' : formatAmount(systemStats?.data?.totalFees || 0)}
                     </p>
                   </div>
-                  <DollarSign className="h-8 w-8 text-green-600" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-green-600 font-medium">
+                    All fees
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Success Rate</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        `${(systemStats?.data?.successRate || 0).toFixed(1)}%`
-                      )}
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Success Rate
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {statsLoading ? '...' : `${(systemStats?.data?.successRate || 0).toFixed(1)}%`}
                     </p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-purple-600" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-purple-600 font-medium">
+                    Transaction success
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Avg Transaction</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        formatAmount(systemStats?.data?.averageTransactionAmount || 0)
-                      )}
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Avg Transaction
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {statsLoading ? '...' : formatAmount(systemStats?.data?.averageTransactionAmount || 0)}
                     </p>
                   </div>
-                  <PieChart className="h-8 w-8 text-orange-600" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <PieChart className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-orange-600 font-medium">
+                    Per transaction
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -457,13 +458,31 @@ const FinancePage = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="partners" className="mt-6">
-                  <div className="text-center py-8">
-                    <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Partner Management</h3>
-                    <p className="text-gray-500">Configure partner fee structures and revenue sharing</p>
-                  </div>
-                </TabsContent>
+          <TabsContent value="partners" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">External Payment Partners</h3>
+                  <p className="text-gray-500 mb-4">Manage external payment partners (ABC, Pegasus, etc.)</p>
+                  <Button onClick={() => router.push('/dashboard/finance/partners')}>
+                    Manage Partners
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <ArrowLeftRight className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Transaction Mapping</h3>
+                  <p className="text-gray-500 mb-4">Configure which partner handles each transaction type</p>
+                  <Button onClick={() => router.push('/dashboard/finance/transaction-mapping')}>
+                    Manage Mapping
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
                 <TabsContent value="reports" className="mt-6">
                   <div className="text-center py-8">
@@ -478,143 +497,6 @@ const FinancePage = () => {
         </div>
       </main>
 
-      {/* Create Tariff Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Create New Tariff</DialogTitle>
-            <DialogDescription>
-              Configure a new tariff for transaction fees
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateTariff} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Tariff Name</Label>
-                <Input
-                  id="name"
-                  value={tariffForm.name}
-                  onChange={(e) => setTariffForm({ ...tariffForm, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="transactionType">Transaction Type</Label>
-                <Select 
-                  value={tariffForm.transactionType} 
-                  onValueChange={(value) => setTariffForm({ ...tariffForm, transactionType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRANSACTION_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={tariffForm.description}
-                onChange={(e) => setTariffForm({ ...tariffForm, description: e.target.value })}
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="feeType">Fee Type</Label>
-                <Select 
-                  value={tariffForm.feeType} 
-                  onValueChange={(value: any) => setTariffForm({ ...tariffForm, feeType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FEE_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="currency">Currency</Label>
-                <Select 
-                  value={tariffForm.currency} 
-                  onValueChange={(value) => setTariffForm({ ...tariffForm, currency: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((currency) => (
-                      <SelectItem key={currency.value} value={currency.value}>{currency.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2 pt-6">
-                <Switch
-                  id="isActive"
-                  checked={tariffForm.isActive}
-                  onCheckedChange={(checked) => setTariffForm({ ...tariffForm, isActive: checked })}
-                />
-                <Label htmlFor="isActive">Active</Label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="feeAmount">Fee Amount</Label>
-                <Input
-                  id="feeAmount"
-                  type="number"
-                  value={tariffForm.feeAmount}
-                  onChange={(e) => setTariffForm({ ...tariffForm, feeAmount: Number(e.target.value) })}
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              {(tariffForm.feeType === 'PERCENTAGE' || tariffForm.feeType === 'HYBRID') && (
-                <div>
-                  <Label htmlFor="feePercentage">Fee Percentage (%)</Label>
-                  <Input
-                    id="feePercentage"
-                    type="number"
-                    value={(tariffForm.feePercentage || 0) * 100}
-                    onChange={(e) => setTariffForm({ ...tariffForm, feePercentage: Number(e.target.value) / 100 })}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createTariffMutation.isPending}>
-                {createTariffMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create Tariff'
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Tariff Dialog - Similar structure to Create */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

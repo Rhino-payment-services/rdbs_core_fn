@@ -59,11 +59,33 @@ export const useTransaction = (id: string) => {
 }
 
 // Hook to get transaction system stats
-export const useTransactionSystemStats = () => {
+export const useTransactionSystemStats = (filters?: {
+  type?: string;
+  status?: string;
+  direction?: string;
+  currency?: string;
+  userId?: string;
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
+}) => {
+  const queryParams = new URLSearchParams();
+  if (filters?.type) queryParams.append('type', filters.type);
+  if (filters?.status) queryParams.append('status', filters.status);
+  if (filters?.direction) queryParams.append('direction', filters.direction);
+  if (filters?.currency) queryParams.append('currency', filters.currency);
+  if (filters?.userId) queryParams.append('userId', filters.userId);
+  if (filters?.startDate) queryParams.append('startDate', filters.startDate);
+  if (filters?.endDate) queryParams.append('endDate', filters.endDate);
+  if (filters?.minAmount) queryParams.append('minAmount', filters.minAmount.toString());
+  if (filters?.maxAmount) queryParams.append('maxAmount', filters.maxAmount.toString());
+
   return useQuery({
-    queryKey: transactionQueryKeys.systemStats,
-    queryFn: () => apiFetch('/transactions/system/stats'),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: [...transactionQueryKeys.systemStats, filters],
+    queryFn: () => apiFetch(`/transactions/system/stats?${queryParams.toString()}`),
+    staleTime: 0, // No caching for stats to ensure fresh data
+    refetchOnWindowFocus: true,
   })
 }
 

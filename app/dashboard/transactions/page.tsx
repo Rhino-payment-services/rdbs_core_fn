@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -41,8 +41,14 @@ const TransactionsPage = () => {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
 
-  // Fetch real transaction system stats
-  const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
+  // Fetch real transaction system stats with filters
+  const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
+    type: typeFilter || undefined,
+    status: statusFilter || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined
+  })
+
   
   // Fetch paginated transactions
   const { 
@@ -63,12 +69,16 @@ const TransactionsPage = () => {
     totalTransactions: 0,
     totalVolume: 0,
     totalFees: 0,
+    rukapayRevenue: 0,
+    partnerFees: 0,
+    governmentTaxes: 0,
     successRate: 0,
     averageTransactionAmount: 0,
     transactionsByType: {},
     transactionsByStatus: {},
     transactionsByCurrency: {}
   }
+
 
   // Get transactions data  
   const transactions = (transactionsData as any)?.transactions || []
@@ -143,6 +153,13 @@ const TransactionsPage = () => {
     setCurrentPage(1) // Reset to first page when filters change
   }, [])
 
+  // Refetch stats when date filters change
+  useEffect(() => {
+    if (startDate || endDate) {
+      refetchStats()
+    }
+  }, [startDate, endDate, refetchStats])
+
   // Calculate enhanced fee statistics from current page
   const pageStats = transactions.reduce((acc: any, tx: any) => {
     if (tx.status === 'SUCCESS') {
@@ -172,93 +189,159 @@ const TransactionsPage = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Transaction Ledgers</h1>
-            <p className="mt-2 text-gray-600">Investigate and analyze transaction information</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Transaction Ledgers</h1>
+              <p className="mt-2 text-gray-600">Investigate and analyze transaction information</p>
+            </div>
+            
+            {/* Date Range Filter */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Date Range:</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    handleFilterChange()
+                  }}
+                  className="w-[140px]"
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-400">to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value)
+                    handleFilterChange()
+                  }}
+                  className="w-[140px]"
+                  placeholder="End Date"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStartDate("")
+                    setEndDate("")
+                    handleFilterChange()
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Transactions</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        stats.totalTransactions.toLocaleString()
-                      )}
+          {/* Stats Cards - Match Analytics & Reports Design */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Total Transactions
                     </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      {stats.successRate.toFixed(1)}% success rate
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {statsLoading ? '...' : stats.totalTransactions.toLocaleString()}
                     </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <CreditCard className="w-4 h-4 text-gray-600" />
+                  </div>
                 </div>
-                  <CreditCard className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Volume</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        `UGX ${(stats.totalVolume / 1000000).toFixed(1)}M`
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      UGX {stats.averageTransactionAmount.toLocaleString()} avg transaction
-                    </p>
-                </div>
-                  <TrendingUp className="h-8 w-8 text-green-600" />
+                <div className="mt-0">
+                  <span className="text-sm text-green-600 font-medium">
+                    {stats.successRate.toFixed(1)}%
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    success rate
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Fees</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {statsLoading ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        formatAmount(stats.totalFees)
-                      )}
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Total Volume
                     </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      {stats.successRate.toFixed(1)}% success rate
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {statsLoading ? '...' : `UGX ${(stats.totalVolume / 1000000).toFixed(1)}M`}
                     </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <DollarSign className="w-4 h-4 text-gray-600" />
+                  </div>
                 </div>
-                  <DollarSign className="h-8 w-8 text-yellow-600" />
+                <div className="mt-0">
+                  <span className="text-sm text-green-600 font-medium">
+                    UGX {stats.averageTransactionAmount.toFixed(0)}
+                  </span>
+                  <span className="text-sm ml-1 text-gray-500">
+                    avg transaction
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Transaction Types</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {Object.keys(stats.transactionsByType || {}).length}
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      RukaPay Revenue
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {Object.keys(stats.transactionsByStatus || {}).length} status types
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {statsLoading ? '...' : formatAmount(stats.rukapayRevenue || 0)}
                     </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <TrendingUp className="w-4 h-4 text-gray-600" />
+                  </div>
                 </div>
-                  <Activity className="h-8 w-8 text-purple-600" />
+                <div className="mt-0">
+                  <span className="text-sm text-blue-600 font-medium">
+                    RukaPay fees
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-600 mb-0">
+                      Partner Fees
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight">
+                      {statsLoading ? '...' : formatAmount(stats.partnerFees || 0)}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center ml-2">
+                    <Activity className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-0">
+                  <span className="text-sm text-orange-600 font-medium">
+                    Third-party fees
+                  </span>
                 </div>
               </CardContent>
             </Card>
           </div>
+
 
           {/* Transactions Table */}
           <Card>
@@ -315,6 +398,7 @@ const TransactionsPage = () => {
                     <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
                   </SelectContent>
                 </Select>
+
 
                 <Select value={pageSize.toString()} onValueChange={(value) => {
                   setPageSize(Number(value))

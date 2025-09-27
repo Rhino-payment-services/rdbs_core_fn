@@ -83,7 +83,7 @@ const PermissionsPage = () => {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'SUPERADMIN':
+      case 'SUPER_ADMIN':
         return <Badge className="bg-red-100 text-red-800">Super Admin</Badge>
       case 'ADMIN':
         return <Badge className="bg-purple-100 text-purple-800">Admin</Badge>
