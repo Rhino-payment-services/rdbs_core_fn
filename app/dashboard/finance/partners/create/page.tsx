@@ -91,9 +91,9 @@ const CreatePartnerPage = () => {
   ]
 
   const createPartnerMutation = useMutation({
-    mutationFn: (data: CreatePartnerForm) => api.post('/admin/partners', data),
+    mutationFn: (data: CreatePartnerForm) => api.post('/admin/external-payment-partners', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['partners'] })
+      queryClient.invalidateQueries({ queryKey: ['external-payment-partners'] })
       toast.success('Partner created successfully!')
       router.push('/dashboard/finance/partners')
     },

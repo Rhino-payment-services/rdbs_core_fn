@@ -134,9 +134,16 @@ export const useSystemTransactionStats = () => {
 export const useWalletToWalletTransfer = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, WalletToWalletRequest>({
-    mutationFn: (transferData) => apiFetch('/transactions/wallet-to-wallet', {
+    mutationFn: (transferData) => apiFetch('/transactions/process', {
       method: 'POST',
-      data: transferData,
+      data: {
+        reference: `W2W_${Date.now()}`,
+        amount: transferData.amount,
+        currency: transferData.currency || 'UGX',
+        description: transferData.description || 'Wallet to wallet transfer',
+        mode: 'WALLET_TO_WALLET',
+        recipientUserId: transferData.recipientUserId
+      },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
@@ -149,9 +156,19 @@ export const useWalletToWalletTransfer = () => {
 export const useSendToMno = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, MnoTransactionRequest>({
-    mutationFn: (transferData) => apiFetch('/transactions/send-to-mno', {
+    mutationFn: (transferData) => apiFetch('/transactions/process', {
       method: 'POST',
-      data: transferData,
+      data: {
+        reference: `MNO_${Date.now()}`,
+        amount: transferData.amount,
+        currency: transferData.currency || 'UGX',
+        description: transferData.description || `Send to ${transferData.mnoProvider}`,
+        mode: 'WALLET_TO_MNO',
+        externalMetadata: {
+          phoneNumber: transferData.phoneNumber,
+          mnoProvider: transferData.mnoProvider
+        }
+      },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
@@ -164,9 +181,20 @@ export const useSendToMno = () => {
 export const useSendToBank = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, BankTransactionRequest>({
-    mutationFn: (transferData) => apiFetch('/transactions/send-to-bank', {
+    mutationFn: (transferData) => apiFetch('/transactions/process', {
       method: 'POST',
-      data: transferData,
+      data: {
+        reference: `BANK_${Date.now()}`,
+        amount: transferData.amount,
+        currency: transferData.currency || 'UGX',
+        description: transferData.description || `Bank transfer to ${transferData.bankName}`,
+        mode: 'MERCHANT_WITHDRAWAL',
+        externalMetadata: {
+          bankName: transferData.bankName,
+          accountNumber: transferData.accountNumber,
+          accountName: transferData.accountName
+        }
+      },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
@@ -179,9 +207,21 @@ export const useSendToBank = () => {
 export const usePayUtility = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, UtilityTransactionRequest>({
-    mutationFn: (paymentData) => apiFetch('/transactions/pay-utility', {
+    mutationFn: (paymentData) => apiFetch('/transactions/process', {
       method: 'POST',
-      data: paymentData,
+      data: {
+        reference: `UTIL_${Date.now()}`,
+        amount: paymentData.amount,
+        currency: 'UGX',
+        description: paymentData.description || `Utility payment for ${paymentData.utilityProvider}`,
+        mode: 'UTILITIES',
+        externalMetadata: {
+          utilityProvider: paymentData.utilityProvider,
+          utilityAccountNumber: paymentData.utilityAccountNumber,
+          customerRef: paymentData.customerRef || paymentData.utilityAccountNumber,
+          meterNumber: paymentData.meterNumber
+        }
+      },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
@@ -194,9 +234,18 @@ export const usePayUtility = () => {
 export const usePayMerchant = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, MerchantTransactionRequest>({
-    mutationFn: (paymentData) => apiFetch('/transactions/pay-merchant', {
+    mutationFn: (paymentData) => apiFetch('/transactions/process', {
       method: 'POST',
-      data: paymentData,
+      data: {
+        reference: `MERCH_${Date.now()}`,
+        amount: paymentData.amount,
+        currency: paymentData.currency || 'UGX',
+        description: paymentData.description || 'Merchant payment',
+        mode: 'WALLET_TO_MERCHANT',
+        externalMetadata: {
+          merchantId: paymentData.merchantId
+        }
+      },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })

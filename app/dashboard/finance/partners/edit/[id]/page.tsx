@@ -162,8 +162,8 @@ const EditPartnerPage = () => {
         dailyQuota: data.dailyQuota,
         monthlyQuota: data.monthlyQuota,
         costPerTransaction: data.costPerTransaction,
-        priority: data.priority,
-        failoverPriority: data.failoverPriority,
+        priority: Number(data.priority) || 1, // Ensure it's a valid number
+        failoverPriority: Number(data.failoverPriority) || 0, // Ensure it's a valid number
         geographicRegions: data.geographicRegions,
         description: data.description
       }
@@ -598,7 +598,7 @@ const EditPartnerPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label htmlFor="priority">Priority Level</Label>
-                    <Select value={form.priority.toString()} onValueChange={(value) => handleInputChange('priority', parseInt(value))} disabled={isApprover}>
+                    <Select value={form.priority.toString()} onValueChange={(value) => handleInputChange('priority', parseInt(value) || 1)} disabled={isApprover}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -613,7 +613,7 @@ const EditPartnerPage = () => {
                   </div>
                   <div>
                     <Label htmlFor="failoverPriority">Failover Priority</Label>
-                    <Select value={form.failoverPriority.toString()} onValueChange={(value) => handleInputChange('failoverPriority', parseInt(value))} disabled={isApprover}>
+                    <Select value={form.failoverPriority.toString()} onValueChange={(value) => handleInputChange('failoverPriority', parseInt(value) || 0)} disabled={isApprover}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

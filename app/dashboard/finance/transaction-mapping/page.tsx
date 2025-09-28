@@ -100,29 +100,33 @@ const TransactionMappingPage = () => {
       description: 'Electricity, Water, TV subscriptions',
       icon: Zap,
       color: 'bg-purple-600',
-      tabId: 'utility-bills'
+      tabId: 'utility-bills',
+      category: 'Utilities'
     },
     'WITHDRAWAL': {
       name: 'Wallet to MNO',
       description: 'Wallet to Mobile Network Operator transfers',
       icon: Smartphone,
       color: 'bg-green-500',
-      tabId: 'wallet-to-mno'
+      tabId: 'wallet-to-mno',
+      category: 'Mobile Money'
     },
     'DEPOSIT': {
       name: 'MNO to Wallet',
       description: 'Mobile Network Operator to Wallet transfers',
       icon: Smartphone,
       color: 'bg-blue-500',
-      tabId: 'mno-to-wallet'
+      tabId: 'mno-to-wallet',
+      category: 'Mobile Money'
     },
     'WALLET_TO_EXTERNAL_MERCHANT': {
       name: 'Bank Transfers',
       description: 'Wallet to Bank account transfers',
       icon: Building2,
       color: 'bg-orange-500',
-      tabId: 'bank-transfers'
-    }
+      tabId: 'bank-transfers',
+      category: 'Banking'
+    },
   }
 
   // Fetch current transaction mappings
@@ -135,7 +139,7 @@ const TransactionMappingPage = () => {
       } catch (error: any) {
         // If API fails, return empty mappings structure
         if (error.response?.status === 404 || error.response?.status === 401) {
-          console.log('Transaction mappings API not available, using empty structure')
+          console.log('Transaction mappings API not available, returning empty structure')
           return {
             timestamp: new Date().toISOString(),
             mappings: {}
@@ -157,131 +161,28 @@ const TransactionMappingPage = () => {
     staleTime: 5 * 60 * 1000,
   })
 
-  // Mock partners for demonstration when API is not available
-  // NOTE: Performance metrics (successRate, averageResponseTime) are demo data
-  // In production, these should come from actual transaction analytics in the database
-  const mockPartners = [
-    {
-      id: 'mock-pegasus',
-      partnerName: 'Pegasus Bill Payments',
-      partnerCode: 'PEGASUS',
-      isActive: true,
-      isSuspended: false,
-      supportedServices: ['BILL_PAYMENT', 'WITHDRAWAL'],
-      costPerTransaction: 500,
-      priority: 1,
-      failoverPriority: 2,
-      successRate: 98.5, // Demo data - should come from transaction analytics
-      averageResponseTime: 1200, // Demo data - should come from transaction analytics
-      geographicRegions: [] // Should come from backend partner configuration
-    },
-    {
-      id: 'mock-abc',
-      partnerName: 'ABC Payment Services',
-      partnerCode: 'ABC',
-      isActive: true,
-      isSuspended: false,
-      supportedServices: ['BILL_PAYMENT', 'DEPOSIT', 'WALLET_TO_EXTERNAL_MERCHANT'],
-      costPerTransaction: 750,
-      priority: 2,
-      failoverPriority: 1,
-      successRate: 96.2, // Demo data - should come from transaction analytics
-      averageResponseTime: 1500, // Demo data - should come from transaction analytics
-      geographicRegions: [] // Should come from backend partner configuration
-    }
-  ]
 
-  const partners = partnersData && partnersData.length > 0 ? partnersData : mockPartners
+  const partners = partnersData || []
   const mappings = mappingsData?.mappings || {}
 
-  // Mock data for demonstration when API is not available
-  // NOTE: Performance metrics are demo data - should come from transaction analytics
-  // Geographic regions should come from backend partner configuration
-  const mockMappings = {
-    'BILL_PAYMENT': {
-      serviceType: 'BILL_PAYMENT',
-      primaryPartner: {
-        id: 'mock-pegasus',
-        partnerName: 'Pegasus Bill Payments',
-        partnerCode: 'PEGASUS',
-        isActive: true,
-        isSuspended: false,
-        supportedServices: ['BILL_PAYMENT'],
-        costPerTransaction: 500,
-        priority: 1,
-        failoverPriority: 2,
-        successRate: 98.5,
-        averageResponseTime: 1200,
-        geographicRegions: [] // Should come from backend partner configuration
-      },
-      alternativePartners: [{
-        id: 'mock-abc',
-        partnerName: 'ABC Payment Services',
-        partnerCode: 'ABC',
-        isActive: true,
-        isSuspended: false,
-        supportedServices: ['BILL_PAYMENT'],
-        costPerTransaction: 750,
-        priority: 2,
-        failoverPriority: 1,
-        successRate: 96.2,
-        averageResponseTime: 1500,
-        geographicRegions: [] // Should come from backend partner configuration
-      }],
-      impactAnalysis: {
-        riskLevel: 'LOW' as const,
-        estimatedCostChange: 0,
-        estimatedResponseTimeChange: 0,
-        affectedTransactions: 1250
-      },
-      lastSwitched: '2025-01-15T10:30:00Z',
-      switchedBy: 'admin@rukapay.co.ug',
-      switchReason: 'Performance optimization'
-    },
-    'WITHDRAWAL': {
-      serviceType: 'WITHDRAWAL',
-      primaryPartner: {
-        id: 'mock-abc',
-        partnerName: 'ABC Payment Services',
-        partnerCode: 'ABC',
-        isActive: true,
-        isSuspended: false,
-        supportedServices: ['WITHDRAWAL'],
-        costPerTransaction: 750,
-        priority: 1,
-        failoverPriority: 2,
-        successRate: 96.2,
-        averageResponseTime: 1500,
-        geographicRegions: [] // Should come from backend partner configuration
-      },
-      alternativePartners: [{
-        id: 'mock-pegasus',
-        partnerName: 'Pegasus Bill Payments',
-        partnerCode: 'PEGASUS',
-        isActive: true,
-        isSuspended: false,
-        supportedServices: ['WITHDRAWAL'],
-        costPerTransaction: 500,
-        priority: 2,
-        failoverPriority: 1,
-        successRate: 98.5,
-        averageResponseTime: 1200,
-        geographicRegions: [] // Should come from backend partner configuration
-      }],
-      impactAnalysis: {
-        riskLevel: 'MEDIUM' as const,
-        estimatedCostChange: 0,
-        estimatedResponseTimeChange: 0,
-        affectedTransactions: 850
-      },
-      lastSwitched: '2025-01-10T14:20:00Z',
-      switchedBy: 'admin@rukapay.co.ug',
-      switchReason: 'Cost optimization'
-    }
-  }
 
-  // Use mock data if no real mappings available (force mock for demo)
-  const displayMappings = mockMappings
+  // Use real data from backend only - ensure it's truly empty
+  const displayMappings = mappings || {}
+  
+  // Calculate stats from real data - be explicit about empty state
+  const activeMappingsCount = Object.keys(displayMappings).filter(key => {
+    const mapping = (displayMappings as any)[key]
+    return mapping && mapping.primaryPartner && mapping.isActive
+  }).length
+  
+  const availablePartnersCount = partners.filter((p: Partner) => 
+    p.isActive && !p.isSuspended
+  ).length
+  
+  const highRiskCount = Object.keys(displayMappings).filter(key => 
+    (displayMappings as any)[key]?.impactAnalysis?.riskLevel === 'HIGH'
+  ).length
+
   
 
   // Switch partner mutation
@@ -354,7 +255,12 @@ const TransactionMappingPage = () => {
   const handleRefresh = async () => {
     setIsLoading(true)
     try {
-      await refetch()
+      // Force refresh both queries
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ['transaction-mappings'] }),
+        queryClient.invalidateQueries({ queryKey: ['external-payment-partners'] })
+      ])
       toast.success('Transaction mappings refreshed successfully')
     } catch (error) {
       toast.error('Failed to refresh transaction mappings')
@@ -387,6 +293,12 @@ const TransactionMappingPage = () => {
               <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Partner Assigned</h3>
               <p className="text-gray-500 mb-4">This transaction type has no active partner mapping.</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4 max-w-sm mx-auto">
+                <p className="text-xs text-blue-700">
+                  <strong>Note:</strong> Partner assignments are managed through the backend API. 
+                  Configure partners in the database first.
+                </p>
+              </div>
               {canManageMapping && availablePartners.length > 0 && (
                 <Button onClick={() => handleSwitchPartner({ serviceType: type, primaryPartner: null, alternativePartners: availablePartners, impactAnalysis: null, lastSwitched: null, switchedBy: null, switchReason: null })}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -536,6 +448,98 @@ const TransactionMappingPage = () => {
     )
   }
 
+  // Show empty state when no mappings are available
+  if (!mappingsLoading && Object.keys(displayMappings).length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Breadcrumbs */}
+            <div className="mb-4">
+              <nav className="flex items-center space-x-2 text-sm text-gray-600">
+                <Link href="/dashboard/finance" className="hover:text-[#08163d]">
+                  Finance
+                </Link>
+                <ChevronRight className="h-4 w-4" />
+                <span className="text-gray-900 font-medium">Transaction Mapping</span>
+              </nav>
+            </div>
+
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <Link href="/dashboard/finance">
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <ArrowLeft className="h-4 w-4" />
+                      Back to Finance
+                    </Button>
+                  </Link>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Transaction Mapping</h1>
+                    <p className="text-gray-600">Manage which external payment partner handles each transaction type</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard/finance/partners/configure-mapping')}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Configure Mapping
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard/finance/partners')}
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Manage Partners
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Empty State */}
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <ArrowLeftRight className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Transaction Mappings</h3>
+                <p className="text-gray-500 mb-4">No transaction mappings have been configured yet.</p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4 max-w-md mx-auto">
+                  <div className="flex items-center">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-yellow-800">Backend API Required</p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        The transaction mapping API endpoints need to be implemented in the backend:
+                      </p>
+                      <ul className="text-xs text-yellow-700 mt-2 list-disc list-inside">
+                        <li>GET /admin/external-payment-partners/mapping/transaction-types</li>
+                        <li>POST /admin/external-payment-partners/switch</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <PermissionGuard permissions={[PERMISSIONS.PARTNERS_VIEW, PERMISSIONS.PARTNERS_UPDATE]} fallback={<div>Access Denied</div>}>
       <div className="min-h-screen bg-gray-50">
@@ -566,11 +570,6 @@ const TransactionMappingPage = () => {
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900">Transaction Mapping</h1>
                     <p className="text-gray-600">Manage which external payment partner handles each transaction type</p>
-                    <div className="mt-2">
-                      <Badge variant="outline" className="text-xs">
-                        Demo Mode - Mock data (Performance metrics)
-                      </Badge>
-                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -582,6 +581,14 @@ const TransactionMappingPage = () => {
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                     Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/dashboard/finance/partners/configure-mapping')}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Configure Mapping
                   </Button>
                   <Button
                     variant="outline"
@@ -606,7 +613,7 @@ const TransactionMappingPage = () => {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Active Mappings</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {Object.keys(displayMappings).filter(key => (displayMappings as any)[key]?.primaryPartner).length}
+                        {mappingsLoading ? '...' : activeMappingsCount}
                       </p>
                     </div>
                   </div>
@@ -622,7 +629,7 @@ const TransactionMappingPage = () => {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Available Partners</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {partners.filter((p: Partner) => p.isActive && !p.isSuspended).length}
+                        {availablePartnersCount}
                       </p>
                     </div>
                   </div>
@@ -638,7 +645,7 @@ const TransactionMappingPage = () => {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">High Risk</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {Object.keys(displayMappings).filter(key => (displayMappings as any)[key]?.impactAnalysis?.riskLevel === 'HIGH').length}
+                        {highRiskCount}
                       </p>
                     </div>
                   </div>
