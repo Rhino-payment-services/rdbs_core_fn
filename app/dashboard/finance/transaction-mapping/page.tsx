@@ -41,32 +41,24 @@ import api from '@/lib/axios'
 
 interface Partner {
   id: string
-  partnerName: string
-  partnerCode: string
-  isActive: boolean
-  isSuspended: boolean
-  supportedServices: string[]
-  costPerTransaction: number
-  priority: number
-  failoverPriority: number
-  successRate: number
-  averageResponseTime: number
-  geographicRegions: string[]
+  name: string
+  code: string
+  isActive?: boolean
+  isSuspended?: boolean
+  supportedServices?: string[]
+  costPerTransaction?: number
+  priority?: number
+  failoverPriority?: number
+  successRate?: number
+  averageResponseTime?: number
+  geographicRegions?: string[]
 }
 
 interface TransactionMapping {
-  serviceType: string
+  transactionType: string
   primaryPartner: Partner | null
-  alternativePartners: Partner[]
-  impactAnalysis: {
-    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
-    estimatedCostChange: number
-    estimatedResponseTimeChange: number
-    affectedTransactions: number
-  } | null
-  lastSwitched: string | null
-  switchedBy: string | null
-  switchReason: string | null
+  secondaryPartner: Partner | null
+  totalMappings: number
 }
 
 interface SwitchForm {
@@ -135,15 +127,13 @@ const TransactionMappingPage = () => {
     queryFn: async () => {
       try {
         const response = await api.get('/admin/external-payment-partners/mapping/transaction-types')
+        // The API returns the mappings directly, not wrapped in a 'mappings' property
         return response.data
       } catch (error: any) {
         // If API fails, return empty mappings structure
         if (error.response?.status === 404 || error.response?.status === 401) {
           console.log('Transaction mappings API not available, returning empty structure')
-          return {
-            timestamp: new Date().toISOString(),
-            mappings: {}
-          }
+          return {}
         }
         throw error
       }
@@ -152,19 +142,52 @@ const TransactionMappingPage = () => {
   })
 
   // Fetch available partners
-  const { data: partnersData } = useQuery({
+  const { data: partnersData, isLoading: partnersLoading, error: partnersError } = useQuery({
     queryKey: ['external-payment-partners'],
     queryFn: async () => {
-      const response = await api.get('/admin/external-payment-partners')
-      return response.data || []
+      console.log('Fetching partners from API...')
+      try {
+        const response = await api.get('/admin/external-payment-partners')
+        const rawPartners = response.data || []
+        
+        console.log('Raw partners from API:', rawPartners)
+        
+        // Transform the API response to match our interface
+        const transformedPartners = rawPartners.map((partner: any) => ({
+          id: partner.id || '',
+          name: partner.partnerName || partner.name || 'Unknown Partner',
+          code: partner.partnerCode || partner.code || 'UNKNOWN',
+          isActive: partner.isActive ?? true,
+          isSuspended: partner.isSuspended ?? false,
+          supportedServices: partner.supportedServices || [],
+          costPerTransaction: partner.costPerTransaction || 0,
+          priority: partner.priority || 1,
+          failoverPriority: partner.failoverPriority || 1,
+          successRate: partner.successRate || 0,
+          averageResponseTime: partner.averageResponseTime || 0,
+          geographicRegions: partner.geographicRegions || []
+        }))
+        
+        console.log('Transformed partners:', transformedPartners)
+        
+        return transformedPartners
+      } catch (error) {
+        console.error('Error fetching partners:', error)
+        throw error
+      }
     },
     staleTime: 5 * 60 * 1000,
   })
+  
+  console.log('Partners query state:', { partnersData, partnersLoading, partnersError })
 
 
   const partners = partnersData || []
-  const mappings = mappingsData?.mappings || {}
-
+  const mappings = mappingsData || {}
+  
+  console.log('Component render - partnersData:', partnersData)
+  console.log('Component render - partners:', partners)
+  console.log('Component render - mappingsData:', mappingsData)
 
   // Use real data from backend only - ensure it's truly empty
   const displayMappings = mappings || {}
@@ -172,7 +195,7 @@ const TransactionMappingPage = () => {
   // Calculate stats from real data - be explicit about empty state
   const activeMappingsCount = Object.keys(displayMappings).filter(key => {
     const mapping = (displayMappings as any)[key]
-    return mapping && mapping.primaryPartner && mapping.isActive
+    return mapping && mapping.primaryPartner
   }).length
   
   const availablePartnersCount = partners.filter((p: Partner) => 
@@ -188,14 +211,21 @@ const TransactionMappingPage = () => {
   // Switch partner mutation
   const switchPartnerMutation = useMutation({
     mutationFn: async (data: SwitchForm) => {
-      const response = await api.post('/admin/external-payment-partners/switch', {
+      console.log('Switch partner API call - data:', data)
+      console.log('Switch partner API call - endpoint: /admin/external-payment-partners/switch')
+      
+      const payload = {
         serviceType: data.serviceType,
         primaryPartnerId: data.primaryPartnerId,
         reason: data.reason
-      })
+      }
+      
+      console.log('Switch partner API call - payload:', payload)
+      
+      const response = await api.post('/admin/external-payment-partners/switch', payload)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success('Partner switched successfully')
       setSwitchDialogOpen(false)
       setSwitchForm({ serviceType: '', primaryPartnerId: '', reason: '' })
@@ -213,7 +243,7 @@ const TransactionMappingPage = () => {
   const handleSwitchPartner = (mapping: TransactionMapping) => {
     setSelectedMapping(mapping)
     setSwitchForm({
-      serviceType: mapping.serviceType,
+      serviceType: mapping.transactionType,
       primaryPartnerId: mapping.primaryPartner?.id || '',
       reason: ''
     })
@@ -245,11 +275,51 @@ const TransactionMappingPage = () => {
   }
 
   const getAvailablePartners = (serviceType: string) => {
-    return partners.filter((partner: Partner) => 
-      partner.isActive && 
-      !partner.isSuspended && 
-      partner.supportedServices.includes(serviceType)
-    )
+    console.log('getAvailablePartners called with serviceType:', serviceType)
+    console.log('Available partners:', partners)
+    
+    const filteredPartners = partners.filter((partner: Partner) => {
+      console.log(`Checking partner ${partner.name} (${partner.code}):`)
+      console.log('- isActive:', partner.isActive)
+      console.log('- isSuspended:', partner.isSuspended)
+      console.log('- supportedServices:', partner.supportedServices)
+      console.log('- supports serviceType:', partner.supportedServices?.includes(serviceType))
+      
+      // Check if partner is active and not suspended
+      if (!partner.isActive || partner.isSuspended) {
+        console.log('Partner filtered out: not active or suspended')
+        return false
+      }
+      
+      // Check if partner supports this service type
+      // Handle both singular and plural forms (e.g., BILL_PAYMENT vs BILL_PAYMENTS)
+      // Also handle specific service type mappings
+      const serviceTypeVariations = [
+        serviceType,
+        serviceType + 'S',
+        serviceType.slice(0, -1), // Remove last 'S' if present
+        // Specific mappings
+        ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
+        ...(serviceType === 'WITHDRAWAL' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
+        ...(serviceType === 'DEPOSIT' ? ['MNO_TO_WALLET', 'MNO_TOPUP'] : []),
+        ...(serviceType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : [])
+      ]
+      
+      const supportsServiceType = partner.supportedServices && 
+        serviceTypeVariations.some(variation => partner.supportedServices!.includes(variation))
+      
+      if (!supportsServiceType) {
+        console.log('Partner filtered out: does not support service type')
+        console.log(`Looking for variations:`, serviceTypeVariations)
+        return false
+      }
+      
+      console.log('Partner passed all filters')
+      return true
+    })
+    
+    console.log('Filtered partners:', filteredPartners)
+    return filteredPartners
   }
 
   const handleRefresh = async () => {
@@ -300,7 +370,7 @@ const TransactionMappingPage = () => {
                 </p>
               </div>
               {canManageMapping && availablePartners.length > 0 && (
-                <Button onClick={() => handleSwitchPartner({ serviceType: type, primaryPartner: null, alternativePartners: availablePartners, impactAnalysis: null, lastSwitched: null, switchedBy: null, switchReason: null })}>
+                <Button onClick={() => handleSwitchPartner({ transactionType: type, primaryPartner: null, secondaryPartner: null, totalMappings: 0 })}>
                   <Plus className="w-4 h-4 mr-2" />
                   Assign Partner
                 </Button>
@@ -327,13 +397,13 @@ const TransactionMappingPage = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-sm font-bold text-blue-600">
-                            {mapping.primaryPartner.partnerCode.charAt(0)}
+                            {mapping.primaryPartner.code?.charAt(0) || '?'}
                           </span>
                         </div>
                         <div>
-                          <p className="font-medium">{mapping.primaryPartner.partnerName}</p>
+                          <p className="font-medium">{mapping.primaryPartner.name}</p>
                           <p className="text-sm text-gray-500">
-                            {mapping.primaryPartner.geographicRegions.length > 0 
+                            {mapping.primaryPartner.geographicRegions && mapping.primaryPartner.geographicRegions.length > 0 
                               ? mapping.primaryPartner.geographicRegions.join(', ')
                               : 'Regions not configured'
                             }
@@ -449,7 +519,7 @@ const TransactionMappingPage = () => {
   }
 
   // Show empty state when no mappings are available
-  if (!mappingsLoading && Object.keys(displayMappings).length === 0) {
+  if (!mappingsLoading && (!displayMappings || Object.keys(displayMappings).length === 0)) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -721,7 +791,7 @@ const TransactionMappingPage = () => {
                 <DialogHeader>
                   <DialogTitle>Switch Partner</DialogTitle>
                   <DialogDescription>
-                    Select a new partner for {selectedMapping?.serviceType} transactions
+                    Select a new partner for {selectedMapping?.transactionType} transactions
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -732,26 +802,42 @@ const TransactionMappingPage = () => {
                         <SelectValue placeholder="Select a partner" />
                       </SelectTrigger>
                       <SelectContent>
-                        {selectedMapping && getAvailablePartners(selectedMapping.serviceType).length > 0 ? (
-                          getAvailablePartners(selectedMapping.serviceType).map((partner: Partner) => (
+                        {(() => {
+                          const availablePartners = selectedMapping ? getAvailablePartners(selectedMapping.transactionType) : []
+                          console.log('Dialog - selectedMapping:', selectedMapping)
+                          console.log('Dialog - availablePartners:', availablePartners)
+                          console.log('Dialog - all partners:', partners)
+                          
+                          // Fallback: if no partners found, show all active partners
+                          const allActivePartners = partners.filter((p: Partner) => p.isActive && !p.isSuspended)
+                          const partnersToShow = availablePartners.length > 0 ? availablePartners : allActivePartners
+                          
+                          console.log('Dialog - availablePartners.length:', availablePartners.length)
+                          console.log('Dialog - allActivePartners.length:', allActivePartners.length)
+                          console.log('Dialog - partnersToShow:', partnersToShow)
+                          console.log('Dialog - will show fallback?', availablePartners.length === 0)
+                          
+                          return partnersToShow.length > 0 ? (
+                            partnersToShow.map((partner: Partner) => (
                             <SelectItem key={partner.id} value={partner.id}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-bold">{partner.partnerCode.charAt(0)}</span>
+                                  <span className="text-xs font-bold">{partner.code?.charAt(0) || '?'}</span>
                                 </div>
-                                <span className="font-medium">{partner.partnerCode}</span>
-                                <span className="text-gray-500">- {partner.partnerName}</span>
+                                <span className="font-medium">{partner.code || 'Unknown'}</span>
+                                <span className="text-gray-500">- {partner.name || 'Unknown Partner'}</span>
                               </div>
                             </SelectItem>
                           ))
-                        ) : (
+                          ) : (
                           <SelectItem value="no-partners" disabled>
                             <div className="flex items-center space-x-2">
                               <AlertTriangle className="w-4 h-4 text-yellow-500" />
                               <span className="text-gray-500">No available partners</span>
                             </div>
                           </SelectItem>
-                        )}
+                        )
+                        })()}
                       </SelectContent>
                     </Select>
                   </div>

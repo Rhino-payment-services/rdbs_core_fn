@@ -155,7 +155,26 @@ const ConfigureMappingPage = () => {
     queryFn: async () => {
       try {
         const response = await api.get('/admin/external-payment-partners')
-        return response.data || []
+        const rawPartners = response.data || []
+        
+        // Transform the API response to match our interface
+        const transformedPartners = rawPartners.map((partner: any) => ({
+          id: partner.id || '',
+          partnerName: partner.partnerName || 'Unknown Partner',
+          partnerCode: partner.partnerCode || 'UNKNOWN',
+          isActive: partner.isActive ?? true,
+          isSuspended: partner.isSuspended ?? false,
+          supportedServices: partner.supportedServices || [],
+          costPerTransaction: partner.costPerTransaction || 0,
+          priority: partner.priority || 1,
+          failoverPriority: partner.failoverPriority || 1,
+          geographicRegions: partner.geographicRegions || []
+        }))
+        
+        console.log('Raw partners from API:', rawPartners)
+        console.log('Transformed partners:', transformedPartners)
+        
+        return transformedPartners
       } catch (error: any) {
         console.error('Error fetching partners:', error)
         if (error.response?.status === 401) {
@@ -324,19 +343,67 @@ const ConfigureMappingPage = () => {
   }
 
   const getAvailablePartners = (transactionType: string, region: string) => {
+    console.log('getAvailablePartners called with:', { transactionType, region })
+    console.log('All partners:', partners)
+    
     const transactionConfig = transactionTypes[transactionType as keyof typeof transactionTypes]
     
     // For internal transaction types, return empty array (no external partners needed)
     if (transactionConfig && !transactionConfig.isExternal) {
+      console.log('Internal transaction type, returning empty array')
       return []
     }
     
-    return partners.filter((partner: Partner) => 
-      partner.isActive && 
-      !partner.isSuspended && 
-      partner.supportedServices.includes(transactionType) &&
-      partner.geographicRegions.includes(region)
-    )
+    const availablePartners = partners.filter((partner: Partner) => {
+      console.log(`Checking partner ${partner.partnerName} (${partner.partnerCode}):`)
+      console.log('- isActive:', partner.isActive)
+      console.log('- isSuspended:', partner.isSuspended)
+      console.log('- supportedServices:', partner.supportedServices)
+      console.log('- supports transactionType:', partner.supportedServices?.includes(transactionType))
+      console.log('- geographicRegions:', partner.geographicRegions)
+      console.log('- operates in region:', partner.geographicRegions?.includes(region))
+      
+      // Check if partner is active and not suspended
+      if (!partner.isActive || partner.isSuspended) {
+        console.log('Partner filtered out: not active or suspended')
+        return false
+      }
+      
+      // Check if partner supports this transaction type
+      // Handle both singular and plural forms (e.g., BILL_PAYMENT vs BILL_PAYMENTS)
+      // Also handle specific service type mappings
+      const serviceTypeVariations = [
+        transactionType,
+        transactionType + 'S',
+        transactionType.slice(0, -1), // Remove last 'S' if present
+        // Specific mappings
+        ...(transactionType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
+        ...(transactionType === 'WITHDRAWAL' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
+        ...(transactionType === 'DEPOSIT' ? ['MNO_TO_WALLET', 'MNO_TOPUP'] : []),
+        ...(transactionType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : [])
+      ]
+      
+      const supportsTransactionType = partner.supportedServices && 
+        serviceTypeVariations.some(variation => partner.supportedServices!.includes(variation))
+      
+      if (!supportsTransactionType) {
+        console.log('Partner filtered out: does not support transaction type')
+        console.log(`Looking for variations:`, serviceTypeVariations)
+        return false
+      }
+      
+      // Check if partner operates in this region
+      if (!partner.geographicRegions || !partner.geographicRegions.includes(region)) {
+        console.log('Partner filtered out: does not operate in region')
+        return false
+      }
+      
+      console.log('Partner passed all filters')
+      return true
+    })
+    
+    console.log(`Available partners for ${transactionType} in ${region}:`, availablePartners)
+    return availablePartners
   }
 
   const getExternalTransactionTypes = () => {
@@ -442,7 +509,7 @@ const ConfigureMappingPage = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-sm font-bold text-blue-600">
-                            {getPartnerCode(mapping.partnerId).charAt(0)}
+                            {getPartnerCode(mapping.partnerId)?.charAt(0) || '?'}
                           </span>
                         </div>
                         <div>
@@ -815,19 +882,43 @@ const ConfigureMappingPage = () => {
                           <SelectValue placeholder="Select a partner" />
                         </SelectTrigger>
                         <SelectContent>
-                          {getAvailablePartners(formData.transactionType, formData.geographicRegion).map((partner: Partner) => (
-                            <SelectItem key={partner.id} value={partner.id}>
-                              <div className="flex items-center space-x-2">
+                          {(() => {
+                            const availablePartners = getAvailablePartners(formData.transactionType, formData.geographicRegion)
+                            console.log('Create Dialog - availablePartners:', availablePartners)
+                            console.log('Create Dialog - formData:', formData)
+                            
+                            // Fallback: if no partners found, show all active partners
+                            const partnersToShow = availablePartners.length > 0 ? availablePartners : partners.filter((p: Partner) => p.isActive && !p.isSuspended)
+                            console.log('Create Dialog - partnersToShow:', partnersToShow)
+                            
+                            return partnersToShow.length > 0 ? (
+                              partnersToShow.map((partner: Partner) => (
+                              <SelectItem key={partner.id} value={partner.id}>
+                                <div className="flex items-center space-x-2">
                                 <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-bold">{partner.partnerCode.charAt(0)}</span>
+                                  <span className="text-xs font-bold">{partner.partnerCode?.charAt(0) || '?'}</span>
                                 </div>
-                                <span className="font-medium">{partner.partnerCode}</span>
-                                <span className="text-gray-500">- {partner.partnerName}</span>
+                                  <span className="font-medium">{partner.partnerCode}</span>
+                                  <span className="text-gray-500">- {partner.partnerName}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                            ) : (
+                            <SelectItem value="no-partners" disabled>
+                              <div className="flex items-center space-x-2">
+                                <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                                <span className="text-gray-500">No available partners</span>
                               </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                          </SelectItem>
+                        )
+                        })()}
+                      </SelectContent>
                       </Select>
+                      {getAvailablePartners(formData.transactionType, formData.geographicRegion).length === 0 && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          No partners available for {transactionTypes[formData.transactionType as keyof typeof transactionTypes]?.name} in {geographicRegions.find(r => r.code === formData.geographicRegion)?.name}
+                        </p>
+                      )}
                     </div>
 
                     <div>
