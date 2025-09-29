@@ -10,7 +10,7 @@ const OnboardScreen = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
       <header className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-[#08163d] rounded-xl flex items-center justify-center">
@@ -30,7 +30,7 @@ const OnboardScreen = () => {
 
       {/* Hero Section */}
       <section className="relative pt-20 pb-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <div className="text-center">
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
               Monitor
@@ -56,7 +56,7 @@ const OnboardScreen = () => {
 
       {/* Features Section */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Everything You Need to Monitor</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -64,7 +64,7 @@ const OnboardScreen = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-8">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl border border-blue-100">
               <div className="w-12 h-12 bg-[#08163d] rounded-xl flex items-center justify-center mb-6">
                 <TrendingUp className="w-6 h-6 text-white" />
@@ -100,7 +100,7 @@ const OnboardScreen = () => {
 
       {/* CTA Section */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Ready to Transform Your Fintech Operations?</h2>
           <p className="text-xl text-gray-600 mb-8">
             Join thousands of fintech companies already using RDBS to monitor and optimize their operations

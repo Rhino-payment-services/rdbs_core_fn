@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAdminWallets, useUpdateWalletBalance, useSuspendWallet } from '@/lib/hooks/useApi'
+import { useWallets, useWalletBalance, useWallet } from '@/lib/hooks/useApi'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -33,9 +33,9 @@ const WalletPage = () => {
     description: ''
   })
 
-  const { data: wallets, isLoading: isWalletsLoading, error: walletsError } = useAdminWallets()
-  const updateWalletBalance = useUpdateWalletBalance()
-  const suspendWallet = useSuspendWallet()
+  const { data: wallets, isLoading: isWalletsLoading, error: walletsError } = useWallets()
+  // const updateWalletBalance = useWalletBalance()
+  // const suspendWallet = useWallet()
   const { handleError } = useErrorHandler()
 
   // Handle different API response structures
@@ -83,30 +83,30 @@ const WalletPage = () => {
     })
   }
 
-  const handleCreateWallet = async () => {
-    if (!walletForm.currency) {
-      toast.error('Please select a currency')
-      return
-    }
+  // const handleCreateWallet = async () => {
+  //   if (!walletForm.currency) {
+  //     toast.error('Please select a currency')
+  //     return
+  //   }
 
-    setIsCreating(true)
-    try {
-      await updateWalletBalance.mutateAsync({
-        walletId: 'temp-wallet-id',
-        amount: 0,
-        currency: walletForm.currency,
-        reason: 'Initial balance'
-      })
+  //   setIsCreating(true)
+  //   try {
+  //     await updateWalletBalance.mutateAsync({
+  //       walletId: 'temp-wallet-id',
+  //       amount: 0,
+  //       currency: walletForm.currency,
+  //       reason: 'Initial balance'
+  //     })
       
-      toast.success('Wallet balance updated successfully!')
-      setWalletForm({ currency: 'UGX', description: '' })
-      setShowCreateWallet(false)
-    } catch (error) {
-      handleError(error, 'Failed to update wallet balance')
-    } finally {
-      setIsCreating(false)
-    }
-  }
+  //     toast.success('Wallet balance updated successfully!')
+  //     setWalletForm({ currency: 'UGX', description: '' })
+  //     setShowCreateWallet(false)
+  //   } catch (error) {
+  //     handleError(error, 'Failed to update wallet balance')
+  //   } finally {
+  //     setIsCreating(false)
+  //   }
+  // }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -123,8 +123,8 @@ const WalletPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -181,7 +181,7 @@ const WalletPage = () => {
                       Cancel
                     </Button>
                     <Button
-                      onClick={handleCreateWallet}
+                      // onClick={handleCreateWallet}
                       disabled={isCreating}
                       className="bg-[#08163d] hover:bg-[#0a1f4f]"
                     >

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -7,10 +7,11 @@ import { CustomerStats } from '@/components/dashboard/customers/CustomerStats'
 import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilters'
 import { CustomerTable } from '@/components/dashboard/customers/CustomerTable'
 import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBulkActions'
-import { useUsers } from '@/lib/hooks/useApi'
-import type { User } from '@/lib/types/api'
+import { useKycApprovedUsers } from '@/lib/hooks/useApi'
+import type { User, KycApprovedUsersResponse } from '@/lib/types/api'
 import toast from 'react-hot-toast'
 import { Users, Building2, Handshake, Plus } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const CustomersPage = () => {
   const router = useRouter()
@@ -18,18 +19,34 @@ const CustomersPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
-  // API hooks
-  const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
-  const users: User[] = usersData?.users || []
+  // Get current type based on active tab
+  const getCurrentType = () => {
+    switch (activeTab) {
+      case 'subscribers': return 'INDIVIDUAL'
+      case 'merchants': return 'MERCHANT'
+      case 'partners': return 'PARTNER'
+      default: return 'all'
+    }
+  }
+
+  // API hooks - using KYC approved users with pagination and type filtering
+  const { data: usersData, isLoading: usersLoading, refetch } = useKycApprovedUsers(currentPage, itemsPerPage, getCurrentType())
+  const usersResponse: KycApprovedUsersResponse = usersData || { users: [], total: 0, page: 1, limit: 20, totalPages: 0 }
+  const users: User[] = usersResponse.users || []
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab])
 
   // Export functionality
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
@@ -50,8 +67,8 @@ const CustomersPage = () => {
     setSearchTerm('')
     setStatusFilter('all')
     setTypeFilter('all')
-    setSortBy('name')
-    setSortOrder('asc')
+    setSortBy('createdAt')
+    setSortOrder('desc')
     setCurrentPage(1)
   }
 
@@ -68,12 +85,7 @@ const CustomersPage = () => {
   }
 
   const handleSelectAll = () => {
-    const currentPageCustomers = paginatedUsers.filter(user => {
-      if (activeTab === 'subscribers') return user.userType === 'SUBSCRIBER'
-      if (activeTab === 'merchants') return user.userType === 'MERCHANT'
-      if (activeTab === 'partners') return user.userType === 'PARTNER'
-      return true
-    })
+    const currentPageCustomers = users
 
     const allSelected = currentPageCustomers.every(customer =>
       selectedCustomers.includes(customer.id)
@@ -100,7 +112,7 @@ const CustomersPage = () => {
   }
 
   const handleDeleteCustomer = (customer: User) => {
-    toast.error(`Delete customer ${customer.firstName} ${customer.lastName} not implemented yet`)
+    toast.error(`Delete customer ${customer.profile?.firstName} ${customer.profile?.lastName} not implemented yet`)
   }
 
   const handlePageChange = (page: number) => {
@@ -181,9 +193,15 @@ const CustomersPage = () => {
     }
   }
 
-  // Mock stats data
+  // Handler for items per page change
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(parseInt(value, 10))
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
+  // Stats data based on current page
   const stats = {
-    total: users.length,
+    total: usersResponse.total,
     active: users.filter(u => u.status === 'ACTIVE').length,
     inactive: users.filter(u => u.status === 'INACTIVE').length,
     pending: users.filter(u => u.status === 'PENDING').length,
@@ -195,14 +213,14 @@ const CustomersPage = () => {
     churnRate: 5.2
   }
 
-  // Filter and sort users
+  // Filter users (client-side filtering for current page)
   const filteredUsers = useMemo(() => {
     let filtered = users
 
     if (searchTerm) {
       filtered = filtered.filter(user => 
-        user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.profile?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.profile?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -212,17 +230,13 @@ const CustomersPage = () => {
       filtered = filtered.filter(user => user.status.toLowerCase() === statusFilter.toLowerCase())
     }
 
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(user => user.userType.toLowerCase() === typeFilter.toLowerCase())
-    }
-
     filtered.sort((a, b) => {
       let aValue: any, bValue: any
 
       switch (sortBy) {
         case 'name':
-          aValue = `${a.firstName} ${a.lastName}`.toLowerCase()
-          bValue = `${b.firstName} ${b.lastName}`.toLowerCase()
+          aValue = `${a.profile?.firstName || ''} ${a.profile?.lastName || ''}`.toLowerCase()
+          bValue = `${b.profile?.firstName || ''} ${b.profile?.lastName || ''}`.toLowerCase()
           break
         case 'email':
           aValue = a.email?.toLowerCase() || ''
@@ -241,32 +255,43 @@ const CustomersPage = () => {
     })
 
     return filtered
-  }, [users, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
-
-  // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+  }, [users, searchTerm, statusFilter, sortBy, sortOrder])
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 lg:px-6 xl:px-8 2xl:px-10 py-8">
           <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
             <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-              <p className="text-gray-600 mt-2">Manage your customer base</p>
+              <p className="text-gray-600 mt-2">Manage your KYC approved customer base</p>
             </div>
-            <button
-              onClick={handleCreateNew}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add Customer
-            </button>
+            <div className="flex items-center gap-4">
+              {/* Items per page selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Show:</label>
+                <Select value={itemsPerPage.toString()} onValueChange={handleItemsPerPageChange}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-gray-500">per page</span>
+              </div>
+              <button
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Customer
+              </button>
+            </div>
           </div>
           </div>
 
@@ -324,7 +349,7 @@ const CustomersPage = () => {
 
           <TabsContent value="subscribers">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'SUBSCRIBER')}
+              customers={filteredUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -333,14 +358,14 @@ const CustomersPage = () => {
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={usersLoading}
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={usersResponse.totalPages}
               onPageChange={handlePageChange}
             />
                 </TabsContent>
 
           <TabsContent value="merchants">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'MERCHANT')}
+              customers={filteredUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -349,14 +374,14 @@ const CustomersPage = () => {
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={usersLoading}
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={usersResponse.totalPages}
               onPageChange={handlePageChange}
             />
                 </TabsContent>
 
           <TabsContent value="partners">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'PARTNER')}
+              customers={filteredUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -365,7 +390,7 @@ const CustomersPage = () => {
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={usersLoading}
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={usersResponse.totalPages}
               onPageChange={handlePageChange}
             />
                 </TabsContent>

@@ -4,6 +4,7 @@
 // Auth hooks
 export {
   useUsers,
+  useKycApprovedUsers,
   useUser,
   useProfile,
   useCreateUser,

@@ -63,8 +63,8 @@ const Navbar = () => {
   return (
       <div className="bg-white border-b border-gray-200 relative z-[9999]">
       {/* Main Navbar */}
-      <nav className="px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <nav className="px-4 lg:px-6 xl:px-8 2xl:px-10 py-3">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto flex items-center justify-between">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
@@ -139,7 +139,7 @@ const Navbar = () => {
 
       {/* Menu Bar */}
       <div className="border-t border-gray-100 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
           <div className="relative">
             {/* Scrollable Menu Container */}
             <div 
@@ -147,7 +147,7 @@ const Navbar = () => {
               className="flex items-center overflow-x-auto scrollbar-hide"
               onScroll={checkScrollPosition}
             >
-              <div className="flex items-center space-x-1 px-4 py-3 min-w-max">
+              <div className="flex items-center space-x-1 px-4 lg:px-6 xl:px-8 2xl:px-10 py-3 min-w-max">
                 <Link 
                   href="/dashboard" 
                   className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${

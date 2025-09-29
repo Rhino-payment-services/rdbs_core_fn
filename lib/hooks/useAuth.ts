@@ -42,6 +42,14 @@ export const useUsers = () => {
   })
 }
 
+export const useKycApprovedUsers = (page: number = 1, limit: number = 20, type: string = 'all') => {
+  return useQuery({
+    queryKey: ['users', 'kyc-approved', page, limit, type],
+    queryFn: () => apiFetch(`/users/kyc-approved?page=${page}&limit=${limit}&type=${type}`),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  })
+}
+
 export const useUser = (id: string) => {
   return useQuery<ApiResponse<User>>({
     queryKey: authQueryKeys.user(id),

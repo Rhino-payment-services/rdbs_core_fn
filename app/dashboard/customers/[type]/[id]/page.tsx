@@ -63,8 +63,8 @@ const CustomerProfilePage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -81,8 +81,8 @@ const CustomerProfilePage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -174,8 +174,8 @@ const CustomerProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
           {/* Customer Profile Header */}
           <CustomerProfileHeader
             customer={{

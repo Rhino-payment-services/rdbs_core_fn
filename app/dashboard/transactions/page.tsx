@@ -75,6 +75,8 @@ const TransactionsPage = () => {
   const totalTransactions = transactionsData?.total || 0
   const totalPages = transactionsData?.totalPages || 1
 
+  console.log("transactions", transactions)
+
   // Format amount
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -111,7 +113,8 @@ const TransactionsPage = () => {
   const getTypeDisplay = (type: string) => {
     const typeMap = {
       WALLET_TO_WALLET: 'P2P Transfer',
-      WALLET_TO_MNO: 'Mobile Money',
+      WALLET_TO_MNO: 'MNO Disbursement',
+      MNO_TO_WALLET: 'MNO Collection',
       WALLET_TO_BANK: 'Bank Transfer',
       WALLET_TO_UTILITY: 'Utility Payment',
       WALLET_TO_MERCHANT: 'Merchant Payment',
@@ -144,7 +147,7 @@ const TransactionsPage = () => {
   }, [])
 
   // Calculate enhanced fee statistics from current page
-  const pageStats = transactions.reduce((acc, tx) => {
+  const pageStats = transactions.reduce((acc: any, tx: any) => {
     if (tx.status === 'SUCCESS') {
       acc.totalFees += Number(tx.fee) || 0
       acc.rukapayFees += Number(tx.rukapayFee) || 0
@@ -169,7 +172,7 @@ const TransactionsPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8">
         <div className="space-y-8">
           {/* Header */}
           <div>
@@ -225,12 +228,12 @@ const TransactionsPage = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Fees</p>
+                    <p className="text-sm font-medium text-gray-600">Rukapay Total Fees Collected</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {statsLoading ? (
                         <Loader2 className="h-6 w-6 animate-spin" />
                       ) : (
-                        formatAmount(stats.totalFees)
+                        `UGX ${(Number(stats.totalFees).toLocaleString())}`
                       )}
                     </p>
                     <p className="text-xs text-green-600 mt-1">
@@ -345,7 +348,7 @@ const TransactionsPage = () => {
               {/* Enhanced Current Page Stats */}
               {transactions.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h4 className="text-blue-800 font-semibold mb-3">Current Page Fee Breakdown</h4>
+                  <h4 className="text-blue-800 font-semibold mb-3 uppercase">Current Page Fee Breakdown</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                     <div>
                       <p className="text-blue-600 font-medium">Transactions</p>
@@ -353,19 +356,19 @@ const TransactionsPage = () => {
                     </div>
                     <div>
                       <p className="text-blue-600 font-medium">Volume</p>
-                      <p className="text-blue-900 font-bold">{formatAmount(pageStats.totalVolume)}</p>
+                      <p className="text-blue-900 font-bold">UGX {(Number(pageStats.totalVolume).toLocaleString())}</p>
                     </div>
                     <div>
                       <p className="text-blue-600 font-medium">RukaPay Fees</p>
-                      <p className="text-blue-900 font-bold">{formatAmount(pageStats.rukapayFees)}</p>
+                      <p className="text-blue-900 font-bold">UGX {(Number(pageStats.rukapayFees).toLocaleString())}</p>
                   </div>
                     <div>
                       <p className="text-orange-600 font-medium">Partner Fees</p>
-                      <p className="text-orange-900 font-bold">{formatAmount(pageStats.partnerFees)}</p>
+                      <p className="text-orange-900 font-bold">UGX {(Number(pageStats.partnerFees).toLocaleString())}</p>
                       </div>
                     <div>
                       <p className="text-red-600 font-medium">Gov Taxes</p>
-                      <p className="text-red-900 font-bold">{formatAmount(pageStats.governmentTaxes)}</p>
+                      <p className="text-red-900 font-bold">UGX {(Number(pageStats.governmentTaxes).toLocaleString())}</p>
                     </div>
                     <div>
                       <p className="text-green-600 font-medium">Success Rate</p>
@@ -377,7 +380,7 @@ const TransactionsPage = () => {
                   <div className="mt-3 pt-3 border-t border-blue-200">
                     <div className="flex justify-between text-sm">
                       <span className="text-blue-600 font-medium">Total Fees:</span>
-                      <span className="text-blue-900 font-bold">{formatAmount(pageStats.totalFees)}</span>
+                      <span className="text-blue-900 font-bold">UGX {(Number(pageStats.totalFees).toLocaleString())}</span>
                     </div>
                   </div>
                 </div>
@@ -525,22 +528,22 @@ const TransactionsPage = () => {
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
-                            {formatAmount(Number(transaction.amount))}
+                           UGX {(Number(transaction.amount).toLocaleString())}
                           </TableCell>
-                          <TableCell className="font-medium text-blue-600">
-                            {formatAmount(Number(transaction.rukapayFee) || 0)}
+                          <TableCell className="font-medium text-[#000000]">
+                            UGX {(Number(transaction.rukapayFee) || 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="font-medium text-orange-600">
-                            {formatAmount(Number(transaction.thirdPartyFee) || 0)}
+                          <TableCell className="font-medium text-[#000000]">
+                            UGX {(Number(transaction.thirdPartyFee) || 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="font-medium text-red-600">
-                            {formatAmount(Number(transaction.governmentTax) || 0)}
+                          <TableCell className="font-medium text-[#000000]">
+                            UGX {(Number(transaction.governmentTax) || 0).toLocaleString()}
                           </TableCell>
-                          <TableCell className="font-medium text-yellow-600">
-                            {formatAmount(Number(transaction.fee) || 0)}
+                            <TableCell className="font-medium text-[#000000]">
+                            UGX {(Number(transaction.fee) || 0).toLocaleString()}
                               </TableCell>
-                          <TableCell className="font-medium text-green-600">
-                            {formatAmount(Number(transaction.netAmount))}
+                          <TableCell className="font-medium text-[#000000]">
+                            UGX {(Number(transaction.netAmount).toLocaleString())}
                               </TableCell>
                               <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                           <TableCell className="text-sm">{formatDate(transaction.createdAt)}</TableCell>

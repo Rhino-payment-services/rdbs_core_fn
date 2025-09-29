@@ -23,7 +23,7 @@ import {
 import type { User } from '@/lib/types/api'
 
 interface CustomerTableProps {
-  customers: User[]
+  customers: any[]
   selectedCustomers: string[]
   onSelectCustomer: (customerId: string) => void
   onSelectAll: () => void
@@ -83,7 +83,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
   const getUserTypeBadge = (userType: string) => {
     const colors = {
-      'SUBSCRIBER': 'bg-purple-100 text-purple-800',
+      'INDIVIDUAL': 'bg-purple-100 text-purple-800',
       'MERCHANT': 'bg-blue-100 text-blue-800',
       'PARTNER': 'bg-green-100 text-green-800',
       'AGENT': 'bg-orange-100 text-orange-800',
@@ -92,7 +92,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     
     return (
       <Badge className={colors[userType as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
-        {userType.replace('_', ' ')}
+        {userType === 'INDIVIDUAL' ? 'SUBSCRIBER' : userType === 'MERCHANT' ? 'MERCHANT' : userType === 'PARTNER' ? 'PARTNER' : userType === 'AGENT' ? 'AGENT' : 'STAFF'}
       </Badge>
     )
   }
@@ -149,12 +149,12 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-gray-600">
-                          {customer.firstName?.[0]}{customer.lastName?.[0]}
+                          {customer.profile?.firstName?.[0]}{customer.profile?.lastName?.[0]}
                         </span>
                       </div>
                       <div>
                         <div className="font-medium">
-                          {customer.firstName} {customer.lastName}
+                          {customer.profile?.firstName} {customer.profile?.lastName}
                         </div>
                         <div className="text-sm text-gray-500">
                           ID: {customer.id.slice(-8)}
@@ -177,7 +177,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                     </div>
                   </td>
                   <td className="p-4">
-                    {getUserTypeBadge(customer.userType)}
+                    {getUserTypeBadge(customer.subscriberType)}
                   </td>
                   <td className="p-4">
                     {getStatusBadge(customer.status)}
@@ -185,7 +185,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                   <td className="p-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-3 w-3" />
-                      {customer.country || 'Unknown'}
+                      {customer.profile?.country || 'Unknown'}
                     </div>
                   </td>
                   <td className="p-4">

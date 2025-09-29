@@ -193,7 +193,7 @@ const FinancePage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8">
         <div className="space-y-8">
           {/* Header */}
           <div className="flex justify-between items-center">
@@ -587,7 +587,7 @@ const FinancePage = () => {
                   <Input
                     id="feePercentage"
                     type="number"
-                    value={tariffForm.feePercentage * 100}
+                    value={tariffForm.feePercentage ? tariffForm.feePercentage * 100 : 0}
                     onChange={(e) => setTariffForm({ ...tariffForm, feePercentage: Number(e.target.value) / 100 })}
                     min="0"
                     max="100"

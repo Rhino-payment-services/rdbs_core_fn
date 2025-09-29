@@ -80,8 +80,8 @@ const DashboardPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 xl:p-10 2xl:p-12">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             <div className="flex items-center justify-center min-h-[60vh]">
               <Card className="w-full max-w-md text-center">
                 <CardContent className="p-12">
@@ -137,37 +137,37 @@ const DashboardPage = () => {
       <main className="flex-1 overflow-hidden relative">
         <div 
           ref={scrollContainerRef}
-          className="h-full overflow-y-auto p-6"
+          className="h-full overflow-y-auto p-6 lg:p-8 xl:p-10 2xl:p-12"
         >
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             {/* Dashboard Header */}
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold text-gray-900">
+            <div className="mb-6 lg:mb-8">
+              <h1 className="text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900">
                 Dashboard Overview
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 text-base lg:text-lg mt-2">
                 Monitor your system performance and key metrics
               </p>
             </div>
 
             {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
-              <Card className="bg-white border-gray-200">
-                <CardContent className="px-4 py-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4 lg:gap-6 mb-6 lg:mb-8">
+              <Card className="bg-white border-gray-200 xl:col-span-1 2xl:col-span-2">
+                <CardContent className="p-4 lg:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-0">
+                      <p className="text-sm font-medium text-gray-600 mb-1">
                         Total Transactions
                       </p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-xl lg:text-2xl font-bold text-gray-900">
                         {statsLoading ? '...' : (transactionStats?.totalTransactions || 0).toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-gray-600" />
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-0">
+                  <div className="mt-2">
                     <span className="text-sm text-green-600 font-medium">
                       {transactionStats?.successRate?.toFixed(1) || 0}%
                     </span>
@@ -178,22 +178,22 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-gray-200">
-                <CardContent className="px-4 py-1">
+              <Card className="bg-white border-gray-200 xl:col-span-1 2xl:col-span-2">
+                <CardContent className="p-4 lg:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-0">
+                      <p className="text-sm font-medium text-gray-600 mb-1">
                         Total Volume
                       </p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-xl lg:text-2xl font-bold text-gray-900">
                         {statsLoading ? '...' : `UGX ${((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M`}
                       </p>
                     </div>
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-gray-600" />
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-0">
+                  <div className="mt-2">
                     <span className="text-sm text-green-600 font-medium">
                       UGX {(transactionStats?.averageTransactionAmount || 0).toFixed(0)}
                     </span>
@@ -204,22 +204,22 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-gray-200">
-                <CardContent className="px-4 py-1">
+              <Card className="bg-white border-gray-200 xl:col-span-1 2xl:col-span-2">
+                <CardContent className="p-4 lg:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-0">
+                      <p className="text-sm font-medium text-gray-600 mb-1">
                         Total Fees
                       </p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-xl lg:text-2xl font-bold text-gray-900">
                         {statsLoading ? '...' : `UGX ${(transactionStats?.totalFees || 0).toLocaleString()}`}
                       </p>
                     </div>
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-gray-600" />
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-0">
+                  <div className="mt-2">
                     <span className="text-sm text-blue-600 font-medium">
                       {transactionStats?.successRate?.toFixed(1) || 0}%
                     </span>
@@ -230,22 +230,22 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white border-gray-200">
-                <CardContent className="px-4 py-1">
+              <Card className="bg-white border-gray-200 xl:col-span-1 2xl:col-span-2">
+                <CardContent className="p-4 lg:p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600 mb-0">
+                      <p className="text-sm font-medium text-gray-600 mb-1">
                         Active Users
                       </p>
-                      <p className="text-xl font-bold text-gray-900">
+                      <p className="text-xl lg:text-2xl font-bold text-gray-900">
                         {usersLoading ? '...' : (usersData?.data?.pagination?.total || 0).toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-8 h-8 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-gray-600" />
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center">
+                      <Users className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
                     </div>
                   </div>
-                  <div className="mt-0">
+                  <div className="mt-2">
                     <span className="text-sm text-purple-600 font-medium">
                       {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
                     </span>
@@ -258,30 +258,30 @@ const DashboardPage = () => {
             </div>
 
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8">
               {/* Transaction Volume Chart */}
-              <Card className="bg-white border-gray-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg text-gray-900">
+              <Card className="bg-white border-gray-200 xl:col-span-2 2xl:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg lg:text-xl text-gray-900">
                     Transaction Volume (Last 7 Days)
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Daily transaction volume in UGX
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {statsLoading ? (
-                    <div className="flex items-center justify-center h-48">
+                    <div className="flex items-center justify-center h-64 lg:h-80">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <span className="ml-3 text-gray-600">Loading chart data...</span>
                     </div>
                   ) : statsError ? (
-                    <div className="flex items-center justify-center h-48">
+                    <div className="flex items-center justify-center h-64 lg:h-80">
                       <AlertTriangle className="h-8 w-8 text-red-500 mr-3" />
                       <span className="text-red-600">Error loading chart data</span>
                     </div>
                   ) : !hasData ? (
-                    <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+                    <div className="flex flex-col items-center justify-center h-64 lg:h-80 text-gray-500">
                       <BarChart3 className="h-12 w-12 mb-3" />
                       <p className="text-lg font-medium">No transaction data available</p>
                       <p className="text-sm">Start processing transactions to see analytics</p>
@@ -294,7 +294,7 @@ const DashboardPage = () => {
                           color: "#3B82F6",
                         },
                       }}
-                      className="h-48"
+                      className="h-64 lg:h-80"
                     >
                       <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -322,47 +322,47 @@ const DashboardPage = () => {
               </Card>
 
               {/* System Status */}
-              <Card className="bg-white border-gray-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg text-gray-900">
+              <Card className="bg-white border-gray-200 xl:col-span-1 2xl:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg lg:text-xl text-gray-900">
                     System Status
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base">
                     Current system health and performance
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="space-y-4 lg:space-y-6">
+                    <div className="flex items-center justify-between p-4 lg:p-5 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
-                        <Activity className="w-5 h-5 text-green-500 mr-3" />
-                        <span className="text-sm font-medium text-gray-900">API Status</span>
+                        <Activity className="w-5 h-5 lg:w-6 lg:h-6 text-green-500 mr-3 lg:mr-4" />
+                        <span className="text-sm lg:text-base font-medium text-gray-900">API Status</span>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">Online</Badge>
+                      <Badge className="bg-green-100 text-green-800 text-sm lg:text-base">Online</Badge>
                     </div>
                     
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 lg:p-5 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
-                        <Database className="w-5 h-5 text-blue-500 mr-3" />
-                        <span className="text-sm font-medium text-gray-900">Database</span>
+                        <Database className="w-5 h-5 lg:w-6 lg:h-6 text-blue-500 mr-3 lg:mr-4" />
+                        <span className="text-sm lg:text-base font-medium text-gray-900">Database</span>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                      <Badge className="bg-green-100 text-green-800 text-sm lg:text-base">Connected</Badge>
                     </div>
                     
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 lg:p-5 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
-                        <Shield className="w-5 h-5 text-purple-500 mr-3" />
-                        <span className="text-sm font-medium text-gray-900">Security</span>
+                        <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-purple-500 mr-3 lg:mr-4" />
+                        <span className="text-sm lg:text-base font-medium text-gray-900">Security</span>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">Secure</Badge>
+                      <Badge className="bg-green-100 text-green-800 text-sm lg:text-base">Secure</Badge>
                     </div>
                     
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-4 lg:p-5 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
-                        <Clock className="w-5 h-5 text-orange-500 mr-3" />
-                        <span className="text-sm font-medium text-gray-900">Uptime</span>
+                        <Clock className="w-5 h-5 lg:w-6 lg:h-6 text-orange-500 mr-3 lg:mr-4" />
+                        <span className="text-sm lg:text-base font-medium text-gray-900">Uptime</span>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">99.9%</Badge>
+                      <Badge className="bg-green-100 text-green-800 text-sm lg:text-base">99.9%</Badge>
                     </div>
                   </div>
                 </CardContent>

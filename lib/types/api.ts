@@ -79,7 +79,7 @@ export interface PermissionsResponse {
 
 export interface CreateUserRequest {
   email: string
-  password: string
+  phone: string
   role: string
   userType: string
   firstName: string
@@ -505,4 +505,12 @@ export interface SystemStats {
     activeSessions: number
     failedTransactions: number
   }
+}
+
+export interface KycApprovedUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }

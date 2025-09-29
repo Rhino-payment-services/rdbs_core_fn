@@ -153,8 +153,8 @@ const RevenueTaxPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Revenue & Tax Management</h1>

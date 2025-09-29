@@ -88,7 +88,7 @@ export const useAllTransactions = (params?: {
     queryKey: [...transactionQueryKeys.list, params],
     queryFn: () => apiFetch(`/transactions/all?${queryParams.toString()}`),
     staleTime: 2 * 60 * 1000, // 2 minutes
-    keepPreviousData: true, // Keep previous data while loading new page
+    // keepPreviousData: true, // Keep previous data while loading new page
   })
 }
 

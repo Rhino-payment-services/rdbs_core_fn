@@ -94,8 +94,8 @@ const AnalyticsPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-8 xl:p-10 2xl:p-12">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             <div className="flex items-center justify-center min-h-[60vh]">
               <Card className="w-full max-w-md text-center">
                 <CardContent className="p-12">
@@ -158,9 +158,9 @@ const AnalyticsPage = () => {
       <main className="flex-1 overflow-hidden relative">
         <div 
           ref={scrollContainerRef}
-          className="h-full overflow-y-auto p-6"
+          className="h-full overflow-y-auto p-6 lg:p-8 xl:p-10 2xl:p-12"
         >
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             {/* Analytics Header */}
           <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">

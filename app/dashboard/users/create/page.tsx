@@ -162,8 +162,8 @@ const CreateUserPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-4xl mx-auto">
+      <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+        <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-4">

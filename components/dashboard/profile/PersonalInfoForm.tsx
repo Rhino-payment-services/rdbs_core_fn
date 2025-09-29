@@ -98,11 +98,11 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-xl font-medium text-gray-600">
-                {user.firstName?.[0]}{user.lastName?.[0]}
+                {user.profile?.firstName?.[0]}{user.profile?.lastName?.[0]}
               </span>
             </div>
             <div>
-              <h3 className="text-lg font-medium">{user.firstName} {user.lastName}</h3>
+              <h3 className="text-lg font-medium">{user.profile?.firstName} {user.profile?.lastName}</h3>
               <p className="text-sm text-gray-500">ID: {user.id.slice(-8)}</p>
               <div className="flex items-center gap-2 mt-2">
                 {getStatusBadge(user.status)}

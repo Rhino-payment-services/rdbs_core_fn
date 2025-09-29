@@ -116,6 +116,8 @@ interface PendingKycUser {
   userId: string
   phone?: string
   email?: string
+  userType?: string
+  subscriberType?: string
   profile?: {
     firstName?: string
     lastName?: string
@@ -381,8 +383,8 @@ const KycPage = () => {
   return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="p-6 lg:p-8 xl:p-10 2xl:p-12">
+          <div className="max-w-none xl:max-w-[1600px] 2xl:max-w-[2200px] mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">KYC Management</h1>
               <p className="text-gray-600 mt-2">Review and manage Know Your Customer verification requests</p>
@@ -597,8 +599,8 @@ const KycPage = () => {
                                     </div>
                                   </td>
                                   <td className="px-4 py-3">
-                                    <Badge className={getTypeColor(kyc.profile?.subscriberType || '')}>
-                                      {kyc.profile?.subscriberType || 'Unknown'}
+                                    <Badge className={getTypeColor(kyc.userType || '')}>
+                                      {kyc.subscriberType == "INDIVIDUAL" ?  "SUBSCRIBER" : kyc.subscriberType || 'Unknown'}
                                     </Badge>
                                   </td>
                                   <td className="px-4 py-3 text-sm text-gray-900">
