@@ -108,7 +108,6 @@ import {
 } from 'lucide-react'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
@@ -345,21 +344,26 @@ const KycPage = () => {
 
   const totalPages = Math.ceil(sortedKycRequests.length / itemsPerPage)
 
+  if (!canViewKyc) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
+          <div className="text-center">
+            <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-600">You don&apos;t have permission to view KYC requests.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (error) {
     return (
-      <PermissionGuard 
-        permission={PERMISSIONS.KYC_VIEW} 
-        fallback={
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center">
-              <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-              <p className="text-gray-600">You don&apos;t have permission to view KYC requests.</p>
-            </div>
-          </div>
-        }
-      >
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
           <div className="text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading KYC Data</h1>
@@ -370,23 +374,11 @@ const KycPage = () => {
             </Button>
           </div>
         </div>
-      </PermissionGuard>
+      </div>
     )
   }
 
   return (
-    <PermissionGuard 
-      permission={PERMISSIONS.KYC_VIEW} 
-      fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You don&apos;t have permission to view KYC requests.</p>
-          </div>
-        </div>
-      }
-    >
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
@@ -396,62 +388,70 @@ const KycPage = () => {
               <p className="text-gray-600 mt-2">Review and manage Know Your Customer verification requests</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-1 mb-4">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{pendingKycRequests.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Requires attention
-                  </p>
+                <CardContent className="px-4 py-1">
+                  <div className="flex items-center justify-between mb-0">
+                    <p className="text-sm font-medium text-gray-600 mb-0">Pending Requests</p>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <Clock className="w-4 h-4 text-gray-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-gray-900 leading-tight">{pendingKycRequests.length}</p>
+                  <div className="mt-0">
+                    <span className="text-sm text-gray-500">Requires attention</span>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Individuals</CardTitle>
-                  <User className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
+                <CardContent className="px-4 py-1">
+                  <div className="flex items-center justify-between mb-0">
+                    <p className="text-sm font-medium text-gray-600 mb-0">Individuals</p>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <User className="w-4 h-4 text-gray-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-gray-900 leading-tight">
                     {pendingKycRequests.filter(k => k.profile?.subscriberType === 'INDIVIDUAL').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Individual users
                   </p>
+                  <div className="mt-0">
+                    <span className="text-sm text-gray-500">Individual users</span>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Merchants</CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
+                <CardContent className="px-4 py-1">
+                  <div className="flex items-center justify-between mb-0">
+                    <p className="text-sm font-medium text-gray-600 mb-0">Merchants</p>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <Building2 className="w-4 h-4 text-gray-600" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-gray-900 leading-tight">
                     {pendingKycRequests.filter(k => k.profile?.subscriberType === 'MERCHANT').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Business accounts
                   </p>
+                  <div className="mt-0">
+                    <span className="text-sm text-gray-500">Business accounts</span>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Agents</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {pendingKycRequests.filter(k => k.profile?.subscriberType === 'AGENT').length}
+                <CardContent className="px-4 py-1">
+                  <div className="flex items-center justify-between mb-0">
+                    <p className="text-sm font-medium text-gray-600 mb-0">Agents</p>
+                    <div className="w-8 h-8 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-gray-600" />
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Agent accounts
+                  <p className="text-xl font-bold text-gray-900 leading-tight">
+                    {pendingKycRequests.filter(k => k.profile?.subscriberType === 'AGENT').length}
                   </p>
+                  <div className="mt-0">
+                    <span className="text-sm text-gray-500">Agent accounts</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -868,7 +868,6 @@ const KycPage = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </PermissionGuard>
   )
 }
 

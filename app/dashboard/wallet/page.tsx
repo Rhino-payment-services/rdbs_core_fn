@@ -94,7 +94,6 @@ const WalletPage = () => {
       await updateWalletBalance.mutateAsync({
         walletId: 'temp-wallet-id',
         amount: 0,
-        currency: walletForm.currency,
         reason: 'Initial balance'
       })
       
@@ -204,58 +203,64 @@ const WalletPage = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalBalance, 'UGX')}</div>
-                <p className="text-xs text-muted-foreground">
-                  Across all wallets
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Wallets</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{activeWallets}</div>
-                <p className="text-xs text-muted-foreground">
-                  {walletsArray.length > 0 ? `${Math.round((activeWallets / walletsArray.length) * 100)}%` : '0%'} of total
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Wallets</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{walletsArray.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  All wallet types
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Suspended Wallets</CardTitle>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {suspendedWallets}
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Balance</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-gray-600" />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Require attention
-                </p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(totalBalance, 'UGX')}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">Across all wallets</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Active Wallets</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{activeWallets}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">{walletsArray.length > 0 ? `${Math.round((activeWallets / walletsArray.length) * 100)}%` : '0%'} of total</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Total Wallets</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{walletsArray.length}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">All wallet types</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="px-4 py-1">
+                <div className="flex items-center justify-between mb-0">
+                  <p className="text-sm font-medium text-gray-600 mb-0">Suspended Wallets</p>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <AlertCircle className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{suspendedWallets}</p>
+                <div className="mt-0">
+                  <span className="text-sm text-gray-500">Require attention</span>
+                </div>
               </CardContent>
             </Card>
           </div>

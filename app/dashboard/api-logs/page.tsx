@@ -71,7 +71,6 @@ import {
 } from 'lucide-react'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import toast from 'react-hot-toast'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
@@ -149,23 +148,32 @@ const ApiLogsPage = () => {
     userRole 
   } = usePermissions()
 
-  // API hooks
+  // Debug logging
+  console.log('API Logs Page - canViewSystemLogs:', canViewSystemLogs, 'userRole:', userRole)
+
+  // API hooks - with error handling to prevent auth redirects
   const { data: healthData, isLoading: healthLoading, error: healthError } = useQuery({
     queryKey: ['health'],
     queryFn: () => api.get('/api/v1/health').then(res => res.data),
     staleTime: 30 * 1000,
+    retry: false,
+    throwOnError: false,
   })
 
   const { data: partnersData, isLoading: partnersLoading, error: partnersError } = useQuery({
     queryKey: ['partners'],
     queryFn: () => api.get('/api/v1/admin/partners').then(res => res.data),
     staleTime: 5 * 60 * 1000,
+    retry: false,
+    throwOnError: false,
   })
 
   const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError } = useQuery({
     queryKey: ['analytics'],
     queryFn: () => api.get('/api/v1/admin/analytics').then(res => res.data),
     staleTime: 5 * 60 * 1000,
+    retry: false,
+    throwOnError: false,
   })
 
   // Mock data for API logs (replace with real API call)
@@ -365,19 +373,29 @@ const ApiLogsPage = () => {
     return `${days}d ${hours}h ${minutes}m`
   }
 
-  return (
-    <PermissionGuard 
-      permission={PERMISSIONS.SYSTEM_LOGS} 
-      fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  // Check if user is authenticated first
+  if (!canViewSystemLogs) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
           <div className="text-center">
             <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
             <p className="text-gray-600">You don&apos;t have permission to view API logs.</p>
+            <p className="text-sm text-gray-500 mt-2">Contact your administrator to request access.</p>
+            <div className="mt-4 p-4 bg-gray-100 rounded-lg text-left">
+              <p className="text-xs text-gray-600">Debug Info:</p>
+              <p className="text-xs text-gray-600">User Role: {userRole}</p>
+              <p className="text-xs text-gray-600">Can View System Logs: {canViewSystemLogs ? 'Yes' : 'No'}</p>
+            </div>
           </div>
         </div>
-      }
-    >
+      </div>
+    )
+  }
+
+  return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
@@ -1010,7 +1028,6 @@ const ApiLogsPage = () => {
           </div>
         </main>
       </div>
-    </PermissionGuard>
   )
 }
 

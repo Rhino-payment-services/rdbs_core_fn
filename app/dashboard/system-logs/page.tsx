@@ -262,62 +262,70 @@ const SystemLogsTab = ({
   return (
     <>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-1 mb-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Logs</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalLogs.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              System activity records
-            </p>
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Total Logs</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <AlertCircle className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">{totalLogs.toLocaleString()}</p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">System activity records</span>
+            </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Logs</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Failed Logs</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">
               {logs.filter(log => log.status?.toUpperCase() === 'FAILED').length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Failed operations
             </p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">Failed operations</span>
+            </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Logs</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Pending Logs</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">
               {logs.filter(log => log.status?.toUpperCase() === 'PENDING').length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Pending operations
             </p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">Pending operations</span>
+            </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Logs</CardTitle>
-            <Info className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {logs.filter(log => log.status?.toUpperCase() === 'SUCCESS').length}
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Success Logs</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <Info className="w-4 h-4 text-gray-600" />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Successful operations
+            <p className="text-xl font-bold text-gray-900 leading-tight">
+              {logs.filter(log => log.status?.toUpperCase() === 'SUCCESS').length}
             </p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">Successful operations</span>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -590,62 +598,70 @@ const StatsTab = ({
 
       {/* Overview Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-1 mb-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Actions</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalActions?.toLocaleString() || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                All system activities
-              </p>
+            <CardContent className="px-4 py-1">
+              <div className="flex items-center justify-between mb-0">
+                <p className="text-sm font-medium text-gray-600 mb-0">Total Actions</p>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+              <p className="text-xl font-bold text-gray-900 leading-tight">{stats.totalActions?.toLocaleString() || 0}</p>
+              <div className="mt-0">
+                <span className="text-sm text-gray-500">All system activities</span>
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-              <BarChart3 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+            <CardContent className="px-4 py-1">
+              <div className="flex items-center justify-between mb-0">
+                <p className="text-sm font-medium text-gray-600 mb-0">Success Rate</p>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <BarChart3 className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+              <p className="text-xl font-bold text-gray-900 leading-tight">
                 {stats.successRate || 0}%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Successful operations
               </p>
+              <div className="mt-0">
+                <span className="text-sm text-gray-500">Successful operations</span>
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Failed Actions</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
+            <CardContent className="px-4 py-1">
+              <div className="flex items-center justify-between mb-0">
+                <p className="text-sm font-medium text-gray-600 mb-0">Failed Actions</p>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+              <p className="text-xl font-bold text-gray-900 leading-tight">
                 {stats.failedCount || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Failed operations
               </p>
+              <div className="mt-0">
+                <span className="text-sm text-gray-500">Failed operations</span>
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {stats.pendingCount || 0}
+            <CardContent className="px-4 py-1">
+              <div className="flex items-center justify-between mb-0">
+                <p className="text-sm font-medium text-gray-600 mb-0">Pending Actions</p>
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-gray-600" />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Pending operations
+              <p className="text-xl font-bold text-gray-900 leading-tight">
+                {stats.pendingCount || 0}
               </p>
+              <div className="mt-0">
+                <span className="text-sm text-gray-500">Pending operations</span>
+              </div>
             </CardContent>
           </Card>
         </div>

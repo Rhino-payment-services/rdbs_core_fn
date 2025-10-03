@@ -1,21 +1,92 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
-import { PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 // import NotificationsModal from './NotificationsModal'
 
 const Navbar = () => {
   const pathname = usePathname()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [isFinanceDropdownOpen, setIsFinanceDropdownOpen] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [financeMenuPosition, setFinanceMenuPosition] = useState({ left: 0, top: 0 })
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const financeMenuRef = useRef<HTMLDivElement>(null)
+  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { user, logout } = useAuth()
+  const { canViewSystemLogs, hasPermission, userRole } = usePermissions()
 
   console.log(isNotificationsOpen)
+
+  // Check scroll position and update button states
+  const checkScrollPosition = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth)
+    }
+  }
+
+  // Scroll functions
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' })
+    }
+  }
+
+  // Handle dropdown hover with delay
+  const handleFinanceMouseEnter = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current)
+    }
+    setIsFinanceDropdownOpen(true)
+  }
+
+  const handleFinanceMouseLeave = () => {
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setIsFinanceDropdownOpen(false)
+    }, 150) // 150ms delay before closing
+  }
+
+  // Update Finance menu position when dropdown opens
+  useEffect(() => {
+    if (isFinanceDropdownOpen && financeMenuRef.current) {
+      const rect = financeMenuRef.current.getBoundingClientRect()
+      setFinanceMenuPosition({
+        left: rect.left,
+        top: rect.bottom
+      })
+    }
+  }, [isFinanceDropdownOpen])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dropdownTimeoutRef.current) {
+        clearTimeout(dropdownTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  // Check scroll position on mount and when window resizes
+  useEffect(() => {
+    checkScrollPosition()
+    window.addEventListener('resize', checkScrollPosition)
+    return () => window.removeEventListener('resize', checkScrollPosition)
+  }, [])
   
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -109,7 +180,11 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto">
           <div className="relative">
             {/* Scrollable Menu Container */}
-            <div className="flex items-center overflow-x-auto scrollbar-hide">
+            <div 
+              ref={scrollContainerRef}
+              className="flex items-center overflow-x-auto scrollbar-hide"
+              onScroll={checkScrollPosition}
+            >
               <div className="flex items-center space-x-1 px-4 py-3 min-w-max">
                 <Link 
                   href="/dashboard" 
@@ -123,7 +198,22 @@ const Navbar = () => {
                   <span>Dashboard</span>
                 </Link>
                 
-                {/* Transactions Menu - Only show if user has transaction permissions */}
+                {/* Analytics Menu - Only show if user has analytics permissions */}
+                <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW}>
+                  <Link 
+                    href="/dashboard/analytics" 
+                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive('/dashboard/analytics')
+                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
+                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                    }`}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Analytics</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Ledgers Menu - Only show if user has transaction permissions */}
                 <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
                   <Link 
                     href="/dashboard/transactions" 
@@ -134,8 +224,30 @@ const Navbar = () => {
                     }`}
                   >
                     <CreditCard className="h-4 w-4" />
-                    <span>Transactions</span>
+                    <span>Ledgers</span>
                   </Link>
+                </PermissionGuard>
+                
+                {/* Finance Menu - Only show if user has tariff permissions */}
+                <PermissionGuard permission={PERMISSIONS.TARIFFS_VIEW}>
+                  <div 
+                    ref={financeMenuRef}
+                    className="relative"
+                    onMouseEnter={handleFinanceMouseEnter}
+                    onMouseLeave={handleFinanceMouseLeave}
+                  >
+                    <Link 
+                      href="/dashboard/finance" 
+                      className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                        isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')
+                          ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
+                          : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                      }`}
+                    >
+                      <DollarSign className="h-4 w-4" />
+                      <span>Finance</span>
+                    </Link>
+                  </div>
                 </PermissionGuard>
                 
                 <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
@@ -166,19 +278,6 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.TARIFFS_VIEW}>
-                  <Link 
-                    href="/dashboard/tariffs" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
-                      isActive('/dashboard/tariffs')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
-                    }`}
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    <span>Tariffs</span>
-                  </Link>
-                </PermissionGuard>
                 
                 <PermissionGuard permission={PERMISSIONS.KYC_VIEW}>
                   <Link 
@@ -236,7 +335,7 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
+                {canViewSystemLogs && (
                   <Link 
                     href="/dashboard/api-logs" 
                     className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
@@ -248,7 +347,7 @@ const Navbar = () => {
                     <Database className="h-4 w-4" />
                     <span>API Logs</span>
                   </Link>
-                </PermissionGuard>
+                )}
                 
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
@@ -278,12 +377,109 @@ const Navbar = () => {
               </div>
             </div>
             
+            {/* Left Scroll Button */}
+            {canScrollLeft && (
+              <button
+                onClick={scrollLeft}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+              >
+                <ChevronLeft className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+
+            {/* Right Scroll Button */}
+            {canScrollRight && (
+              <button
+                onClick={scrollRight}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+              >
+                <ChevronRight className="h-4 w-4 text-gray-600" />
+              </button>
+            )}
+
             {/* Gradient Overlays for Scroll Indication */}
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-50 to-transparent pointer-events-none"></div>
             <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none"></div>
+
+            {/* Finance Dropdown - Positioned closer to Finance tab */}
+            {isFinanceDropdownOpen && (
+              <div 
+                className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[100]"
+                style={{ 
+                  left: `${financeMenuPosition.left}px`, 
+                  top: `${financeMenuPosition.top - 2}px` // Closer to the tab (reduced gap)
+                }}
+                onMouseEnter={handleFinanceMouseEnter}
+                onMouseLeave={handleFinanceMouseLeave}
+              >
+                {/* Bridge element to prevent dropdown from closing */}
+                <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent"></div>
+                
+                <div className="py-2">
+                  <Link 
+                    href="/dashboard/finance" 
+                    className={`block px-4 py-2 text-sm transition-colors ${
+                      isActive('/dashboard/finance') && !isActive('/dashboard/finance/tariffs')
+                        ? 'text-[#08163d] bg-[#08163d]/10'
+                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                    }`}
+                    onClick={() => setIsFinanceDropdownOpen(false)}
+                  >
+                    Overview
+                  </Link>
+                  <Link 
+                    href="/dashboard/finance/tariffs" 
+                    className={`block px-4 py-2 text-sm transition-colors ${
+                      isActive('/dashboard/finance/tariffs')
+                        ? 'text-[#08163d] bg-[#08163d]/10'
+                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                    }`}
+                    onClick={() => setIsFinanceDropdownOpen(false)}
+                  >
+                    Tariffs
+                  </Link>
+                  <Link 
+                    href="/dashboard/finance/partners" 
+                    className={`block px-4 py-2 text-sm transition-colors ${
+                      isActive('/dashboard/finance/partners')
+                        ? 'text-[#08163d] bg-[#08163d]/10'
+                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                    }`}
+                    onClick={() => setIsFinanceDropdownOpen(false)}
+                  >
+                    External Payment Partners
+                  </Link>
+                  <Link 
+                    href="/dashboard/finance/transaction-mapping" 
+                    className={`block px-4 py-2 text-sm transition-colors ${
+                      isActive('/dashboard/finance/transaction-mapping')
+                        ? 'text-[#08163d] bg-[#08163d]/10'
+                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                    }`}
+                    onClick={() => setIsFinanceDropdownOpen(false)}
+                  >
+                    Transaction Mapping
+                  </Link>
+                  {(hasPermission(PERMISSIONS.TARIFFS_APPROVE) || userRole === 'SUPER_ADMIN') && (
+                    <Link 
+                      href="/dashboard/finance/approvals" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/finance/approvals')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Approvals
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
 
       {/* Notifications Modal */}
       {/* <NotificationsModal 

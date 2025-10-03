@@ -43,7 +43,9 @@ export interface Role {
   id: string
   name: string
   description?: string
-  permissions?: string[]
+  isActive: boolean
+  permissions?: Permission[]
+  userRoles?: any[]
   createdAt: string
   updatedAt: string
 }
@@ -52,75 +54,86 @@ export interface Permission {
   id: string
   name: string
   description?: string
-  resource: string
-  action: string
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface CreateRoleRequest {
-  name: string
-  description: string
-  permissionIds: string[]
-}
-
-export interface AssignRoleRequest {
-  userId: string
-  roleId: string
-}
-
-export interface PermissionsResponse {
-  permissions: Permission[]
-  total: number
-}
-
-export interface CreateUserRequest {
-  email: string
-  password: string
-  role: string
-  userType: string
-  firstName: string
-  lastName: string
-  department: string
-  position: string
-  country: string
-}
-
-export interface UpdateUserRequest {
-  email?: string
-  firstName?: string
-  lastName?: string
-  phone?: string
-  position?: string
-  department?: string
-  role?: string
+  category: string
   permissions?: string[]
 }
 
 // Transaction types
 export interface Transaction {
   id: string
-  type: 'Wallet to Wallet' | 'Wallet to Mobile Money' | 'Mobile Money to Wallet' | 'Merchant Payment' | 'Deposit from Agent'
+  userId: string
+  walletId?: string | null
+  type: 'DEPOSIT' | 'WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'BILL_PAYMENT' | 'MERCHANT_WITHDRAWAL'
+  mode?: string | null
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+  direction?: 'INCOMING' | 'OUTGOING' | null
   amount: number
+  currency: string
   fee: number
-  status: 'completed' | 'pending' | 'failed'
-  date: string
-  sender: {
+  netAmount: number
+  
+  // Enhanced Fee Breakdown
+  rukapayFee?: number | null
+  thirdPartyFee?: number | null
+  governmentTax?: number | null
+  processingFee?: number | null
+  networkFee?: number | null
+  complianceFee?: number | null
+  feeBreakdown?: any | null
+  
+  // External references
+  reference?: string | null
+  externalId?: string | null
+  externalReference?: string | null
+  partnerMappingId?: string | null
+  
+  // Transaction details
+  description?: string | null
+  metadata?: any | null
+  errorMessage?: string | null
+  
+  // Counterparty information
+  counterpartyId?: string | null
+  counterpartyType?: string | null
+  
+  // Bulk transaction
+  bulkTransactionId?: string | null
+  
+  // Timestamps
+  processedAt?: string | null
+  createdAt: string
+  updatedAt: string
+  
+  // Relations
+  user: User
+  wallet?: Wallet | null
+  bulkTransaction?: BulkTransaction | null
+  counterpartyUser?: User | null
+  ledgerEntries?: LedgerEntry[]
+  
+  // Partner Information (from partnerMapping relation)
+  partnerMapping?: {
     id: string
-    name: string
-    type: 'subscribers' | 'merchants' | 'partners' | 'agents' | 'super-agents' | 'banks'
-    phone: string
+    transactionType: string
+    geographicRegion: string
+    partnerId: string
+    isActive: boolean
+    priority: number
+    
+    // Partner details
+    partner: {
+      id: string
+      partnerName: string
+      partnerCode: string
+      isActive: boolean
+      supportedServices: string[]
+      baseUrl: string
+      description?: string | null
+      website?: string | null
+      contactEmail?: string | null
+      contactPhone?: string | null
+    }
   }
-  receiver: {
-    id: string
-    name: string
-    type: 'subscribers' | 'merchants' | 'partners' | 'agents' | 'super-agents' | 'banks'
-    phone: string
-  }
-  reference: string
-  description: string
-  failureReason?: string
 }
 
 // Customer types
@@ -285,6 +298,32 @@ export interface MerchantTransactionRequest {
   reference?: string
 }
 
+// Bulk Transaction types
+export interface BulkTransaction {
+  id: string
+  initiatedBy: string
+  bulkType: string
+  totalAmount: number
+  totalTransactions: number
+  successfulTransactions: number
+  failedTransactions: number
+  status: string
+  processedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Ledger Entry types
+export interface LedgerEntry {
+  id: string
+  transactionId: string
+  walletId: string
+  amount: number
+  balance: number
+  entryType: 'DEBIT' | 'CREDIT'
+  createdAt: string
+}
+
 // KYC types
 export interface KycStatus {
   userId: string
@@ -418,6 +457,7 @@ export interface TransactionFilters {
   maxAmount?: number
   senderId?: string
   receiverId?: string
+  partnerId?: string
 }
 
 export interface CustomerFilters {
@@ -443,9 +483,106 @@ export interface TransactionSystemStats {
   transactionsByType: Record<string, number>
   transactionsByStatus: Record<string, number>
   transactionsByCurrency: Record<string, number>
-} 
+  partnerStats: Record<string, {
+    totalTransactions: number
+    totalVolume: number
+    successRate: number
+    averageResponseTime: number
+  }>
+}
+
 export interface ApiFetchOptions {
   method?: string
   data?: unknown
   params?: Record<string, string>
+}
+
+// Merchant types
+export interface Merchant {
+  id: string
+  businessName: string
+  businessType: string
+  registrationNumber: string
+  taxId?: string
+  contactPerson: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  country: string
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED'
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED'
+  createdAt: string
+  updatedAt: string
+  wallet?: {
+    id: string
+    balance: number
+    currency: string
+    status: string
+  }
+}
+
+// KYC Stats types
+export interface KycStats {
+  totalSubmissions: number
+  approved: number
+  pending: number
+  rejected: number
+  approvalRate: number
+  averageProcessingTime: number
+}
+
+// System Stats types
+export interface SystemStats {
+  totalUsers: number
+  activeUsers: number
+  totalTransactions: number
+  totalVolume: number
+  totalFees: number
+  successRate: number
+  averageTransactionAmount: number
+  transactionsByType: Record<string, number>
+  transactionsByStatus: Record<string, number>
+  transactionsByCurrency: Record<string, number>
+  systemHealth: {
+    apiResponseTime: number
+    uptime: number
+    activeSessions: number
+    failedTransactions: number
+  }
+}
+
+// Partner types
+export interface ExternalPaymentPartner {
+  id: string
+  partnerName: string
+  partnerCode: string
+  isActive: boolean
+  isSuspended: boolean
+  suspendedAt?: string
+  suspensionReason?: string
+  supportedServices: string[]
+  baseUrl: string
+  apiKey?: string
+  secretKey?: string
+  additionalConfig?: any
+  rateLimit: number
+  dailyQuota?: number
+  monthlyQuota?: number
+  costPerTransaction?: number
+  costCurrency: string
+  averageResponseTime?: number
+  successRate?: number
+  lastHealthCheck?: string
+  priority: number
+  failoverPriority: number
+  geographicRegions: string[]
+  description?: string
+  website?: string
+  contactEmail?: string
+  contactPhone?: string
+  createdBy?: string
+  updatedBy?: string
+  createdAt: string
+  updatedAt: string
 }

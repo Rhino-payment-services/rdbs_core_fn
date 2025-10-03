@@ -50,55 +50,63 @@ const SecurityStatsCards = ({ stats, onRefresh, onExport }: SecurityStatsCardsPr
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Flagged Transactions</CardTitle>
-            <Radar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalFlagged}</div>
-            <div className="text-xs text-muted-foreground">
-              {stats.highRisk} high risk
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Flagged Transactions</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <Radar className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">{stats.totalFlagged}</p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">{stats.highRisk} high risk</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Incidents</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.activeIncidents}</div>
-            <div className="text-xs text-muted-foreground">
-              {stats.criticalIncidents} critical
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Active Incidents</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">{stats.activeIncidents}</p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">{stats.criticalIncidents} critical</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pendingReview}</div>
-            <div className="text-xs text-muted-foreground">
-              Requires attention
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Pending Review</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">{stats.pendingReview}</p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">Requires attention</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Policy Compliance</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.policiesCompliance}%</div>
-            <div className="text-xs text-muted-foreground">
-              Overall compliance
+          <CardContent className="px-4 py-1">
+            <div className="flex items-center justify-between mb-0">
+              <p className="text-sm font-medium text-gray-600 mb-0">Policy Compliance</p>
+              <div className="w-8 h-8 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 text-gray-600" />
+              </div>
+            </div>
+            <p className="text-xl font-bold text-gray-900 leading-tight">{stats.policiesCompliance}%</p>
+            <div className="mt-0">
+              <span className="text-sm text-gray-500">Overall compliance</span>
             </div>
           </CardContent>
         </Card>
