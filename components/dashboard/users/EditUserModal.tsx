@@ -491,7 +491,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                             >
                               <div className="font-medium">{permission.name}</div>
                               <div className="text-xs text-gray-500">
-                                {permission.resource || ''} - {permission.action || ''}
+                                {permission?.description || permission?.category || ''}
                               </div>
                             </label>
                           </div>

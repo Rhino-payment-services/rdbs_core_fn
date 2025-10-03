@@ -26,7 +26,7 @@ interface CustomerTransactionsProps {
   onPageChange: (page: number) => void
 }
 
-const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading }: CustomerTransactionsProps) => {
+const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, currentPage, totalPages, onPageChange }: CustomerTransactionsProps) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
@@ -91,7 +91,7 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading }: C
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).getLocaleString('en-GB', {
+    return new Date(dateString).toLocaleString('en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

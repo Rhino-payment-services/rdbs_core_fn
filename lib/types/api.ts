@@ -39,6 +39,49 @@ export interface User {
   }
 }
 
+export interface CreateUserRequest {
+  firstName: string
+  lastName: string
+  email?: string
+  phone?: string
+  pin?: string
+  password?: string
+  role: string
+  userType: string
+}
+
+export interface UpdateUserRequest {
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  pin?: string
+  password?: string
+  role?: string
+  userType?: string
+  status?: string
+  isVerified?: boolean
+  kycStatus?: string
+  verificationLevel?: string
+  canHaveWallet?: boolean
+}
+
+export interface CreateRoleRequest {
+  name: string
+  description?: string
+  permissions?: string[]
+  permissionIds?: string[]
+}
+
+export interface AssignRoleRequest {
+  userId: string
+  roleId: string
+}
+
+export interface PermissionsResponse {
+  permissions: Permission[]
+}
+
 export interface Role {
   id: string
   name: string
