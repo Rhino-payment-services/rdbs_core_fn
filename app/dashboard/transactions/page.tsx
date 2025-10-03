@@ -484,6 +484,7 @@ const TransactionsPage = () => {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Transaction ID</TableHead>
+                            <TableHead>Partner</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Sender</TableHead>
                             <TableHead>Receiver</TableHead>
@@ -503,6 +504,20 @@ const TransactionsPage = () => {
                             <TableRow key={transaction.id}>
                           <TableCell className="font-medium font-mono text-sm">
                             {transaction.reference || transaction.id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {transaction.partnerMapping?.partner ? (
+                                <>
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                                    {transaction.partnerMapping.partner.partnerCode}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{transaction.partnerMapping.partner.partnerName}</span>
+                                </>
+                              ) : (
+                                <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{getTypeDisplay(transaction.type)}</TableCell>
                           {/* Sender Column */}

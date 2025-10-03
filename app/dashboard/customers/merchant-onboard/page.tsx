@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
+import { useSession } from 'next-auth/react'
 import api from '@/lib/axios'
 
 interface DocumentUpload {
@@ -64,12 +65,6 @@ interface MerchantFormData {
   businessEmail: string
   website: string
   
-  // Document URLs
-  certificateOfIncorporationUrl: string
-  taxRegistrationCertificateUrl: string
-  businessPermitUrl: string
-  bankStatementUrl: string
-  
   // Additional
   referralCode: string
   country: string
@@ -77,6 +72,7 @@ interface MerchantFormData {
 
 const MerchantOnboardingPage = () => {
   const router = useRouter()
+  const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState("personal")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadedDocuments, setUploadedDocuments] = useState<DocumentUpload[]>([])
@@ -114,12 +110,6 @@ const MerchantOnboardingPage = () => {
     businessEmail: '',
     website: '',
     
-    // Document URLs
-    certificateOfIncorporationUrl: '',
-    taxRegistrationCertificateUrl: '',
-    businessPermitUrl: '',
-    bankStatementUrl: '',
-    
     // Additional
     referralCode: '',
     country: 'UG'
@@ -136,23 +126,117 @@ const MerchantOnboardingPage = () => {
     setIsSubmitting(true)
     
     try {
-      // Prepare the submission data
-      const submissionData = {
-        ...formData,
-        documents: uploadedDocuments.map(doc => ({
-          documentType: doc.documentType,
-          documentUrl: doc.documentUrl,
-          originalName: doc.originalName,
-          fileSize: doc.fileSize,
-          mimeType: doc.mimeType
-        }))
+      // Check if user is authenticated
+      if (!session?.user?.id) {
+        toast.error('You must be logged in to onboard merchants')
+        return
       }
 
-      // Submit to API
-      const response = await api.post('/merchants/onboard', submissionData)
+      // Debug: Log form data and uploaded documents
+      console.log('Form data:', formData)
+      console.log('Uploaded documents:', uploadedDocuments)
+      console.log('Current user ID:', session.user.id)
       
-      if (response.data.success) {
-        toast.success('Merchant application submitted successfully!')
+      // Validate required fields
+      const requiredFields = [
+        'firstName', 'lastName', 'dateOfBirth', 'gender', 'nationalId',
+        'businessTradeName', 'registeredBusinessName', 'certificateOfIncorporation',
+        'taxIdentificationNumber', 'businessType', 'businessRegistrationDate',
+        'businessAddress', 'businessCity', 'businessCountry',
+        'bankName', 'bankAccountName', 'bankAccountNumber',
+        'mobileMoneyProvider', 'mobileMoneyNumber',
+        'registeredPhoneNumber', 'businessEmail'
+      ]
+
+      const missingFields = requiredFields.filter(field => !formData[field as keyof MerchantFormData])
+      console.log('Missing fields:', missingFields)
+      
+      if (missingFields.length > 0) {
+        toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`)
+        return
+      }
+
+      // Validate required documents using backend enum values
+      const requiredDocuments = [
+        'NATIONAL_ID',
+        'UTILITY_BILL',
+        'BANK_STATEMENT'
+      ]
+
+      console.log('Required documents:', requiredDocuments)
+      console.log('Uploaded document types:', uploadedDocuments.map(doc => doc.documentType))
+
+      const missingDocuments = requiredDocuments.filter(docType => 
+        !uploadedDocuments.some(doc => doc.documentType === docType)
+      )
+
+      console.log('Missing documents:', missingDocuments)
+
+      if (missingDocuments.length > 0) {
+        toast.error(`Please upload all required documents: ${missingDocuments.join(', ')}`)
+        return
+      }
+
+      // Prepare the submission data according to backend DTO structure
+      const submissionData = {
+        // Personal Information
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        middleName: formData.middleName,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        nationalId: formData.nationalId,
+        
+        // Business Information
+        businessInfo: {
+          businessTradeName: formData.businessTradeName,
+          registeredBusinessName: formData.registeredBusinessName,
+          certificateOfIncorporation: formData.certificateOfIncorporation,
+          taxIdentificationNumber: formData.taxIdentificationNumber,
+          businessType: formData.businessType,
+          businessRegistrationDate: formData.businessRegistrationDate,
+          businessAddress: formData.businessAddress,
+          businessCity: formData.businessCity,
+          businessCountry: formData.businessCountry
+        },
+        
+        // Financial Information
+        financialInfo: {
+          bankName: formData.bankName,
+          bankAccountName: formData.bankAccountName,
+          bankAccountNumber: formData.bankAccountNumber,
+          mobileMoneyNumber: formData.mobileMoneyNumber,
+          mobileMoneyProvider: formData.mobileMoneyProvider
+        },
+        
+        // Contact Information
+        contactInfo: {
+          registeredPhoneNumber: formData.registeredPhoneNumber,
+          businessEmail: formData.businessEmail,
+          website: formData.website
+        },
+        
+        // Document Information - Map uploaded documents to DTO fields
+        documentInfo: {
+          certificateOfIncorporationUrl: uploadedDocuments.find(doc => doc.documentType === 'NATIONAL_ID')?.documentUrl || '',
+          taxRegistrationCertificateUrl: uploadedDocuments.find(doc => doc.documentType === 'UTILITY_BILL')?.documentUrl || '',
+          businessPermitUrl: uploadedDocuments.find(doc => doc.documentType === 'PASSPORT')?.documentUrl || '',
+          bankStatementUrl: uploadedDocuments.find(doc => doc.documentType === 'BANK_STATEMENT')?.documentUrl || ''
+        },
+        
+        // Additional Information
+        referralCode: formData.referralCode,
+        country: formData.country,
+        onboardedBy: session.user.id // Use actual authenticated user ID
+      }
+
+      console.log('Submission data:', submissionData)
+
+      // Submit to API
+      const response = await api.post('/merchant-kyc/create', submissionData)
+      
+      if (response.data.merchantId) {
+        toast.success(response.data.message || 'Merchant created successfully!')
         router.push('/dashboard/customers')
       } else {
         toast.error(response.data.message || 'Failed to submit application')
@@ -227,7 +311,7 @@ const MerchantOnboardingPage = () => {
                   businessTradeName: formData.businessTradeName,
                   registeredBusinessName: formData.registeredBusinessName,
                   certificateOfIncorporation: formData.certificateOfIncorporation,
-                  taxIdentificationNumber: formData.taxIdentificationNumber,
+                 taxIdentificationNumber: formData.taxIdentificationNumber,
                   businessType: formData.businessType,
                   businessRegistrationDate: formData.businessRegistrationDate,
                   businessAddress: formData.businessAddress,

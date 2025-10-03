@@ -218,7 +218,7 @@ export const usePayUtility = () => {
         externalMetadata: {
           utilityProvider: paymentData.utilityType,
           utilityAccountNumber: paymentData.meterNumber,
-          customerRef: paymentData.meterNumber,
+          customerRef: paymentData.customerRef || paymentData.meterNumber,
           meterNumber: paymentData.meterNumber
         }
       },

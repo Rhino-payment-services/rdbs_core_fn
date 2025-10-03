@@ -107,7 +107,7 @@ const EditTariffPage = () => {
   // Fetch partners for external tariffs
   const { data: partners } = useQuery({
     queryKey: ['partners'],
-    queryFn: () => api.get('/admin/external-payment-partners').then(res => res.data),
+    queryFn: () => api.get('/admin/partners').then(res => res.data),
   })
 
   // Update form when tariff data loads

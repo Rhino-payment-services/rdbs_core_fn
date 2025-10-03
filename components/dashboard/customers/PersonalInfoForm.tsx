@@ -53,15 +53,6 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="middleName">Middle Name</Label>
-            <Input
-              id="middleName"
-              value={formData.middleName}
-              onChange={(e) => handleInputChange('middleName', e.target.value)}
-              placeholder="Enter middle name"
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="lastName">Last Name *</Label>
             <Input
               id="lastName"
@@ -69,6 +60,15 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
               onChange={(e) => handleInputChange('lastName', e.target.value)}
               placeholder="Enter last name"
               required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="middleName">Middle Name</Label>
+            <Input
+              id="middleName"
+              value={formData.middleName}
+              onChange={(e) => handleInputChange('middleName', e.target.value)}
+              placeholder="Enter middle name"
             />
           </div>
         </div>
@@ -91,9 +91,9 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="MALE">Male</SelectItem>
+                <SelectItem value="FEMALE">Female</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

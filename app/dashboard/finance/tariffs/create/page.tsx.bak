@@ -18,23 +18,18 @@ import api from '@/lib/axios'
 
 interface CreateTariffForm {
   name: string
-  description?: string
+  description: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
-  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'BILL_PAYMENT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'MNO_TO_WALLET' | 'ADJUSTMENT' | 'REVERSAL' | 'FEE_CHARGE'
+  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER_OUT' | 'TRANSFER_IN' | 'BILL_PAYMENT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL'
   currency: string
-  feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
+  feeType: 'FIXED' | 'PERCENTAGE' | 'HYBRID'
   feeAmount: number
-  feePercentage?: number
-  minAmount?: number
-  maxAmount?: number
-  userType?: 'STAFF' | 'SUBSCRIBER'
-  subscriberType?: 'INDIVIDUAL' | 'MERCHANT' | 'AGENT'
+  feePercentage: number
+  minAmount: number
+  maxAmount: number
+  userType: 'STAFF' | 'SUBSCRIBER' | 'MERCHANT'
+  subscriberType: 'INDIVIDUAL' | 'BUSINESS'
   partnerId?: string
-  group?: string
-  partnerFee?: number
-  rukapayFee?: number
-  telecomBankCharge?: number
-  governmentTax?: number
 }
 
 interface Partner {
@@ -61,19 +56,10 @@ const CreateTariffPage = () => {
     feeAmount: 0,
     feePercentage: 0,
     maxAmount: 0,
-    minAmount: 0,
     userType: 'SUBSCRIBER',
     subscriberType: 'INDIVIDUAL',
-    partnerId: undefined,
-    group: '',
-    partnerFee: 0,
-    rukapayFee: 0,
-    telecomBankCharge: 0,
-    governmentTax: 0
+    partnerId: undefined
   })
-
-  // Calculate total fee amount
-  const totalFeeAmount = (form.partnerFee || 0) + (form.rukapayFee || 0) + (form.telecomBankCharge || 0)
 
   const createTariffMutation = useMutation({
     mutationFn: (data: CreateTariffForm) => api.post('/finance/tariffs', data),
@@ -89,8 +75,8 @@ const CreateTariffPage = () => {
 
   // Fetch partners for external tariffs
   const { data: partnersData } = useQuery({
-    queryKey: ['external-payment-partners'],
-    queryFn: () => api.get('/admin/external-payment-partners').then(res => res.data),
+    queryKey: ['partners'],
+    queryFn: () => api.get('/admin/partners').then(res => res.data),
     enabled: form.tariffType === 'EXTERNAL' // Only fetch if tariffType is EXTERNAL
   })
 
@@ -99,59 +85,30 @@ const CreateTariffPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!form.name) {
-      toast.error('Please fill in the tariff name')
+    if (!form.name || !form.description) {
+      toast.error('Please fill in all required fields')
       return
     }
 
-    // Use the appropriate fee amount for validation
-    const currentFeeAmount = form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount
-
-    if (form.feeType === 'FIXED' && currentFeeAmount <= 0) {
+    if (form.feeType === 'FIXED' && form.feeAmount <= 0) {
       toast.error('Fee amount must be greater than 0 for fixed fees')
       return
     }
 
-    if (form.feeType === 'PERCENTAGE' && (!form.feePercentage || form.feePercentage <= 0)) {
+    if (form.feeType === 'PERCENTAGE' && form.feePercentage <= 0) {
       toast.error('Fee percentage must be greater than 0 for percentage fees')
       return
     }
 
-    if (form.feeType === 'HYBRID' && (currentFeeAmount <= 0 || !form.feePercentage || form.feePercentage <= 0)) {
+    if (form.feeType === 'HYBRID' && (form.feeAmount <= 0 || form.feePercentage <= 0)) {
       toast.error('Both fee amount and percentage must be greater than 0 for hybrid fees')
       return
     }
 
-    if (form.tariffType === 'EXTERNAL' && !form.partnerId) {
-      toast.error('Partner is required for external tariffs')
-      return
-    }
-
-    // Clean up the data before sending
-    const submitData = {
-      ...form,
-      // Set feeAmount to the calculated total for external tariffs
-      feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
-      // Keep government tax as percentage value (no conversion needed)
-      governmentTax: form.governmentTax || undefined,
-      // Remove undefined values
-      description: form.description || undefined,
-      feePercentage: form.feePercentage || undefined,
-      minAmount: form.minAmount || undefined,
-      maxAmount: form.maxAmount || undefined,
-      userType: form.userType || undefined,
-      subscriberType: form.subscriberType || undefined,
-      partnerId: form.partnerId || undefined,
-      group: form.group || undefined,
-      partnerFee: form.partnerFee || undefined,
-      rukapayFee: form.rukapayFee || undefined,
-      telecomBankCharge: form.telecomBankCharge || undefined
-    }
-
-    createTariffMutation.mutate(submitData)
+    createTariffMutation.mutate(form)
   }
 
-  const handleInputChange = (field: keyof CreateTariffForm, value: string | number | undefined) => {
+  const handleInputChange = (field: keyof CreateTariffForm, value: string | number) => {
     setForm(prev => ({
       ...prev,
       [field]: value
@@ -226,12 +183,13 @@ const CreateTariffPage = () => {
                     </div>
                     
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <Label htmlFor="description">Description *</Label>
                       <Textarea
                         id="description"
                         value={form.description}
                         onChange={(e) => handleInputChange('description', e.target.value)}
                         placeholder="Brief description of this tariff"
+                        required
                       />
                     </div>
 
@@ -259,7 +217,6 @@ const CreateTariffPage = () => {
                             <>
                               <SelectItem value="TRANSFER_OUT">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
-                              <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet (New)</SelectItem>
                             </>
                           ) : (
                             <>
@@ -268,12 +225,6 @@ const CreateTariffPage = () => {
                               <SelectItem value="DEPOSIT">Wallet to Bank</SelectItem>
                               <SelectItem value="WALLET_TO_EXTERNAL_MERCHANT">Wallet to External Merchant</SelectItem>
                               <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
-                              <SelectItem value="WALLET_TO_MNO">Wallet to MNO (New)</SelectItem>
-                              <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
-                              <SelectItem value="WALLET_TO_MERCHANT">Wallet to Merchant</SelectItem>
-                              <SelectItem value="WALLET_TO_BANK">Wallet to Bank (New)</SelectItem>
-                              <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
-                              <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>
                             </>
                           )}
                         </SelectContent>
@@ -324,13 +275,12 @@ const CreateTariffPage = () => {
                         <SelectContent>
                           <SelectItem value="FIXED">Fixed Amount</SelectItem>
                           <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                          <SelectItem value="TIERED">Tiered</SelectItem>
                           <SelectItem value="HYBRID">Fixed + Percentage</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    {form.feeType === 'FIXED' && form.tariffType === 'INTERNAL' && (
+                    {form.feeType === 'FIXED' && (
                       <div>
                         <Label htmlFor="feeAmount">Fee Amount *</Label>
                         <Input
@@ -343,22 +293,6 @@ const CreateTariffPage = () => {
                           step="0.01"
                           required
                         />
-                      </div>
-                    )}
-
-                    {form.feeType === 'FIXED' && form.tariffType === 'EXTERNAL' && (
-                      <div>
-                        <Label htmlFor="feeAmount">Fee Amount *</Label>
-                        <Input
-                          id="feeAmount"
-                          type="number"
-                          value={totalFeeAmount}
-                          disabled
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Calculated automatically from partner fees</p>
                       </div>
                     )}
 
@@ -387,17 +321,13 @@ const CreateTariffPage = () => {
                           <Input
                             id="feeAmount"
                             type="number"
-                            value={form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount}
-                            onChange={form.tariffType === 'EXTERNAL' ? undefined : (e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
-                            disabled={form.tariffType === 'EXTERNAL'}
+                            value={form.feeAmount}
+                            onChange={(e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
                             placeholder="0"
                             min="0"
                             step="0.01"
                             required
                           />
-                          {form.tariffType === 'EXTERNAL' && (
-                            <p className="text-xs text-gray-500 mt-1">Calculated automatically from partner fees</p>
-                          )}
                         </div>
                         <div>
                           <Label htmlFor="feePercentage">Percentage Fee *</Label>
@@ -415,27 +345,6 @@ const CreateTariffPage = () => {
                           <p className="text-xs text-gray-500 mt-1">Enter as decimal (0.01 = 1%)</p>
                         </div>
                       </>
-                    )}
-
-                    {form.feeType === 'TIERED' && (
-                      <div>
-                        <Label htmlFor="feeAmount">Base Fee Amount *</Label>
-                        <Input
-                          id="feeAmount"
-                          type="number"
-                          value={form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount}
-                          onChange={form.tariffType === 'EXTERNAL' ? undefined : (e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
-                          disabled={form.tariffType === 'EXTERNAL'}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                          required
-                        />
-                        {form.tariffType === 'EXTERNAL' && (
-                          <p className="text-xs text-gray-500 mt-1">Calculated automatically from partner fees</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">Base fee for tiered structure</p>
-                      </div>
                     )}
                   </div>
                 </div>
@@ -472,125 +381,32 @@ const CreateTariffPage = () => {
                 {/* User Type Configuration */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label htmlFor="userType">User Type</Label>
-                    <Select value={form.userType || ''} onValueChange={(value) => handleInputChange('userType', value)}>
+                    <Label htmlFor="userType">User Type *</Label>
+                    <Select value={form.userType} onValueChange={(value) => handleInputChange('userType', value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select user type" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="SUBSCRIBER">Subscriber</SelectItem>
                         <SelectItem value="STAFF">Staff</SelectItem>
+                        <SelectItem value="MERCHANT">Merchant</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
-                    <Label htmlFor="subscriberType">Subscriber Type</Label>
-                    <Select value={form.subscriberType || ''} onValueChange={(value) => handleInputChange('subscriberType', value)}>
+                    <Label htmlFor="subscriberType">Subscriber Type *</Label>
+                    <Select value={form.subscriberType} onValueChange={(value) => handleInputChange('subscriberType', value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select subscriber type" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="INDIVIDUAL">Individual</SelectItem>
-                        <SelectItem value="MERCHANT">Merchant</SelectItem>
-                        <SelectItem value="AGENT">Agent</SelectItem>
+                        <SelectItem value="BUSINESS">Business</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-
-                {/* External Tariff Specific Fields */}
-                {form.tariffType === 'EXTERNAL' && (
-                  <div className="space-y-4 border-t pt-6">
-                    <h3 className="text-lg font-medium">External Tariff Configuration</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="group">Tariff Group</Label>
-                        <Input
-                          id="group"
-                          value={form.group}
-                          onChange={(e) => handleInputChange('group', e.target.value)}
-                          placeholder="e.g., G1, G2, G3"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Group for partner-specific amount ranges</p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="partnerFee">Partner Fee</Label>
-                        <Input
-                          id="partnerFee"
-                          type="number"
-                          value={form.partnerFee}
-                          onChange={(e) => handleInputChange('partnerFee', parseFloat(e.target.value) || 0)}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Fee amount for the partner</p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="rukapayFee">RukaPay Fee</Label>
-                        <Input
-                          id="rukapayFee"
-                          type="number"
-                          value={form.rukapayFee}
-                          onChange={(e) => handleInputChange('rukapayFee', parseFloat(e.target.value) || 0)}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">RukaPay fee amount</p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="telecomBankCharge">Telecom/Bank Charge</Label>
-                        <Input
-                          id="telecomBankCharge"
-                          type="number"
-                          value={form.telecomBankCharge}
-                          onChange={(e) => handleInputChange('telecomBankCharge', parseFloat(e.target.value) || 0)}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Optional telecom/bank charge</p>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="governmentTax">Government Tax (%)</Label>
-                        <Input
-                          id="governmentTax"
-                          type="number"
-                          value={form.governmentTax}
-                          onChange={(e) => handleInputChange('governmentTax', parseFloat(e.target.value) || 0)}
-                          placeholder="0"
-                          min="0"
-                          step="0.01"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Optional government tax percentage (e.g., 18 for 18%)</p>
-                      </div>
-                    </div>
-                    
-                    {/* Total Fee Display */}
-                    <div className="bg-gray-50 p-4 rounded-lg border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-700">Total Fee Amount:</span>
-                        <span className="text-lg font-bold text-[#08163d]">
-                          {form.currency} {totalFeeAmount.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        Partner Fee: {form.currency} {(form.partnerFee || 0).toFixed(2)} + 
-                        RukaPay Fee: {form.currency} {(form.rukapayFee || 0).toFixed(2)} + 
-                        Telecom/Bank Charge: {form.currency} {(form.telecomBankCharge || 0).toFixed(2)}
-                        {form.governmentTax && form.governmentTax > 0 && (
-                          <span> + Gov Tax: {(form.governmentTax || 0).toFixed(2)}%</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Form Actions */}
                 <div className="flex items-center justify-end space-x-4 pt-6 border-t">

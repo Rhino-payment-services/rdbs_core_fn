@@ -76,27 +76,35 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'verified':
+      case 'VERIFIED':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Verified</Badge>
-      case 'rejected':
+      case 'REJECTED':
         return <Badge className="bg-red-100 text-red-800"><AlertTriangle className="h-3 w-3 mr-1" />Rejected</Badge>
-      case 'uploaded':
-        return <Badge className="bg-blue-100 text-blue-800"><FileText className="h-3 w-3 mr-1" />Uploaded</Badge>
+      case 'PENDING':
+        return <Badge className="bg-yellow-100 text-yellow-800"><FileText className="h-3 w-3 mr-1" />Pending</Badge>
       default:
-        return <Badge variant="outline">Pending</Badge>
+        return <Badge variant="outline">Uploaded</Badge>
     }
   }
 
+  // Use backend enum values for required documents
   const requiredDocuments = [
-    'certificate_of_incorporation',
-    'tax_registration_certificate', 
-    'business_permit',
-    'bank_statement'
+    'NATIONAL_ID',
+    'UTILITY_BILL',
+    'BANK_STATEMENT'
   ]
 
-  const hasAllRequiredDocuments = requiredDocuments.every(docType => 
-    uploadedDocuments.some(doc => doc.documentType === docType)
-  )
+  // Debug: Log uploaded documents and validation
+  console.log('Uploaded documents:', uploadedDocuments)
+  console.log('Required documents:', requiredDocuments)
+  
+  const hasAllRequiredDocuments = requiredDocuments.every(docType => {
+    const hasDoc = uploadedDocuments.some(doc => doc.documentType === docType)
+    console.log(`Checking ${docType}:`, hasDoc)
+    return hasDoc
+  })
+
+  console.log('Has all required documents:', hasAllRequiredDocuments)
 
   const isFormComplete = () => {
     const requiredFields = [
@@ -109,8 +117,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
       'registeredPhoneNumber', 'businessEmail'
     ]
 
-    return requiredFields.every(field => formData[field as keyof MerchantFormData])
+    const isComplete = requiredFields.every(field => formData[field as keyof MerchantFormData])
+    console.log('Form complete:', isComplete)
+    return isComplete
   }
+
+  const canSubmit = isFormComplete() && hasAllRequiredDocuments
+
+  console.log('Can submit:', canSubmit)
 
   return (
     <div className="space-y-6">
@@ -268,12 +282,31 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           <div className="flex justify-end">
             <Button
               onClick={onSubmit}
-              disabled={!isFormComplete() || !hasAllRequiredDocuments || isSubmitting}
+              disabled={!canSubmit || isSubmitting}
               className="flex items-center gap-2"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Application'}
             </Button>
           </div>
+
+          {!canSubmit && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-yellow-800">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Cannot submit yet</span>
+              </div>
+              <p className="text-sm text-yellow-700 mt-1">
+                Please complete all required fields and upload all required documents before submitting.
+              </p>
+              <div className="mt-2 text-xs text-gray-600">
+                <p>Debug Info:</p>
+                <p>Form Complete: {isFormComplete() ? 'Yes' : 'No'}</p>
+                <p>Documents Complete: {hasAllRequiredDocuments ? 'Yes' : 'No'}</p>
+                <p>Uploaded Documents: {uploadedDocuments.map(doc => doc.documentType).join(', ')}</p>
+                <p>Required Documents: {requiredDocuments.join(', ')}</p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

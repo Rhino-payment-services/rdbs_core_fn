@@ -19,7 +19,7 @@ const CustomersPage = () => {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [sortBy, setSortBy] = useState('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortOrder, setSortOrder] = useState<'asc'| 'desc'>('asc')
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -29,7 +29,9 @@ const CustomersPage = () => {
 
   // API hooks
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
-  const users: User[] = usersData?.users || []
+  const users: User[] = usersData || []
+
+
 
   // Export functionality
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
@@ -69,9 +71,9 @@ const CustomersPage = () => {
 
   const handleSelectAll = () => {
     const currentPageCustomers = paginatedUsers.filter(user => {
-      if (activeTab === 'subscribers') return user.userType === 'SUBSCRIBER'
-      if (activeTab === 'merchants') return user.userType === 'MERCHANT'
-      if (activeTab === 'partners') return user.userType === 'PARTNER'
+      if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL'
+      if (activeTab === 'merchants') return user.subscriberType === 'MERCHANT'
+      if (activeTab === 'partners') return user.subscriberType === 'PARTNER'
       return true
     })
 
@@ -195,9 +197,18 @@ const CustomersPage = () => {
     churnRate: 5.2
   }
 
-  // Filter and sort users
+  // Filter and sort users based on subscriberType
   const filteredUsers = useMemo(() => {
     let filtered = users
+
+    // Filter by subscriberType based on active tab
+    if (activeTab === 'subscribers') {
+      filtered = filtered.filter(user => user.subscriberType === 'INDIVIDUAL')
+    } else if (activeTab === 'merchants') {
+      filtered = filtered.filter(user => user.subscriberType === 'MERCHANT')
+    } else if (activeTab === 'partners') {
+      filtered = filtered.filter(user => user.subscriberType === 'PARTNER')
+    }
 
     if (searchTerm) {
       filtered = filtered.filter(user => 
@@ -213,6 +224,7 @@ const CustomersPage = () => {
     }
 
     if (typeFilter !== 'all') {
+      // Filter by userType instead of subscriberType for typeFilter
       filtered = filtered.filter(user => user.userType.toLowerCase() === typeFilter.toLowerCase())
     }
 
@@ -241,7 +253,12 @@ const CustomersPage = () => {
     })
 
     return filtered
-  }, [users, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
+  }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
+
+  // Tabs-specific user counts
+  const subscribersCount = users.filter(user => user.subscriberType === 'INDIVIDUAL').length
+  const merchantsCount = users.filter(user => user.subscriberType === 'MERCHANT').length
+  const partnersCount = users.filter(user => user.subscriberType === 'PARTNER').length
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
@@ -254,21 +271,21 @@ const CustomersPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-          <div className="mb-8">
+        <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-            <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
               <p className="text-gray-600 mt-2">Manage your customer base</p>
             </div>
             <button
-              onClick={handleCreateNew}
+              onClick={() => router.push('/dashboard/customers/merchant-onboard')}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />
-              Add Customer
+              Add Merchant
             </button>
           </div>
-          </div>
+        </div>
 
         <CustomerStats stats={stats} />
 
@@ -310,21 +327,21 @@ const CustomersPage = () => {
           <TabsList>
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-                    Subscribers
-                  </TabsTrigger>
+              Subscribers ({subscribersCount})
+            </TabsTrigger>
             <TabsTrigger value="merchants" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-                    Merchants
-                  </TabsTrigger>
+              Merchants ({merchantsCount})
+            </TabsTrigger>
             <TabsTrigger value="partners" className="flex items-center gap-2">
               <Handshake className="h-4 w-4" />
-                    Partners
-                  </TabsTrigger>
-                </TabsList>
+              Partners ({partnersCount})
+            </TabsTrigger>
+          </TabsList>
 
           <TabsContent value="subscribers">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'SUBSCRIBER')}
+              customers={paginatedUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -336,11 +353,11 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-                </TabsContent>
+          </TabsContent>
 
           <TabsContent value="merchants">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'MERCHANT')}
+              customers={paginatedUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -352,11 +369,11 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-                </TabsContent>
+          </TabsContent>
 
           <TabsContent value="partners">
             <CustomerTable
-              customers={paginatedUsers.filter(user => user.userType === 'PARTNER')}
+              customers={paginatedUsers}
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
@@ -368,9 +385,9 @@ const CustomersPage = () => {
               totalPages={totalPages}
               onPageChange={handlePageChange}
             />
-                </TabsContent>
-              </Tabs>
-        </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }

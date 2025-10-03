@@ -162,6 +162,8 @@ const FinancePage = () => {
       feeType: tariff.feeType,
       feeAmount: tariff.feeAmount,
       feePercentage: tariff.feePercentage || 0,
+      minFee: tariff.minFee || 0,
+      maxFee: tariff.maxFee || 0,
       minAmount: tariff.minAmount || 0,
       maxAmount: tariff.maxAmount || 0,
       userType: tariff.userType || '',

@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Building2 } from 'lucide-react'
 
 interface BusinessInfoFormProps {
@@ -41,21 +40,27 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
           Business Information
         </CardTitle>
         <CardDescription>
-          Enter the business details and registration information
+          Enter your business details and registration information
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="businessTradeName">Business Trade Name *</Label>
+          <Input
+            id="businessTradeName"
+            value={formData.businessTradeName}
+            onChange={(e) => handleInputChange('businessTradeName', e.target.value)}
+            placeholder="Enter business trade name (display name)"
+            required
+            minLength={2}
+            maxLength={100}
+          />
+          <p className="text-xs text-gray-500">
+            Business trade name (2-100 characters)
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="businessTradeName">Business Trade Name *</Label>
-            <Input
-              id="businessTradeName"
-              value={formData.businessTradeName}
-              onChange={(e) => handleInputChange('businessTradeName', e.target.value)}
-              placeholder="Enter business trade name"
-              required
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="registeredBusinessName">Registered Business Name *</Label>
             <Input
@@ -64,7 +69,12 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
               onChange={(e) => handleInputChange('registeredBusinessName', e.target.value)}
               placeholder="Enter registered business name"
               required
+              minLength={2}
+              maxLength={150}
             />
+            <p className="text-xs text-gray-500">
+              Registered business name (2-150 characters)
+            </p>
           </div>
         </div>
 
@@ -77,7 +87,12 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
               onChange={(e) => handleInputChange('certificateOfIncorporation', e.target.value)}
               placeholder="Enter certificate number"
               required
+              minLength={5}
+              maxLength={50}
             />
+            <p className="text-xs text-gray-500">
+              Certificate number (5-50 characters)
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="taxIdentificationNumber">Tax Identification Number *</Label>
@@ -87,7 +102,12 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
               onChange={(e) => handleInputChange('taxIdentificationNumber', e.target.value)}
               placeholder="Enter TIN number"
               required
+              minLength={5}
+              maxLength={20}
             />
+            <p className="text-xs text-gray-500">
+              Tax identification number (5-20 characters)
+            </p>
           </div>
         </div>
 
@@ -99,13 +119,13 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                 <SelectValue placeholder="Select business type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                <SelectItem value="partnership">Partnership</SelectItem>
-                <SelectItem value="limited_liability_company">Limited Liability Company</SelectItem>
-                <SelectItem value="corporation">Corporation</SelectItem>
-                <SelectItem value="cooperative">Cooperative</SelectItem>
-                <SelectItem value="ngo">NGO</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+          <SelectItem value="SOLE_PROPRIETORSHIP">Sole Proprietorship</SelectItem>
+                <SelectItem value="PARTNERSHIP">Partnership</SelectItem>
+                <SelectItem value="CONTROLLED_COMPANY">Limited Company</SelectItem>
+                <SelectItem value="PUBLIC_COMPANY">Public Company</SelectItem>
+                <SelectItem value="COOPERATIVE">Cooperative</SelectItem>
+                <SelectItem value="NGO">NGO</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -121,44 +141,54 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="businessAddress">Business Address *</Label>
-          <Textarea
-            id="businessAddress"
-            value={formData.businessAddress}
-            onChange={(e) => handleInputChange('businessAddress', e.target.value)}
-            placeholder="Enter complete business address"
-            rows={3}
-            required
-          />
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="businessCity">City *</Label>
+            <Label htmlFor="businessAddress">Business Address *</Label>
+            <Input
+              id="businessAddress"
+              value={formData.businessAddress}
+              onChange={(e) => handleInputChange('businessAddress', e.target.value)}
+              placeholder="Enter full business address"
+              required
+              minLength={10}
+              maxLength={200}
+            />
+            <p className="text-xs text-gray-500">
+              Full business address (10-200 characters)
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="businessCity">Business City *</Label>
             <Input
               id="businessCity"
               value={formData.businessCity}
               onChange={(e) => handleInputChange('businessCity', e.target.value)}
-              placeholder="Enter city"
+              placeholder="Enter business city"
               required
+              minLength={2}
+              maxLength={50}
             />
+            <p className="text-xs text-gray-500">
+              Business city (2-50 characters)
+            </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="businessCountry">Country *</Label>
-            <Select value={formData.businessCountry} onValueChange={(value) => handleInputChange('businessCountry', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="UG">Uganda</SelectItem>
-                <SelectItem value="KE">Kenya</SelectItem>
-                <SelectItem value="TZ">Tanzania</SelectItem>
-                <SelectItem value="RW">Rwanda</SelectItem>
-                <SelectItem value="BI">Burundi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="businessCountry">Business Country *</Label>
+          <Select value={formData.businessCountry} onValueChange={(value) => handleInputChange('businessCountry', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="UG">Uganda</SelectItem>
+              <SelectItem value="KE">Kenya</SelectItem>
+              <SelectItem value="TZ">Tanzania</SelectItem>
+              <SelectItem value="RW">Rwanda</SelectItem>
+              <SelectItem value="BI">Burundi</SelectItem>
+              <SelectItem value="SS">South Sudan</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </CardContent>
     </Card>

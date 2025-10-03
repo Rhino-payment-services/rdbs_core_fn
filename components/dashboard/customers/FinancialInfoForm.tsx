@@ -50,13 +50,15 @@ export const FinancialInfoForm: React.FC<FinancialInfoFormProps> = ({
                   <SelectValue placeholder="Select bank" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="equity_bank">Equity Bank Uganda</SelectItem>
+                  <SelectItem value="stanbic_bank">Stanbic Bank Uganda Limited</SelectItem>
+                  <SelectItem value="absa_bank">ABSA Bank Uganda Limited</SelectItem>
                   <SelectItem value="centenary_bank">Centenary Bank</SelectItem>
-                  <SelectItem value="equity_bank">Equity Bank</SelectItem>
-                  <SelectItem value="stanbic_bank">Stanbic Bank</SelectItem>
-                  <SelectItem value="absa_bank">Absa Bank</SelectItem>
-                  <SelectItem value="dfcu_bank">DFCU Bank</SelectItem>
-                  <SelectItem value="kcb_bank">KCB Bank</SelectItem>
-                  <SelectItem value="ncba_bank">NCBA Bank</SelectItem>
+                  <SelectItem value="dfcu_bank">DFCU BANK</SelectItem>
+                  <SelectItem value="kcb_bank">KCB Bank Uganda</SelectItem>
+                  <SelectItem value="orient_bank">Orient Bank Limited</SelectItem>
+                  <SelectItem value="bank_of_africa">Bank of Africa Uganda Limited</SelectItem>
+                  <SelectItem value="exim_bank">EXIM Bank Uganda Limited</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
@@ -94,11 +96,10 @@ export const FinancialInfoForm: React.FC<FinancialInfoFormProps> = ({
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="mtn">MTN Mobile Money</SelectItem>
-                  <SelectItem value="airtel">Airtel Money</SelectItem>
-                  <SelectItem value="africell">Africell Money</SelectItem>
-                  <SelectItem value="equity">Equity Bank</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="MTN">MTN Mobile Money</SelectItem>
+                  <SelectItem value="AIRTEL">Airtel Money</SelectItem>
+                  <SelectItem value="AFRICELL">Africell Money</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>

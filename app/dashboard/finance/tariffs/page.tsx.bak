@@ -60,10 +60,7 @@ interface Tariff {
   }
   isActive?: boolean
   createdAt?: string
-  partnerFee?: number // Partner fee amount for external tariffs
-  rukapayFee?: number // RukaPay fee amount for external tariffs
-  telecomBankCharge?: number // Telecom/Bank charge (optional)  updatedAt?: string
-  governmentTax?: number
+  updatedAt?: string
 }
 
 interface Partner {
@@ -246,9 +243,6 @@ const TariffsPage = () => {
                   externalTransactionTypes[type as keyof typeof externalTransactionTypes]
     if (!config) return null
 
-    // Check if this is an internal tariff type
-    const isInternalTariff = tariffs.length > 0 && tariffs[0].tariffType === 'INTERNAL'
-
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-3 mb-6">
@@ -284,124 +278,89 @@ const TariffsPage = () => {
                   <TableHead>Fee Amount</TableHead>
                   <TableHead>Amount Range</TableHead>
                   <TableHead>Transaction Type</TableHead>
-                  {!isInternalTariff && <TableHead>Partner</TableHead>}
-                  {!isInternalTariff && <TableHead>Group</TableHead>}
-                  {!isInternalTariff && <TableHead>Partner Fee</TableHead>}
-                  {!isInternalTariff && <TableHead>RukaPay Fee</TableHead>}
-                  {!isInternalTariff && <TableHead>Telecom/Bank Charge</TableHead>}
-                  {!isInternalTariff && <TableHead>Government Tax</TableHead>}
-                  <TableHead>Status</TableHead>
+                  <TableHead>Partner</TableHead>
+                  <TableHead>Group</TableHead>                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
+                  <TableHead>Partner Fee</TableHead>
+                  <TableHead>RukaPay Fee</TableHead>
+                  <TableHead>Telecom/Bank Charge</TableHead>                </TableRow>
               </TableHeader>
               <TableBody>
                 {tariffs.map((tariff) => (
                   <TableRow key={tariff.id}>
                     <TableCell className="font-medium">{tariff.name}</TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {tariff.description || '-'}
-                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">{tariff.description}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{tariff.feeType}</Badge>
                     </TableCell>
+                    <TableCell className="font-semibold">{formatFeeAmount(tariff)}</TableCell>
+                    <TableCell className="text-sm">{getAmountRange(tariff)}</TableCell>
                     <TableCell className="text-sm">
-                      {tariff.feeAmount} {tariff.currency}
+                      {tariff.userType} • {tariff.subscriberType || 'N/A'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {tariff.minAmount && tariff.maxAmount 
-                        ? `${tariff.minAmount} - ${tariff.maxAmount} ${tariff.currency}`
-                        : '-'
-                      }
+                      {tariff.partner ? (
+                        <Badge variant="outline" className="text-xs">
+                          {tariff.partner.partnerCode}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {tariff.userType && tariff.subscriberType 
-                        ? `${tariff.userType} • ${tariff.subscriberType}`
-                        : tariff.userType || '-'
-                      }
-                    </TableCell>
-                    {!isInternalTariff && (
-                      <TableCell>
-                        {tariff.partner ? (
-                          <Badge variant="outline">{tariff.partner.partnerCode}</Badge>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {!isInternalTariff && (
-                      <TableCell>
-                        {tariff.group ? (
-                          <Badge variant="outline">{tariff.group}</Badge>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {!isInternalTariff && (
-                      <TableCell className="text-sm">
-                        {tariff.partnerFee ? (
-                          <span className="font-medium">{tariff.partnerFee} {tariff.currency}</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {!isInternalTariff && (
-                      <TableCell className="text-sm">
-                        {tariff.rukapayFee ? (
-                          <span className="font-medium">{tariff.rukapayFee} {tariff.currency}</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {!isInternalTariff && (
-                      <TableCell className="text-sm">
-                        {tariff.telecomBankCharge ? (
-                          <span className="font-medium">{tariff.telecomBankCharge} {tariff.currency}</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    {!isInternalTariff && (
-                      <TableCell className="text-sm">
-                        {tariff.governmentTax ? (
-                          <span className="font-medium">{tariff.governmentTax}%</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell>
+                      {tariff.group ? (
+                        <Badge variant="outline" className="text-xs">
+                          {tariff.group}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>                    <TableCell>
                       <Badge variant={tariff.isActive !== false ? "default" : "secondary"}>
-                        {tariff.isActive !== false ? 'Active' : 'Inactive'}
+                    <TableCell className="text-sm">
+                      {tariff.partnerFee ? (
+                        <span className="font-medium">{tariff.partnerFee} {tariff.currency}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {tariff.rukapayFee ? (
+                        <span className="font-medium">{tariff.rukapayFee} {tariff.currency}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {tariff.telecomBankCharge ? (
+                        <span className="font-medium">{tariff.telecomBankCharge} {tariff.currency}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>                        {tariff.isActive !== false ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/dashboard/finance/tariffs/${tariff.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         {canManageTariffs && (
                           <>
-                            <Button
-                              variant="ghost"
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
                               size="sm"
                               onClick={() => router.push(`/dashboard/finance/tariffs/edit/${tariff.id}`)}
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
+                            <Button 
+                              variant="ghost" 
                               size="sm"
                               onClick={() => handleDeleteTariff(tariff.id)}
+                              disabled={isLoading}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </>
                         )}
