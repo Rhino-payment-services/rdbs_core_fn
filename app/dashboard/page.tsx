@@ -31,6 +31,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { TableTabsTest } from '@/components/ui/table-tabs-test'
 
 const DashboardPage = () => {
   const { hasPermission } = usePermissions()

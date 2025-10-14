@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -118,16 +119,10 @@ const Navbar = () => {
 
           {/* Search Bar */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search transactions, users, or reports..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent"
-              />
-            </div>
+            <SearchInput
+              type="text"
+              placeholder="Search transactions, users, or reports..."
+            />
           </div>
 
           {/* Right Side Actions */}
@@ -182,19 +177,19 @@ const Navbar = () => {
             {/* Scrollable Menu Container */}
             <div 
               ref={scrollContainerRef}
-              className="flex items-center overflow-x-auto scrollbar-hide"
+              className="nav-slider-container"
               onScroll={checkScrollPosition}
             >
-              <div className="flex items-center space-x-1 px-4 py-3 min-w-max">
+              <div className="nav-slider-content">
                 <Link 
                   href="/dashboard" 
-                  className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                  className={`nav-slider-item ${
                     isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers')
-                      ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                      : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                      ? 'active'
+                      : ''
                   }`}
                 >
-                  <Home className="h-4 w-4" />
+                  <Home className="nav-icon" />
                   <span>Dashboard</span>
                 </Link>
                 
@@ -202,13 +197,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW}>
                   <Link 
                     href="/dashboard/analytics" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/analytics')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="nav-icon" />
                     <span>Analytics</span>
                   </Link>
                 </PermissionGuard>
@@ -217,13 +212,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
                   <Link 
                     href="/dashboard/transactions" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/transactions')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <CreditCard className="h-4 w-4" />
+                    <CreditCard className="nav-icon" />
                     <span>Ledgers</span>
                   </Link>
                 </PermissionGuard>
@@ -238,13 +233,13 @@ const Navbar = () => {
                   >
                     <Link 
                       href="/dashboard/finance" 
-                      className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                      className={`nav-slider-item ${
                         isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')
-                          ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                          : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                          ? 'active'
+                          : ''
                       }`}
                     >
-                      <DollarSign className="h-4 w-4" />
+                      <DollarSign className="nav-icon" />
                       <span>Finance</span>
                     </Link>
                   </div>
@@ -253,13 +248,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
                     href="/dashboard/users" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/users')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="nav-icon" />
                     <span>Users</span>
                   </Link>
                 </PermissionGuard>
@@ -267,13 +262,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
                     href="/dashboard/customers" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/customers')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="nav-icon" />
                     <span>Customers</span>
                   </Link>
                 </PermissionGuard>
@@ -282,13 +277,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.KYC_VIEW}>
                   <Link 
                     href="/dashboard/kyc" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/kyc')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Shield className="h-4 w-4" />
+                    <Shield className="nav-icon" />
                     <span>KYC</span>
                   </Link>
                 </PermissionGuard>
@@ -296,13 +291,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
                     href="/dashboard/reports" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/reports')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="nav-icon" />
                     <span>Reports</span>
                   </Link>
                 </PermissionGuard>
@@ -310,13 +305,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
                   <Link 
                     href="/dashboard/security" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/security')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Shield className="h-4 w-4" />
+                    <Shield className="nav-icon" />
                     <span>Security</span>
                   </Link>
                 </PermissionGuard>
@@ -324,13 +319,13 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
                   <Link 
                     href="/dashboard/settings" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/settings')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Cog className="h-4 w-4" />
+                    <Cog className="nav-icon" />
                     <span>Settings</span>
                   </Link>
                 </PermissionGuard>
@@ -338,13 +333,13 @@ const Navbar = () => {
                 {canViewSystemLogs && (
                   <Link 
                     href="/dashboard/api-logs" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/api-logs')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <Database className="h-4 w-4" />
+                    <Database className="nav-icon" />
                     <span>API Logs</span>
                   </Link>
                 )}
@@ -352,26 +347,26 @@ const Navbar = () => {
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 
                     href="/dashboard/system-logs" 
-                    className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                    className={`nav-slider-item ${
                       isActive('/dashboard/system-logs')
-                        ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                        : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                        ? 'active'
+                        : ''
                     }`}
                   >
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="nav-icon" />
                     <span>System Logs</span>
                   </Link>
                 </PermissionGuard>
                 
                 <Link 
                   href="/dashboard/profile" 
-                  className={`flex items-center space-x-2 py-2 px-3 font-medium whitespace-nowrap transition-all duration-200 ${
+                  className={`nav-slider-item ${
                     isActive('/dashboard/profile')
-                      ? 'text-[#08163d] bg-[#08163d]/10 rounded-lg border border-[#08163d]/20'
-                      : 'text-gray-600 hover:text-[#08163d] hover:bg-[#08163d]/5 rounded-lg border border-transparent hover:border-[#08163d]/20'
+                      ? 'active'
+                      : ''
                   }`}
                 >
-                  <User className="h-4 w-4" />
+                  <User className="nav-icon" />
                   <span>Profile</span>
                 </Link>
               </div>
@@ -381,9 +376,9 @@ const Navbar = () => {
             {canScrollLeft && (
               <button
                 onClick={scrollLeft}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+                className="nav-slider-scroll-button left"
               >
-                <ChevronLeft className="h-4 w-4 text-gray-600" />
+                <ChevronLeft className="scroll-icon" />
               </button>
             )}
 
@@ -391,15 +386,15 @@ const Navbar = () => {
             {canScrollRight && (
               <button
                 onClick={scrollRight}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-200 rounded-full p-1.5 shadow-sm hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+                className="nav-slider-scroll-button right"
               >
-                <ChevronRight className="h-4 w-4 text-gray-600" />
+                <ChevronRight className="scroll-icon" />
               </button>
             )}
 
             {/* Gradient Overlays for Scroll Indication */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-50 to-transparent pointer-events-none"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-50 to-transparent pointer-events-none"></div>
+            <div className="nav-slider-gradient left"></div>
+            <div className="nav-slider-gradient right"></div>
 
             {/* Finance Dropdown - Positioned closer to Finance tab */}
             {isFinanceDropdownOpen && (

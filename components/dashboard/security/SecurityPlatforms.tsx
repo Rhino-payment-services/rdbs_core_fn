@@ -104,7 +104,7 @@ const SecurityPlatforms = ({ platformStatus }: SecurityPlatformsProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
