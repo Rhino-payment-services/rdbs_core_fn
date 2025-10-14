@@ -378,7 +378,7 @@ const TransactionMappingPage = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="border rounded-lg">
+          <div className="rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>

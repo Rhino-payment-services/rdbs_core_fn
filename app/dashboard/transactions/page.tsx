@@ -468,7 +468,7 @@ const TransactionsPage = () => {
               )}
 
               {/* Transactions Table */}
-              <div className="border rounded-lg overflow-hidden">
+              <div className="rounded-md ">
                 {transactionsLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin" />

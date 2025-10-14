@@ -274,7 +274,7 @@ const TariffsPage = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="border rounded-lg">
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>

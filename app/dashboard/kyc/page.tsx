@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
   Search, 
   Filter, 
@@ -477,7 +478,7 @@ const KycPage = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <div className="relative">
+                      <div className="relative flex flex-row gap-[1]">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                           placeholder="Search by name, email, or phone..."
@@ -534,51 +535,38 @@ const KycPage = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="border rounded-lg">
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left">
+                      <div className="rounded-md">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40px]">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedKyc.length === filteredKycRequests.length}
+                                  onChange={handleSelectAll}
+                                  className="rounded"
+                                />
+                              </TableHead>
+                              <TableHead>User</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>National ID</TableHead>
+                              <TableHead>Submitted</TableHead>
+                              <TableHead>Documents</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedKycRequests.map((kyc) => (
+                              <TableRow key={kyc.userId}>
+                                <TableCell className="w-[40px]">
                                   <input
                                     type="checkbox"
-                                    checked={selectedKyc.length === filteredKycRequests.length}
-                                    onChange={handleSelectAll}
+                                    checked={selectedKyc.includes(kyc.userId)}
+                                    onChange={() => handleSelectKyc(kyc.userId)}
                                     className="rounded"
                                   />
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  User
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  Type
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  National ID
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  Submitted
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  Documents
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                  Actions
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                              {paginatedKycRequests.map((kyc) => (
-                                <tr key={kyc.userId} className="hover:bg-gray-50">
-                                  <td className="px-4 py-3">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedKyc.includes(kyc.userId)}
-                                      onChange={() => handleSelectKyc(kyc.userId)}
-                                      className="rounded"
-                                    />
-                                  </td>
-                                  <td className="px-4 py-3">
+                                </TableCell>
+                                <TableCell>
                                     <div className="flex items-center">
                                       <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                                         <User className="h-4 w-4 text-gray-600" />
@@ -595,27 +583,27 @@ const KycPage = () => {
                                         </div>
                                       </div>
                                     </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <Badge className={getTypeColor(kyc.profile?.subscriberType || '')}>
-                                      {kyc.profile?.subscriberType || 'Unknown'}
-                                    </Badge>
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-900">
-                                    {kyc.profile?.nationalId || 'N/A'}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-500">
-                                    {formatDate(kyc.submittedAt)}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center space-x-1">
-                                      <FileText className="h-4 w-4 text-gray-400" />
-                                      <span className="text-sm text-gray-600">
-                                        {kyc.documents.length}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={getTypeColor(kyc.profile?.subscriberType || '')}>
+                                    {kyc.profile?.subscriberType || 'Unknown'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {kyc.profile?.nationalId || 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                  {formatDate(kyc.submittedAt)}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center space-x-1">
+                                    <FileText className="h-4 w-4 text-gray-400" />
+                                    <span className="text-sm text-gray-600">
+                                      {kyc.documents.length}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
                                     <div className="flex items-center space-x-2">
                                       <Button
                                         variant="ghost"
@@ -649,12 +637,11 @@ const KycPage = () => {
                                         </Button>
                                       )}
                                     </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
 
                       <div className="flex items-center justify-between">

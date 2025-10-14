@@ -357,7 +357,7 @@ const FinancePage = () => {
                   </div>
 
                   {/* Tariffs Table */}
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="rounded-md">
                     <Table>
                       <TableHeader>
                         <TableRow>

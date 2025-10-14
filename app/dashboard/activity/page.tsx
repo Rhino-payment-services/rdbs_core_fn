@@ -677,7 +677,7 @@ const ActivityLogPage = () => {
                   </div>
 
                   {/* Customer Activity Table */}
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-50">
@@ -865,7 +865,7 @@ const ActivityLogPage = () => {
                   </div>
 
                   {/* Internal Activity Table */}
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-50">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { 
   Eye, 
   Edit, 
@@ -117,35 +118,35 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
                   <Checkbox
                     checked={selectedCustomers.length === customers.length && customers.length > 0}
                     onCheckedChange={onSelectAll}
                   />
-                </th>
-                <th className="text-left p-4 font-medium">Customer</th>
-                <th className="text-left p-4 font-medium">Contact</th>
-                <th className="text-left p-4 font-medium">Type</th>
-                <th className="text-left p-4 font-medium">Status</th>
-                <th className="text-left p-4 font-medium">Location</th>
-                <th className="text-left p-4 font-medium">Joined</th>
-                <th className="text-left p-4 font-medium">Activity</th>
-                <th className="text-left p-4 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead>Activity</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {customers.map((customer) => (
-                <tr key={customer.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4">
+                <TableRow key={customer.id}>
+                  <TableCell>
                     <Checkbox
                       checked={selectedCustomers.includes(customer.id)}
                       onCheckedChange={() => onSelectCustomer(customer.id)}
                     />
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-gray-600">
@@ -161,8 +162,8 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
                         <Mail className="h-3 w-3 text-gray-400" />
@@ -175,26 +176,26 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         </div>
                       )}
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     {getUserTypeBadge(customer.userType)}
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     {getStatusBadge(customer.status)}
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-3 w-3" />
                       {(customer as any)?.country || (customer as any)?.profile?.country || 'Unknown'}
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-3 w-3" />
                       {formatDate(customer.createdAt)}
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
                         <Activity className="h-3 w-3 text-gray-400" />
@@ -207,8 +208,8 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         </div>
                       )}
                     </div>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
@@ -235,11 +236,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {customers.length === 0 && (
