@@ -55,7 +55,7 @@ const CreateTariffPage = () => {
     name: '',
     description: '',
     tariffType: 'INTERNAL',
-    transactionType: 'TRANSFER_OUT',
+    transactionType: 'WALLET_TO_WALLET',
     currency: 'UGX',
     feeType: 'FIXED',
     feeAmount: 0,
@@ -257,9 +257,8 @@ const CreateTariffPage = () => {
                         <SelectContent>
                           {form.tariffType === 'INTERNAL' ? (
                             <>
-                              <SelectItem value="TRANSFER_OUT">Wallet to Wallet</SelectItem>
+                              <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
-                              <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet (New)</SelectItem>
                             </>
                           ) : (
                             <>

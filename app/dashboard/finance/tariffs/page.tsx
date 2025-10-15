@@ -103,12 +103,12 @@ const TariffsPage = () => {
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
     },
-    'TRANSFER_OUT': {
+    'WALLET_TO_WALLET': {
       name: 'Wallet to Wallet',
       description: 'RukaPay to RukaPay transfers',
       icon: CreditCard,
       color: 'bg-blue-500',
-      tabId: 'transfer-out'
+      tabId: 'wallet-to-wallet'
     },
     'TRANSFER_IN': {
       name: 'Transfer In',
@@ -189,7 +189,7 @@ const TariffsPage = () => {
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
     'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
-    'TRANSFER_OUT': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_OUT'),
+    'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET' || t.transactionType === 'TRANSFER_OUT'),
     'TRANSFER_IN': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_IN'),
     'REFUND': internalTariffs.filter((t: Tariff) => t.transactionType === 'REFUND'),
     'ADJUSTMENT': internalTariffs.filter((t: Tariff) => t.transactionType === 'ADJUSTMENT'),
