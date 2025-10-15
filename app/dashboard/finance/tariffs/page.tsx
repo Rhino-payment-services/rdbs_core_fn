@@ -26,7 +26,10 @@ import {
   RefreshCw,
   AlertTriangle,
   ChevronRight,
-  Store
+  Store,
+  ArrowDownLeft,
+  Undo2,
+  Settings
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -76,8 +79,8 @@ interface Partner {
 const TariffsPage = () => {
   const router = useRouter()
   const [activeMainTab, setActiveMainTab] = useState('internal')
-  const [activeInternalTab, setActiveInternalTab] = useState('wallet-to-wallet')
-  const [activeExternalTab, setActiveExternalTab] = useState('wallet-to-mobile')
+  const [activeInternalTab, setActiveInternalTab] = useState('')
+  const [activeExternalTab, setActiveExternalTab] = useState('')
   const [selectedPartner, setSelectedPartner] = useState("ABC") // Default to ABC
   const [isLoading, setIsLoading] = useState(false)
   
@@ -93,19 +96,47 @@ const TariffsPage = () => {
 
   // Internal transaction types (RukaPay internal operations)
   const internalTransactionTypes = {
-    'TRANSFER_OUT': {
-      name: 'Wallet to Wallet',
-      description: 'RukaPay to RukaPay transfers',
-      icon: CreditCard,
-      color: 'bg-blue-500',
-      tabId: 'wallet-to-wallet'
-    },
     'WALLET_TO_INTERNAL_MERCHANT': {
       name: 'Wallet to Internal Merchant',
       description: 'Payments to RukaPay registered merchants',
       icon: Store,
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
+    },
+    'TRANSFER_OUT': {
+      name: 'Wallet to Wallet',
+      description: 'RukaPay to RukaPay transfers',
+      icon: CreditCard,
+      color: 'bg-blue-500',
+      tabId: 'transfer-out'
+    },
+    'TRANSFER_IN': {
+      name: 'Transfer In',
+      description: 'Incoming transfers',
+      icon: ArrowDownLeft,
+      color: 'bg-green-600',
+      tabId: 'transfer-in'
+    },
+    'REFUND': {
+      name: 'Refund',
+      description: 'Transaction refunds',
+      icon: Undo2,
+      color: 'bg-orange-500',
+      tabId: 'refund'
+    },
+    'ADJUSTMENT': {
+      name: 'Adjustment',
+      description: 'Balance adjustments',
+      icon: Settings,
+      color: 'bg-gray-500',
+      tabId: 'adjustment'
+    },
+    'FEE_CHARGE': {
+      name: 'Fee Charge',
+      description: 'Transaction fee charges',
+      icon: DollarSign,
+      color: 'bg-purple-500',
+      tabId: 'fee-charge'
     }
   }
 
@@ -157,8 +188,12 @@ const TariffsPage = () => {
   
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
-    'TRANSFER_OUT': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_OUT'),
     'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
+    'TRANSFER_OUT': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_OUT'),
+    'TRANSFER_IN': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_IN'),
+    'REFUND': internalTariffs.filter((t: Tariff) => t.transactionType === 'REFUND'),
+    'ADJUSTMENT': internalTariffs.filter((t: Tariff) => t.transactionType === 'ADJUSTMENT'),
+    'FEE_CHARGE': internalTariffs.filter((t: Tariff) => t.transactionType === 'FEE_CHARGE'),
   }
   
   // Group external tariffs by transaction type
@@ -178,6 +213,22 @@ const TariffsPage = () => {
   const availableExternalTypes = Object.keys(externalTransactionTypes).filter(type => 
     externalGroupedTariffs[type as keyof typeof externalGroupedTariffs].length > 0
   )
+
+  // Set initial active tabs when data loads
+  useEffect(() => {
+    if (availableInternalTypes.length > 0 && !activeInternalTab) {
+      const firstInternalType = internalTransactionTypes[availableInternalTypes[0] as keyof typeof internalTransactionTypes]
+      if (firstInternalType) {
+        setActiveInternalTab(firstInternalType.tabId)
+      }
+    }
+    if (availableExternalTypes.length > 0 && !activeExternalTab) {
+      const firstExternalType = externalTransactionTypes[availableExternalTypes[0] as keyof typeof externalTransactionTypes]
+      if (firstExternalType) {
+        setActiveExternalTab(firstExternalType.tabId)
+      }
+    }
+  }, [availableInternalTypes, availableExternalTypes, activeInternalTab, activeExternalTab])
 
   const handleDeleteTariff = async (tariffId: string) => {
     if (!window.confirm('Are you sure you want to delete this tariff?')) {
