@@ -27,7 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
@@ -295,12 +295,21 @@ const DashboardPage = () => {
                           color: "#3B82F6",
                         },
                       }}
-                      className="h-48"
+                      className="h-72"
                     >
-                      <BarChart data={chartData}>
+                      <LineChart data={chartData} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="day" />
-                        <YAxis />
+                        <YAxis 
+                          tickFormatter={(value) => {
+                            if (value >= 1000000) {
+                              return `${(value / 1000000).toFixed(0)}M`;
+                            } else if (value >= 1000) {
+                              return `${(value / 1000).toFixed(0)}K`;
+                            }
+                            return value.toString();
+                          }}
+                        />
                         <ChartTooltip
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
@@ -315,8 +324,15 @@ const DashboardPage = () => {
                             return null
                           }}
                         />
-                        <Bar dataKey="volume" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                      </BarChart>
+                        <Line 
+                          type="monotone" 
+                          dataKey="volume" 
+                          stroke="#3B82F6" 
+                          strokeWidth={3}
+                          dot={{ fill: "#3B82F6", strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: "#3B82F6", strokeWidth: 2 }}
+                        />
+                      </LineChart>
                     </ChartContainer>
                   )}
                 </CardContent>

@@ -223,8 +223,8 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                {/* Finance Menu - Only show if user has tariff permissions */}
-                <PermissionGuard permission={PERMISSIONS.TARIFFS_VIEW}>
+                {/* Finance Menu - Only show if user has any tariff permissions */}
+                <PermissionGuard permissions={[PERMISSIONS.TARIFFS_VIEW, PERMISSIONS.TARIFFS_CREATE, PERMISSIONS.TARIFFS_UPDATE, PERMISSIONS.TARIFFS_DELETE, PERMISSIONS.TARIFFS_APPROVE, PERMISSIONS.TARIFFS_REJECT]}>
                   <div 
                     ref={financeMenuRef}
                     className="relative"
@@ -444,30 +444,19 @@ const Navbar = () => {
                   >
                     External Payment Partners
                   </Link>
-                  <Link 
-                    href="/dashboard/finance/transaction-mapping" 
-                    className={`block px-4 py-2 text-sm transition-colors ${
-                      isActive('/dashboard/finance/transaction-mapping')
-                        ? 'text-[#08163d] bg-[#08163d]/10'
-                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
-                    }`}
-                    onClick={() => setIsFinanceDropdownOpen(false)}
-                  >
-                    Transaction Mapping
-                  </Link>
-                  {(hasPermission(PERMISSIONS.TARIFFS_APPROVE) || userRole === 'SUPER_ADMIN') && (
+                  <PermissionGuard permissions={[PERMISSIONS.TARIFFS_VIEW]}>
                     <Link 
-                      href="/dashboard/finance/approvals" 
+                      href="/dashboard/finance/transaction-mapping" 
                       className={`block px-4 py-2 text-sm transition-colors ${
-                        isActive('/dashboard/finance/approvals')
+                        isActive('/dashboard/finance/transaction-mapping')
                           ? 'text-[#08163d] bg-[#08163d]/10'
                           : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
                       }`}
                       onClick={() => setIsFinanceDropdownOpen(false)}
                     >
-                      Approvals
+                      Transaction Mapping
                     </Link>
-                  )}
+                  </PermissionGuard>
                 </div>
               </div>
             )}

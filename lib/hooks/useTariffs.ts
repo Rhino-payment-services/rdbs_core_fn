@@ -22,7 +22,16 @@ export interface Tariff {
   group?: string; // Added group field
   partnerFee?: number; // Partner fee amount for external tariffs
   rukapayFee?: number; // RukaPay fee amount for external tariffs
-  telecomBankCharge?: number; // Telecom/Bank charge (optional)  isActive: boolean;
+  telecomBankCharge?: number; // Telecom/Bank charge (optional)
+  isActive: boolean;
+  // Approval workflow fields
+  status: 'ACTIVE' | 'PENDING_APPROVAL' | 'REJECTED' | 'DRAFT';
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalNotes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -192,6 +201,54 @@ export const useCalculateEnhancedFee = () => {
         method: 'POST', 
         data 
       }),
+  })
+}
+
+// Approval workflow mutations
+export const useApproveTariff = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation<ApiResponse<Tariff>, Error, { id: string; notes?: string }>({
+    mutationFn: ({ id, notes }) => 
+      apiFetch(`/finance/tariffs/${id}/approve`, { 
+        method: 'POST', 
+        data: { notes } 
+      }),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.detail(variables.id) })
+    },
+  })
+}
+
+export const useRejectTariff = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation<ApiResponse<Tariff>, Error, { id: string; notes: string }>({
+    mutationFn: ({ id, notes }) => 
+      apiFetch(`/finance/tariffs/${id}/reject`, { 
+        method: 'POST', 
+        data: { notes } 
+      }),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.detail(variables.id) })
+    },
+  })
+}
+
+export const useSubmitTariffForApproval = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation<ApiResponse<Tariff>, Error, string>({
+    mutationFn: (id: string) => 
+      apiFetch(`/finance/tariffs/${id}/submit-for-approval`, { 
+        method: 'POST' 
+      }),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.detail(variables) })
+    },
   })
 }
 

@@ -132,11 +132,12 @@ const CreateTariffPage = () => {
       ...form,
       // Set feeAmount to the calculated total for external tariffs
       feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
+      // Convert feePercentage from percentage (e.g., 2.5) to decimal (0.025)
+      feePercentage: form.feePercentage ? Number(form.feePercentage) / 100 : undefined,
       // Keep government tax as percentage value (no conversion needed)
       governmentTax: form.governmentTax || undefined,
       // Remove undefined values
       description: form.description || undefined,
-      feePercentage: form.feePercentage || undefined,
       minAmount: form.minAmount || undefined,
       maxAmount: form.maxAmount || undefined,
       userType: form.userType || undefined,
