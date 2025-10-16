@@ -135,7 +135,24 @@ const EditTariffPage = () => {
   }, [tariff, form.name])
 
   const updateTariffMutation = useMutation({
-    mutationFn: (data: TariffForm) => api.put(`/finance/tariffs/${tariffId}`, data),
+    mutationFn: (data: TariffForm) => {
+      // Transform form data to match backend DTO
+      const updateData = {
+        name: data.name,
+        description: data.description || undefined,
+        tariffType: tariff?.tariffType || 'INTERNAL', // Use existing tariffType
+        transactionType: data.transactionType,
+        feeType: data.feeType,
+        feeAmount: Number(data.feeAmount),
+        feePercentage: data.feePercentage ? Number(data.feePercentage) / 100 : undefined, // Convert percentage to decimal
+        minAmount: data.minAmount ? Number(data.minAmount) : undefined,
+        maxAmount: data.maxAmount ? Number(data.maxAmount) : undefined,
+        userType: data.userTypes.length > 0 ? data.userTypes[0] : undefined, // Backend expects single value
+        subscriberType: data.profileTypes.length > 0 ? data.profileTypes[0] : undefined, // Backend expects single value
+        partnerId: data.partnerId || undefined,
+      }
+      return api.put(`/finance/tariffs/${tariffId}`, updateData)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tariff', tariffId] })
       queryClient.invalidateQueries({ queryKey: ['tariffs'] })
@@ -217,23 +234,8 @@ const EditTariffPage = () => {
 
     try {
       // Transform form data to match backend DTO
-      const updateData = {
-        name: form.name,
-        description: form.description || undefined,
-        tariffType: tariff?.tariffType || 'INTERNAL', // Use existing tariffType
-        transactionType: form.transactionType,
-        feeType: form.feeType,
-        feeAmount: Number(form.feeAmount),
-        feePercentage: form.feePercentage ? Number(form.feePercentage) / 100 : undefined, // Convert percentage to decimal
-        minAmount: form.minAmount ? Number(form.minAmount) : undefined,
-        maxAmount: form.maxAmount ? Number(form.maxAmount) : undefined,
-        userType: selectedUserTypes.length > 0 ? selectedUserTypes[0] : undefined, // Backend expects single value
-        subscriberType: selectedProfileTypes.length > 0 ? selectedProfileTypes[0] : undefined, // Backend expects single value
-        partnerId: form.partnerId || undefined,
-      }
-
       // Backend will automatically set status to PENDING_APPROVAL
-      await updateTariffMutation.mutateAsync(updateData)
+      await updateTariffMutation.mutateAsync(form)
     } catch (error) {
       // Error handled by mutation's onError
     }
