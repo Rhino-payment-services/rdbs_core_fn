@@ -254,15 +254,25 @@ export const useSubmitTariffForApproval = () => {
 
 // Constants for form options
 export const TRANSACTION_TYPES = [
+  // Internal types
   { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet' },
-  { value: 'WALLET_TO_MNO', label: 'Wallet to Mobile Money' },
-  { value: 'WALLET_TO_BANK', label: 'Wallet to Bank' },
-  { value: 'WALLET_TO_UTILITY', label: 'Wallet to Utility' },
-  { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
-  { value: 'BILL_PAYMENT', label: 'Bill Payment' },
+  { value: 'WALLET_TO_INTERNAL_MERCHANT', label: 'Wallet to Internal Merchant' },
+  { value: 'WALLET_CREATION', label: 'Wallet Creation' },
+  { value: 'WALLET_INIT', label: 'Wallet Initialization' },
+  { value: 'FEE_CHARGE', label: 'Fee Charge' },
+  { value: 'REVERSAL', label: 'Reversal' },
+  // External types
   { value: 'DEPOSIT', label: 'Deposit' },
   { value: 'WITHDRAWAL', label: 'Withdrawal' },
-  { value: 'REFUND', label: 'Refund' },
+  { value: 'WALLET_TO_MNO', label: 'Wallet to MNO' },
+  { value: 'BILL_PAYMENT', label: 'Bill Payment' },
+  { value: 'WALLET_TO_EXTERNAL_MERCHANT', label: 'Wallet to External Merchant' },
+  { value: 'MERCHANT_WITHDRAWAL', label: 'Merchant Withdrawal' },
+  { value: 'WALLET_TO_UTILITY', label: 'Wallet to Utility' },
+  { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
+  { value: 'WALLET_TO_BANK', label: 'Wallet to Bank' },
+  { value: 'BANK_TO_WALLET', label: 'Bank to Wallet' },
+  { value: 'MNO_TO_WALLET', label: 'MNO to Wallet' },
 ]
 
 export const FEE_TYPES = [

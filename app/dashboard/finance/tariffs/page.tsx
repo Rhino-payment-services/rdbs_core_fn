@@ -137,6 +137,32 @@ const TariffsPage = () => {
   const rejectTariffMutation = useRejectTariff()
   const submitForApprovalMutation = useSubmitTariffForApproval()
 
+  // Helper function to get human-readable transaction type label
+  const getTransactionTypeLabel = (type: string): string => {
+    const typeLabels: Record<string, string> = {
+      // Internal types
+      'WALLET_TO_INTERNAL_MERCHANT': 'Wallet to Internal Merchant',
+      'WALLET_TO_WALLET': 'Wallet to Wallet',
+      'WALLET_CREATION': 'Wallet Creation',
+      'WALLET_INIT': 'Wallet Initialization',
+      'FEE_CHARGE': 'Fee Charge',
+      'REVERSAL': 'Reversal',
+      // External types
+      'DEPOSIT': 'Deposit',
+      'WITHDRAWAL': 'Withdrawal',
+      'WALLET_TO_MNO': 'Wallet to MNO',
+      'WALLET_TO_EXTERNAL_MERCHANT': 'Wallet to External Merchant',
+      'BANK_TO_WALLET': 'Bank to Wallet',
+      'MNO_TO_WALLET': 'MNO to Wallet',
+      'WALLET_TO_BANK': 'Wallet to Bank',
+      'WALLET_TO_UTILITY': 'Wallet to Utility',
+      'WALLET_TO_MERCHANT': 'Wallet to Merchant',
+      'BILL_PAYMENT': 'Bill Payment',
+      'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal',
+    }
+    return typeLabels[type] || type
+  }
+
   // Internal transaction types (RukaPay internal operations)
   const internalTransactionTypes = {
     'WALLET_TO_INTERNAL_MERCHANT': {
@@ -153,26 +179,19 @@ const TariffsPage = () => {
       color: 'bg-blue-500',
       tabId: 'wallet-to-wallet'
     },
-    'TRANSFER_IN': {
-      name: 'Transfer In',
-      description: 'Incoming transfers',
-      icon: ArrowDownLeft,
-      color: 'bg-green-600',
-      tabId: 'transfer-in'
+    'WALLET_CREATION': {
+      name: 'Wallet Creation',
+      description: 'Fee for creating new wallets',
+      icon: Plus,
+      color: 'bg-emerald-600',
+      tabId: 'wallet-creation'
     },
-    'REFUND': {
-      name: 'Refund',
-      description: 'Transaction refunds',
-      icon: Undo2,
-      color: 'bg-orange-500',
-      tabId: 'refund'
-    },
-    'ADJUSTMENT': {
-      name: 'Adjustment',
-      description: 'Balance adjustments',
+    'WALLET_INIT': {
+      name: 'Wallet Initialization',
+      description: 'Fee for initializing wallets',
       icon: Settings,
-      color: 'bg-gray-500',
-      tabId: 'adjustment'
+      color: 'bg-cyan-600',
+      tabId: 'wallet-init'
     },
     'FEE_CHARGE': {
       name: 'Fee Charge',
@@ -180,42 +199,91 @@ const TariffsPage = () => {
       icon: DollarSign,
       color: 'bg-purple-500',
       tabId: 'fee-charge'
+    },
+    'REVERSAL': {
+      name: 'Reversal',
+      description: 'Transaction reversals',
+      icon: Undo2,
+      color: 'bg-red-600',
+      tabId: 'reversal'
     }
   }
 
   // External transaction types (Partner integrations)
   const externalTransactionTypes = {
+    'DEPOSIT': {
+      name: 'Deposit',
+      description: 'Deposits into RukaPay wallet',
+      icon: ArrowDownLeft,
+      color: 'bg-emerald-500',
+      tabId: 'deposit'
+    },
     'WITHDRAWAL': {
-      name: 'Wallet to Mobile',
+      name: 'Withdrawal',
+      description: 'Withdrawals from RukaPay wallet',
+      icon: CreditCard,
+      color: 'bg-red-500',
+      tabId: 'withdrawal'
+    },
+    'WALLET_TO_MNO': {
+      name: 'Wallet to MNO',
       description: 'RukaPay to MTN/AIRTEL via partners',
       icon: Smartphone,
       color: 'bg-green-500',
-      tabId: 'wallet-to-mobile'
+      tabId: 'wallet-to-mno'
     },
     'WALLET_TO_EXTERNAL_MERCHANT': {
       name: 'Wallet to External Merchant',
       description: 'Payments to external merchants via partners',
-      icon: Building2,
+      icon: Store,
       color: 'bg-purple-500',
       tabId: 'wallet-to-external-merchant'
     },
-    'DEPOSIT': {
-      name: 'Wallet to Bank',
-      description: 'RukaPay to Bank transfers via partners',
+    'BANK_TO_WALLET': {
+      name: 'Bank to Wallet',
+      description: 'Bank transfers to RukaPay wallet',
       icon: Building2,
       color: 'bg-orange-500',
+      tabId: 'bank-to-wallet'
+    },
+    'MNO_TO_WALLET': {
+      name: 'MNO to Wallet',
+      description: 'Mobile money to RukaPay wallet',
+      icon: Smartphone,
+      color: 'bg-blue-500',
+      tabId: 'mno-to-wallet'
+    },
+    'WALLET_TO_BANK': {
+      name: 'Wallet to Bank',
+      description: 'RukaPay to Bank transfers',
+      icon: Building2,
+      color: 'bg-amber-500',
       tabId: 'wallet-to-bank'
+    },
+    'WALLET_TO_UTILITY': {
+      name: 'Wallet to Utility',
+      description: 'Utility bill payments',
+      icon: Zap,
+      color: 'bg-yellow-600',
+      tabId: 'wallet-to-utility'
+    },
+    'WALLET_TO_MERCHANT': {
+      name: 'Wallet to Merchant',
+      description: 'Payments to merchants',
+      icon: Store,
+      color: 'bg-indigo-500',
+      tabId: 'wallet-to-merchant'
     },
     'BILL_PAYMENT': {
       name: 'Bill Payment',
-      description: 'School fees, Utility bills via partners',
+      description: 'School fees, bills via partners',
       icon: Zap,
       color: 'bg-purple-600',
       tabId: 'bill-payment'
     },
     'MERCHANT_WITHDRAWAL': {
       name: 'Merchant Withdrawal',
-      description: 'Merchants withdrawing to bank/MNO via partners',
+      description: 'Merchants withdrawing to bank/MNO',
       icon: DollarSign,
       color: 'bg-amber-600',
       tabId: 'merchant-withdrawal'
@@ -232,18 +300,24 @@ const TariffsPage = () => {
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
     'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
-    'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET' || t.transactionType === 'TRANSFER_OUT'),
-    'TRANSFER_IN': internalTariffs.filter((t: Tariff) => t.transactionType === 'TRANSFER_IN'),
-    'REFUND': internalTariffs.filter((t: Tariff) => t.transactionType === 'REFUND'),
-    'ADJUSTMENT': internalTariffs.filter((t: Tariff) => t.transactionType === 'ADJUSTMENT'),
+    'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET'),
+    'WALLET_CREATION': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_CREATION'),
+    'WALLET_INIT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_INIT'),
     'FEE_CHARGE': internalTariffs.filter((t: Tariff) => t.transactionType === 'FEE_CHARGE'),
+    'REVERSAL': internalTariffs.filter((t: Tariff) => t.transactionType === 'REVERSAL'),
   }
   
   // Group external tariffs by transaction type
   const externalGroupedTariffs = {
-    'WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'WITHDRAWAL'),
-    'WALLET_TO_EXTERNAL_MERCHANT': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_EXTERNAL_MERCHANT'),
     'DEPOSIT': externalTariffs.filter((t: Tariff) => t.transactionType === 'DEPOSIT'),
+    'WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'WITHDRAWAL'),
+    'WALLET_TO_MNO': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_MNO'),
+    'WALLET_TO_EXTERNAL_MERCHANT': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_EXTERNAL_MERCHANT'),
+    'BANK_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'BANK_TO_WALLET'),
+    'MNO_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'MNO_TO_WALLET'),
+    'WALLET_TO_BANK': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_BANK'),
+    'WALLET_TO_UTILITY': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_UTILITY'),
+    'WALLET_TO_MERCHANT': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_MERCHANT'),
     'BILL_PAYMENT': externalTariffs.filter((t: Tariff) => t.transactionType === 'BILL_PAYMENT'),
     'MERCHANT_WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_WITHDRAWAL'),
   }
@@ -521,10 +595,7 @@ const TariffsPage = () => {
                       }
                     </TableCell>
                     <TableCell className="text-sm">
-                      {tariff.userType && tariff.subscriberType 
-                        ? `${tariff.userType} • ${tariff.subscriberType}`
-                        : tariff.userType || '-'
-                      }
+                      <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType)}</Badge>
                     </TableCell>
                     {!isInternalTariff && (
                       <TableCell>
@@ -981,7 +1052,7 @@ const TariffsPage = () => {
                   </div>
                   <div>
                     <Label className="text-xs text-gray-500">Transaction Type</Label>
-                    <p className="text-sm">{viewTariff.transactionType}</p>
+                    <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType)}</Badge>
                   </div>
                 </div>
               </div>
