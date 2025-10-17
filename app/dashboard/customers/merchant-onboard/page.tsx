@@ -260,9 +260,12 @@ const MerchantOnboardingPage = () => {
 
   return (
     <PermissionGuard permission={PERMISSIONS.MERCHANT_KYC_CREATE}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
+        
+        <main className="flex-1 overflow-hidden relative">
+          <div className="h-full overflow-y-auto p-6">
+            <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <div className="flex items-center gap-4 mb-4">
               <Button
@@ -362,7 +365,9 @@ const MerchantOnboardingPage = () => {
               />
             </TabsContent>
           </Tabs>
-        </div>
+            </div>
+          </div>
+        </main>
       </div>
     </PermissionGuard>
   )

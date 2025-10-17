@@ -76,7 +76,6 @@ const EditTariffPage = () => {
   
   const { hasPermission, userRole } = usePermissions()
   const canEditTariffs = hasPermission(PERMISSIONS.TARIFFS_UPDATE) || userRole === 'SUPER_ADMIN'
-  const canApproveTariffs = hasPermission(PERMISSIONS.TARIFFS_APPROVE) || userRole === 'SUPER_ADMIN'
   
   const [form, setForm] = useState<TariffForm>({
     name: '',
@@ -112,7 +111,9 @@ const EditTariffPage = () => {
 
   // Update form when tariff data loads
   useEffect(() => {
-    if (tariff) {
+    if (tariff && !form.name) { // Only set form if it's not already set
+      console.log('Loading tariff data:', tariff)
+      console.log('Transaction Type:', tariff.transactionType)
       setForm({
         name: tariff.name || '',
         description: tariff.description || '',
@@ -131,10 +132,27 @@ const EditTariffPage = () => {
       setSelectedUserTypes(tariff.userTypes || [])
       setSelectedProfileTypes(tariff.profileTypes || [])
     }
-  }, [tariff])
+  }, [tariff, form.name])
 
   const updateTariffMutation = useMutation({
-    mutationFn: (data: TariffForm) => api.put(`/finance/tariffs/${tariffId}`, data),
+    mutationFn: (data: TariffForm) => {
+      // Transform form data to match backend DTO
+      const updateData = {
+        name: data.name,
+        description: data.description || undefined,
+        tariffType: tariff?.tariffType || 'INTERNAL', // Use existing tariffType
+        transactionType: data.transactionType,
+        feeType: data.feeType,
+        feeAmount: Number(data.feeAmount),
+        feePercentage: data.feePercentage ? Number(data.feePercentage) / 100 : undefined, // Convert percentage to decimal
+        minAmount: data.minAmount ? Number(data.minAmount) : undefined,
+        maxAmount: data.maxAmount ? Number(data.maxAmount) : undefined,
+        userType: data.userTypes.length > 0 ? data.userTypes[0] : undefined, // Backend expects single value
+        subscriberType: data.profileTypes.length > 0 ? data.profileTypes[0] : undefined, // Backend expects single value
+        partnerId: data.partnerId || undefined,
+      }
+      return api.put(`/finance/tariffs/${tariffId}`, updateData)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tariff', tariffId] })
       queryClient.invalidateQueries({ queryKey: ['tariffs'] })
@@ -169,6 +187,7 @@ const EditTariffPage = () => {
   })
 
   const handleInputChange = (field: keyof TariffForm, value: any) => {
+    console.log(`Form field ${field} changing to:`, value)
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -214,6 +233,8 @@ const EditTariffPage = () => {
     }
 
     try {
+      // Transform form data to match backend DTO
+      // Backend will automatically set status to PENDING_APPROVAL
       await updateTariffMutation.mutateAsync(form)
     } catch (error) {
       // Error handled by mutation's onError
@@ -240,17 +261,32 @@ const EditTariffPage = () => {
   const availableUserTypes = ['SUBSCRIBER', 'MERCHANT', 'AGENT']
   const availableProfileTypes = ['INDIVIDUAL', 'BUSINESS', 'CORPORATE']
   const availableFeeTypes = ['FIXED', 'PERCENTAGE', 'HYBRID', 'TIERED']
-  const availableTransactionTypes = [
+  const baseTransactionTypes = [
     'WALLET_TO_WALLET',
-    'WALLET_TO_MOBILE',
-    'WALLET_TO_BANK',
+    'TRANSFER_OUT',
+    'TRANSFER_IN',
     'WALLET_TO_INTERNAL_MERCHANT',
     'WALLET_TO_EXTERNAL_MERCHANT',
+    'DEPOSIT',
+    'WITHDRAWAL',
     'BILL_PAYMENT',
-    'MERCHANT_WITHDRAWAL'
+    'MERCHANT_WITHDRAWAL',
+    'REFUND',
+    'ADJUSTMENT',
+    'FEE_CHARGE'
   ]
+  
+  // Ensure current transaction type is in the list if tariff is loaded
+  const availableTransactionTypes = tariff?.transactionType && !baseTransactionTypes.includes(tariff.transactionType)
+    ? [...baseTransactionTypes, tariff.transactionType]
+    : baseTransactionTypes
+  
+  // Debug logging
+  console.log('Form transaction type:', form.transactionType)
+  console.log('Available transaction types:', availableTransactionTypes)
+  console.log('Is transaction type in list?', availableTransactionTypes.includes(form.transactionType))
 
-  if (!canEditTariffs && !canApproveTariffs) {
+  if (!canEditTariffs) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -312,7 +348,6 @@ const EditTariffPage = () => {
   }
 
   const isPendingApproval = tariff.status === 'PENDING_APPROVAL'
-  const isApprover = canApproveTariffs && isPendingApproval
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -383,15 +418,14 @@ const EditTariffPage = () => {
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       placeholder="e.g., Mobile Money Transfer Fee"
                       required
-                      disabled={isApprover}
                     />
                   </div>
                   <div>
                     <Label htmlFor="transactionType">Transaction Type *</Label>
                     <Select 
-                      value={form.transactionType} 
+                      key={`transaction-${form.transactionType}-${tariff?.id}`}
+                      value={form.transactionType}
                       onValueChange={(value) => handleInputChange('transactionType', value)}
-                      disabled={isApprover}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select transaction type" />
@@ -415,7 +449,6 @@ const EditTariffPage = () => {
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     placeholder="Brief description of the tariff"
                     rows={3}
-                    disabled={isApprover}
                   />
                 </div>
 
@@ -426,7 +459,6 @@ const EditTariffPage = () => {
                     checked={form.isActive}
                     onChange={(e) => handleInputChange('isActive', e.target.checked)}
                     className="rounded border-gray-300"
-                    disabled={isApprover}
                   />
                   <Label htmlFor="isActive">Active Tariff</Label>
                 </div>
@@ -449,7 +481,6 @@ const EditTariffPage = () => {
                   <Select 
                     value={form.feeType} 
                     onValueChange={(value) => handleInputChange('feeType', value)}
-                    disabled={isApprover}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -474,7 +505,6 @@ const EditTariffPage = () => {
                       onChange={(e) => handleInputChange('feeAmount', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
-                      disabled={isApprover}
                     />
                   </div>
                   <div>
@@ -487,7 +517,6 @@ const EditTariffPage = () => {
                       min="0"
                       max="100"
                       step="0.01"
-                      disabled={isApprover}
                     />
                   </div>
                 </div>
@@ -502,7 +531,6 @@ const EditTariffPage = () => {
                       onChange={(e) => handleInputChange('minAmount', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
-                      disabled={isApprover}
                     />
                   </div>
                   <div>
@@ -514,7 +542,6 @@ const EditTariffPage = () => {
                       onChange={(e) => handleInputChange('maxAmount', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
-                      disabled={isApprover}
                     />
                   </div>
                 </div>
@@ -543,7 +570,6 @@ const EditTariffPage = () => {
                           checked={selectedUserTypes.includes(userType)}
                           onChange={() => handleUserTypeToggle(userType)}
                           className="rounded border-gray-300"
-                          disabled={isApprover}
                         />
                         <Label htmlFor={userType} className="text-sm">
                           {userType}
@@ -564,7 +590,6 @@ const EditTariffPage = () => {
                           checked={selectedProfileTypes.includes(profileType)}
                           onChange={() => handleProfileTypeToggle(profileType)}
                           className="rounded border-gray-300"
-                          disabled={isApprover}
                         />
                         <Label htmlFor={profileType} className="text-sm">
                           {profileType}
@@ -580,7 +605,6 @@ const EditTariffPage = () => {
                     <Select 
                       value={form.partnerId} 
                       onValueChange={(value) => handleInputChange('partnerId', value)}
-                      disabled={isApprover}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select partner" />
@@ -598,33 +622,6 @@ const EditTariffPage = () => {
               </CardContent>
             </Card>
 
-            {/* Approval Section */}
-            {isApprover && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CheckCircle className="w-5 h-5" />
-                    <span>Approval Decision</span>
-                  </CardTitle>
-                  <CardDescription>
-                    Review and approve or reject this tariff change
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <Label htmlFor="reason">Reason for Decision</Label>
-                    <Textarea
-                      id="reason"
-                      value={form.reason}
-                      onChange={(e) => handleInputChange('reason', e.target.value)}
-                      placeholder="Provide reason for approval or rejection"
-                      rows={3}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Action Buttons */}
             <div className="flex items-center justify-end space-x-4">
               <Button
@@ -637,32 +634,10 @@ const EditTariffPage = () => {
                 Cancel
               </Button>
               
-              {isApprover ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => handleApproval(false)}
-                    disabled={isSubmitting}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Rejecting...' : 'Reject'}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => handleApproval(true)}
-                    disabled={isSubmitting}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {isSubmitting ? 'Approving...' : 'Approve'}
-                  </Button>
-                </>
-              ) : (
-                <Button type="submit" disabled={isSubmitting}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {isSubmitting ? 'Updating...' : 'Update Tariff'}
-                </Button>
-              )}
+              <Button type="submit" disabled={isSubmitting}>
+                <Save className="w-4 h-4 mr-2" />
+                {isSubmitting ? 'Updating...' : 'Update Tariff'}
+              </Button>
             </div>
           </form>
         </div>

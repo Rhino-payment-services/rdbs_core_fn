@@ -407,7 +407,6 @@
   color: hsl(var(--muted-foreground));
   display: inline-flex;
   height: 2.25rem;
-  width: fit-content;
   align-items: center;
   justify-content: center;
   border-radius: 0.5rem;
@@ -726,7 +725,19 @@
   color: hsl(var(--muted-foreground));
 }
 
-/* General input improvements */
+/* General input improvements - only apply to inputs without explicit Tailwind classes */
+input[type="text"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="email"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="password"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="search"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="tel"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="url"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+input[type="number"]:not([class*="pl-"]):not([class*="pr-"]):not([class*="px-"]),
+textarea:not([class*="p-"]),
+select:not([class*="p-"]) {
+  padding: 0.5rem 0.75rem;
+}
+
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -736,28 +747,9 @@ input[type="url"],
 input[type="number"],
 textarea,
 select {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.375rem;
-  background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-size: 0.875rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   outline: none;
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="search"]:focus,
-input[type="tel"]:focus,
-input[type="url"]:focus,
-input[type="number"]:focus,
-textarea:focus,
-select:focus {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
 }
 
 input[type="text"]::placeholder,

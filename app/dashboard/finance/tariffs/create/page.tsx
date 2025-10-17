@@ -55,7 +55,7 @@ const CreateTariffPage = () => {
     name: '',
     description: '',
     tariffType: 'INTERNAL',
-    transactionType: 'TRANSFER_OUT',
+    transactionType: 'WALLET_TO_WALLET',
     currency: 'UGX',
     feeType: 'FIXED',
     feeAmount: 0,
@@ -132,11 +132,12 @@ const CreateTariffPage = () => {
       ...form,
       // Set feeAmount to the calculated total for external tariffs
       feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
+      // Convert feePercentage from percentage (e.g., 2.5) to decimal (0.025)
+      feePercentage: form.feePercentage ? Number(form.feePercentage) / 100 : undefined,
       // Keep government tax as percentage value (no conversion needed)
       governmentTax: form.governmentTax || undefined,
       // Remove undefined values
       description: form.description || undefined,
-      feePercentage: form.feePercentage || undefined,
       minAmount: form.minAmount || undefined,
       maxAmount: form.maxAmount || undefined,
       userType: form.userType || undefined,
@@ -257,9 +258,8 @@ const CreateTariffPage = () => {
                         <SelectContent>
                           {form.tariffType === 'INTERNAL' ? (
                             <>
-                              <SelectItem value="TRANSFER_OUT">Wallet to Wallet</SelectItem>
+                              <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
-                              <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet (New)</SelectItem>
                             </>
                           ) : (
                             <>

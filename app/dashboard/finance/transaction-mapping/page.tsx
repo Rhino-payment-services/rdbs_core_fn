@@ -41,8 +41,8 @@ import api from '@/lib/axios'
 
 interface Partner {
   id: string
-  name: string
-  code: string
+  partnerName: string
+  partnerCode: string
   isActive?: boolean
   isSuspended?: boolean
   supportedServices?: string[]
@@ -142,7 +142,7 @@ const TransactionMappingPage = () => {
   })
 
   // Fetch available partners
-  const { data: partnersData, isLoading: partnersLoading, error: partnersError } = useQuery({
+  const { data: partnersData, isLoading: partnersLoading, error: partnersError, refetch: refetchPartners } = useQuery({
     queryKey: ['external-payment-partners'],
     queryFn: async () => {
       console.log('Fetching partners from API...')
@@ -155,8 +155,8 @@ const TransactionMappingPage = () => {
         // Transform the API response to match our interface
         const transformedPartners = rawPartners.map((partner: any) => ({
           id: partner.id || '',
-          name: partner.partnerName || partner.name || 'Unknown Partner',
-          code: partner.partnerCode || partner.code || 'UNKNOWN',
+          partnerName: partner.partnerName || partner.name || 'Unknown Partner',
+          partnerCode: partner.partnerCode || partner.code || 'UNKNOWN',
           isActive: partner.isActive ?? true,
           isSuspended: partner.isSuspended ?? false,
           supportedServices: partner.supportedServices || [],
@@ -247,6 +247,8 @@ const TransactionMappingPage = () => {
       primaryPartnerId: mapping.primaryPartner?.id || '',
       reason: ''
     })
+    // Refetch partners data to ensure we have the latest information
+    refetchPartners()
     setSwitchDialogOpen(true)
   }
 
@@ -279,7 +281,7 @@ const TransactionMappingPage = () => {
     console.log('Available partners:', partners)
     
     const filteredPartners = partners.filter((partner: Partner) => {
-      console.log(`Checking partner ${partner.name} (${partner.code}):`)
+      console.log(`Checking partner ${partner.partnerName} (${partner.partnerCode}):`)
       console.log('- isActive:', partner.isActive)
       console.log('- isSuspended:', partner.isSuspended)
       console.log('- supportedServices:', partner.supportedServices)
@@ -397,11 +399,11 @@ const TransactionMappingPage = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-sm font-bold text-blue-600">
-                            {mapping.primaryPartner.code?.charAt(0) || '?'}
+                            {mapping.primaryPartner.partnerCode?.charAt(0) || '?'}
                           </span>
                         </div>
                         <div>
-                          <p className="font-medium">{mapping.primaryPartner.name}</p>
+                          <p className="font-medium">{mapping.primaryPartner.partnerName}</p>
                           <p className="text-sm text-gray-500">
                             {mapping.primaryPartner.geographicRegions && mapping.primaryPartner.geographicRegions.length > 0 
                               ? mapping.primaryPartner.geographicRegions.join(', ')
@@ -611,7 +613,27 @@ const TransactionMappingPage = () => {
   }
 
   return (
-    <PermissionGuard permissions={[PERMISSIONS.PARTNERS_VIEW, PERMISSIONS.PARTNERS_UPDATE]} fallback={<div>Access Denied</div>}>
+    <PermissionGuard 
+      permissions={[PERMISSIONS.TARIFFS_VIEW]} 
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+                  <p className="text-gray-500 mb-4">You don't have permission to view this page.</p>
+                  <p className="text-sm text-gray-400">Required permission: TARIFF_VIEW</p>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      }
+      showFallback={true}
+    >
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
@@ -822,10 +844,10 @@ const TransactionMappingPage = () => {
                             <SelectItem key={partner.id} value={partner.id}>
                               <div className="flex items-center space-x-2">
                                 <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
-                                  <span className="text-xs font-bold">{partner.code?.charAt(0) || '?'}</span>
+                                  <span className="text-xs font-bold">{partner.partnerCode?.charAt(0) || '?'}</span>
                                 </div>
-                                <span className="font-medium">{partner.code || 'Unknown'}</span>
-                                <span className="text-gray-500">- {partner.name || 'Unknown Partner'}</span>
+                                <span className="font-medium">{partner.partnerCode || 'Unknown'}</span>
+                                <span className="text-gray-500">- {partner.partnerName || 'Unknown Partner'}</span>
                               </div>
                             </SelectItem>
                           ))

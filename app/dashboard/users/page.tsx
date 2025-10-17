@@ -28,6 +28,7 @@ import { extractErrorMessage } from '@/lib/utils'
 import { usePermissions as useUserPermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard, RoleGuard } from '@/components/ui/PermissionGuard'
 import { EditUserModal } from '@/components/dashboard/users/EditUserModal'
+import EditUserPermissionsModal from '@/components/dashboard/users/EditUserPermissionsModal'
 
 const UsersPage = () => {
   const { data: users, isLoading, error } = useUsers()
@@ -38,6 +39,22 @@ const UsersPage = () => {
     canCreateUser, canUpdateUser, canDeleteUser, canAssignRoles, 
     canViewUsers, userRole
   } = useUserPermissions()
+
+  // State for permission editing modal
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false)
+  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null)
+
+  // Handler for opening permission editing modal
+  const handleEditPermissions = (user: User) => {
+    setSelectedUserForPermissions(user)
+    setPermissionModalOpen(true)
+  }
+
+  // Handler for closing permission editing modal
+  const handleClosePermissionsModal = () => {
+    setPermissionModalOpen(false)
+    setSelectedUserForPermissions(null)
+  }
   
   console.log("users====>",users)
   console.log("roles====>",roles)
@@ -373,6 +390,17 @@ const UsersPage = () => {
                                         <Eye className="h-4 w-4" />
                                     </Button>
                                     
+                                    <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            onClick={() => handleEditPermissions(user)}
+                                            title="Edit Permissions"
+                                        >
+                                            <Key className="h-4 w-4" />
+                                        </Button>
+                                    </PermissionGuard>
+                                    
                                     <PermissionGuard permission={PERMISSIONS.USERS_DELETE}>
                                         <Button variant="ghost" size="sm">
                                             <Trash2 className="h-4 w-4" />
@@ -392,6 +420,16 @@ const UsersPage = () => {
 
         </div>
       </main>
+
+      {/* Permission Editing Modal */}
+      {selectedUserForPermissions && (
+        <EditUserPermissionsModal
+          isOpen={permissionModalOpen}
+          onClose={handleClosePermissionsModal}
+          userId={selectedUserForPermissions.id}
+          userName={selectedUserForPermissions.email || selectedUserForPermissions.phone || 'Unknown User'}
+        />
+      )}
     </div>
     </PermissionGuard>
   )
