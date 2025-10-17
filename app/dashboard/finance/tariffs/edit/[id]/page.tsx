@@ -262,17 +262,22 @@ const EditTariffPage = () => {
   const availableProfileTypes = ['INDIVIDUAL', 'BUSINESS', 'CORPORATE']
   const availableFeeTypes = ['FIXED', 'PERCENTAGE', 'HYBRID', 'TIERED']
   const baseTransactionTypes = [
-    'WALLET_TO_WALLET',
-    'TRANSFER_OUT',
-    'TRANSFER_IN',
-    'WALLET_TO_INTERNAL_MERCHANT',
-    'WALLET_TO_EXTERNAL_MERCHANT',
     'DEPOSIT',
     'WITHDRAWAL',
     'BILL_PAYMENT',
+    'WALLET_CREATION',
+    'WALLET_INIT',
+    'WALLET_TO_INTERNAL_MERCHANT',
+    'WALLET_TO_EXTERNAL_MERCHANT',
     'MERCHANT_WITHDRAWAL',
-    'REFUND',
-    'ADJUSTMENT',
+    'WALLET_TO_WALLET',
+    'WALLET_TO_MNO',
+    'WALLET_TO_UTILITY',
+    'MNO_TO_WALLET',
+    'WALLET_TO_MERCHANT',
+    'WALLET_TO_BANK',
+    'BANK_TO_WALLET',
+    'REVERSAL',
     'FEE_CHARGE'
   ]
   

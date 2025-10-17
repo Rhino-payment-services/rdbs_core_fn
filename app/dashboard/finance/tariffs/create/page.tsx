@@ -20,7 +20,7 @@ interface CreateTariffForm {
   name: string
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
-  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'BILL_PAYMENT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'MNO_TO_WALLET' | 'ADJUSTMENT' | 'REVERSAL' | 'FEE_CHARGE'
+  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'WALLET_CREATION' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE'
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
   feeAmount: number
@@ -260,18 +260,22 @@ const CreateTariffPage = () => {
                             <>
                               <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
+                              <SelectItem value="WALLET_CREATION">Wallet Creation</SelectItem>
+                              <SelectItem value="WALLET_INIT">Wallet Initialization</SelectItem>
+                              <SelectItem value="FEE_CHARGE">Fee Charge</SelectItem>
+                              <SelectItem value="REVERSAL">Reversal</SelectItem>
                             </>
                           ) : (
                             <>
-                              <SelectItem value="WITHDRAWAL">Wallet to MNO</SelectItem>
-                              <SelectItem value="BILL_PAYMENT">Bill Payments</SelectItem>
-                              <SelectItem value="DEPOSIT">Wallet to Bank</SelectItem>
+                              <SelectItem value="DEPOSIT">Deposit</SelectItem>
+                              <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
+                              <SelectItem value="BILL_PAYMENT">Bill Payment</SelectItem>
                               <SelectItem value="WALLET_TO_EXTERNAL_MERCHANT">Wallet to External Merchant</SelectItem>
                               <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
-                              <SelectItem value="WALLET_TO_MNO">Wallet to MNO (New)</SelectItem>
+                              <SelectItem value="WALLET_TO_MNO">Wallet to MNO</SelectItem>
                               <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
                               <SelectItem value="WALLET_TO_MERCHANT">Wallet to Merchant</SelectItem>
-                              <SelectItem value="WALLET_TO_BANK">Wallet to Bank (New)</SelectItem>
+                              <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>
                               <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
                               <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>
                             </>
