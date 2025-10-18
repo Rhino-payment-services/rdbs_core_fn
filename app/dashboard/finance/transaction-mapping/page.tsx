@@ -95,7 +95,7 @@ const TransactionMappingPage = () => {
       tabId: 'utility-bills',
       category: 'Utilities'
     },
-    'WITHDRAWAL': {
+    'WALLET_TO_MNO': {
       name: 'Wallet to MNO',
       description: 'Wallet to Mobile Network Operator transfers',
       icon: Smartphone,
@@ -103,7 +103,7 @@ const TransactionMappingPage = () => {
       tabId: 'wallet-to-mno',
       category: 'Mobile Money'
     },
-    'DEPOSIT': {
+    'MNO_TO_WALLET': {
       name: 'MNO to Wallet',
       description: 'Mobile Network Operator to Wallet transfers',
       icon: Smartphone,
@@ -302,8 +302,8 @@ const TransactionMappingPage = () => {
         serviceType.slice(0, -1), // Remove last 'S' if present
         // Specific mappings
         ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
-        ...(serviceType === 'WITHDRAWAL' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
-        ...(serviceType === 'DEPOSIT' ? ['MNO_TO_WALLET', 'MNO_TOPUP'] : []),
+        ...(serviceType === 'WALLET_TO_MNO' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
+        ...(serviceType === 'MNO_TO_WALLET' ? ['MNO_TO_WALLET', 'MNO_TOPUP', 'WALLET_TOPUP_PULL'] : []),
         ...(serviceType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : [])
       ]
       
