@@ -43,6 +43,16 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
   onCancel,
   isLoading
 }) => {
+  // Debug logging to see what props are received
+  React.useEffect(() => {
+    console.log('=== PERSONAL INFO FORM DEBUG ===')
+    console.log('User prop:', user)
+    console.log('User profile:', user?.profile)
+    console.log('User profile firstName:', user?.profile?.firstName)
+    console.log('User profile lastName:', user?.profile?.lastName)
+    console.log('================================')
+  }, [user])
+
   const handleInputChange = (field: string, value: string) => {
     onFormDataChange({
       ...formData,
@@ -80,9 +90,26 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
       </Badge>
     )
   }
-
+  console.log('user', user)
   return (
     <Card>
+      {/* Debug Display */}
+      <div className="bg-yellow-50 p-4 border-b">
+        <h4 className="font-medium text-yellow-800 mb-2">Debug - Current Values:</h4>
+        <div className="text-xs text-yellow-700 space-y-1">
+          <div>First Name: {user?.profile?.firstName || 'undefined'}</div>
+          <div>Last Name: {user?.profile?.lastName || 'undefined'}</div>
+          <div>Email: {user?.email || 'undefined'}</div>
+          <div>Phone: {user?.phone || 'undefined'}</div>
+        </div>
+        <details className="mt-2">
+          <summary className="text-xs text-yellow-800 cursor-pointer">Show Complete User Object</summary>
+          <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-32 mt-1">
+            {JSON.stringify(user, null, 2)}
+          </pre>
+        </details>
+      </div>
+      
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
@@ -98,15 +125,17 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-xl font-medium text-gray-600">
-                {user.firstName?.[0]}{user.lastName?.[0]}
+                {user?.profile?.firstName?.[0] || ''}{user?.profile?.lastName?.[0] || ''}
               </span>
             </div>
             <div>
-              <h3 className="text-lg font-medium">{user.firstName} {user.lastName}</h3>
-              <p className="text-sm text-gray-500">ID: {user.id.slice(-8)}</p>
+              <h3 className="text-lg font-medium">
+                {user?.profile?.firstName || ''} {user?.profile?.lastName || ''}
+              </h3>
+              <p className="text-sm text-gray-500">ID: {user?.id?.slice(-8) || ''}</p>
               <div className="flex items-center gap-2 mt-2">
-                {getStatusBadge(user.status)}
-                {getUserTypeBadge(user.userType)}
+                {getStatusBadge(user?.status || '')}
+                {getUserTypeBadge(user?.userType || '')}
               </div>
             </div>
           </div>
@@ -124,7 +153,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Label htmlFor="firstName">First Name *</Label>
             <Input
               id="firstName"
-              value={formData.firstName}
+              value={user?.profile?.firstName || ''}
               onChange={(e) => handleInputChange('firstName', e.target.value)}
               disabled={!isEditing}
               required
@@ -134,7 +163,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Label htmlFor="lastName">Last Name *</Label>
             <Input
               id="lastName"
-              value={formData.lastName}
+              value={user?.profile?.lastName || ''}
               onChange={(e) => handleInputChange('lastName', e.target.value)}
               disabled={!isEditing}
               required
@@ -144,7 +173,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Label htmlFor="middleName">Middle Name</Label>
             <Input
               id="middleName"
-              value={formData.middleName}
+              value={user?.profile?.middleName || ''}
               onChange={(e) => handleInputChange('middleName', e.target.value)}
               disabled={!isEditing}
             />
@@ -157,9 +186,10 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Input
               id="email"
               type="email"
-              value={formData.email}
+              value={user?.email || ''}
               onChange={(e) => handleInputChange('email', e.target.value)}
-              disabled={!isEditing}
+              disabled={true}
+              className="bg-gray-100"
               required
             />
           </div>
@@ -171,7 +201,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Input
               id="phone"
               type="tel"
-              value={formData.phone}
+              value={user?.phone || ''}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               disabled={!isEditing}
               required
@@ -185,7 +215,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <Input
               id="dateOfBirth"
               type="date"
-              value={formData.dateOfBirth}
+              value={user?.profile?.dateOfBirth ? user.profile.dateOfBirth.split('T')[0] : ''}
               onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
               disabled={!isEditing}
             />
@@ -193,7 +223,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <div className="space-y-2">
             <Label htmlFor="gender">Gender</Label>
             <Select 
-              value={formData.gender} 
+              value={user?.profile?.gender || ''} 
               onValueChange={(value) => handleInputChange('gender', value)}
               disabled={!isEditing}
             >
@@ -210,7 +240,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <div className="space-y-2">
             <Label htmlFor="country">Country</Label>
             <Select 
-              value={formData.country} 
+              value={user?.profile?.country || 'UG'} 
               onValueChange={(value) => handleInputChange('country', value)}
               disabled={!isEditing}
             >
@@ -235,7 +265,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           </Label>
           <Textarea
             id="address"
-            value={formData.address}
+            value={user?.profile?.address || ''}
             onChange={(e) => handleInputChange('address', e.target.value)}
             disabled={!isEditing}
             rows={3}
@@ -246,7 +276,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <Label htmlFor="city">City</Label>
           <Input
             id="city"
-            value={formData.city}
+            value={user?.profile?.city || ''}
             onChange={(e) => handleInputChange('city', e.target.value)}
             disabled={!isEditing}
           />
@@ -256,7 +286,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <Label htmlFor="bio">Bio</Label>
           <Textarea
             id="bio"
-            value={formData.bio}
+            value={user?.profile?.bio || ''}
             onChange={(e) => handleInputChange('bio', e.target.value)}
             disabled={!isEditing}
             placeholder="Tell us about yourself..."

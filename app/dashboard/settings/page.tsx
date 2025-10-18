@@ -310,10 +310,11 @@ const SettingsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <main className="p-6">
+        <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-2">Manage your system configuration and preferences</p>
+            <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+            <p className="text-gray-600 mt-2">Manage your system configuration and preferences</p>
           </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -578,9 +579,9 @@ const SettingsPage = () => {
                       </Button>
                     </div>
                   </div>
-            </TabsContent>
+                </TabsContent>
               </Tabs>
-                    </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="advanced">
@@ -591,9 +592,10 @@ const SettingsPage = () => {
               onExportSettings={handleExportSettings}
               onImportSettings={handleImportSettings}
             />
-            </TabsContent>
-          </Tabs>
+          </TabsContent>
+        </Tabs>
         </div>
+      </main>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilter
 import { CustomerTable } from '@/components/dashboard/customers/CustomerTable'
 import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBulkActions'
 import { useUsers } from '@/lib/hooks/useApi'
+import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import type { User } from '@/lib/types/api'
 import toast from 'react-hot-toast'
 import { Users, Building2, Handshake, Plus } from 'lucide-react'
@@ -29,6 +30,7 @@ const CustomersPage = () => {
 
   // API hooks
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
+  const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
   const users: User[] = usersData || []
 
 
@@ -183,18 +185,40 @@ const CustomersPage = () => {
     }
   }
 
-  // Mock stats data
+  // Calculate stats from real data
+  const totalUsers = users.length
+  const activeUsers = users.filter(u => u.status === 'ACTIVE').length
+  const inactiveUsers = users.filter(u => u.status === 'INACTIVE').length
+  const pendingUsers = users.filter(u => u.status === 'PENDING').length
+  
+  // Get transaction stats
+  const transactionStats = transactionStatsData?.data || {}
+  const totalRevenue = transactionStats.totalVolume || 0
+  const avgTransactionValue = transactionStats.averageTransactionAmount || 0
+  
+  // Calculate monthly revenue (approximation - could be improved with date filtering)
+  const monthlyRevenue = Math.round(totalRevenue * 0.2) // Rough estimate
+  
+  // Calculate growth rate (mock calculation - could be improved with historical data)
+  const revenueGrowth = 15.2 // This would need historical data to calculate properly
+  
+  // Calculate conversion rate (mock calculation)
+  const conversionRate = totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0
+  
+  // Calculate churn rate (mock calculation)
+  const churnRate = totalUsers > 0 ? (inactiveUsers / totalUsers) * 100 : 0
+  
   const stats = {
-    total: users.length,
-    active: users.filter(u => u.status === 'ACTIVE').length,
-    inactive: users.filter(u => u.status === 'INACTIVE').length,
-    pending: users.filter(u => u.status === 'PENDING').length,
-    totalRevenue: 12500000,
-    monthlyRevenue: 2500000,
-    revenueGrowth: 15.2,
-    avgTransactionValue: 45000,
-    conversionRate: 78.5,
-    churnRate: 5.2
+    total: totalUsers,
+    active: activeUsers,
+    inactive: inactiveUsers,
+    pending: pendingUsers,
+    totalRevenue,
+    monthlyRevenue,
+    revenueGrowth,
+    avgTransactionValue,
+    conversionRate,
+    churnRate
   }
 
   // Filter and sort users based on subscriberType
