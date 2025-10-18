@@ -47,7 +47,7 @@ const ProfilePage = () => {
     console.log('User object (direct):', profile)
     console.log('User object (from data):', profile?.data)
     console.log('Final user object:', user)
-    console.log('User profile:', user?.profile)
+    console.log('User profile:', (user as any)?.profile)
     console.log('====================')
   }, [profile, user])
   
@@ -97,11 +97,11 @@ const ProfilePage = () => {
     // Reset form data to original values
     if (user) {
       setFormData({
-        email: user.email || '',
+        email: (user as any).email || '',
         firstName: (user as any)?.firstName || (user as any)?.profile?.firstName || '',
         lastName: (user as any)?.lastName || (user as any)?.profile?.lastName || '',
         middleName: (user as any)?.middleName || (user as any)?.profile?.middleName || '',
-        phone: user.phone || '',
+        phone: (user as any).phone || '',
         dateOfBirth: (user as any)?.dateOfBirth || (user as any)?.profile?.dateOfBirth || '',
         gender: (user as any)?.gender || (user as any)?.profile?.gender || '',
         address: (user as any)?.address || (user as any)?.profile?.address || '',
@@ -228,7 +228,7 @@ const ProfilePage = () => {
           {/* Personal Information */}
           {user && (
             <PersonalInfoForm
-              user={user as any}
+              user={user}
               isEditing={isEditing}
               formData={formData}
               onFormDataChange={setFormData}

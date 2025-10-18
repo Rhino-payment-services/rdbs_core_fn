@@ -11,7 +11,7 @@ import { User, Mail, Phone, MapPin, Calendar, Edit3, Save, X } from 'lucide-reac
 import type { User as UserType } from '@/lib/types/api'
 
 interface PersonalInfoFormProps {
-  user: UserType
+  user: any // Changed to any to handle the actual API response structure
   isEditing: boolean
   formData: {
     firstName: string
