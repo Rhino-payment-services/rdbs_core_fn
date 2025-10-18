@@ -185,11 +185,12 @@ const CustomersPage = () => {
     }
   }
 
-  // Calculate stats from real data
-  const totalUsers = users.length
-  const activeUsers = users.filter(u => u.status === 'ACTIVE').length
-  const inactiveUsers = users.filter(u => u.status === 'INACTIVE').length
-  const pendingUsers = users.filter(u => u.status === 'PENDING').length
+  // Calculate stats from real data (exclude STAFF users)
+  const nonStaffUsers = users.filter(user => user.userType !== 'STAFF')
+  const totalUsers = nonStaffUsers.length
+  const activeUsers = nonStaffUsers.filter(u => u.status === 'ACTIVE').length
+  const inactiveUsers = nonStaffUsers.filter(u => u.status === 'INACTIVE').length
+  const pendingUsers = nonStaffUsers.filter(u => u.status === 'PENDING').length
   
   // Get transaction stats
   const transactionStats = transactionStatsData?.data || {}
@@ -221,11 +222,12 @@ const CustomersPage = () => {
     churnRate
   }
 
-  // Filter and sort users based on subscriberType
+  // Filter and sort users based on subscriberType (exclude STAFF users)
   const filteredUsers = useMemo(() => {
-    let filtered = users
+    // First, exclude all STAFF users from customers page
+    let filtered = users.filter(user => user.userType !== 'STAFF')
 
-    // Filter by subscriberType based on active tab
+    // Then filter by subscriberType based on active tab
     if (activeTab === 'subscribers') {
       filtered = filtered.filter(user => user.subscriberType === 'INDIVIDUAL')
     } else if (activeTab === 'merchants') {
@@ -279,10 +281,10 @@ const CustomersPage = () => {
     return filtered
   }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
 
-  // Tabs-specific user counts
-  const subscribersCount = users.filter(user => user.subscriberType === 'INDIVIDUAL').length
-  const merchantsCount = users.filter(user => user.subscriberType === 'MERCHANT').length
-  const partnersCount = users.filter(user => user.subscriberType === 'PARTNER').length
+  // Tabs-specific user counts (exclude STAFF users)
+  const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length
+  const merchantsCount = nonStaffUsers.filter(user => user.subscriberType === 'MERCHANT').length
+  const partnersCount = nonStaffUsers.filter(user => user.subscriberType === 'PARTNER').length
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)

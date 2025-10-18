@@ -56,9 +56,6 @@ const UsersPage = () => {
     setSelectedUserForPermissions(null)
   }
   
-  console.log("users====>",users)
-  console.log("roles====>",roles)
-
   // Handle different API response structures
   const usersArray: User[] = Array.isArray(users) ? users : []
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
@@ -66,14 +63,6 @@ const UsersPage = () => {
   // Filter for staff users only
   const staffUsersArray = usersArray.filter(user => user.userType === 'STAFF')
   const staffUsersCount = staffUsersArray.length
-
-  console.log('Users API Response:', users)
-  console.log('Users data:', users)
-  console.log('Users array:', usersArray)
-  console.log('Staff users array:', staffUsersArray)
-  console.log('Staff users count:', staffUsersCount)
-  console.log('Is loading:', isLoading)
-  console.log('Error:', error)
 
   const getStatusBadge = (status: string) => {
     switch (status) {

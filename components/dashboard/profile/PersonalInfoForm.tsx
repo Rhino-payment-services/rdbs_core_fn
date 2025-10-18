@@ -90,7 +90,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
       </Badge>
     )
   }
-  console.log('user', user)
+
   return (
     <Card>
       <CardHeader>
