@@ -330,7 +330,8 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                {canViewSystemLogs && (
+                {/* Temporarily commented out API Logs tab */}
+                {/* {canViewSystemLogs && (
                   <Link 
                     href="/dashboard/api-logs" 
                     className={`nav-slider-item ${
@@ -342,7 +343,7 @@ const Navbar = () => {
                     <Database className="nav-icon" />
                     <span>API Logs</span>
                   </Link>
-                )}
+                )} */}
                 
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                   <Link 

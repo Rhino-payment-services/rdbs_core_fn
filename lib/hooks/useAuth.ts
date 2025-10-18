@@ -54,7 +54,12 @@ export const useUser = (id: string) => {
 export const useProfile = () => {
   return useQuery<ApiResponse<User>>({
     queryKey: authQueryKeys.profile,
-    queryFn: () => apiFetch('/users/me'),
+    queryFn: async () => {
+      console.log('🔍 Fetching profile from /users/me')
+      const result = await apiFetch('/users/me')
+      console.log('📊 API Response:', result)
+      return result
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }

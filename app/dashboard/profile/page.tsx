@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react'
-import { useProfile } from '@/lib/hooks/useApi'
+import { useProfile } from '@/lib/hooks/useAuth'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
@@ -36,7 +36,22 @@ const ProfilePage = () => {
   })
   
   // Get user data from profile response
-  const user = profile?.data || session?.user
+  // The API might return the user data directly, not wrapped in a 'data' field
+  const user = profile || session?.user
+  
+  // Debug logging to see the actual data structure
+  React.useEffect(() => {
+    console.log('=== PROFILE DEBUG ===')
+    console.log('Profile response:', profile)
+    console.log('Profile data:', profile?.data)
+    console.log('User object (direct):', profile)
+    console.log('User object (from data):', profile?.data)
+    console.log('Final user object:', user)
+    console.log('User profile:', (user as any)?.profile)
+    console.log('====================')
+  }, [profile, user])
+  
+  
   
   // Form states
   const [formData, setFormData] = useState({
@@ -72,24 +87,6 @@ const ProfilePage = () => {
 
   const [isLoadingAction, setIsLoadingAction] = useState(false)
 
-  // Initialize form data when user data is available
-  React.useEffect(() => {
-    if (user) {
-      setFormData({
-        email: user.email || '',
-        firstName: (user as any)?.firstName || (user as any)?.profile?.firstName || '',
-        lastName: (user as any)?.lastName || (user as any)?.profile?.lastName || '',
-        middleName: (user as any)?.middleName || (user as any)?.profile?.middleName || '',
-        phone: user.phone || '',
-        dateOfBirth: (user as any)?.dateOfBirth || (user as any)?.profile?.dateOfBirth || '',
-        gender: (user as any)?.gender || (user as any)?.profile?.gender || '',
-        address: (user as any)?.address || (user as any)?.profile?.address || '',
-        city: (user as any)?.city || (user as any)?.profile?.city || '',
-        country: (user as any)?.country || (user as any)?.profile?.country || 'UG',
-        bio: (user as any)?.bio || (user as any)?.profile?.bio || ''
-      })
-    }
-  }, [user])
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -100,11 +97,11 @@ const ProfilePage = () => {
     // Reset form data to original values
     if (user) {
       setFormData({
-        email: user.email || '',
+        email: (user as any).email || '',
         firstName: (user as any)?.firstName || (user as any)?.profile?.firstName || '',
         lastName: (user as any)?.lastName || (user as any)?.profile?.lastName || '',
         middleName: (user as any)?.middleName || (user as any)?.profile?.middleName || '',
-        phone: user.phone || '',
+        phone: (user as any).phone || '',
         dateOfBirth: (user as any)?.dateOfBirth || (user as any)?.profile?.dateOfBirth || '',
         gender: (user as any)?.gender || (user as any)?.profile?.gender || '',
         address: (user as any)?.address || (user as any)?.profile?.address || '',
@@ -184,12 +181,14 @@ const ProfilePage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading profile...</span>
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading profile...</span>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
@@ -198,16 +197,18 @@ const ProfilePage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <Card>
-            <CardContent className="p-8">
-              <div className="flex items-center justify-center text-red-600">
-                <AlertCircle className="h-8 w-8 mr-2" />
-                <h3 className="text-sm font-medium text-red-800">Error loading profile</h3>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <Card>
+              <CardContent className="p-8">
+                <div className="flex items-center justify-center text-red-600">
+                  <AlertCircle className="h-8 w-8 mr-2" />
+                  <h3 className="text-sm font-medium text-red-800">Error loading profile</h3>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     )
   }
@@ -215,17 +216,19 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <main className="p-6">
+        <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Settings</h1>
             <p className="text-gray-600">Manage your account settings and preferences</p>
           </div>
 
         <div className="space-y-8">
-                {/* Personal Information */}
+
+          {/* Personal Information */}
           {user && (
             <PersonalInfoForm
-              user={user as any}
+              user={user}
               isEditing={isEditing}
               formData={formData}
               onFormDataChange={setFormData}
@@ -265,7 +268,8 @@ const ProfilePage = () => {
           />
 
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
