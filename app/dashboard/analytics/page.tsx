@@ -666,7 +666,7 @@ const AnalyticsPage = () => {
                           className="h-80"
                       >
                           <LineChart data={transactionData} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
+                        <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={(() => {
                               if (isCustomRange && customDateRange.from && customDateRange.to) {
                                 const daysDiff = Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
@@ -763,7 +763,7 @@ const AnalyticsPage = () => {
                           className="h-80"
                       >
                           <LineChart data={userGrowthData} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
+                          <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={(() => {
                               if (isCustomRange && customDateRange.from && customDateRange.to) {
                                 const daysDiff = Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
