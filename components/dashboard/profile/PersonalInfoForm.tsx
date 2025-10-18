@@ -93,23 +93,6 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
   console.log('user', user)
   return (
     <Card>
-      {/* Debug Display */}
-      <div className="bg-yellow-50 p-4 border-b">
-        <h4 className="font-medium text-yellow-800 mb-2">Debug - Current Values:</h4>
-        <div className="text-xs text-yellow-700 space-y-1">
-          <div>First Name: {user?.profile?.firstName || 'undefined'}</div>
-          <div>Last Name: {user?.profile?.lastName || 'undefined'}</div>
-          <div>Email: {user?.email || 'undefined'}</div>
-          <div>Phone: {user?.phone || 'undefined'}</div>
-        </div>
-        <details className="mt-2">
-          <summary className="text-xs text-yellow-800 cursor-pointer">Show Complete User Object</summary>
-          <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-32 mt-1">
-            {JSON.stringify(user, null, 2)}
-          </pre>
-        </details>
-      </div>
-      
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
