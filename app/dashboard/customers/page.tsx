@@ -80,7 +80,7 @@ const CustomersPage = () => {
     const currentPageCustomers = paginatedUsers.filter(user => {
       if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL'
       if (activeTab === 'merchants') return user.subscriberType === 'MERCHANT'
-      if (activeTab === 'partners') return user.subscriberType === 'PARTNER'
+      if (activeTab === 'partners') return user.subscriberType === 'AGENT' // Backend uses 'AGENT' for partners
       return true
     })
 
@@ -257,7 +257,8 @@ const CustomersPage = () => {
     } else if (activeTab === 'merchants') {
       filtered = filtered.filter(user => user.subscriberType === 'MERCHANT')
     } else if (activeTab === 'partners') {
-      filtered = filtered.filter(user => user.subscriberType === 'PARTNER')
+      // Backend uses 'AGENT' for partners, not 'PARTNER'
+      filtered = filtered.filter(user => user.subscriberType === 'AGENT')
     }
 
     if (searchTerm) {
@@ -324,7 +325,7 @@ const CustomersPage = () => {
   // Tabs-specific user counts (exclude STAFF users)
   const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length
   const merchantsCount = nonStaffUsers.filter(user => user.subscriberType === 'MERCHANT').length
-  const partnersCount = nonStaffUsers.filter(user => user.subscriberType === 'PARTNER').length
+  const partnersCount = nonStaffUsers.filter(user => user.subscriberType === 'AGENT').length // Backend uses 'AGENT' for partners
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
