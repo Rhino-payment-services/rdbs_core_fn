@@ -44,8 +44,16 @@ const PermissionsPage = () => {
   const usersArray: User[] = Array.isArray(users) ? users : []
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
 
+  // Filter for staff users only (handle both STAFF and STAFF_USER for compatibility)
+  // Also include users with admin roles as they are typically staff
+  const staffUsersArray = usersArray.filter(user => 
+    user.userType === 'STAFF' || 
+    user.userType === 'STAFF_USER' ||
+    ['ADMIN', 'SUPER_ADMIN'].includes(user.role)
+  )
+
   // Filter users based on search and role
-  const filteredUsers = usersArray.filter(user => {
+  const filteredUsers = staffUsersArray.filter(user => {
     const matchesSearch = user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = filterRole === 'all' || user.role === filterRole
@@ -78,7 +86,14 @@ const PermissionsPage = () => {
 
   const handleUserSelect = (user: User) => {
     setSelectedUser(user)
-    setSelectedRoleId('') // Reset selected role
+    
+    // Find and pre-select the user's current role
+    const currentRole = rolesArray.find(role => role.name === user.role)
+    if (currentRole) {
+      setSelectedRoleId(currentRole.id)
+    } else {
+      setSelectedRoleId('') // Reset if no matching role found
+    }
   }
 
   const getRoleBadge = (role: string) => {
@@ -144,13 +159,13 @@ const PermissionsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <CardTitle className="text-sm font-medium">Staff Users</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{usersArray.length}</div>
+                <div className="text-2xl font-bold">{staffUsersArray.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  Users in system
+                  Staff in system
                 </p>
               </CardContent>
             </Card>
@@ -183,15 +198,15 @@ const PermissionsPage = () => {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+                <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
                 <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {usersArray.filter(user => user.status === 'ACTIVE').length}
+                  {staffUsersArray.filter(user => user.status === 'ACTIVE').length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {usersArray.length > 0 ? `${Math.round((usersArray.filter(user => user.status === 'ACTIVE').length / usersArray.length) * 100)}%` : '0%'} of total
+                  {staffUsersArray.length > 0 ? `${Math.round((staffUsersArray.filter(user => user.status === 'ACTIVE').length / staffUsersArray.length) * 100)}%` : '0%'} of total
                 </p>
               </CardContent>
             </Card>
@@ -275,11 +290,13 @@ const PermissionsPage = () => {
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button 
-                                variant="ghost" 
+                                variant="outline" 
                                 size="sm"
                                 onClick={() => handleUserSelect(user)}
+                                className="!bg-[#08163d] hover:!bg-[#0a1f4f] !text-white !border-[#08163d]"
                               >
-                                <Key className="h-4 w-4" />
+                                <Key className="h-4 w-4 mr-2" />
+                                Assign Role
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl">
@@ -333,7 +350,7 @@ const PermissionsPage = () => {
                                   <Button
                                     onClick={handleAssignRole}
                                     disabled={isAssigning || !selectedRoleId}
-                                    className="bg-[#08163d] hover:bg-[#0a1f4f]"
+                                    className="!bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0"
                                   >
                                     {isAssigning ? (
                                       <>

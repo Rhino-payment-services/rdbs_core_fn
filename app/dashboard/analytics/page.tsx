@@ -26,6 +26,7 @@ import {
   PieChart,
   Database,
   FileText,
+  RefreshCw,
   Settings as SettingsIcon
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, PieChart as RechartsPieChart, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { useMerchants } from '@/lib/hooks/useMerchants'
@@ -62,11 +63,11 @@ const AnalyticsPage = () => {
   const canViewAnalytics = hasPermission(PERMISSIONS.ANALYTICS_VIEW)
 
   // API hooks for different analytics sections
-  const { data: transactionStats, isLoading: transactionLoading, error: transactionError } = useTransactionSystemStats()
-  const { data: usersData, isLoading: usersLoading, error: usersError } = useUsers()
-  const { data: merchantsData, isLoading: merchantsLoading, error: merchantsError } = useMerchants()
-  const { data: kycStats, isLoading: kycLoading, error: kycError } = useKycStats()
-  const { data: systemStats, isLoading: systemLoading, error: systemError } = useSystemStats()
+  const { data: transactionStats, isLoading: transactionLoading, error: transactionError, refetch: refetchTransactions } = useTransactionSystemStats()
+  const { data: usersData, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers()
+  const { data: merchantsData, isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useMerchants()
+  const { data: kycStats, isLoading: kycLoading, error: kycError, refetch: refetchKyc } = useKycStats()
+  const { data: systemStats, isLoading: systemLoading, error: systemError, refetch: refetchSystem } = useSystemStats()
 
   // Scroll detection for showing scroll buttons
   useEffect(() => {
@@ -98,6 +99,19 @@ const AnalyticsPage = () => {
       })
     }
   }
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    await Promise.all([
+      refetchTransactions(),
+      refetchUsers(),
+      refetchMerchants(),
+      refetchKyc(),
+      refetchSystem()
+    ])
+  }
+
+  const isRefreshing = transactionLoading || usersLoading || merchantsLoading || kycLoading || systemLoading
 
   // If user doesn't have analytics permissions, show access denied message
   if (!canViewAnalytics) {
@@ -150,15 +164,11 @@ const AnalyticsPage = () => {
             { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
           ]
         } else if (daysDiff <= 7) {
-          // Daily data for up to 7 days
+          // Show data only for today (actual transaction date) instead of distributing across the week
+          const today = new Date()
+          const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' })
           return [
-            { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) },
-            { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.20), transactions: Math.floor(transactionStats.totalTransactions * 0.20) },
-            { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.12), transactions: Math.floor(transactionStats.totalTransactions * 0.12) },
-            { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.18), transactions: Math.floor(transactionStats.totalTransactions * 0.18) },
-            { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.22), transactions: Math.floor(transactionStats.totalTransactions * 0.22) },
-            { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.08), transactions: Math.floor(transactionStats.totalTransactions * 0.08) },
-            { day: 'Sun', volume: Math.floor(transactionStats.totalVolume * 0.05), transactions: Math.floor(transactionStats.totalTransactions * 0.05) }
+            { day: dayOfWeek, volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
           ]
         } else if (daysDiff <= 30) {
           // Weekly data for up to 30 days
@@ -193,14 +203,11 @@ const AnalyticsPage = () => {
               { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
             ]
           case '7d':
+            // Show data only for today (actual transaction date) instead of distributing across the week
+            const today = new Date()
+            const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' })
             return [
-              { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) },
-              { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.20), transactions: Math.floor(transactionStats.totalTransactions * 0.20) },
-              { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.12), transactions: Math.floor(transactionStats.totalTransactions * 0.12) },
-              { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.18), transactions: Math.floor(transactionStats.totalTransactions * 0.18) },
-              { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.22), transactions: Math.floor(transactionStats.totalTransactions * 0.22) },
-              { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.08), transactions: Math.floor(transactionStats.totalTransactions * 0.08) },
-              { day: 'Sun', volume: Math.floor(transactionStats.totalVolume * 0.05), transactions: Math.floor(transactionStats.totalTransactions * 0.05) }
+              { day: dayOfWeek, volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
             ]
           case '30d':
             return [
@@ -344,11 +351,6 @@ const AnalyticsPage = () => {
   const userGrowthData = getUserGrowthData()
   const hasUserGrowthData = userGrowthData.length > 0
 
-  const transactionTypesData = [
-    { name: 'P2P Transfers', value: 68, color: '#3B82F6' },
-    { name: 'Merchant Payments', value: 24, color: '#10B981' },
-    { name: 'Bill Payments', value: 8, color: '#8B5CF6' }
-  ]
 
   const systemHealthData = [
     { metric: 'API Response Time', value: 98, status: 'good', trend: 'down' },
@@ -382,6 +384,18 @@ const AnalyticsPage = () => {
                 {/* Enhanced Date Filters */}
                 <div className="flex items-center gap-4">
                   <label className="text-sm font-medium text-gray-700">Analysis Period:</label>
+                  
+                  {/* Refresh Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
                   
                   {/* Quick Period Selector */}
                   <Select 
@@ -790,45 +804,6 @@ const AnalyticsPage = () => {
                   </Card>
                 </div>
 
-                {/* Transaction Types Pie Chart */}
-                <Card className="bg-white border-gray-200">
-                  <CardHeader>
-                    <CardTitle className="text-gray-900">
-                      Transaction Types Distribution
-                    </CardTitle>
-                    <CardDescription>
-                      Breakdown of transaction types by volume
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center h-64">
-                    <ChartContainer
-                      config={{
-                          users: {
-                            label: "Users",
-                            color: "#10B981",
-                          },
-                      }}
-                        className="h-64 w-64"
-                    >
-                        <RechartsPieChart>
-                          <ChartTooltip />
-                          <RechartsPieChart
-                          data={transactionTypesData}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          dataKey="value"
-                        >
-                          {transactionTypesData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                          </RechartsPieChart>
-                        </RechartsPieChart>
-                    </ChartContainer>
-                    </div>
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               {/* Transactions Tab */}

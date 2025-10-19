@@ -506,18 +506,13 @@ const TransactionsPage = () => {
                             {transaction.reference || transaction.id.slice(0, 8)}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
-                              {transaction.partnerMapping?.partner ? (
-                                <>
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                                    {transaction.partnerMapping.partner.partnerCode}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{transaction.partnerMapping.partner.partnerName}</span>
-                                </>
-                              ) : (
-                                <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
-                              )}
-                            </div>
+                            {transaction.partnerMapping?.partner ? (
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                                {transaction.partnerMapping.partner.partnerCode}
+                              </span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
+                            )}
                           </TableCell>
                           <TableCell>{getTypeDisplay(transaction.type)}</TableCell>
                           {/* Sender Column */}
