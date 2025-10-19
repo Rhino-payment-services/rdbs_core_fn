@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   Eye, 
   Edit, 
@@ -35,6 +36,9 @@ interface CustomerTableProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
+  itemsPerPage: number
+  onItemsPerPageChange: (items: number) => void
+  totalItems: number
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({
@@ -48,7 +52,10 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   isLoading,
   currentPage,
   totalPages,
-  onPageChange
+  onPageChange,
+  itemsPerPage,
+  onItemsPerPageChange,
+  totalItems
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -114,7 +121,28 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Customers ({customers.length})</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Customers ({customers.length})</CardTitle>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} customers
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 whitespace-nowrap">Rows per page:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => onItemsPerPageChange(parseInt(value))}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -148,14 +176,22 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-600">
-                          {customer.firstName?.[0]}{customer.lastName?.[0]}
-                        </span>
-                      </div>
                       <div>
                         <div className="font-medium">
-                          {customer.firstName} {customer.lastName}
+                          {(() => {
+                            // Try profile first, then fallback to direct user fields
+                            if (customer.profile?.firstName && customer.profile?.lastName) {
+                              return `${customer.profile.firstName} ${customer.profile.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile.lastName}`.trim();
+                            }
+                            
+                            // Fallback to direct user fields
+                            if (customer.firstName && customer.lastName) {
+                              return `${customer.firstName} ${customer.lastName}`.trim();
+                            }
+                            
+                            // Last resort
+                            return customer.email || 'Unknown Customer';
+                          })()}
                         </div>
                         <div className="text-sm text-gray-500">
                           ID: {customer.id.slice(-8)}
@@ -254,10 +290,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6">
-            <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </div>
+          <div className="flex items-center justify-center mt-6">
             <div className="flex gap-2">
               <Button
                 variant="outline"

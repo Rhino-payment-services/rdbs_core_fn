@@ -37,7 +37,7 @@ export const authQueryKeys = {
 export const useUsers = () => {
   return useQuery({
     queryKey: authQueryKeys.users,
-    queryFn: () => apiFetch('/users'),
+    queryFn: () => apiFetch('/users?include=profile'),
     staleTime: 10 * 60 * 1000, // 10 minutes
   })
 }

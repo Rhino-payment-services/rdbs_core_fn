@@ -7,6 +7,7 @@ import { CustomerStats } from '@/components/dashboard/customers/CustomerStats'
 import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilters'
 import { CustomerTable } from '@/components/dashboard/customers/CustomerTable'
 import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBulkActions'
+import { CustomerDetailsModal } from '@/components/dashboard/customers/CustomerDetailsModal'
 import { useUsers } from '@/lib/hooks/useApi'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import type { User } from '@/lib/types/api'
@@ -27,6 +28,8 @@ const CustomersPage = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null)
+  const [showCustomerModal, setShowCustomerModal] = useState(false)
 
   // API hooks
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
@@ -98,7 +101,8 @@ const CustomersPage = () => {
   }
 
   const handleViewCustomer = (customer: User) => {
-    router.push(`/dashboard/customers/${customer.id}`)
+    setSelectedCustomer(customer)
+    setShowCustomerModal(true)
   }
 
   const handleEditCustomer = (customer: User) => {
@@ -107,6 +111,23 @@ const CustomersPage = () => {
 
   const handleDeleteCustomer = (customer: User) => {
     toast.error(`Delete customer ${customer.firstName} ${customer.lastName} not implemented yet`)
+  }
+
+  const handleCloseModal = () => {
+    setShowCustomerModal(false)
+    setSelectedCustomer(null)
+  }
+
+  const handleEditFromModal = (customer: User) => {
+    setShowCustomerModal(false)
+    setSelectedCustomer(null)
+    handleEditCustomer(customer)
+  }
+
+  const handleDeleteFromModal = (customer: User) => {
+    setShowCustomerModal(false)
+    setSelectedCustomer(null)
+    handleDeleteCustomer(customer)
   }
 
   const handlePageChange = (page: number) => {
@@ -240,12 +261,23 @@ const CustomersPage = () => {
     }
 
     if (searchTerm) {
-      filtered = filtered.filter(user => 
-        user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      filtered = filtered.filter(user => {
+        const searchLower = searchTerm.toLowerCase()
+        
+        // Search in profile data first (if available)
+        if (user.profile) {
+          const profileName = `${user.profile.firstName || ''} ${user.profile.middleName || ''} ${user.profile.lastName || ''}`.toLowerCase().trim()
+          if (profileName.includes(searchLower)) return true
+        }
+        
+        // Fallback to direct user fields
+        return (
+          user.firstName?.toLowerCase().includes(searchLower) ||
+          user.lastName?.toLowerCase().includes(searchLower) ||
+          user.email?.toLowerCase().includes(searchLower) ||
+          user.phone?.toLowerCase().includes(searchLower)
+        )
+      })
     }
 
     if (statusFilter !== 'all') {
@@ -262,8 +294,13 @@ const CustomersPage = () => {
 
       switch (sortBy) {
         case 'name':
-          aValue = `${a.firstName} ${a.lastName}`.toLowerCase()
-          bValue = `${b.firstName} ${b.lastName}`.toLowerCase()
+          // Use profile data if available, otherwise fallback to direct fields
+          aValue = a.profile 
+            ? `${a.profile.firstName || ''} ${a.profile.middleName || ''} ${a.profile.lastName || ''}`.toLowerCase().trim()
+            : `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase().trim()
+          bValue = b.profile 
+            ? `${b.profile.firstName || ''} ${b.profile.middleName || ''} ${b.profile.lastName || ''}`.toLowerCase().trim()
+            : `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase().trim()
           break
         case 'email':
           aValue = a.email?.toLowerCase() || ''
@@ -384,6 +421,9 @@ const CustomersPage = () => {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              totalItems={filteredUsers.length}
             />
           </TabsContent>
 
@@ -400,6 +440,9 @@ const CustomersPage = () => {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              totalItems={filteredUsers.length}
             />
           </TabsContent>
 
@@ -416,11 +459,23 @@ const CustomersPage = () => {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={setItemsPerPage}
+              totalItems={filteredUsers.length}
             />
           </TabsContent>
         </Tabs>
           </div>
         </div>
+
+        {/* Customer Details Modal */}
+        <CustomerDetailsModal
+          customer={selectedCustomer}
+          isOpen={showCustomerModal}
+          onClose={handleCloseModal}
+          onEdit={handleEditFromModal}
+          onDelete={handleDeleteFromModal}
+        />
       </main>
     </div>
   )
