@@ -56,24 +56,19 @@ const UsersPage = () => {
     setSelectedUserForPermissions(null)
   }
   
-  console.log("users====>",users)
-  console.log("roles====>",roles)
-
   // Handle different API response structures
   const usersArray: User[] = Array.isArray(users) ? users : []
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
   
-  // Filter for staff users only
-  const staffUsersArray = usersArray.filter(user => user.userType === 'STAFF')
+  // Filter for staff users only (handle both STAFF and STAFF_USER for compatibility)
+  // Also include users with admin roles as they are typically staff
+  const staffUsersArray = usersArray.filter(user => 
+    user.userType === 'STAFF' || 
+    user.userType === 'STAFF_USER' ||
+    ['ADMIN', 'SUPER_ADMIN'].includes(user.role)
+  )
   const staffUsersCount = staffUsersArray.length
 
-  console.log('Users API Response:', users)
-  console.log('Users data:', users)
-  console.log('Users array:', usersArray)
-  console.log('Staff users array:', staffUsersArray)
-  console.log('Staff users count:', staffUsersCount)
-  console.log('Is loading:', isLoading)
-  console.log('Error:', error)
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -185,7 +180,7 @@ const UsersPage = () => {
                 </PermissionGuard>
                 <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
                   <Link href="/dashboard/users/create">
-                    <Button className="bg-[#08163d] hover:bg-[#0a1f4f]">
+                    <Button className="!bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0">
                       <UserPlus className="w-4 h-4 mr-2" />
                       Add User
                     </Button>
@@ -309,12 +304,14 @@ const UsersPage = () => {
                   <CardTitle>Staff Users</CardTitle>
                   <CardDescription>Manage system staff users and their permissions</CardDescription>
                 </div>
-                <Link href="/dashboard/users/create">
-                  <Button className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Create New Staff User
-                  </Button>
-                </Link>
+                <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
+                  <Link href="/dashboard/users/create">
+                    <Button className="flex items-center gap-2 !bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0">
+                      <UserPlus className="h-4 w-4" />
+                      Create New Staff User
+                    </Button>
+                  </Link>
+                </PermissionGuard>
               </div>
             </CardHeader>
             <CardContent>
@@ -351,7 +348,7 @@ const UsersPage = () => {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No staff users found</h3>
                       <p className="text-gray-600 mb-4">Get started by creating your first staff user.</p>
                       <Link href="/dashboard/users/create">
-                        <Button className="flex items-center gap-2">
+                        <Button className="flex items-center gap-2 !bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0">
                           <UserPlus className="h-4 w-4" />
                           Create New Staff User
                         </Button>

@@ -114,23 +114,39 @@ import {
   UserPlus as UserPlusIcon2,
   UserMinus as UserMinusIcon2
 } from 'lucide-react'
+import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
+import { useUsers } from '@/lib/hooks/useAuth'
 
 const ReportsPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
   const [dateRange, setDateRange] = useState("7d")
   const [reportType, setReportType] = useState("transaction")
 
-  // Sample report data
+  // Fetch real data from backend
+  const { data: transactionStats, isLoading: transactionLoading, refetch: refetchTransactions } = useTransactionSystemStats()
+  const { data: usersData, isLoading: usersLoading, refetch: refetchUsers } = useUsers()
+
+  // Calculate real metrics from backend data
+  const totalTransactions = transactionStats?.totalTransactions || 0
+  const totalVolume = transactionStats?.totalVolume || 0
+  const avgTransactionValue = transactionStats?.averageTransactionAmount || 0
+  const successRate = transactionStats?.successRate || 0
+  const totalUsers = usersData?.length || 0
+  const activeUsers = usersData?.filter((user: any) => user.status === 'ACTIVE').length || 0
+  // Use actual RukaPay revenue from backend (not estimated)
+  const totalRevenue = transactionStats?.rukapayRevenue || transactionStats?.totalFees || 0
+
+  // Report data structure (now using real backend data)
   const reportData = {
     overview: {
-      totalTransactions: 15420,
-      totalVolume: 125000000,
-      totalUsers: 2847,
-      totalRevenue: 6250000,
-      growthRate: 12.5,
-      avgTransactionValue: 8100,
-      successRate: 98.7,
-      activeUsers: 2156
+      totalTransactions,
+      totalVolume,
+      totalUsers,
+      totalRevenue,
+      growthRate: 12.5, // This would need historical data to calculate properly
+      avgTransactionValue,
+      successRate,
+      activeUsers
     },
     transactions: [
       {
@@ -269,12 +285,13 @@ const ReportsPage = () => {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
+    // Format for display in millions if amount is large
+    if (amount >= 1000000) {
+      return `UGX ${(amount / 1000000).toFixed(1)}M`
+    } else if (amount >= 1000) {
+      return `UGX ${(amount / 1000).toFixed(1)}K`
+    }
+    return `UGX ${amount.toLocaleString()}`
   }
 
   const formatNumber = (num: number) => {
@@ -316,6 +333,11 @@ const ReportsPage = () => {
     }
   }
 
+  // Handle refresh
+  const handleRefresh = async () => {
+    await Promise.all([refetchTransactions(), refetchUsers()])
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -341,8 +363,14 @@ const ReportsPage = () => {
                     <SelectItem value="1y">Last year</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <RefreshCwIcon className="h-4 w-4" />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  onClick={handleRefresh}
+                  disabled={transactionLoading || usersLoading}
+                >
+                  <RefreshCwIcon className={`h-4 w-4 ${(transactionLoading || usersLoading) ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
                 <Button size="sm" className="flex items-center gap-2">
@@ -363,7 +391,9 @@ const ReportsPage = () => {
                     <CreditCardIcon className="w-4 h-4 text-gray-600" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-gray-900 leading-tight">{formatNumber(reportData.overview.totalTransactions)}</p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">
+                  {transactionLoading ? '...' : formatNumber(reportData.overview.totalTransactions)}
+                </p>
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>
@@ -378,7 +408,9 @@ const ReportsPage = () => {
                     <DollarSignIcon className="w-4 h-4 text-gray-600" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(reportData.overview.totalVolume)}</p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">
+                  {transactionLoading ? '...' : formatCurrency(reportData.overview.totalVolume)}
+                </p>
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>
@@ -393,7 +425,9 @@ const ReportsPage = () => {
                     <UsersIcon className="w-4 h-4 text-gray-600" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-gray-900 leading-tight">{formatNumber(reportData.overview.activeUsers)}</p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">
+                  {usersLoading ? '...' : formatNumber(reportData.overview.activeUsers)}
+                </p>
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">{reportData.overview.successRate}% success rate</span>
                 </div>
@@ -408,7 +442,9 @@ const ReportsPage = () => {
                     <TrendingUpIcon className="w-4 h-4 text-gray-600" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(reportData.overview.totalRevenue)}</p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">
+                  {transactionLoading ? '...' : formatCurrency(reportData.overview.totalRevenue)}
+                </p>
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">+{reportData.overview.growthRate}% from last period</span>
                 </div>

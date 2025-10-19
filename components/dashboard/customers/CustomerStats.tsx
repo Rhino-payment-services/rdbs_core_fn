@@ -30,12 +30,13 @@ interface CustomerStatsProps {
 
 export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
+    // Format for display in millions if amount is large
+    if (amount >= 1000000) {
+      return `UGX ${(amount / 1000000).toFixed(1)}M`
+    } else if (amount >= 1000) {
+      return `UGX ${(amount / 1000).toFixed(1)}K`
+    }
+    return `UGX ${amount.toLocaleString()}`
   }
 
   const formatPercentage = (value: number) => {
@@ -69,7 +70,9 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
           </div>
           <p className="text-xl font-bold text-gray-900 leading-tight">{stats.active.toLocaleString()}</p>
           <div className="mt-0">
-            <span className="text-sm text-gray-500">{((stats.active / stats.total) * 100).toFixed(1)}% of total</span>
+            <span className="text-sm text-gray-500">
+              {stats.total > 0 ? ((stats.active / stats.total) * 100).toFixed(1) : '0.0'}% of total
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -129,7 +132,7 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
           </div>
           <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(stats.avgTransactionValue)}</p>
           <div className="mt-0">
-            <span className="text-sm text-gray-500">Per transaction</span>
+            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
           </div>
         </CardContent>
       </Card>
@@ -144,7 +147,7 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
           </div>
           <p className="text-xl font-bold text-gray-900 leading-tight">{stats.conversionRate.toFixed(1)}%</p>
           <div className="mt-0">
-            <span className="text-sm text-gray-500">Signup to active</span>
+            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
           </div>
         </CardContent>
       </Card>
@@ -159,7 +162,7 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
           </div>
           <p className="text-xl font-bold text-gray-900 leading-tight">{stats.churnRate.toFixed(1)}%</p>
           <div className="mt-0">
-            <span className="text-sm text-gray-500">Monthly churn</span>
+            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
           </div>
         </CardContent>
       </Card>

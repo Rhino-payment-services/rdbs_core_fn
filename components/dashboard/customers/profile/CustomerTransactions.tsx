@@ -183,11 +183,6 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
                     </TableCell>
                     <TableCell>
                       {getPartnerBadge(transaction)}
-                      {transaction.partnerMapping?.partner && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {transaction.partnerMapping.partner.partnerName}
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(transaction.amount)}
