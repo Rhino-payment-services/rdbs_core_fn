@@ -132,7 +132,7 @@ const ReportsPage = () => {
   const avgTransactionValue = transactionStats?.averageTransactionAmount || 0
   const successRate = transactionStats?.successRate || 0
   const totalUsers = usersData?.length || 0
-  const activeUsers = usersData?.filter(user => user.status === 'ACTIVE').length || 0
+  const activeUsers = usersData?.filter((user: any) => user.status === 'ACTIVE').length || 0
   // Use actual RukaPay revenue from backend (not estimated)
   const totalRevenue = transactionStats?.rukapayRevenue || transactionStats?.totalFees || 0
 
