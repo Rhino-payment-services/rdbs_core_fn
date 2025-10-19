@@ -132,7 +132,7 @@ export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
           </div>
           <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(stats.avgTransactionValue)}</p>
           <div className="mt-0">
-            <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+            <span className="text-sm text-gray-500">Average per transaction</span>
           </div>
         </CardContent>
       </Card>
