@@ -274,7 +274,6 @@ const CreateTariffPage = () => {
                               <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
                               <SelectItem value="WALLET_TO_MNO">Wallet to MNO</SelectItem>
                               <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
-                              <SelectItem value="WALLET_TO_MERCHANT">Wallet to Merchant</SelectItem>
                               <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>
                               <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
                               <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>

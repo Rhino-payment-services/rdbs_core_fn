@@ -111,7 +111,7 @@ const TransactionMappingPage = () => {
       tabId: 'mno-to-wallet',
       category: 'Mobile Money'
     },
-    'WALLET_TO_EXTERNAL_MERCHANT': {
+    'WALLET_TO_BANK': {
       name: 'Bank Transfers',
       description: 'Wallet to Bank account transfers',
       icon: Building2,
@@ -304,7 +304,7 @@ const TransactionMappingPage = () => {
         ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
         ...(serviceType === 'WALLET_TO_MNO' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
         ...(serviceType === 'MNO_TO_WALLET' ? ['MNO_TO_WALLET', 'MNO_TOPUP', 'WALLET_TOPUP_PULL'] : []),
-        ...(serviceType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : [])
+        ...(serviceType === 'WALLET_TO_BANK' ? ['WALLET_TO_BANK', 'BANK_TRANSFER', 'BANK_TRANSFERS'] : []),
       ]
       
       const supportsServiceType = partner.supportedServices && 
