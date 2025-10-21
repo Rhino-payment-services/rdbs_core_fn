@@ -1,10 +1,55 @@
+/**
+ * Updated useMerchants hook for new merchant-kyc endpoints
+ * 
+ * CHANGES FROM ORIGINAL:
+ * - Uses /merchant-kyc/all instead of /merchants
+ * - Added new filter parameters (kycStatus, verificationLevel, city)
+ * - Added useMerchantStatistics hook
+ * - Added useMyMerchants hook
+ * - Added useMerchantById hook
+ * - Updated response types
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/axios'
-import type { 
-  Merchant,
-  ApiResponse,
-  PaginatedResponse
-} from '@/lib/types/api'
+import type { ApiResponse } from '@/lib/types/api'
+
+// Updated types for new merchant endpoints
+interface Merchant {
+  id: string;
+  merchantCode: string;
+  businessTradeName: string;
+  businessType: string;
+  phone: string;
+  email: string;
+  kycStatus: string;
+  verificationLevel: string;
+  canTransact: boolean;
+  city: string;
+  walletBalance?: number;
+  onboardedAt: Date;
+  onboardedByName?: string;
+  createdAt: Date;
+}
+
+interface MerchantListResponse {
+  merchants: Merchant[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+interface MerchantStatistics {
+  total: number;
+  byStatus: Record<string, number>;
+  byVerificationLevel: Record<string, number>;
+  byBusinessType: Record<string, number>;
+  byCity: Record<string, number>;
+  recentlyOnboarded: number;
+  canTransact: number;
+  verifiedMerchants: number;
+}
 
 // Generic API wrapper using centralized Axios instance
 const apiFetch = async (endpoint: string, options: any = {}) => {
@@ -31,32 +76,41 @@ export const merchantQueryKeys = {
   statistics: ['merchant-statistics'] as const,
 }
 
-// Custom hooks for merchants
+/**
+ * Get all merchants with pagination and filtering
+ * NEW ENDPOINT: /merchant-kyc/all
+ */
 export const useMerchants = (filters?: {
-  kycStatus?: string;
-  verificationLevel?: string;
+  kycStatus?: string;           // Changed from 'status'
+  verificationLevel?: string;   // NEW
   search?: string;
-  city?: string;
+  city?: string;                // NEW
   page?: number;
-  pageSize?: number;
+  pageSize?: number;            // Changed from 'limit'
 }) => {
-  const queryString = filters ? new URLSearchParams(filters as Record<string, string>).toString() : ''
-  return useQuery({
+  const queryString = filters 
+    ? new URLSearchParams(filters as Record<string, string>).toString() 
+    : ''
+  
+  return useQuery<MerchantListResponse>({
     queryKey: [...merchantQueryKeys.merchants, filters],
     queryFn: () => apiFetch(`/merchant-kyc/all${queryString ? `?${queryString}` : ''}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: false, // Don't retry on 404 errors
-    throwOnError: false, // Don't throw errors, handle them gracefully
+    retry: false,
+    throwOnError: false,
   })
 }
 
-// Get merchants onboarded by current user
+/**
+ * Get merchants onboarded by current user
+ * NEW HOOK
+ */
 export const useMyMerchants = (page?: number, pageSize?: number) => {
   const params = new URLSearchParams()
   if (page) params.append('page', page.toString())
   if (pageSize) params.append('pageSize', pageSize.toString())
   
-  return useQuery({
+  return useQuery<MerchantListResponse>({
     queryKey: [...merchantQueryKeys.myMerchants, page, pageSize],
     queryFn: () => apiFetch(`/merchant-kyc/my-merchants?${params.toString()}`),
     staleTime: 5 * 60 * 1000,
@@ -65,9 +119,12 @@ export const useMyMerchants = (page?: number, pageSize?: number) => {
   })
 }
 
-// Get merchant statistics
+/**
+ * Get merchant statistics for dashboard
+ * NEW HOOK
+ */
 export const useMerchantStatistics = () => {
-  return useQuery({
+  return useQuery<MerchantStatistics>({
     queryKey: merchantQueryKeys.statistics,
     queryFn: () => apiFetch('/merchant-kyc/statistics'),
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -76,26 +133,42 @@ export const useMerchantStatistics = () => {
   })
 }
 
-export const useMerchant = (id: string) => {
-  return useQuery<ApiResponse<Merchant>>({
-    queryKey: merchantQueryKeys.merchant(id),
-    queryFn: () => apiFetch(`/merchants/${id}`),
-    enabled: !!id,
+/**
+ * Get single merchant by ID
+ * NEW HOOK - uses merchant-kyc/:id/status endpoint
+ */
+export const useMerchantById = (merchantId: string) => {
+  return useQuery({
+    queryKey: merchantQueryKeys.merchant(merchantId),
+    queryFn: () => apiFetch(`/merchant-kyc/${merchantId}/status`),
+    enabled: !!merchantId,
+    retry: false,
+    throwOnError: false,
   })
 }
 
+/**
+ * Create merchant
+ * NOTE: This should use the merchant onboarding form, not called directly
+ * The form uses /merchant-kyc/create endpoint
+ */
 export const useCreateMerchant = () => {
   const queryClient = useQueryClient()
-  return useMutation<ApiResponse<Merchant>, Error, any>({
-    mutationFn: (merchantData) => apiFetch('/merchants', {
+  return useMutation<ApiResponse<any>, Error, any>({
+    mutationFn: (merchantData) => apiFetch('/merchant-kyc/create', {
       method: 'POST',
       data: merchantData,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchants })
+      queryClient.invalidateQueries({ queryKey: merchantQueryKeys.statistics })
     },
   })
 }
+
+// Note: The following hooks (update, delete, suspend, activate) may need 
+// new endpoints or might not be applicable with the new structure.
+// Keep them for now but they might need backend endpoints created.
 
 export const useUpdateMerchant = () => {
   const queryClient = useQueryClient()
@@ -107,6 +180,7 @@ export const useUpdateMerchant = () => {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchants })
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchant(id) })
+      queryClient.invalidateQueries({ queryKey: merchantQueryKeys.statistics })
     },
   })
 }
@@ -119,6 +193,7 @@ export const useDeleteMerchant = () => {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchants })
+      queryClient.invalidateQueries({ queryKey: merchantQueryKeys.statistics })
     },
   })
 }
@@ -133,6 +208,7 @@ export const useSuspendMerchant = () => {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchants })
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchant(id) })
+      queryClient.invalidateQueries({ queryKey: merchantQueryKeys.statistics })
     },
   })
 }
@@ -146,6 +222,8 @@ export const useActivateMerchant = () => {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchants })
       queryClient.invalidateQueries({ queryKey: merchantQueryKeys.merchant(id) })
+      queryClient.invalidateQueries({ queryKey: merchantQueryKeys.statistics })
     },
   })
 }
+

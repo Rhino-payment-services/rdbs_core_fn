@@ -10,9 +10,12 @@ import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBu
 import { CustomerDetailsModal } from '@/components/dashboard/customers/CustomerDetailsModal'
 import { useUsers } from '@/lib/hooks/useApi'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
+import { useMerchants } from '@/lib/hooks/useMerchants'
 import type { User } from '@/lib/types/api'
 import toast from 'react-hot-toast'
 import { Users, Building2, Handshake, Plus } from 'lucide-react'
+import { PermissionGuard } from '@/components/ui/PermissionGuard'
+import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 
 const CustomersPage = () => {
   const router = useRouter()
@@ -33,10 +36,18 @@ const CustomersPage = () => {
 
   // API hooks
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
+  // Only fetch merchants when on merchants tab
+  const { data: merchantsData, isLoading: merchantsLoading, refetch: refetchMerchants } = useMerchants({
+    search: activeTab === 'merchants' ? searchTerm : '',  // Only search when on merchants tab
+    page: currentPage,
+    pageSize: itemsPerPage
+  })
   const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
   
   // Handle both direct array and wrapped response
   const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.data || [])
+  const merchants = merchantsData?.merchants || []
+  const merchantsTotal = merchantsData?.total || merchantsData?.pagination?.total || 0
 
 
 
@@ -78,8 +89,8 @@ const CustomersPage = () => {
 
   const handleSelectAll = () => {
     const currentPageCustomers = paginatedUsers.filter(user => {
-      if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL'
-      if (activeTab === 'merchants') return user.subscriberType === 'MERCHANT'
+      if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL' // All INDIVIDUAL users
+      if (activeTab === 'merchants') return !!user.merchantCode // Merchants have merchantCode
       if (activeTab === 'partners') return user.subscriberType === 'AGENT' // Backend uses 'AGENT' for partners
       return true
     })
@@ -253,9 +264,15 @@ const CustomersPage = () => {
 
     // Then filter by subscriberType based on active tab
     if (activeTab === 'subscribers') {
-      filtered = filtered.filter(user => user.subscriberType === 'INDIVIDUAL')
+      // Subscribers: ALL INDIVIDUAL users (including those who also have merchant accounts)
+      // A user can be BOTH a subscriber and a merchant (dual account system)
+      filtered = filtered.filter(user => 
+        user.subscriberType === 'INDIVIDUAL'
+      )
     } else if (activeTab === 'merchants') {
-      filtered = filtered.filter(user => user.subscriberType === 'MERCHANT')
+      // Merchants: Users WITH merchantCode (regardless of subscriberType)
+      // These users also appear in subscribers tab (dual account)
+      filtered = filtered.filter(user => user.merchantCode)
     } else if (activeTab === 'partners') {
       // Backend uses 'AGENT' for partners, not 'PARTNER'
       filtered = filtered.filter(user => user.subscriberType === 'AGENT')
@@ -323,8 +340,9 @@ const CustomersPage = () => {
   }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
 
   // Tabs-specific user counts (exclude STAFF users)
-  const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length
-  const merchantsCount = nonStaffUsers.filter(user => user.subscriberType === 'MERCHANT').length
+  // Note: Users can appear in both Subscribers and Merchants (dual account system)
+  const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length // All INDIVIDUAL users
+  const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
   const partnersCount = nonStaffUsers.filter(user => user.subscriberType === 'AGENT').length // Backend uses 'AGENT' for partners
 
   // Pagination
@@ -347,13 +365,15 @@ const CustomersPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
               <p className="text-gray-600 mt-2">Manage your customer base</p>
             </div>
-            <button
-              onClick={() => router.push('/dashboard/customers/merchant-onboard')}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add Merchant
-            </button>
+            <PermissionGuard permission={PERMISSIONS.MERCHANT_KYC_CREATE}>
+              <button
+                onClick={() => router.push('/dashboard/customers/merchant-onboard')}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Merchant
+              </button>
+            </PermissionGuard>
           </div>
         </div>
 
@@ -430,20 +450,21 @@ const CustomersPage = () => {
 
           <TabsContent value="merchants">
             <CustomerTable
-              customers={paginatedUsers}
+              customers={merchants as any}  // Merchants have different structure
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
               onViewCustomer={handleViewCustomer}
               onEditCustomer={handleEditCustomer}
               onDeleteCustomer={handleDeleteCustomer}
-              isLoading={usersLoading}
-              currentPage={currentPage}
-              totalPages={totalPages}
+              isLoading={merchantsLoading}
+              currentPage={merchantsData?.page || merchantsData?.pagination?.currentPage || currentPage}
+              totalPages={merchantsData?.totalPages || merchantsData?.pagination?.totalPages || 1}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={setItemsPerPage}
-              totalItems={filteredUsers.length}
+              totalItems={merchantsTotal}
+              isMerchantTab={true}  // Flag to render merchant-specific columns
             />
           </TabsContent>
 

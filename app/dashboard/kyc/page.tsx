@@ -135,6 +135,45 @@ interface PendingKycUser {
     createdAt: string
   }>
   submittedAt: string
+  // Merchant-specific fields
+  isMerchant?: boolean
+  displayName?: string
+  businessName?: string
+  ownerName?: string
+  merchantInfo?: {
+    merchantId: string
+    merchantCode: string
+    businessTradeName: string
+    registeredBusinessName: string
+    businessType: string
+    businessCity: string
+    businessAddress: string
+    certificateOfIncorporation: string
+    taxIdentificationNumber: string
+    ownerNationalId: string
+    ownerFirstName: string
+    ownerLastName: string
+    ownerMiddleName?: string
+    ownerDateOfBirth: string
+    ownerGender: string
+    bankName: string
+    bankAccountName: string
+    bankAccountNumber: string
+    mobileMoneyNumber?: string
+    businessEmail: string
+    registeredPhoneNumber: string
+    website?: string
+    certificateOfIncorporationUrl?: string
+    taxRegistrationCertificateUrl?: string
+    businessPermitUrl?: string
+    bankStatementUrl?: string
+    onboardedAt: string
+    onboardedBy: string
+    onboardingUserRole: string
+    onboardingUserEmail: string
+    isVerified: boolean
+    isActive: boolean
+  }
 }
 
 interface VerifyKycRequest {
@@ -569,28 +608,47 @@ const KycPage = () => {
                                 <TableCell>
                                     <div className="flex items-center">
                                       <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                        <User className="h-4 w-4 text-gray-600" />
+                                        {kyc.isMerchant ? (
+                                          <Building2 className="h-4 w-4 text-blue-600" />
+                                        ) : (
+                                          <User className="h-4 w-4 text-gray-600" />
+                                        )}
                                       </div>
                                       <div className="ml-3">
                                         <div className="text-sm font-medium text-gray-900">
-                                          {`${kyc.profile?.firstName || ''} ${kyc.profile?.lastName || ''}`.trim() || 'N/A'}
+                                          {kyc.isMerchant ? (
+                                            // For merchants: Show business name
+                                            <div>
+                                              <div className="font-semibold">{kyc.displayName || kyc.businessName || 'N/A'}</div>
+                                              <div className="text-xs text-gray-500 font-normal">
+                                                Owner: {kyc.ownerName || 'N/A'}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            // For individuals: Show user name
+                                            `${kyc.profile?.firstName || ''} ${kyc.profile?.lastName || ''}`.trim() || 'N/A'
+                                          )}
                                         </div>
                                         <div className="text-sm text-gray-500">
-                                          {kyc.email || 'N/A'}
+                                          {kyc.email || kyc.merchantInfo?.businessEmail || 'N/A'}
                                         </div>
                                         <div className="text-xs text-gray-400">
-                                          {kyc.phone || 'N/A'}
+                                          {kyc.phone || kyc.merchantInfo?.registeredPhoneNumber || 'N/A'}
                                         </div>
                                       </div>
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={getTypeColor(kyc.profile?.subscriberType || '')}>
-                                    {kyc.profile?.subscriberType || 'Unknown'}
+                                  <Badge className={getTypeColor(kyc.isMerchant ? 'MERCHANT' : (kyc.profile?.subscriberType || ''))}>
+                                    {kyc.isMerchant ? 'Merchant' : (kyc.profile?.subscriberType || 'Unknown')}
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  {kyc.profile?.nationalId || 'N/A'}
+                                  {kyc.isMerchant ? (
+                                    kyc.merchantInfo?.ownerNationalId || 'N/A'
+                                  ) : (
+                                    kyc.profile?.nationalId || 'N/A'
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   {formatDate(kyc.submittedAt)}
@@ -763,56 +821,181 @@ const KycPage = () => {
         <Dialog open={showKycDetails} onOpenChange={setShowKycDetails}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>KYC Request Details</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                {selectedKycRequest?.isMerchant ? (
+                  <>
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                    Merchant KYC Request Details
+                  </>
+                ) : (
+                  <>
+                    <User className="h-5 w-5 text-gray-600" />
+                    KYC Request Details
+                  </>
+                )}
+              </DialogTitle>
               <DialogDescription>
-                Review the complete KYC submission for this user
+                {selectedKycRequest?.isMerchant 
+                  ? 'Review the complete merchant KYC submission for this business'
+                  : 'Review the complete KYC submission for this user'}
               </DialogDescription>
             </DialogHeader>
             
             {selectedKycRequest && (
               <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                {/* Merchant or Individual Information */}
+                {selectedKycRequest.isMerchant && selectedKycRequest.merchantInfo ? (
+                  <>
+                    {/* Business Information */}
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Full Name</label>
-                      <p className="text-sm">
-                        {`${selectedKycRequest.profile?.firstName || ''} ${selectedKycRequest.profile?.middleName || ''} ${selectedKycRequest.profile?.lastName || ''}`.trim() || 'N/A'}
-                      </p>
+                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-blue-600" />
+                        Business Information
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Business Trade Name</label>
+                          <p className="text-sm font-semibold">{selectedKycRequest.merchantInfo.businessTradeName}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Registered Business Name</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.registeredBusinessName}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Business Type</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.businessType.replace('_', ' ')}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Merchant Code</label>
+                          <p className="text-sm font-mono">{selectedKycRequest.merchantInfo.merchantCode}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Certificate of Incorporation</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.certificateOfIncorporation}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Tax Identification Number</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.taxIdentificationNumber || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Business Email</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.businessEmail}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Registered Phone</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.registeredPhoneNumber}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-sm font-medium text-gray-500">Business Address</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.businessAddress}, {selectedKycRequest.merchantInfo.businessCity}</p>
+                        </div>
+                        {selectedKycRequest.merchantInfo.website && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Website</label>
+                            <p className="text-sm">{selectedKycRequest.merchantInfo.website}</p>
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Submitted At</label>
+                          <p className="text-sm">{formatDate(selectedKycRequest.submittedAt)}</p>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Owner Information */}
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-sm">{selectedKycRequest.email || 'N/A'}</p>
+                      <h3 className="text-lg font-semibold mb-3">Business Owner Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Owner Name</label>
+                          <p className="text-sm">
+                            {`${selectedKycRequest.merchantInfo.ownerFirstName} ${selectedKycRequest.merchantInfo.ownerMiddleName || ''} ${selectedKycRequest.merchantInfo.ownerLastName}`.trim()}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Owner National ID</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.ownerNationalId}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Date of Birth</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.ownerDateOfBirth}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Gender</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.ownerGender}</p>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Financial Information */}
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Phone</label>
-                      <p className="text-sm">{selectedKycRequest.phone || 'N/A'}</p>
+                      <h3 className="text-lg font-semibold mb-3">Financial Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Bank Name</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.bankName}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Account Name</label>
+                          <p className="text-sm">{selectedKycRequest.merchantInfo.bankAccountName}</p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">Account Number</label>
+                          <p className="text-sm font-mono">{selectedKycRequest.merchantInfo.bankAccountNumber}</p>
+                        </div>
+                        {selectedKycRequest.merchantInfo.mobileMoneyNumber && (
+                          <div>
+                            <label className="text-sm font-medium text-gray-500">Mobile Money Number</label>
+                            <p className="text-sm">{selectedKycRequest.merchantInfo.mobileMoneyNumber}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">National ID</label>
-                      <p className="text-sm">{selectedKycRequest.profile?.nationalId || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Date of Birth</label>
-                      <p className="text-sm">{selectedKycRequest.profile?.dateOfBirth || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Gender</label>
-                      <p className="text-sm">{selectedKycRequest.profile?.gender || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">User Type</label>
-                      <Badge className={getTypeColor(selectedKycRequest.profile?.subscriberType || '')}>
-                        {selectedKycRequest.profile?.subscriberType || 'Unknown'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Submitted At</label>
-                      <p className="text-sm">{formatDate(selectedKycRequest.submittedAt)}</p>
+                  </>
+                ) : (
+                  /* Individual Information */
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Full Name</label>
+                        <p className="text-sm">
+                          {`${selectedKycRequest.profile?.firstName || ''} ${selectedKycRequest.profile?.middleName || ''} ${selectedKycRequest.profile?.lastName || ''}`.trim() || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Email</label>
+                        <p className="text-sm">{selectedKycRequest.email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Phone</label>
+                        <p className="text-sm">{selectedKycRequest.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">National ID</label>
+                        <p className="text-sm">{selectedKycRequest.profile?.nationalId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Date of Birth</label>
+                        <p className="text-sm">{selectedKycRequest.profile?.dateOfBirth || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Gender</label>
+                        <p className="text-sm">{selectedKycRequest.profile?.gender || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">User Type</label>
+                        <Badge className={getTypeColor(selectedKycRequest.profile?.subscriberType || '')}>
+                          {selectedKycRequest.profile?.subscriberType || 'Unknown'}
+                        </Badge>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Submitted At</label>
+                        <p className="text-sm">{formatDate(selectedKycRequest.submittedAt)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Documents */}
                 <div>
