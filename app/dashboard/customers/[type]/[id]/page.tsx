@@ -42,8 +42,14 @@ const CustomerProfilePage = () => {
     pageLimit
   )
   
-  // Fetch wallet balance if customer has wallet
-  const { data: walletBalance, isLoading: balanceLoading, error: walletError } = useWalletBalance(id as string)
+  // Get wallet data from user data (now included in user response)
+  const customer = customerData?.users?.find((user: any) => user.id === id) || null;
+  const wallets = customer?.wallets || [];
+  const personalWallet = wallets.find((wallet: any) => wallet.walletType === 'PERSONAL');
+  const businessWallet = wallets.find((wallet: any) => wallet.walletType === 'BUSINESS');
+  
+  // Use personal wallet for display (or business wallet if no personal wallet)
+  const walletBalance = personalWallet || businessWallet || null;
 
   // Fetch user activity logs
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
@@ -52,10 +58,13 @@ const CustomerProfilePage = () => {
     pageLimit
   )
 
+  console.log("customer====>", customer)
+  console.log("wallets====>", wallets)
+  console.log("personalWallet====>", personalWallet)
+  console.log("businessWallet====>", businessWallet)
   console.log("walletBalance====>", walletBalance)
   console.log("transactionsData====>", transactionsData)
   console.log("activityLogsData====>", activityLogsData)
-  console.log("walletError====>", walletError)
   console.log("activityLogsError====>", activityLogsError)
 
   // Handle loading and error states
@@ -102,16 +111,6 @@ const CustomerProfilePage = () => {
     )
   }
 
-  const customer: any = customerData.filter((customer: any) => customer.id == id)[0] || {
-    id: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    status: '',
-    createdAt: '',
-  }
-  console.log("customer====>", customer)
   
   // Update to match the new API response structure
   const transactions = transactionsData?.transactions || []
