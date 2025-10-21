@@ -74,6 +74,19 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  const formatBusinessType = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'SOLE_PROPRIETORSHIP': 'Sole Proprietorship',
+      'PARTNERSHIP': 'Partnership',
+      'LIMITED_COMPANY': 'Limited Company',
+      'PUBLIC_COMPANY': 'Public Company',
+      'COOPERATIVE': 'Cooperative',
+      'NGO': 'NGO',
+      'OTHER': 'Other'
+    }
+    return typeMap[type] || type
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'VERIFIED':
@@ -87,44 +100,59 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
     }
   }
 
-  // Use backend enum values for required documents
-  const requiredDocuments = [
-    'NATIONAL_ID',
-    'UTILITY_BILL',
-    'BANK_STATEMENT'
-  ]
-
-  // Debug: Log uploaded documents and validation
-  console.log('Uploaded documents:', uploadedDocuments)
-  console.log('Required documents:', requiredDocuments)
-  
-  const hasAllRequiredDocuments = requiredDocuments.every(docType => {
-    const hasDoc = uploadedDocuments.some(doc => doc.documentType === docType)
-    console.log(`Checking ${docType}:`, hasDoc)
-    return hasDoc
-  })
-
-  console.log('Has all required documents:', hasAllRequiredDocuments)
-
-  const isFormComplete = () => {
-    const requiredFields = [
-      'firstName', 'lastName', 'dateOfBirth', 'gender', 'nationalId',
-      'businessTradeName', 'registeredBusinessName', 'certificateOfIncorporation',
-      'taxIdentificationNumber', 'businessType', 'businessRegistrationDate',
-      'businessAddress', 'businessCity', 'businessCountry',
-      'bankName', 'bankAccountName', 'bankAccountNumber',
-      'mobileMoneyProvider', 'mobileMoneyNumber',
-      'registeredPhoneNumber', 'businessEmail'
+  const getMissingFields = () => {
+    const requiredFieldsConfig = [
+      { field: 'firstName', label: 'First Name', section: 'Personal' },
+      { field: 'lastName', label: 'Last Name', section: 'Personal' },
+      { field: 'dateOfBirth', label: 'Date of Birth', section: 'Personal' },
+      { field: 'gender', label: 'Gender', section: 'Personal' },
+      { field: 'nationalId', label: 'National ID', section: 'Personal' },
+      { field: 'businessTradeName', label: 'Business Trade Name', section: 'Business' },
+      { field: 'registeredBusinessName', label: 'Registered Business Name', section: 'Business' },
+      { field: 'certificateOfIncorporation', label: 'Certificate of Incorporation', section: 'Business' },
+      { field: 'taxIdentificationNumber', label: 'Tax Identification Number', section: 'Business' },
+      { field: 'businessType', label: 'Business Type', section: 'Business' },
+      { field: 'businessRegistrationDate', label: 'Business Registration Date', section: 'Business' },
+      { field: 'businessAddress', label: 'Business Address', section: 'Business' },
+      { field: 'businessCity', label: 'Business City', section: 'Business' },
+      { field: 'businessCountry', label: 'Business Country', section: 'Business' },
+      { field: 'bankName', label: 'Bank Name', section: 'Financial' },
+      { field: 'bankAccountName', label: 'Bank Account Name', section: 'Financial' },
+      { field: 'bankAccountNumber', label: 'Bank Account Number', section: 'Financial' },
+      { field: 'mobileMoneyProvider', label: 'Mobile Money Provider', section: 'Financial' },
+      { field: 'mobileMoneyNumber', label: 'Mobile Money Number', section: 'Financial' },
+      { field: 'registeredPhoneNumber', label: 'Registered Phone Number', section: 'Contact' },
+      { field: 'businessEmail', label: 'Business Email', section: 'Contact' },
     ]
 
-    const isComplete = requiredFields.every(field => formData[field as keyof MerchantFormData])
-    console.log('Form complete:', isComplete)
-    return isComplete
+    return requiredFieldsConfig.filter(({ field }) => 
+      !formData[field as keyof MerchantFormData] || 
+      String(formData[field as keyof MerchantFormData]).trim() === ''
+    )
   }
 
-  const canSubmit = isFormComplete() && hasAllRequiredDocuments
+  const getMissingDocuments = () => {
+    const requiredDocsConfig = [
+      { type: 'NATIONAL_ID', label: 'National ID Document' },
+      { type: 'UTILITY_BILL', label: 'Utility Bill or Proof of Address' },
+      { type: 'BANK_STATEMENT', label: 'Bank Statement' },
+    ]
+
+    return requiredDocsConfig.filter(({ type }) => 
+      !uploadedDocuments.some(doc => doc.documentType === type)
+    )
+  }
+
+  const missingFields = getMissingFields()
+  const missingDocuments = getMissingDocuments()
+  const isFormComplete = missingFields.length === 0
+  const hasAllRequiredDocuments = missingDocuments.length === 0
+
+  const canSubmit = isFormComplete && hasAllRequiredDocuments
 
   console.log('Can submit:', canSubmit)
+  console.log('Missing fields:', missingFields)
+  console.log('Missing documents:', missingDocuments)
 
   return (
     <div className="space-y-6">
@@ -175,7 +203,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
                 <span className="font-medium">Registered Name:</span> {formData.registeredBusinessName}
               </div>
               <div>
-                <span className="font-medium">Business Type:</span> {formData.businessType}
+                <span className="font-medium">Business Type:</span> {formatBusinessType(formData.businessType)}
               </div>
               <div>
                 <span className="font-medium">Registration Date:</span> {formatDate(formData.businessRegistrationDate)}
@@ -256,13 +284,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
             <h3 className="text-lg font-medium">Validation Status</h3>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                {isFormComplete() ? (
+                {isFormComplete ? (
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 ) : (
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                 )}
                 <span className="text-sm">
-                  {isFormComplete() ? 'All required fields completed' : 'Some required fields are missing'}
+                  {isFormComplete ? 'All required fields completed' : 'Some required fields are missing'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -290,20 +318,58 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
           </div>
 
           {!canSubmit && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-yellow-800">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="text-sm font-medium">Cannot submit yet</span>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-red-800 mb-3">
+                <AlertTriangle className="h-5 w-5" />
+                <span className="text-base font-semibold">Cannot Submit Application</span>
               </div>
-              <p className="text-sm text-yellow-700 mt-1">
-                Please complete all required fields and upload all required documents before submitting.
+              <p className="text-sm text-red-700 mb-4">
+                Please complete the following before submitting:
               </p>
-              <div className="mt-2 text-xs text-gray-600">
-                <p>Debug Info:</p>
-                <p>Form Complete: {isFormComplete() ? 'Yes' : 'No'}</p>
-                <p>Documents Complete: {hasAllRequiredDocuments ? 'Yes' : 'No'}</p>
-                <p>Uploaded Documents: {uploadedDocuments.map(doc => doc.documentType).join(', ')}</p>
-                <p>Required Documents: {requiredDocuments.join(', ')}</p>
+
+              {/* Missing Fields */}
+              {missingFields.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-red-800 mb-2">
+                    ❌ Missing Required Fields ({missingFields.length}):
+                  </p>
+                  <div className="space-y-1 ml-4">
+                    {missingFields.map(({ field, label, section }) => (
+                      <div key={field} className="text-sm text-red-700">
+                        • <span className="font-medium">{label}</span> 
+                        <span className="text-xs text-red-600 ml-1">({section} tab)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Missing Documents */}
+              {missingDocuments.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-red-800 mb-2">
+                    ❌ Missing Required Documents ({missingDocuments.length}):
+                  </p>
+                  <div className="space-y-1 ml-4">
+                    {missingDocuments.map(({ type, label }) => (
+                      <div key={type} className="text-sm text-red-700">
+                        • <span className="font-medium">{label}</span>
+                        <span className="text-xs text-red-600 ml-1">(Documents tab)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Progress Indicator */}
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <div className="flex items-center justify-between text-xs text-red-700">
+                  <span>Completion Progress:</span>
+                  <span className="font-semibold">
+                    {Math.round(((21 - missingFields.length) / 21) * 100)}% Fields • 
+                    {Math.round(((3 - missingDocuments.length) / 3) * 100)}% Documents
+                  </span>
+                </div>
               </div>
             </div>
           )}

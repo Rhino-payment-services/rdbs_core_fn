@@ -20,18 +20,19 @@ import {
   Shield,
   UserCheck,
   UserX,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react'
 import type { User } from '@/lib/types/api'
 
 interface CustomerTableProps {
-  customers: User[]
+  customers: User[] | any[]  // Can be User[] or Merchant[]
   selectedCustomers: string[]
   onSelectCustomer: (customerId: string) => void
   onSelectAll: () => void
-  onViewCustomer: (customer: User) => void
-  onEditCustomer: (customer: User) => void
-  onDeleteCustomer: (customer: User) => void
+  onViewCustomer: (customer: any) => void
+  onEditCustomer: (customer: any) => void
+  onDeleteCustomer: (customer: any) => void
   isLoading: boolean
   currentPage: number
   totalPages: number
@@ -39,6 +40,7 @@ interface CustomerTableProps {
   itemsPerPage: number
   onItemsPerPageChange: (items: number) => void
   totalItems: number
+  isMerchantTab?: boolean  // Flag to indicate merchants tab
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({
@@ -55,7 +57,8 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   onPageChange,
   itemsPerPage,
   onItemsPerPageChange,
-  totalItems
+  totalItems,
+  isMerchantTab = false
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -89,7 +92,12 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     }
   }
 
-  const getUserTypeBadge = (userType: string) => {
+  const getUserTypeBadge = (user: User) => {
+    // Check if user is a merchant (has merchantCode)
+    const isMerchant = !!user.merchantCode
+    
+    const type = isMerchant ? 'MERCHANT' : user.userType
+    
     const colors = {
       'SUBSCRIBER': 'bg-purple-100 text-purple-800',
       'MERCHANT': 'bg-blue-100 text-blue-800',
@@ -99,8 +107,8 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     }
     
     return (
-      <Badge className={colors[userType as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
-        {userType.replace('_', ' ')}
+      <Badge className={colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
+        {type.replace('_', ' ')}
       </Badge>
     )
   }
@@ -175,60 +183,117 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="font-medium">
-                          {(() => {
-                            // Try profile first, then fallback to direct user fields
-                            if (customer.profile?.firstName && customer.profile?.lastName) {
-                              return `${customer.profile.firstName} ${customer.profile.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile.lastName}`.trim();
-                            }
-                            
-                            // Fallback to direct user fields
-                            if (customer.firstName && customer.lastName) {
-                              return `${customer.firstName} ${customer.lastName}`.trim();
-                            }
-                            
-                            // Last resort
-                            return customer.email || 'Unknown Customer';
-                          })()}
+                    {isMerchantTab ? (
+                      // Merchant display: Show business name
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
+                          <Building2 className="h-5 w-5" />
                         </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {customer.id.slice(-8)}
+                        <div>
+                          <div className="font-medium text-sm">
+                            {customer.businessTradeName || 'Unknown Business'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Owner: {customer.ownerFirstName} {customer.ownerLastName}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Code: {customer.merchantCode}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3 text-gray-400" />
-                        {customer.email || 'No email'}
-                      </div>
-                      {customer.phone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Phone className="h-3 w-3 text-gray-400" />
-                          {customer.phone}
+                    ) : (
+                      // Regular user display
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="font-medium">
+                            {(() => {
+                              // Try profile first, then fallback to direct user fields
+                              if (customer.profile?.firstName && customer.profile?.lastName) {
+                                return `${customer.profile.firstName} ${customer.profile.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile.lastName}`.trim();
+                              }
+                              
+                              // Fallback to direct user fields
+                              if (customer.firstName && customer.lastName) {
+                                return `${customer.firstName} ${customer.lastName}`.trim();
+                              }
+                              
+                              // Last resort
+                              return customer.email || 'Unknown Customer';
+                            })()}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {customer.id.slice(-8)}
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {getUserTypeBadge(customer.userType)}
+                    {isMerchantTab ? (
+                      // Merchant contact info
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-3 w-3 text-gray-400" />
+                          {customer.businessEmail || 'No email'}
+                        </div>
+                        {customer.registeredPhoneNumber && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Phone className="h-3 w-3 text-gray-400" />
+                            {customer.registeredPhoneNumber}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Regular user contact info
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-3 w-3 text-gray-400" />
+                          {customer.email || 'No email'}
+                        </div>
+                        {customer.phone && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <Phone className="h-3 w-3 text-gray-400" />
+                            {customer.phone}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(customer.status)}
+                    {isMerchantTab ? (
+                      <Badge className="bg-blue-100 text-blue-800">MERCHANT</Badge>
+                    ) : (
+                      getUserTypeBadge(customer)
+                    )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-3 w-3" />
-                      {(customer as any)?.country || (customer as any)?.profile?.country || 'Unknown'}
-                    </div>
+                    {isMerchantTab ? (
+                      customer.isVerified ? (
+                        <Badge className="bg-green-100 text-green-800"><UserCheck className="h-3 w-3 mr-1" />Verified</Badge>
+                      ) : (
+                        <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
+                      )
+                    ) : (
+                      getStatusBadge(customer.status)
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isMerchantTab ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="h-3 w-3" />
+                        {customer.businessCity || 'Unknown'}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="h-3 w-3" />
+                        {(customer as any)?.country || (customer as any)?.profile?.country || 'Unknown'}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-3 w-3" />
-                      {formatDate(customer.createdAt)}
+                      {formatDate(isMerchantTab ? customer.onboardedAt : customer.createdAt)}
                     </div>
                   </TableCell>
                   <TableCell>

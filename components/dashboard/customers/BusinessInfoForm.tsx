@@ -119,9 +119,9 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                 <SelectValue placeholder="Select business type" />
               </SelectTrigger>
               <SelectContent>
-          <SelectItem value="SOLE_PROPRIETORSHIP">Sole Proprietorship</SelectItem>
+                <SelectItem value="SOLE_PROPRIETORSHIP">Sole Proprietorship</SelectItem>
                 <SelectItem value="PARTNERSHIP">Partnership</SelectItem>
-                <SelectItem value="CONTROLLED_COMPANY">Limited Company</SelectItem>
+                <SelectItem value="LIMITED_COMPANY">Limited Company</SelectItem>
                 <SelectItem value="PUBLIC_COMPANY">Public Company</SelectItem>
                 <SelectItem value="COOPERATIVE">Cooperative</SelectItem>
                 <SelectItem value="NGO">NGO</SelectItem>

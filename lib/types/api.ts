@@ -14,6 +14,7 @@ export interface User {
   kycStatus: string
   verificationLevel: string
   canHaveWallet: boolean
+  merchantCode?: string | null  // Identifies if user is a merchant
   lastLoginAt?: string | null
   createdAt: string
   updatedAt: string
