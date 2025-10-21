@@ -93,10 +93,9 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   }
 
   const getUserTypeBadge = (user: User) => {
-    // Check if user is a merchant (has merchantCode)
-    const isMerchant = !!user.merchantCode
-    
-    const type = isMerchant ? 'MERCHANT' : user.userType
+    // On subscribers tab, always show the actual userType (SUBSCRIBER)
+    // Only show MERCHANT type when explicitly on merchants tab
+    const type = user.userType
     
     const colors = {
       'SUBSCRIBER': 'bg-purple-100 text-purple-800',
