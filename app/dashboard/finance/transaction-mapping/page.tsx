@@ -83,7 +83,7 @@ const TransactionMappingPage = () => {
   })
   const [isLoading, setIsLoading] = useState(false)
 
-  const canManageMapping = hasPermission(PERMISSIONS.TARIFFS_UPDATE) || hasPermission(PERMISSIONS.TARIFFS_CREATE)
+  const canManageMapping = hasPermission(PERMISSIONS.TARIFF_UPDATE) || hasPermission(PERMISSIONS.TARIFF_CREATE)
 
   // External transaction types (Partner integrations)
   const externalTransactionTypes = {
@@ -614,7 +614,7 @@ const TransactionMappingPage = () => {
 
   return (
     <PermissionGuard 
-      permissions={[PERMISSIONS.TARIFFS_VIEW]} 
+      permissions={[PERMISSIONS.TARIFF_VIEW]} 
       fallback={
         <div className="min-h-screen bg-gray-50">
           <Navbar />

@@ -74,7 +74,7 @@ const PartnersPage = () => {
   const [statusFilter, setStatusFilter] = useState('all')
 
   const { hasPermission } = usePermissions()
-  const canManagePartners = hasPermission(PERMISSIONS.TARIFFS_CREATE) || hasPermission(PERMISSIONS.TARIFFS_UPDATE) || hasPermission(PERMISSIONS.TARIFFS_DELETE)
+  const canManagePartners = hasPermission(PERMISSIONS.TARIFF_CREATE) || hasPermission(PERMISSIONS.TARIFF_UPDATE) || hasPermission(PERMISSIONS.TARIFF_DELETE)
 
   // Fetch external payment partners from real backend API
   const { data: partnersData, isLoading: partnersLoading, error: partnersError, refetch } = useQuery({

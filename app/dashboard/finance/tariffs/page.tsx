@@ -122,8 +122,8 @@ const TariffsPage = () => {
   
   const { hasPermission, userRole } = usePermissions()
   const { user } = useAuth()
-  const canManageTariffs = hasPermission(PERMISSIONS.TARIFFS_CREATE) || hasPermission(PERMISSIONS.TARIFFS_UPDATE) || hasPermission(PERMISSIONS.TARIFFS_DELETE) || userRole === 'SUPER_ADMIN'
-  const canApproveTariffs = hasPermission(PERMISSIONS.TARIFFS_APPROVE) || hasPermission(PERMISSIONS.TARIFFS_REJECT) || userRole === 'SUPER_ADMIN'
+  const canManageTariffs = hasPermission(PERMISSIONS.TARIFF_CREATE) || hasPermission(PERMISSIONS.TARIFF_UPDATE) || hasPermission(PERMISSIONS.TARIFF_DELETE) || userRole === 'SUPER_ADMIN'
+  const canApproveTariffs = hasPermission(PERMISSIONS.TARIFF_APPROVE) || hasPermission(PERMISSIONS.TARIFF_REJECT) || userRole === 'SUPER_ADMIN'
   
   // Fetch tariffs from API
   const { data: tariffsData, isLoading: tariffsLoading, error: tariffsError, refetch } = useQuery({

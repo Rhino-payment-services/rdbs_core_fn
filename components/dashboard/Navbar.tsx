@@ -223,8 +223,11 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                {/* Finance Menu - Only show if user has any tariff permissions */}
-                <PermissionGuard permissions={[PERMISSIONS.TARIFFS_VIEW, PERMISSIONS.TARIFFS_CREATE, PERMISSIONS.TARIFFS_UPDATE, PERMISSIONS.TARIFFS_DELETE, PERMISSIONS.TARIFFS_APPROVE, PERMISSIONS.TARIFFS_REJECT]}>
+                {/* Finance Menu - Show if user has tariff OR transaction management permissions */}
+                <PermissionGuard permissions={[
+                  PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE, PERMISSIONS.TARIFF_DELETE, PERMISSIONS.TARIFF_APPROVE, PERMISSIONS.TARIFF_REJECT,
+                  PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE
+                ]}>
                   <div 
                     ref={financeMenuRef}
                     className="relative"
@@ -445,7 +448,7 @@ const Navbar = () => {
                   >
                     External Payment Partners
                   </Link>
-                  <PermissionGuard permissions={[PERMISSIONS.TARIFFS_VIEW]}>
+                  <PermissionGuard permissions={[PERMISSIONS.TARIFF_VIEW]}>
                     <Link 
                       href="/dashboard/finance/transaction-mapping" 
                       className={`block px-4 py-2 text-sm transition-colors ${

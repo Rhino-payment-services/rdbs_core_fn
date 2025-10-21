@@ -49,7 +49,7 @@ const CreateTariffPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   
   const { hasPermission } = usePermissions()
-  const canCreateTariffs = hasPermission(PERMISSIONS.TARIFFS_CREATE)
+  const canCreateTariffs = hasPermission(PERMISSIONS.TARIFF_CREATE)
   
   const [form, setForm] = useState<CreateTariffForm>({
     name: '',

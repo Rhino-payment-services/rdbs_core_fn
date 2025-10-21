@@ -75,7 +75,7 @@ const EditTariffPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   const { hasPermission, userRole } = usePermissions()
-  const canEditTariffs = hasPermission(PERMISSIONS.TARIFFS_UPDATE) || userRole === 'SUPER_ADMIN'
+  const canEditTariffs = hasPermission(PERMISSIONS.TARIFF_UPDATE) || userRole === 'SUPER_ADMIN'
   
   const [form, setForm] = useState<TariffForm>({
     name: '',

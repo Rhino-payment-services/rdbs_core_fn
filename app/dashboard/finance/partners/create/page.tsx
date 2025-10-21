@@ -49,7 +49,7 @@ const CreatePartnerPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   
   const { hasPermission } = usePermissions()
-  const canCreatePartners = hasPermission(PERMISSIONS.TARIFFS_CREATE) || hasPermission(PERMISSIONS.TARIFFS_UPDATE) || hasPermission(PERMISSIONS.TARIFFS_DELETE)
+  const canCreatePartners = hasPermission(PERMISSIONS.TARIFF_CREATE) || hasPermission(PERMISSIONS.TARIFF_UPDATE) || hasPermission(PERMISSIONS.TARIFF_DELETE)
   
   const [form, setForm] = useState<CreatePartnerForm>({
     partnerName: '',
