@@ -165,19 +165,19 @@ const TariffsPage = () => {
 
   // Internal transaction types (RukaPay internal operations)
   const internalTransactionTypes = {
-    'WALLET_TO_INTERNAL_MERCHANT': {
-      name: 'Wallet to Internal Merchant',
-      description: 'Payments to RukaPay registered merchants',
-      icon: Store,
-      color: 'bg-indigo-500',
-      tabId: 'wallet-to-internal-merchant'
-    },
     'WALLET_TO_WALLET': {
       name: 'Wallet to Wallet',
       description: 'RukaPay to RukaPay transfers',
       icon: CreditCard,
       color: 'bg-blue-500',
       tabId: 'wallet-to-wallet'
+    },
+    'WALLET_TO_INTERNAL_MERCHANT': {
+      name: 'Wallet to Internal Merchant',
+      description: 'Payments to RukaPay registered merchants',
+      icon: Store,
+      color: 'bg-indigo-500',
+      tabId: 'wallet-to-internal-merchant'
     },
     'WALLET_CREATION': {
       name: 'Wallet Creation',
@@ -267,13 +267,6 @@ const TariffsPage = () => {
       color: 'bg-yellow-600',
       tabId: 'wallet-to-utility'
     },
-    'WALLET_TO_MERCHANT': {
-      name: 'Wallet to Merchant',
-      description: 'Payments to merchants',
-      icon: Store,
-      color: 'bg-indigo-500',
-      tabId: 'wallet-to-merchant'
-    },
     'BILL_PAYMENT': {
       name: 'Bill Payment',
       description: 'School fees, bills via partners',
@@ -299,8 +292,8 @@ const TariffsPage = () => {
   
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
-    'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
     'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET'),
+    'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
     'WALLET_CREATION': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_CREATION'),
     'WALLET_INIT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_INIT'),
     'FEE_CHARGE': internalTariffs.filter((t: Tariff) => t.transactionType === 'FEE_CHARGE'),
@@ -317,7 +310,6 @@ const TariffsPage = () => {
     'MNO_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'MNO_TO_WALLET'),
     'WALLET_TO_BANK': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_BANK'),
     'WALLET_TO_UTILITY': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_UTILITY'),
-    'WALLET_TO_MERCHANT': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_MERCHANT'),
     'BILL_PAYMENT': externalTariffs.filter((t: Tariff) => t.transactionType === 'BILL_PAYMENT'),
     'MERCHANT_WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_WITHDRAWAL'),
   }
