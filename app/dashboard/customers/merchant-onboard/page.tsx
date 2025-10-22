@@ -9,7 +9,8 @@ import { FinancialInfoForm } from '@/components/dashboard/customers/FinancialInf
 import { ContactInfoForm } from '@/components/dashboard/customers/ContactInfoForm'
 import { DocumentUploadForm } from '@/components/dashboard/customers/DocumentUploadForm'
 import { ReviewForm } from '@/components/dashboard/customers/ReviewForm'
-import { ArrowLeft, User, Building2, CreditCard, Phone, Upload, CheckCircle } from 'lucide-react'
+import { PhoneSearchForm } from '@/components/dashboard/customers/PhoneSearchForm'
+import { ArrowLeft, User, Building2, CreditCard, Phone, Upload, CheckCircle, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
@@ -73,9 +74,10 @@ interface MerchantFormData {
 const MerchantOnboardingPage = () => {
   const router = useRouter()
   const { data: session } = useSession()
-  const [activeTab, setActiveTab] = useState("personal")
+  const [activeTab, setActiveTab] = useState("search")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [uploadedDocuments, setUploadedDocuments] = useState<DocumentUpload[]>([])
+  const [isSearchMode, setIsSearchMode] = useState(true)
   
   // Form data
   const [formData, setFormData] = useState<MerchantFormData>({
@@ -120,6 +122,46 @@ const MerchantOnboardingPage = () => {
       ...prev,
       ...sectionData
     }))
+  }
+
+  const handleUserFound = (user: any) => {
+    // Pre-fill form data with existing user information
+    const userProfile = user.profile || {}
+    console.log('User found:', user)
+    console.log('User profile:', userProfile)
+    
+    // Extract name from various possible locations
+    const firstName = userProfile.firstName || user.firstName || ''
+    const lastName = userProfile.lastName || user.lastName || ''
+    const middleName = userProfile.middleName || user.middleName || ''
+    
+    const newFormData = {
+      firstName,
+      lastName,
+      middleName,
+      dateOfBirth: userProfile.dateOfBirth || user.dateOfBirth || '',
+      gender: userProfile.gender || user.gender || '',
+      nationalId: userProfile.nationalId || user.nationalId || '',
+      registeredPhoneNumber: user.phone || '',
+      businessEmail: user.email || ''
+    }
+    
+    console.log('New form data to set:', newFormData)
+    console.log('Name components:', { firstName, lastName, middleName })
+    
+    setFormData(prev => ({
+      ...prev,
+      ...newFormData
+    }))
+    
+    setIsSearchMode(false)
+    setActiveTab("personal")
+    toast.success('User information pre-filled successfully!')
+  }
+
+  const handleProceedWithoutUser = () => {
+    setIsSearchMode(false)
+    setActiveTab("personal")
   }
 
   const handleSubmit = async () => {
@@ -250,6 +292,7 @@ const MerchantOnboardingPage = () => {
   }
 
   const tabs = [
+    ...(isSearchMode ? [{ id: 'search', label: 'Search', icon: Search }] : []),
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'business', label: 'Business', icon: Building2 },
     { id: 'financial', label: 'Financial', icon: CreditCard },
@@ -282,7 +325,7 @@ const MerchantOnboardingPage = () => {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className={`grid w-full ${tabs.length === 6 ? 'grid-cols-6' : 'grid-cols-7'}`}>
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 return (
@@ -293,6 +336,15 @@ const MerchantOnboardingPage = () => {
                 )
               })}
             </TabsList>
+
+            {isSearchMode && (
+              <TabsContent value="search">
+                <PhoneSearchForm
+                  onUserFound={handleUserFound}
+                  onProceedWithoutUser={handleProceedWithoutUser}
+                />
+              </TabsContent>
+            )}
 
             <TabsContent value="personal">
               <PersonalInfoForm

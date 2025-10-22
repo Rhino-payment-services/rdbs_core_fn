@@ -22,6 +22,8 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
   formData,
   onFormDataChange
 }) => {
+  console.log('PersonalInfoForm received formData:', formData)
+  
   const handleInputChange = (field: string, value: string) => {
     onFormDataChange({
       ...formData,
