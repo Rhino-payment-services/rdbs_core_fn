@@ -180,8 +180,8 @@ const FinancePage = () => {
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Financial Operations</h1>
-              <p className="mt-2 text-gray-600">Manage tariffs, fees, and financial configurations</p>
+              <h1 className="text-3xl font-bold text-gray-900">Tariff Management</h1>
+              <p className="mt-2 text-gray-600">Manage transaction fees and charges across partners & payment types</p>
             </div>
             <div className="flex space-x-3">
               <Button 
@@ -292,10 +292,6 @@ const FinancePage = () => {
 
           {/* Main Content Tabs */}
           <Card>
-            <CardHeader>
-              <CardTitle>Financial Management</CardTitle>
-              <CardDescription>Configure and manage financial operations</CardDescription>
-            </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-4">
@@ -306,6 +302,23 @@ const FinancePage = () => {
                 </TabsList>
 
                 <TabsContent value="tariffs" className="mt-6">
+                  {/* Transaction Type Tabs */}
+                  <div className="mb-6">
+                    <Tabs value={filters.transactionType} onValueChange={(value) => setFilters({ ...filters, transactionType: value })}>
+                      <TabsList className="grid w-full grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
+                        <TabsTrigger value="all">All ({totalTariffs})</TabsTrigger>
+                        {TRANSACTION_TYPES.map((type) => {
+                          const count = tariffs.filter((t: any) => t.transactionType === type.value).length;
+                          return (
+                            <TabsTrigger key={type.value} value={type.value}>
+                              {type.label} ({count})
+                            </TabsTrigger>
+                          );
+                        })}
+                      </TabsList>
+                    </Tabs>
+                  </div>
+
                   {/* Filters */}
                   <div className="flex flex-col sm:flex-row gap-4 mb-6">
                     <div className="flex-1">
@@ -319,21 +332,6 @@ const FinancePage = () => {
                         />
                       </div>
                     </div>
-                    
-                    <Select 
-                      value={filters.transactionType} 
-                      onValueChange={(value) => setFilters({ ...filters, transactionType: value })}
-                    >
-                      <SelectTrigger className="w-full sm:w-[200px]">
-                        <SelectValue placeholder="Transaction Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        {TRANSACTION_TYPES.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
 
                     <Select 
                       value={filters.feeType} 
@@ -358,7 +356,31 @@ const FinancePage = () => {
 
                   {/* Tariffs Table */}
                   <div className="rounded-md">
-                    <Table>
+                    {/* Filtered tariffs based on selected transaction type */}
+                    {(() => {
+                      let filteredTariffs = tariffs;
+                      
+                      // Filter by transaction type if not "all"
+                      if (filters.transactionType !== 'all') {
+                        filteredTariffs = tariffs.filter((t: any) => t.transactionType === filters.transactionType);
+                      }
+                      
+                      // Filter by fee type if not "all"
+                      if (filters.feeType !== 'all') {
+                        filteredTariffs = filteredTariffs.filter((t: any) => t.feeType === filters.feeType);
+                      }
+                      
+                      // Filter by search term
+                      if (filters.search) {
+                        filteredTariffs = filteredTariffs.filter((t: any) => 
+                          t.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+                          t.description?.toLowerCase().includes(filters.search.toLowerCase()) ||
+                          t.transactionType.toLowerCase().includes(filters.search.toLowerCase())
+                        );
+                      }
+                      
+                      return (
+                        <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
@@ -378,14 +400,19 @@ const FinancePage = () => {
                               <p className="text-gray-500 mt-2">Loading tariffs...</p>
                             </TableCell>
                           </TableRow>
-                        ) : tariffs.length === 0 ? (
+                        ) : filteredTariffs.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-8">
-                              <p className="text-gray-500">No tariffs found</p>
+                              <p className="text-gray-500">
+                                {filters.transactionType !== 'all' 
+                                  ? `No tariffs found for ${TRANSACTION_TYPES.find(t => t.value === filters.transactionType)?.label || filters.transactionType}`
+                                  : 'No tariffs found'
+                                }
+                              </p>
                             </TableCell>
                           </TableRow>
                         ) : (
-                          tariffs.map((tariff: any) => (
+                          filteredTariffs.map((tariff: any) => (
                             <TableRow key={tariff.id}>
                               <TableCell className="font-medium">{tariff.name}</TableCell>
                               <TableCell>
@@ -441,6 +468,8 @@ const FinancePage = () => {
                         )}
                       </TableBody>
                     </Table>
+                      );
+                    })()}
                   </div>
                 </TabsContent>
 
