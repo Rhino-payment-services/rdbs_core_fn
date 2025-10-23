@@ -415,7 +415,7 @@ const Navbar = () => {
                 <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent"></div>
                 
                 <div className="py-2">
-                  <Link 
+                  {/* <Link 
                     href="/dashboard/finance" 
                     className={`block px-4 py-2 text-sm transition-colors ${
                       isActive('/dashboard/finance') && !isActive('/dashboard/finance/tariffs')
@@ -425,7 +425,7 @@ const Navbar = () => {
                     onClick={() => setIsFinanceDropdownOpen(false)}
                   >
                     Overview
-                  </Link>
+                  </Link> */}
                   <Link 
                     href="/dashboard/finance/tariffs" 
                     className={`block px-4 py-2 text-sm transition-colors ${
