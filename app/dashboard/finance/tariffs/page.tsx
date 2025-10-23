@@ -35,7 +35,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  FileText
+  FileText,
+  TrendingUp
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -804,6 +805,14 @@ const TariffsPage = () => {
                   <Building2 className="h-4 w-4 mr-2" />
                   Manage Partners
                 </Button>
+                {/* <Button 
+                  variant="outline" 
+                  onClick={() => setIsCalculatorOpen(true)}
+                  className="flex items-center space-x-2"
+                >
+                  <Calculator className="h-4 w-4" />
+                  <span>Fee Calculator</span>
+                </Button> */}
                 {canManageTariffs && (
                   <Button onClick={() => router.push('/dashboard/finance/tariffs/create')}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -812,8 +821,101 @@ const TariffsPage = () => {
                 )}
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Tariff Management</h1>
-            <p className="text-gray-600">Manage transaction fees and charges for different payment types</p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Active Tariffs
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {tariffsLoading ? '...' : (internalTariffs.length + externalTariffs.length)}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Settings className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-blue-600 font-medium">
+                    Configured
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Total Fees
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      USh 0
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-green-600 font-medium">
+                    All fees
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Success Rate
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      0.0%
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-purple-600 font-medium">
+                    Transaction success
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-gray-200">
+              <CardContent className="px-4 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">
+                      Avg Transaction
+                    </p>
+                    <p className="text-xl font-bold text-gray-900">
+                      USh 0
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-gray-600" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <span className="text-sm text-orange-600 font-medium">
+                    Per transaction
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Main Tabs for Internal vs External */}
