@@ -49,7 +49,7 @@ const FinancePage = () => {
     feeType: 'all', // Use 'all' for filters to show all types
     isActive: true,
     page: 1,
-    limit: 20
+    limit: 100
   })
 
   // Form states
