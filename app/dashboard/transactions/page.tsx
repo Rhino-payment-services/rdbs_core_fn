@@ -29,6 +29,27 @@ import {
 } from 'lucide-react'
 import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 
+// Helper function to shorten long transaction IDs for display
+const shortenTransactionId = (id: string): string => {
+  if (!id) return 'N/A';
+  
+  // If ID contains WALLET_INIT with UUID, shorten it
+  if (id.includes('WALLET_INIT_')) {
+    const parts = id.split('_');
+    // Return: WALLET_INIT_[last 6 digits]
+    const timestamp = parts[parts.length - 1];
+    return `WALLET_INIT_${timestamp.slice(-6)}`;
+  }
+  
+  // If ID is very long (>30 chars), shorten it
+  if (id.length > 30) {
+    // Show first 15 and last 8 characters
+    return `${id.substring(0, 15)}...${id.slice(-8)}`;
+  }
+  
+  return id;
+};
+
 const TransactionsPage = () => {
   const [activeTab, setActiveTab] = useState("all")
   
@@ -502,8 +523,8 @@ const TransactionsPage = () => {
                         <TableBody>
                       {transactions.map((transaction: any) => (
                             <TableRow key={transaction.id}>
-                          <TableCell className="font-medium font-mono text-sm">
-                            {transaction.reference || transaction.id.slice(0, 8)}
+                          <TableCell className="font-medium font-mono text-sm" title={transaction.reference || transaction.id}>
+                            {shortenTransactionId(transaction.reference || transaction.id)}
                           </TableCell>
                           <TableCell>
                             {transaction.partnerMapping?.partner ? (
