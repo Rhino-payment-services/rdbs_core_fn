@@ -111,24 +111,32 @@ const DashboardPage = () => {
       return []
     }
 
-    // If we have transaction data, show actual transaction date
-    if (transactionStats.totalTransactions > 0) {
-      const totalVolume = transactionStats.totalVolume || 0
-      const totalTransactions = transactionStats.totalTransactions || 0
+    // Generate 7 days of data
+    const last7Days = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
       
-      // Get the current date for the transaction (Oct 18th based on your data)
-      const today = new Date()
-      const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' })
-      const dateLabel = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       
-      // Show data only for the actual transaction date, not distributed across the week
-      // This creates a more accurate representation showing the spike on the actual day
-      return [
-        { day: dayOfWeek, date: dateLabel, volume: totalVolume, transactions: totalTransactions }
-      ]
+      // For now, distribute volume evenly across 7 days
+      // TODO: Get actual daily breakdown from backend API
+      const dailyVolume = i === 0 && transactionStats.totalTransactions > 0
+        ? transactionStats.totalVolume // Show all volume on today
+        : 0; // No data for other days yet
+      
+      last7Days.push({
+        day: dayOfWeek,
+        date: dateLabel,
+        volume: dailyVolume,
+        transactions: i === 0 ? transactionStats.totalTransactions : 0
+      });
     }
-
-    return []
+    
+    return last7Days;
   }
 
   const chartData = getChartData()
