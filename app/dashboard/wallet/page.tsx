@@ -118,6 +118,16 @@ const WalletPage = () => {
   const totalBalance = walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
   const activeWallets = walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
   const suspendedWallets = walletsArray.filter(wallet => wallet.isSuspended).length
+  
+  // Calculate multiple wallets of same type
+  const walletsByType = walletsArray.reduce((acc, wallet) => {
+    acc[wallet.walletType] = (acc[wallet.walletType] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+  const hasMultipleSameType = Object.values(walletsByType).some(count => count > 1)
+  const multipleWalletTypes = Object.entries(walletsByType)
+    .filter(([, count]) => count > 1)
+    .map(([type, count]) => `${count} ${type}`)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -128,7 +138,14 @@ const WalletPage = () => {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Wallets</h1>
-              <p className="text-gray-600 mt-2">Manage your digital wallets and view balances</p>
+              <div className="flex items-center gap-3 mt-2">
+                <p className="text-gray-600">Manage your digital wallets and view balances</p>
+                {hasMultipleSameType && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    Multiple wallets: {multipleWalletTypes.join(', ')}
+                  </Badge>
+                )}
+              </div>
             </div>
             <Dialog open={showCreateWallet} onOpenChange={setShowCreateWallet}>
               <DialogTrigger asChild>
@@ -265,12 +282,30 @@ const WalletPage = () => {
             </Card>
           </div>
 
+          {/* Info Banner for Multiple Wallets */}
+          {hasMultipleSameType && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-blue-900">Multiple Wallets of Same Type</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    You have {multipleWalletTypes.join(' and ')} wallets. Each wallet operates independently with its own balance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Wallets List */}
           <Card>
             <CardHeader>
               <CardTitle>Your Wallets</CardTitle>
               <CardDescription>
-                Manage your digital wallets and view transaction history
+                {hasMultipleSameType 
+                  ? 'Manage your digital wallets - you have multiple wallets of the same type for different purposes'
+                  : 'Manage your digital wallets and view transaction history'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -293,18 +328,32 @@ const WalletPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {walletsArray.map((wallet) => (
+                  {walletsArray.map((wallet, index) => {
+                    // Check if there are multiple wallets of same type
+                    const sameTypeWallets = walletsArray.filter(w => w.walletType === wallet.walletType)
+                    const walletNumber = sameTypeWallets.findIndex(w => w.id === wallet.id) + 1
+                    const showWalletNumber = sameTypeWallets.length > 1
+                    
+                    return (
                     <Card key={wallet.id} className="hover:shadow-md transition-shadow">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Wallet className="h-5 w-5 text-[#08163d]" />
-                            <CardTitle className="text-lg">{wallet.description || 'Main Wallet'}</CardTitle>
+                            <CardTitle className="text-lg">
+                              {wallet.description || `${wallet.walletType} Wallet`}
+                              {showWalletNumber && ` #${walletNumber}`}
+                            </CardTitle>
                           </div>
                           {getStatusBadge(wallet)}
                         </div>
-                        <CardDescription>
+                        <CardDescription className="flex items-center gap-2 flex-wrap">
                           {getCurrencyBadge(wallet.currency)} • Created {formatDate(wallet.createdAt)}
+                          {showWalletNumber && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                              {walletNumber} of {sameTypeWallets.length} {wallet.walletType.toLowerCase()} wallets
+                            </Badge>
+                          )}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -333,7 +382,8 @@ const WalletPage = () => {
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  )
+                  })}
                 </div>
               )}
             </CardContent>

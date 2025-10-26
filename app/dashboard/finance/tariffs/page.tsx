@@ -105,7 +105,7 @@ interface Partner {
 
 const TariffsPage = () => {
   const router = useRouter()
-  const [activeMainTab, setActiveMainTab] = useState('internal')
+  const [activeMainTab, setActiveMainTab] = useState('external')
   const [activeInternalTab, setActiveInternalTab] = useState('')
   const [activeExternalTab, setActiveExternalTab] = useState('')
   const [selectedPartner, setSelectedPartner] = useState("ABC") // Default to ABC
@@ -285,7 +285,10 @@ const TariffsPage = () => {
   }
 
   // Get tariffs from API response
+  console.log('Tariffs API Response:', tariffsData)
+  console.log('Tariffs Error:', tariffsError)
   const allTariffs = tariffsData?.tariffs || []
+  console.log('All Tariffs:', allTariffs)
   
   // Separate internal and external tariffs
   const internalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'INTERNAL')

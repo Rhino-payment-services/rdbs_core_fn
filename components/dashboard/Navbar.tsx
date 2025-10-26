@@ -235,7 +235,7 @@ const Navbar = () => {
                     onMouseLeave={handleFinanceMouseLeave}
                   >
                     <Link 
-                      href="/dashboard/finance" 
+                      href="/dashboard/finance/tariffs" 
                       className={`nav-slider-item ${
                         isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')
                           ? 'active'
