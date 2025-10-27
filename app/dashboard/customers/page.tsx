@@ -34,7 +34,7 @@ const CustomersPage = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
 
-  // API hooks
+  // API hooks - add keepPreviousData to prevent loading flashes
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
   // Only fetch merchants when on merchants tab
   const { data: merchantsData, isLoading: merchantsLoading, refetch: refetchMerchants } = useMerchants({
@@ -43,6 +43,18 @@ const CustomersPage = () => {
     pageSize: itemsPerPage
   })
   const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
+  
+  // Log user data for debugging
+  React.useEffect(() => {
+    if (usersData) {
+      const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.data || [])
+      const merchantUsers = users.filter(u => u.merchantCode)
+      console.log(`📊 Customers Page: Loaded ${users.length} users, ${merchantUsers.length} merchants`)
+      merchantUsers.forEach(u => {
+        console.log(`  - ${u.email || u.phone}: merchantCode=${u.merchantCode}, hasMerchant=${!!u.merchant}`)
+      })
+    }
+  }, [usersData])
   
   // Handle both direct array and wrapped response
   const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.data || [])
@@ -351,6 +363,21 @@ const CustomersPage = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+
+  // Show loading state to prevent "Access Restricted" flash
+  if (usersLoading && !usersData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading customers...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

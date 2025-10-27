@@ -38,6 +38,18 @@ export interface User {
     createdAt: string
     updatedAt: string
   }
+  // Merchant information (populated if userType is MERCHANT)
+  merchant?: {
+    id: string
+    businessTradeName: string
+    businessType: string
+    ownerFirstName: string
+    ownerLastName: string
+    registeredPhoneNumber: string
+    businessEmail: string
+    isVerified: boolean
+    isActive: boolean
+  }
 }
 
 export interface CreateUserRequest {

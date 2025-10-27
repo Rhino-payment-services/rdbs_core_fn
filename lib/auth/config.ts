@@ -161,44 +161,39 @@ export const authOptions: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      console.log("🔄 Redirect callback:", { url, baseUrl })
-      
-      if (!url) {
-        console.log("🔄 No URL provided, redirecting to dashboard")
+      // Prevent redirect loops - if already on login page, go to dashboard
+      if (url.includes("/auth/login")) {
         return `${baseUrl}/dashboard`
       }
       
+      // Handle relative URLs
       if (url.startsWith("/")) {
-        console.log("🔄 Relative URL, making absolute:", url)
         return `${baseUrl}${url}`
       }
       
+      // Handle absolute URLs
       try {
         const urlObj = new URL(url)
+        // Only allow same-origin redirects
         if (urlObj.origin === baseUrl) {
-          console.log("🔄 Same origin URL, allowing:", url)
           return url
         }
       } catch (e) {
-        console.log("🔄 Invalid URL, redirecting to dashboard")
+        // Invalid URL, fallback to dashboard
         return `${baseUrl}/dashboard`
       }
       
-      console.log("🔄 Default fallback to dashboard")
-      return `${baseUrl}/dashboard`
-      
-      if (url.includes("/auth/login")) {
-        console.log("🔄 Redirecting authenticated user to dashboard")
-        return `${baseUrl}/dashboard`
-      }
-      
-      else if (new URL(url).origin === baseUrl) return url
-      return baseUrl + "/dashboard"
+      // Default fallback
+      return baseUrl
     }
   },
   pages: {
     signIn: '/auth/login',
     error: '/auth/login',
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
