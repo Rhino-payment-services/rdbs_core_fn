@@ -247,8 +247,9 @@ const AnalyticsPage = () => {
     }
 
     // If we have user data, generate growth data based on selected period or custom range
-    if (usersData.length > 0) {
-      const totalUsers = usersData.length
+    const users = Array.isArray(usersData) ? usersData : (usersData?.data || [])
+    if (users.length > 0) {
+      const totalUsers = users.length
       
       if (isCustomRange && customDateRange.from && customDateRange.to) {
         // Generate data for custom date range
