@@ -37,8 +37,37 @@ export const authQueryKeys = {
 export const useUsers = () => {
   return useQuery({
     queryKey: authQueryKeys.users,
-    queryFn: () => apiFetch('/users?include=profile'),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    queryFn: async () => {
+      console.log('🔍 Fetching users from /users?include=profile')
+      const result = await apiFetch('/users?include=profile')
+      console.log('📊 Raw API Response:', result)
+      console.log('📊 Response type:', typeof result, Array.isArray(result) ? 'array' : 'object')
+      
+      // Log first merchant user with full detail
+      const users = Array.isArray(result) ? result : (result?.data || [])
+      console.log(`📊 Processed ${users.length} users`)
+      
+      const merchantUser = users.find((u: any) => u.merchantCode)
+      if (merchantUser) {
+        console.log('🏢 Merchant user found:', {
+          email: merchantUser.email,
+          merchantCode: merchantUser.merchantCode,
+          canHaveWallet: merchantUser.canHaveWallet,
+          hasMerchant: !!merchantUser.merchant,
+          merchantKeys: merchantUser.merchant ? Object.keys(merchantUser.merchant) : []
+        })
+        if (merchantUser.merchant) {
+          console.log('🏢 Merchant object:', merchantUser.merchant)
+        } else {
+          console.log('❌ No merchant object in response!')
+        }
+      }
+      
+      return result
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 }
 

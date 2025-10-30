@@ -19,6 +19,11 @@ let failedQueue: Array<{
   reject: (error?: unknown) => void
 }> = []
 
+// Cache session to prevent endless getSession() calls
+let cachedSession: any = null
+let sessionCacheTime = 0
+const SESSION_CACHE_DURATION = 60000 // Cache for 1 minute
+
 const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) {
@@ -56,7 +61,15 @@ const refreshToken = async (refreshToken: string) => {
 // Request interceptor to add auth token dynamically
 api.interceptors.request.use(
   async (config) => {
-    const session = await getSession()
+    // Use cached session if available and fresh (prevents endless getSession calls)
+    const now = Date.now()
+    let session = cachedSession
+    
+    if (!session || (now - sessionCacheTime) > SESSION_CACHE_DURATION) {
+      session = await getSession()
+      cachedSession = session
+      sessionCacheTime = now
+    }
     
     // Try to get token from session first
     if (session?.accessToken) {
@@ -101,6 +114,9 @@ api.interceptors.response.use(
         isRefreshing = true
 
         try {
+          // Clear cached session to force fresh fetch after 401
+          cachedSession = null
+          
           const session = await getSession()
           if (!session?.refreshToken) {
             throw new Error('No refresh token available')
@@ -111,6 +127,9 @@ api.interceptors.response.use(
           if (refreshResponse.accessToken) {
             // Update session with new tokens
             await updateSessionTokens(refreshResponse.accessToken, refreshResponse.refreshToken || session.refreshToken)
+            
+            // Clear cache to use new token
+            cachedSession = null
             
             // Update the request header with new token
             originalRequest.headers.Authorization = `Bearer ${refreshResponse.accessToken}`

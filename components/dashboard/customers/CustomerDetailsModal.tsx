@@ -17,7 +17,9 @@ import {
   Trash2,
   Wallet,
   CreditCard,
-  Building2
+  Building2,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react'
 import type { User as CustomerType } from '@/lib/types/api'
 
@@ -38,6 +40,17 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 }) => {
   if (!customer) return null
 
+  // Debug: Log customer data to see what we're receiving
+  console.log('🔍 Customer Details Modal - Customer Data:', {
+    id: customer.id,
+    email: customer.email,
+    userType: customer.userType,
+    subscriberType: customer.subscriberType,
+    merchantCode: customer.merchantCode,
+    hasMerchant: !!customer.merchant,
+    merchant: customer.merchant
+  })
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -57,7 +70,12 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     }).format(amount)
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
+    // Handle undefined or null status
+    if (!status) {
+      return <Badge variant="outline">Unknown</Badge>
+    }
+    
     switch (status.toLowerCase()) {
       case 'active':
         return <Badge className="bg-green-100 text-green-800"><Shield className="h-3 w-3 mr-1" />Active</Badge>
@@ -72,7 +90,16 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     }
   }
 
-  const getUserTypeBadge = (userType: string) => {
+  const getUserTypeBadge = (userType: string | undefined) => {
+    // Handle undefined or null userType
+    if (!userType) {
+      return (
+        <Badge className="bg-gray-100 text-gray-800">
+          Unknown
+        </Badge>
+      )
+    }
+    
     const colors = {
       'SUBSCRIBER': 'bg-purple-100 text-purple-800',
       'MERCHANT': 'bg-blue-100 text-blue-800',
@@ -172,6 +199,85 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* Business/Merchant Information - Show if merchant data OR merchantCode exists */}
+          {(customer.merchant || customer.merchantCode) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Business Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {customer.merchant ? (
+                  // Full merchant data available
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Business Name</p>
+                      <p className="font-medium">{customer.merchant.businessTradeName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Business Type</p>
+                      <p className="font-medium">{customer.merchant.businessType}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Owner Name</p>
+                      <p className="font-medium">
+                        {customer.merchant.ownerFirstName} {customer.merchant.ownerLastName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Merchant Code</p>
+                      <p className="font-medium font-mono">{customer.merchantCode || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Business Email</p>
+                      <p className="font-medium">{customer.merchant.businessEmail}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Business Phone</p>
+                      <p className="font-medium">{customer.merchant.registeredPhoneNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Business Status</p>
+                      <div className="flex items-center gap-2">
+                        {customer.merchant.isActive && customer.merchant.isVerified ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Active & Verified
+                          </Badge>
+                        ) : customer.merchant.isActive ? (
+                          <Badge className="bg-yellow-100 text-yellow-800">
+                            Active - Pending Verification
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-800">
+                            Inactive
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Only merchant code available - backend needs restart
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-900">Partial merchant data</p>
+                        <p className="text-xs text-yellow-700">Backend needs restart to load full business details</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Merchant Code</p>
+                      <p className="font-medium font-mono">{customer.merchantCode}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Profile Information */}
           {customer.profile && (

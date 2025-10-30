@@ -126,10 +126,10 @@ const TariffsPage = () => {
   const canManageTariffs = hasPermission(PERMISSIONS.TARIFF_CREATE) || hasPermission(PERMISSIONS.TARIFF_UPDATE) || hasPermission(PERMISSIONS.TARIFF_DELETE) || userRole === 'SUPER_ADMIN'
   const canApproveTariffs = hasPermission(PERMISSIONS.TARIFF_APPROVE) || hasPermission(PERMISSIONS.TARIFF_REJECT) || userRole === 'SUPER_ADMIN'
   
-  // Fetch tariffs from API
+  // Fetch tariffs from API (with high limit to show all tariffs)
   const { data: tariffsData, isLoading: tariffsLoading, error: tariffsError, refetch } = useQuery({
     queryKey: ['tariffs'],
-    queryFn: () => api.get('/finance/tariffs').then(res => res.data),
+    queryFn: () => api.get('/finance/tariffs', { params: { limit: 1000 } }).then(res => res.data),
     staleTime: 5 * 60 * 1000,
   })
 

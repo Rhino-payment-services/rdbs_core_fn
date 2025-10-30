@@ -43,7 +43,8 @@ const CustomerProfilePage = () => {
   )
   
   // Get wallet data from user data (now included in user response)
-  const customer = customerData?.users?.find((user: any) => user.id === id) || null;
+  const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
+  const customer = users.find((user: any) => user.id === id) || null;
   const wallets = customer?.wallets || [];
   const personalWallet = wallets.find((wallet: any) => wallet.walletType === 'PERSONAL');
   const businessWallet = wallets.find((wallet: any) => wallet.walletType === 'BUSINESS');

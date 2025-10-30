@@ -84,8 +84,11 @@ export const useTransactionSystemStats = (filters?: {
   return useQuery({
     queryKey: [...transactionQueryKeys.systemStats, filters],
     queryFn: () => apiFetch(`/transactions/system/stats?${queryParams.toString()}`),
-    staleTime: 0, // No caching for stats to ensure fresh data
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchInterval: false, // No automatic refetching
+    retry: 1, // Only retry once on failure
+    retryDelay: 3000, // Wait 3 seconds before retry
   })
 }
 

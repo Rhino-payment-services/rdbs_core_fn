@@ -28,22 +28,34 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
-import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
 
 const DashboardPage = () => {
   const { hasPermission } = usePermissions()
+  const { status: sessionStatus } = useSession()
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   
   // Check if user has dashboard viewing permission
   const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW)
+  const isLoadingSession = sessionStatus === 'loading'
 
   // Fetch data from backend
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
   const { data: usersData, isLoading: usersLoading, error: usersError } = useUsers()
+  
+  // Fetch all transactions for the last 7 days to build accurate graphs
+  const last7DaysStart = new Date()
+  last7DaysStart.setDate(last7DaysStart.getDate() - 7)
+  const { data: allTransactionsData } = useAllTransactions({
+    limit: 1000,
+    startDate: last7DaysStart.toISOString(),
+    endDate: new Date().toISOString()
+  })
 
   // Scroll detection for showing scroll buttons
   useEffect(() => {
@@ -76,6 +88,25 @@ const DashboardPage = () => {
     }
   }
 
+  // Show loading state while session is loading to prevent "Access Restricted" flash
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading permissions...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   // If user doesn't have dashboard permissions, show access denied message
   if (!canViewDashboard) {
     return (
@@ -105,46 +136,51 @@ const DashboardPage = () => {
     )
   }
 
-  // Generate chart data from backend or show empty state
+  // Generate chart data from actual transactions grouped by date
   const getChartData = () => {
-    if (statsLoading || statsError || !transactionStats) {
-      return []
-    }
-
-    // Generate 7 days of data
-    const last7Days = [];
-    const today = new Date();
+    // Get transactions from the API response
+    const transactions = (allTransactionsData as any)?.transactions || []
     
+    const today = new Date();
+    const dailyData: Record<string, { volume: number; transactions: number; date: Date }> = {}
+    
+    // Initialize all 7 days with zero values
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const dateKey = date.toISOString().split('T')[0];
       
-      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-      const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      
-      // For now, distribute volume evenly across 7 days
-      // TODO: Get actual daily breakdown from backend API
-      const dailyVolume = i === 0 && transactionStats.totalTransactions > 0
-        ? transactionStats.totalVolume // Show all volume on today
-        : 0; // No data for other days yet
-      
-      last7Days.push({
-        day: dayOfWeek,
-        date: dateLabel,
-        volume: dailyVolume,
-        transactions: i === 0 ? transactionStats.totalTransactions : 0
-      });
+      if (!dailyData[dateKey]) {
+        dailyData[dateKey] = { volume: 0, transactions: 0, date };
+      }
     }
-    
-    return last7Days;
+
+    // Aggregate actual transactions by date
+    transactions.forEach((tx: any) => {
+      const txDate = new Date(tx.createdAt);
+      const dateKey = txDate.toISOString().split('T')[0];
+      
+      // Only include if within the last 7 days
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].volume += Number(tx.amount) || 0;
+        dailyData[dateKey].transactions += 1;
+      }
+    });
+
+    // Convert to array sorted by date
+    return Object.entries(dailyData)
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+      .map(([dateKey, data]) => ({
+        day: data.date.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: data.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        volume: data.volume,
+        transactions: data.transactions
+      }));
   }
 
   const chartData = getChartData()
-  const hasData = chartData.length > 0
-  
-  // Calculate total volume from chart data for consistency
-  const chartTotalVolume = chartData.reduce((sum, item) => sum + item.volume, 0)
-  const displayTotalVolume = chartTotalVolume > 0 ? chartTotalVolume : (transactionStats?.totalVolume || 0)
+  const hasData = chartData.some(item => item.volume > 0 || item.transactions > 0)
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -202,7 +238,7 @@ const DashboardPage = () => {
                         Total Volume
                       </p>
                       <p className="text-xl font-bold text-gray-900">
-                        {statsLoading ? '...' : `UGX ${(displayTotalVolume / 1000000).toFixed(1)}M`}
+                        {statsLoading ? '...' : `UGX ${((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M`}
                       </p>
                     </div>
                     <div className="w-8 h-8 flex items-center justify-center">
@@ -254,7 +290,10 @@ const DashboardPage = () => {
                         Active Users
                       </p>
                       <p className="text-xl font-bold text-gray-900">
-                        {usersLoading ? '...' : (usersData?.data?.pagination?.total || 0).toLocaleString()}
+                        {usersLoading ? '...' : (() => {
+                          const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                          return users.length.toLocaleString()
+                        })()}
                       </p>
                     </div>
                     <div className="w-8 h-8 flex items-center justify-center">
@@ -263,7 +302,10 @@ const DashboardPage = () => {
                   </div>
                   <div className="mt-0">
                     <span className="text-sm text-purple-600 font-medium">
-                      {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
+                      {(() => {
+                        const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                        return users.filter((user: any) => user.status === 'ACTIVE').length || 0
+                      })()}
                     </span>
                     <span className="text-sm ml-1 text-gray-500">
                       online now

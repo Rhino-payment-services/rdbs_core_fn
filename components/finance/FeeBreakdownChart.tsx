@@ -33,7 +33,7 @@ const FeeBreakdownChart: React.FC<FeeBreakdownChartProps> = ({ data, isLoading }
 
   // Prepare pie chart data
   const pieData = [
-    { name: 'RukaPay Revenue', value: data.rukapayRevenue, color: '#3b82f6' },
+    { name: 'RukaPay Gross Revenue', value: data.rukapayRevenue, color: '#3b82f6' },
     { name: 'Partner Revenue', value: data.partnerRevenue, color: '#f59e0b' },
     { name: 'Government Tax', value: data.governmentTax, color: '#ef4444' },
     { name: 'Processing Fees', value: data.processingFees, color: '#8b5cf6' },
@@ -93,7 +93,7 @@ const FeeBreakdownChart: React.FC<FeeBreakdownChartProps> = ({ data, isLoading }
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">RukaPay Revenue</p>
+                <p className="text-sm text-gray-600">RukaPay Gross Revenue</p>
                 <p className="text-lg font-bold text-blue-600">{formatAmount(data.rukapayRevenue)}</p>
                 <p className="text-xs text-gray-500">{rukapayPercentage}% of total</p>
               </div>
@@ -188,7 +188,7 @@ const FeeBreakdownChart: React.FC<FeeBreakdownChartProps> = ({ data, isLoading }
                 <div className="flex items-center space-x-3">
                   <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
                   <div>
-                    <p className="font-medium text-blue-900">RukaPay Revenue</p>
+                    <p className="font-medium text-blue-900">RukaPay Gross Revenue</p>
                     <p className="text-sm text-blue-700">Our service fees</p>
                   </div>
                 </div>

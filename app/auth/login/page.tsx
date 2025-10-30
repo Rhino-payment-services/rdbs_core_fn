@@ -22,22 +22,19 @@ function LoginForm() {
   // Get callback URL from search params
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
 
-  // Check if user is already authenticated
+  // Check if user is already authenticated (only once on mount)
   useEffect(() => {
+    let mounted = true
     const checkExistingSession = async () => {
-      console.log("🔄 Login page: Checking existing session...")
       const existingSession = await getSession()
-      if (existingSession) {
-        console.log("✅ User already authenticated, redirecting to:", callbackUrl)
+      if (existingSession && mounted) {
         setIsRedirecting(true)
-        // Use window.location.href for more reliable redirect
-        window.location.href = callbackUrl
-      } else {
-        console.log("❌ No existing session found")
+        router.replace(callbackUrl)
       }
     }
     checkExistingSession()
-  }, [callbackUrl])
+    return () => { mounted = false }
+  }, []) // Empty dependency array - only run once on mount
 
   // Validation schema
   const validationSchema = Yup.object({
