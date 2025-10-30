@@ -38,6 +38,7 @@ export const useUserSearch = ({ phone, enabled = true }: UseUserSearchProps) => 
     },
     enabled: enabled && phone.length > 0,
     retry: false,
-    staleTime: 0,
+    staleTime: 30 * 1000, // Cache for 30 seconds
+    refetchOnWindowFocus: false,
   })
 }

@@ -65,7 +65,9 @@ export const useUsers = () => {
       
       return result
     },
-    staleTime: 0, // Disable cache temporarily for debugging
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 }
 

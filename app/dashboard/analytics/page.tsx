@@ -46,9 +46,11 @@ import { useMerchants } from '@/lib/hooks/useMerchants'
 import { useKycStats } from '@/lib/hooks/useKyc'
 import { useSystemStats } from '@/lib/hooks/useSystem'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { useSession } from 'next-auth/react'
 
 const AnalyticsPage = () => {
   const { hasPermission } = usePermissions()
+  const { status: sessionStatus } = useSession()
   const [activeTab, setActiveTab] = useState('overview')
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const [selectedPeriod, setSelectedPeriod] = useState('7d')
@@ -61,6 +63,7 @@ const AnalyticsPage = () => {
   
   // Check if user has analytics viewing permission
   const canViewAnalytics = hasPermission(PERMISSIONS.ANALYTICS_VIEW)
+  const isLoadingSession = sessionStatus === 'loading'
 
   // API hooks for different analytics sections
   const { data: transactionStats, isLoading: transactionLoading, error: transactionError, refetch: refetchTransactions } = useTransactionSystemStats()
@@ -132,6 +135,25 @@ const AnalyticsPage = () => {
   }
 
   const isRefreshing = transactionLoading || usersLoading || merchantsLoading || kycLoading || systemLoading
+
+  // Show loading state while session is loading to prevent "Access Restricted" flash
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading permissions...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   // If user doesn't have analytics permissions, show access denied message
   if (!canViewAnalytics) {

@@ -336,7 +336,7 @@ const TransactionsPage = () => {
                 <div className="flex items-center justify-between mb-0">
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-600 mb-0">
-                      RukaPay Revenue
+                      RukaPay Gross Revenue
                     </p>
                     <p className="text-xl font-bold text-gray-900 leading-tight">
                       {statsLoading ? '...' : formatAmount(stats.rukapayRevenue || 0)}

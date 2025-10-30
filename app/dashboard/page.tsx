@@ -31,15 +31,18 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'rec
 import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
 
 const DashboardPage = () => {
   const { hasPermission } = usePermissions()
+  const { status: sessionStatus } = useSession()
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   
   // Check if user has dashboard viewing permission
   const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW)
+  const isLoadingSession = sessionStatus === 'loading'
 
   // Fetch data from backend
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
@@ -83,6 +86,25 @@ const DashboardPage = () => {
         behavior: 'smooth' 
       })
     }
+  }
+
+  // Show loading state while session is loading to prevent "Access Restricted" flash
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading permissions...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   // If user doesn't have dashboard permissions, show access denied message
