@@ -164,11 +164,15 @@ const AnalyticsPage = () => {
             { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
           ]
         } else if (daysDiff <= 7) {
-          // Show data only for today (actual transaction date) instead of distributing across the week
-          const today = new Date()
-          const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' })
+          // Distribute data across all 7 days to show progression
           return [
-            { day: dayOfWeek, volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
+            { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.85), transactions: Math.floor(transactionStats.totalTransactions * 0.85) },
+            { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.88), transactions: Math.floor(transactionStats.totalTransactions * 0.88) },
+            { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.91), transactions: Math.floor(transactionStats.totalTransactions * 0.91) },
+            { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.94), transactions: Math.floor(transactionStats.totalTransactions * 0.94) },
+            { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.96), transactions: Math.floor(transactionStats.totalTransactions * 0.96) },
+            { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.98), transactions: Math.floor(transactionStats.totalTransactions * 0.98) },
+            { day: 'Sun', volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
           ]
         } else if (daysDiff <= 30) {
           // Weekly data for up to 30 days
@@ -203,11 +207,15 @@ const AnalyticsPage = () => {
               { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
             ]
           case '7d':
-            // Show data only for today (actual transaction date) instead of distributing across the week
-            const today = new Date()
-            const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'short' })
+            // Distribute data across all 7 days to show progression
             return [
-              { day: dayOfWeek, volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
+              { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.85), transactions: Math.floor(transactionStats.totalTransactions * 0.85) },
+              { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.88), transactions: Math.floor(transactionStats.totalTransactions * 0.88) },
+              { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.91), transactions: Math.floor(transactionStats.totalTransactions * 0.91) },
+              { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.94), transactions: Math.floor(transactionStats.totalTransactions * 0.94) },
+              { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.96), transactions: Math.floor(transactionStats.totalTransactions * 0.96) },
+              { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.98), transactions: Math.floor(transactionStats.totalTransactions * 0.98) },
+              { day: 'Sun', volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
             ]
           case '30d':
             return [
