@@ -40,7 +40,7 @@ import { CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
-import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import { useKycStats } from '@/lib/hooks/useKyc'
@@ -68,6 +68,26 @@ const AnalyticsPage = () => {
   const { data: merchantsData, isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useMerchants()
   const { data: kycStats, isLoading: kycLoading, error: kycError, refetch: refetchKyc } = useKycStats()
   const { data: systemStats, isLoading: systemLoading, error: systemError, refetch: refetchSystem } = useSystemStats()
+  
+  // Fetch all transactions for the selected period to build accurate graphs
+  const { data: allTransactionsData } = useAllTransactions({
+    limit: 1000, // Fetch enough to cover the period
+    startDate: (() => {
+      if (isCustomRange && customDateRange.from) {
+        return customDateRange.from.toISOString()
+      }
+      const days = selectedPeriod === '1d' ? 1 : selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90
+      const date = new Date()
+      date.setDate(date.getDate() - days)
+      return date.toISOString()
+    })(),
+    endDate: (() => {
+      if (isCustomRange && customDateRange.to) {
+        return customDateRange.to.toISOString()
+      }
+      return new Date().toISOString()
+    })()
+  })
 
   // Scroll detection for showing scroll buttons
   useEffect(() => {
@@ -142,219 +162,295 @@ const AnalyticsPage = () => {
     )
   }
 
-  // Generate chart data from backend or show empty state
+  // Generate chart data from actual transactions grouped by date
   const getTransactionChartData = () => {
-    if (transactionLoading || transactionError || !transactionStats) {
+    // Get transactions from the API response
+    const transactions = (allTransactionsData as any)?.transactions || []
+    
+    if (transactions.length === 0) {
       return []
     }
 
-    // If we have transaction data, generate chart data based on selected period or custom range
-    if (transactionStats.totalTransactions > 0) {
-      if (isCustomRange && customDateRange.from && customDateRange.to) {
-        // Generate data for custom date range
-        const daysDiff = Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (daysDiff <= 1) {
-          // Hourly data for 1 day or less
-          return [
-            { time: '00:00', volume: Math.floor(transactionStats.totalVolume * 0.05), transactions: Math.floor(transactionStats.totalTransactions * 0.05) },
-            { time: '06:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) },
-            { time: '12:00', volume: Math.floor(transactionStats.totalVolume * 0.30), transactions: Math.floor(transactionStats.totalTransactions * 0.30) },
-            { time: '18:00', volume: Math.floor(transactionStats.totalVolume * 0.35), transactions: Math.floor(transactionStats.totalTransactions * 0.35) },
-            { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
-          ]
-        } else if (daysDiff <= 7) {
-          // Distribute data across all 7 days to show progression
-          return [
-            { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.85), transactions: Math.floor(transactionStats.totalTransactions * 0.85) },
-            { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.88), transactions: Math.floor(transactionStats.totalTransactions * 0.88) },
-            { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.91), transactions: Math.floor(transactionStats.totalTransactions * 0.91) },
-            { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.94), transactions: Math.floor(transactionStats.totalTransactions * 0.94) },
-            { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.96), transactions: Math.floor(transactionStats.totalTransactions * 0.96) },
-            { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.98), transactions: Math.floor(transactionStats.totalTransactions * 0.98) },
-            { day: 'Sun', volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
-          ]
-        } else if (daysDiff <= 30) {
-          // Weekly data for up to 30 days
-          return [
-            { week: 'Week 1', volume: Math.floor(transactionStats.totalVolume * 0.20), transactions: Math.floor(transactionStats.totalTransactions * 0.20) },
-            { week: 'Week 2', volume: Math.floor(transactionStats.totalVolume * 0.25), transactions: Math.floor(transactionStats.totalTransactions * 0.25) },
-            { week: 'Week 3', volume: Math.floor(transactionStats.totalVolume * 0.30), transactions: Math.floor(transactionStats.totalTransactions * 0.30) },
-            { week: 'Week 4', volume: Math.floor(transactionStats.totalVolume * 0.25), transactions: Math.floor(transactionStats.totalTransactions * 0.25) }
-          ]
-        } else {
-          // Weekly data for more than 30 days (90 days = ~13 weeks)
-          const weeks = Math.ceil(daysDiff / 7)
-          const weeklyData = []
-          for (let i = 1; i <= Math.min(weeks, 13); i++) {
-            weeklyData.push({
-              week: `Week ${i}`,
-              volume: Math.floor(transactionStats.totalVolume * (0.05 + Math.random() * 0.15)),
-              transactions: Math.floor(transactionStats.totalTransactions * (0.05 + Math.random() * 0.15))
-            })
-          }
-          return weeklyData
-        }
-      } else {
-        // Use predefined periods
-        switch (selectedPeriod) {
-          case '1d':
-            return [
-              { time: '00:00', volume: Math.floor(transactionStats.totalVolume * 0.05), transactions: Math.floor(transactionStats.totalTransactions * 0.05) },
-              { time: '06:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) },
-              { time: '12:00', volume: Math.floor(transactionStats.totalVolume * 0.30), transactions: Math.floor(transactionStats.totalTransactions * 0.30) },
-              { time: '18:00', volume: Math.floor(transactionStats.totalVolume * 0.35), transactions: Math.floor(transactionStats.totalTransactions * 0.35) },
-              { time: '24:00', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) }
-            ]
-          case '7d':
-            // Distribute data across all 7 days to show progression
-            return [
-              { day: 'Mon', volume: Math.floor(transactionStats.totalVolume * 0.85), transactions: Math.floor(transactionStats.totalTransactions * 0.85) },
-              { day: 'Tue', volume: Math.floor(transactionStats.totalVolume * 0.88), transactions: Math.floor(transactionStats.totalTransactions * 0.88) },
-              { day: 'Wed', volume: Math.floor(transactionStats.totalVolume * 0.91), transactions: Math.floor(transactionStats.totalTransactions * 0.91) },
-              { day: 'Thu', volume: Math.floor(transactionStats.totalVolume * 0.94), transactions: Math.floor(transactionStats.totalTransactions * 0.94) },
-              { day: 'Fri', volume: Math.floor(transactionStats.totalVolume * 0.96), transactions: Math.floor(transactionStats.totalTransactions * 0.96) },
-              { day: 'Sat', volume: Math.floor(transactionStats.totalVolume * 0.98), transactions: Math.floor(transactionStats.totalTransactions * 0.98) },
-              { day: 'Sun', volume: transactionStats.totalVolume, transactions: transactionStats.totalTransactions }
-            ]
-          case '30d':
-            return [
-              { week: 'Week 1', volume: Math.floor(transactionStats.totalVolume * 0.20), transactions: Math.floor(transactionStats.totalTransactions * 0.20) },
-              { week: 'Week 2', volume: Math.floor(transactionStats.totalVolume * 0.25), transactions: Math.floor(transactionStats.totalTransactions * 0.25) },
-              { week: 'Week 3', volume: Math.floor(transactionStats.totalVolume * 0.30), transactions: Math.floor(transactionStats.totalTransactions * 0.30) },
-              { week: 'Week 4', volume: Math.floor(transactionStats.totalVolume * 0.25), transactions: Math.floor(transactionStats.totalTransactions * 0.25) }
-            ]
-          case '90d':
-            return [
-              { week: 'Week 1', volume: Math.floor(transactionStats.totalVolume * 0.08), transactions: Math.floor(transactionStats.totalTransactions * 0.08) },
-              { week: 'Week 2', volume: Math.floor(transactionStats.totalVolume * 0.10), transactions: Math.floor(transactionStats.totalTransactions * 0.10) },
-              { week: 'Week 3', volume: Math.floor(transactionStats.totalVolume * 0.12), transactions: Math.floor(transactionStats.totalTransactions * 0.12) },
-              { week: 'Week 4', volume: Math.floor(transactionStats.totalVolume * 0.11), transactions: Math.floor(transactionStats.totalTransactions * 0.11) },
-              { week: 'Week 5', volume: Math.floor(transactionStats.totalVolume * 0.13), transactions: Math.floor(transactionStats.totalTransactions * 0.13) },
-              { week: 'Week 6', volume: Math.floor(transactionStats.totalVolume * 0.09), transactions: Math.floor(transactionStats.totalTransactions * 0.09) },
-              { week: 'Week 7', volume: Math.floor(transactionStats.totalVolume * 0.15), transactions: Math.floor(transactionStats.totalTransactions * 0.15) },
-              { week: 'Week 8', volume: Math.floor(transactionStats.totalVolume * 0.12), transactions: Math.floor(transactionStats.totalTransactions * 0.12) },
-              { week: 'Week 9', volume: Math.floor(transactionStats.totalVolume * 0.10), transactions: Math.floor(transactionStats.totalTransactions * 0.10) }
-            ]
-          default:
-            return []
-        }
-      }
+    // Determine the period to use
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date = now
+
+    if (isCustomRange && customDateRange.from && customDateRange.to) {
+      startDate = customDateRange.from
+      endDate = customDateRange.to
+    } else {
+      const days = selectedPeriod === '1d' ? 1 : selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
     }
 
-    return []
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysDiff <= 1) {
+      // Hourly aggregation for 1 day
+      const hourlyData: Record<string, { volume: number; transactions: number }> = {}
+      
+      transactions.forEach((tx: any) => {
+        const txDate = new Date(tx.createdAt)
+        const hour = txDate.getHours()
+        const timeKey = `${hour.toString().padStart(2, '0')}:00`
+        
+        if (!hourlyData[timeKey]) {
+          hourlyData[timeKey] = { volume: 0, transactions: 0 }
+        }
+        hourlyData[timeKey].volume += Number(tx.amount) || 0
+        hourlyData[timeKey].transactions += 1
+      })
+
+      // Generate array for all hours
+      const result = []
+      for (let h = 0; h < 24; h += 6) {
+        const timeKey = `${h.toString().padStart(2, '0')}:00`
+        result.push({
+          time: timeKey,
+          volume: hourlyData[timeKey]?.volume || 0,
+          transactions: hourlyData[timeKey]?.transactions || 0
+        })
+      }
+      return result
+      
+    } else if (daysDiff <= 7) {
+      // Daily aggregation for 7 days - Show actual data by date
+      const dailyData: Record<string, { volume: number; transactions: number; date: Date }> = {}
+      
+      // Initialize all 7 days with zero values
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now)
+        date.setDate(date.getDate() - i)
+        date.setHours(0, 0, 0, 0)
+        const dayKey = date.toLocaleDateString('en-US', { weekday: 'short' })
+        const dateKey = date.toISOString().split('T')[0]
+        
+        if (!dailyData[dateKey]) {
+          dailyData[dateKey] = { volume: 0, transactions: 0, date }
+        }
+      }
+
+      // Aggregate actual transactions
+      transactions.forEach((tx: any) => {
+        const txDate = new Date(tx.createdAt)
+        const dateKey = txDate.toISOString().split('T')[0]
+        
+        if (!dailyData[dateKey]) {
+          dailyData[dateKey] = { volume: 0, transactions: 0, date: txDate }
+        }
+        dailyData[dateKey].volume += Number(tx.amount) || 0
+        dailyData[dateKey].transactions += 1
+      })
+
+      // Convert to array with day names
+      return Object.entries(dailyData)
+        .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+        .map(([dateKey, data]) => ({
+          day: data.date.toLocaleDateString('en-US', { weekday: 'short' }),
+          volume: data.volume,
+          transactions: data.transactions
+        }))
+        
+    } else if (daysDiff <= 30) {
+      // Weekly aggregation for 30 days
+      const weeklyData: Record<number, { volume: number; transactions: number }> = {}
+      
+      transactions.forEach((tx: any) => {
+        const txDate = new Date(tx.createdAt)
+        const weekNum = Math.floor((now.getTime() - txDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
+        const weekKey = 4 - weekNum // Week 1 is most recent
+        
+        if (weekKey >= 1 && weekKey <= 4) {
+          if (!weeklyData[weekKey]) {
+            weeklyData[weekKey] = { volume: 0, transactions: 0 }
+          }
+          weeklyData[weekKey].volume += Number(tx.amount) || 0
+          weeklyData[weekKey].transactions += 1
+        }
+      })
+
+      return [1, 2, 3, 4].map(weekNum => ({
+        week: `Week ${weekNum}`,
+        volume: weeklyData[weekNum]?.volume || 0,
+        transactions: weeklyData[weekNum]?.transactions || 0
+      }))
+      
+    } else {
+      // Weekly aggregation for 90 days
+      const weeklyData: Record<number, { volume: number; transactions: number }> = {}
+      
+      transactions.forEach((tx: any) => {
+        const txDate = new Date(tx.createdAt)
+        const weekNum = Math.floor((now.getTime() - txDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
+        const weekKey = 13 - weekNum // Week 1 is oldest, Week 13 is most recent
+        
+        if (weekKey >= 1 && weekKey <= 13) {
+          if (!weeklyData[weekKey]) {
+            weeklyData[weekKey] = { volume: 0, transactions: 0 }
+          }
+          weeklyData[weekKey].volume += Number(tx.amount) || 0
+          weeklyData[weekKey].transactions += 1
+        }
+      })
+
+      return Array.from({ length: 9 }, (_, i) => {
+        const weekNum = i + 1
+        return {
+          week: `Week ${weekNum}`,
+          volume: weeklyData[weekNum]?.volume || 0,
+          transactions: weeklyData[weekNum]?.transactions || 0
+        }
+      })
+    }
   }
 
   const transactionData = getTransactionChartData()
   const hasTransactionData = transactionData.length > 0
 
-  // Generate user growth data from backend or show empty state
+  // Generate user growth data from actual user creation dates
   const getUserGrowthData = () => {
-    if (usersLoading || usersError || !usersData) {
+    const users = Array.isArray(usersData) ? usersData : (usersData?.data?.data || [])
+    
+    if (users.length === 0) {
       return []
     }
 
-    // If we have user data, generate growth data based on selected period or custom range
-    const users = Array.isArray(usersData) ? usersData : (usersData?.data || [])
-    if (users.length > 0) {
-      const totalUsers = users.length
-      
-      if (isCustomRange && customDateRange.from && customDateRange.to) {
-        // Generate data for custom date range
-        const daysDiff = Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (daysDiff <= 1) {
-          // Hourly data for 1 day or less
-          return [
-            { time: '00:00', users: Math.floor(totalUsers * 0.95) },
-            { time: '06:00', users: Math.floor(totalUsers * 0.96) },
-            { time: '12:00', users: Math.floor(totalUsers * 0.97) },
-            { time: '18:00', users: Math.floor(totalUsers * 0.98) },
-            { time: '24:00', users: totalUsers }
-          ]
-        } else if (daysDiff <= 7) {
-          // Daily data for up to 7 days
-          return [
-            { day: 'Mon', users: Math.floor(totalUsers * 0.85) },
-            { day: 'Tue', users: Math.floor(totalUsers * 0.87) },
-            { day: 'Wed', users: Math.floor(totalUsers * 0.89) },
-            { day: 'Thu', users: Math.floor(totalUsers * 0.92) },
-            { day: 'Fri', users: Math.floor(totalUsers * 0.94) },
-            { day: 'Sat', users: Math.floor(totalUsers * 0.96) },
-            { day: 'Sun', users: totalUsers }
-          ]
-        } else if (daysDiff <= 30) {
-          // Weekly data for up to 30 days
-          return [
-            { week: 'Week 1', users: Math.floor(totalUsers * 0.70) },
-            { week: 'Week 2', users: Math.floor(totalUsers * 0.80) },
-            { week: 'Week 3', users: Math.floor(totalUsers * 0.90) },
-            { week: 'Week 4', users: totalUsers }
-          ]
-        } else {
-          // Weekly data for more than 30 days (90 days = ~13 weeks)
-          const weeks = Math.ceil(daysDiff / 7)
-          const weeklyData = []
-          for (let i = 1; i <= Math.min(weeks, 13); i++) {
-            const progress = (i / weeks) * 0.95 + 0.05 // Gradual growth from 5% to 100%
-            weeklyData.push({
-              week: `Week ${i}`,
-              users: Math.floor(totalUsers * progress)
-            })
-          }
-          return weeklyData
-        }
-      } else {
-        // Use predefined periods
-        switch (selectedPeriod) {
-          case '1d':
-            return [
-              { time: '00:00', users: Math.floor(totalUsers * 0.95) },
-              { time: '06:00', users: Math.floor(totalUsers * 0.96) },
-              { time: '12:00', users: Math.floor(totalUsers * 0.97) },
-              { time: '18:00', users: Math.floor(totalUsers * 0.98) },
-              { time: '24:00', users: totalUsers }
-            ]
-          case '7d':
-            return [
-              { day: 'Mon', users: Math.floor(totalUsers * 0.85) },
-              { day: 'Tue', users: Math.floor(totalUsers * 0.87) },
-              { day: 'Wed', users: Math.floor(totalUsers * 0.89) },
-              { day: 'Thu', users: Math.floor(totalUsers * 0.92) },
-              { day: 'Fri', users: Math.floor(totalUsers * 0.94) },
-              { day: 'Sat', users: Math.floor(totalUsers * 0.96) },
-              { day: 'Sun', users: totalUsers }
-            ]
-          case '30d':
-            return [
-              { week: 'Week 1', users: Math.floor(totalUsers * 0.70) },
-              { week: 'Week 2', users: Math.floor(totalUsers * 0.80) },
-              { week: 'Week 3', users: Math.floor(totalUsers * 0.90) },
-              { week: 'Week 4', users: totalUsers }
-            ]
-          case '90d':
-            return [
-              { week: 'Week 1', users: Math.floor(totalUsers * 0.65) },
-              { week: 'Week 2', users: Math.floor(totalUsers * 0.68) },
-              { week: 'Week 3', users: Math.floor(totalUsers * 0.72) },
-              { week: 'Week 4', users: Math.floor(totalUsers * 0.75) },
-              { week: 'Week 5', users: Math.floor(totalUsers * 0.78) },
-              { week: 'Week 6', users: Math.floor(totalUsers * 0.82) },
-              { week: 'Week 7', users: Math.floor(totalUsers * 0.85) },
-              { week: 'Week 8', users: Math.floor(totalUsers * 0.88) },
-              { week: 'Week 9', users: Math.floor(totalUsers * 0.92) },
-              { week: 'Week 10', users: Math.floor(totalUsers * 0.95) },
-              { week: 'Week 11', users: Math.floor(totalUsers * 0.97) },
-              { week: 'Week 12', users: Math.floor(totalUsers * 0.99) },
-              { week: 'Week 13', users: totalUsers }
-            ]
-          default:
-            return []
-        }
-      }
+    // Determine the period to use
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date = now
+
+    if (isCustomRange && customDateRange.from && customDateRange.to) {
+      startDate = customDateRange.from
+      endDate = customDateRange.to
+    } else {
+      const days = selectedPeriod === '1d' ? 1 : selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90
+      startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
     }
 
-    return []
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysDiff <= 1) {
+      // Hourly aggregation - count users created in each hour
+      const hourlyData: Record<string, number> = {}
+      
+      users.forEach((user: any) => {
+        const userDate = new Date(user.createdAt)
+        const hour = userDate.getHours()
+        const timeKey = `${hour.toString().padStart(2, '0')}:00`
+        hourlyData[timeKey] = (hourlyData[timeKey] || 0) + 1
+      })
+
+      // Generate cumulative counts
+      let cumulative = 0
+      const result = []
+      for (let h = 0; h < 24; h += 6) {
+        const timeKey = `${h.toString().padStart(2, '0')}:00`
+        cumulative += hourlyData[timeKey] || 0
+        result.push({ time: timeKey, users: cumulative })
+      }
+      return result
+      
+    } else if (daysDiff <= 7) {
+      // Daily aggregation for 7 days - cumulative user count
+      const dailyData: Record<string, { count: number; date: Date; totalUpToDate: number }> = {}
+      
+      // Initialize all 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now)
+        date.setDate(date.getDate() - i)
+        date.setHours(0, 0, 0, 0)
+        const dateKey = date.toISOString().split('T')[0]
+        dailyData[dateKey] = { count: 0, date, totalUpToDate: 0 }
+      }
+
+      // Count users created on each day
+      users.forEach((user: any) => {
+        const userDate = new Date(user.createdAt)
+        const dateKey = userDate.toISOString().split('T')[0]
+        if (dailyData[dateKey]) {
+          dailyData[dateKey].count += 1
+        }
+      })
+
+      // Calculate cumulative totals (users created up to and including each day)
+      let cumulative = users.filter((user: any) => {
+        const userDate = new Date(user.createdAt)
+        return userDate < dailyData[Object.keys(dailyData)[0]].date
+      }).length
+
+      const sortedEntries = Object.entries(dailyData).sort((a, b) => 
+        a[1].date.getTime() - b[1].date.getTime()
+      )
+
+      sortedEntries.forEach(([key, data]) => {
+        cumulative += data.count
+        data.totalUpToDate = cumulative
+      })
+
+      return sortedEntries.map(([dateKey, data]) => ({
+        day: data.date.toLocaleDateString('en-US', { weekday: 'short' }),
+        users: data.totalUpToDate
+      }))
+      
+    } else if (daysDiff <= 30) {
+      // Weekly aggregation - cumulative counts
+      const weeklyData: Record<number, number> = {}
+      let totalBeforePeriod = users.filter((user: any) => {
+        const userDate = new Date(user.createdAt)
+        return userDate < startDate
+      }).length
+
+      users.forEach((user: any) => {
+        const userDate = new Date(user.createdAt)
+        if (userDate >= startDate && userDate <= endDate) {
+          const weekNum = Math.floor((userDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+          if (weekNum >= 1 && weekNum <= 4) {
+            weeklyData[weekNum] = (weeklyData[weekNum] || 0) + 1
+          }
+        }
+      })
+
+      let cumulative = totalBeforePeriod
+      return [1, 2, 3, 4].map(weekNum => {
+        cumulative += weeklyData[weekNum] || 0
+        return {
+          week: `Week ${weekNum}`,
+          users: cumulative
+        }
+      })
+      
+    } else {
+      // Weekly aggregation for 90 days
+      const weeklyData: Record<number, number> = {}
+      let totalBeforePeriod = users.filter((user: any) => {
+        const userDate = new Date(user.createdAt)
+        return userDate < startDate
+      }).length
+
+      users.forEach((user: any) => {
+        const userDate = new Date(user.createdAt)
+        if (userDate >= startDate && userDate <= endDate) {
+          const weekNum = Math.floor((userDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+          if (weekNum >= 1 && weekNum <= 13) {
+            weeklyData[weekNum] = (weeklyData[weekNum] || 0) + 1
+          }
+        }
+      })
+
+      let cumulative = totalBeforePeriod
+      return Array.from({ length: 9 }, (_, i) => {
+        const weekNum = i + 1
+        cumulative += weeklyData[weekNum] || 0
+        return {
+          week: `Week ${weekNum}`,
+          users: cumulative
+        }
+      })
+    }
   }
 
   const userGrowthData = getUserGrowthData()

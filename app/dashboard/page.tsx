@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
-import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
@@ -44,6 +44,15 @@ const DashboardPage = () => {
   // Fetch data from backend
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
   const { data: usersData, isLoading: usersLoading, error: usersError } = useUsers()
+  
+  // Fetch all transactions for the last 7 days to build accurate graphs
+  const last7DaysStart = new Date()
+  last7DaysStart.setDate(last7DaysStart.getDate() - 7)
+  const { data: allTransactionsData } = useAllTransactions({
+    limit: 1000,
+    startDate: last7DaysStart.toISOString(),
+    endDate: new Date().toISOString()
+  })
 
   // Scroll detection for showing scroll buttons
   useEffect(() => {
@@ -105,59 +114,47 @@ const DashboardPage = () => {
     )
   }
 
-  // Generate chart data from backend or show empty state
+  // Generate chart data from actual transactions grouped by date
   const getChartData = () => {
-    if (statsLoading || statsError || !transactionStats) {
-      return []
+    // Get transactions from the API response
+    const transactions = (allTransactionsData as any)?.transactions || []
+    
+    const today = new Date();
+    const dailyData: Record<string, { volume: number; transactions: number; date: Date }> = {}
+    
+    // Initialize all 7 days with zero values
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const dateKey = date.toISOString().split('T')[0];
+      
+      if (!dailyData[dateKey]) {
+        dailyData[dateKey] = { volume: 0, transactions: 0, date };
+      }
     }
 
-    // Generate 7 days of data with realistic progression
-    const last7Days = [];
-    const today = new Date();
-    
-    // If we have transaction data, distribute it across the week to show progression
-    if (transactionStats.totalTransactions > 0) {
-      // Distribution percentages for a realistic weekly growth pattern
-      const distributionPattern = [0.85, 0.88, 0.91, 0.94, 0.96, 0.98, 1.0];
+    // Aggregate actual transactions by date
+    transactions.forEach((tx: any) => {
+      const txDate = new Date(tx.createdAt);
+      const dateKey = txDate.toISOString().split('T')[0];
       
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        
-        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-        const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
-        // Distribute volume across the week showing growth progression
-        const dayIndex = 6 - i; // 0 for oldest day, 6 for today
-        const dailyVolume = Math.floor(transactionStats.totalVolume * distributionPattern[dayIndex]);
-        const dailyTransactions = Math.floor(transactionStats.totalTransactions * distributionPattern[dayIndex]);
-        
-        last7Days.push({
-          day: dayOfWeek,
-          date: dateLabel,
-          volume: dailyVolume,
-          transactions: dailyTransactions
-        });
+      // Only include if within the last 7 days
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].volume += Number(tx.amount) || 0;
+        dailyData[dateKey].transactions += 1;
       }
-    } else {
-      // No data available, return empty data points
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        
-        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-        const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
-        last7Days.push({
-          day: dayOfWeek,
-          date: dateLabel,
-          volume: 0,
-          transactions: 0
-        });
-      }
-    }
-    
-    return last7Days;
+    });
+
+    // Convert to array sorted by date
+    return Object.entries(dailyData)
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+      .map(([dateKey, data]) => ({
+        day: data.date.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: data.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        volume: data.volume,
+        transactions: data.transactions
+      }));
   }
 
   const chartData = getChartData()
