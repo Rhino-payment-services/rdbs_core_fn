@@ -47,7 +47,7 @@ const CustomersPage = () => {
   // Log user data for debugging
   React.useEffect(() => {
     if (usersData) {
-      const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.data || [])
+      const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
       const merchantUsers = users.filter(u => u.merchantCode)
       console.log(`📊 Customers Page: Loaded ${users.length} users, ${merchantUsers.length} merchants`)
       merchantUsers.forEach(u => {
@@ -57,7 +57,7 @@ const CustomersPage = () => {
   }, [usersData])
   
   // Handle both direct array and wrapped response
-  const users: User[] = Array.isArray(usersData) ? usersData : (usersData?.data || [])
+  const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
   const merchants = merchantsData?.merchants || []
   const merchantsTotal = merchantsData?.total || merchantsData?.pagination?.total || 0
 

@@ -1,8 +1,8 @@
 "use client"
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function CreateTariffRedirect() {
+function RedirectComponent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -24,5 +24,19 @@ export default function CreateTariffRedirect() {
         <p className="text-gray-600">Create Tariff has moved to Finance → Tariffs → Create</p>
       </div>
     </div>
+  )
+}
+
+export default function CreateTariffRedirect() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <RedirectComponent />
+    </Suspense>
   )
 }

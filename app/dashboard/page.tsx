@@ -268,7 +268,10 @@ const DashboardPage = () => {
                         Active Users
                       </p>
                       <p className="text-xl font-bold text-gray-900">
-                        {usersLoading ? '...' : (usersData?.data?.pagination?.total || 0).toLocaleString()}
+                        {usersLoading ? '...' : (() => {
+                          const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                          return users.length.toLocaleString()
+                        })()}
                       </p>
                     </div>
                     <div className="w-8 h-8 flex items-center justify-center">
@@ -277,7 +280,10 @@ const DashboardPage = () => {
                   </div>
                   <div className="mt-0">
                     <span className="text-sm text-purple-600 font-medium">
-                      {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
+                      {(() => {
+                        const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                        return users.filter((user: any) => user.status === 'ACTIVE').length || 0
+                      })()}
                     </span>
                     <span className="text-sm ml-1 text-gray-500">
                       online now

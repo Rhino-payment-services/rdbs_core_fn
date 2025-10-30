@@ -311,7 +311,7 @@ const AnalyticsPage = () => {
 
   // Generate user growth data from actual user creation dates
   const getUserGrowthData = () => {
-    const users = Array.isArray(usersData) ? usersData : (usersData?.data?.data || [])
+    const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
     
     if (users.length === 0) {
       return []
@@ -689,7 +689,10 @@ const AnalyticsPage = () => {
                             Active Users
                           </p>
                           <p className="text-xl font-bold text-gray-900 leading-tight">
-                            {usersLoading ? '...' : (usersData?.data?.pagination?.total || 0).toLocaleString()}
+                            {usersLoading ? '...' : (() => {
+                              const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                              return users.length.toLocaleString()
+                            })()}
                           </p>
                         </div>
                         <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -698,7 +701,10 @@ const AnalyticsPage = () => {
                       </div>
                       <div className="mt-0">
                         <span className="text-sm text-blue-600 font-medium">
-                          {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
+                          {(() => {
+                            const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                            return users.filter((user: any) => user.status === 'ACTIVE').length || 0
+                          })()}
                         </span>
                         <span className="text-sm ml-1 text-gray-500">
                           online now
@@ -715,7 +721,10 @@ const AnalyticsPage = () => {
                             Merchants
                           </p>
                           <p className="text-xl font-bold text-gray-900 leading-tight">
-                            {merchantsLoading ? '...' : (merchantsData?.data?.pagination?.total || 0).toLocaleString()}
+                            {merchantsLoading ? '...' : (() => {
+                              const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                              return merchants.length.toLocaleString()
+                            })()}
                           </p>
                         </div>
                         <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -724,7 +733,10 @@ const AnalyticsPage = () => {
                       </div>
                       <div className="mt-0">
                         <span className="text-sm text-purple-600 font-medium">
-                          {merchantsData?.data?.data?.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0}
+                          {(() => {
+                            const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                            return merchants.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0
+                          })()}
                         </span>
                         <span className="text-sm ml-1 text-gray-500">
                           active
@@ -988,23 +1000,32 @@ const AnalyticsPage = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-blue-600">
-                              {usersData?.data?.pagination?.total || 0}
+                              {(() => {
+                                const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                                return users.length
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">Total Users</p>
                         </div>
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-green-600">
-                              {usersData?.data?.data?.filter((user: any) => user.status === 'ACTIVE').length || 0}
+                              {(() => {
+                                const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                                return users.filter((user: any) => user.status === 'ACTIVE').length || 0
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">Active Users</p>
                           </div>
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-purple-600">
-                              {usersData?.data?.data?.filter((user: any) => {
-                                const createdAt = new Date(user.createdAt)
-                                const now = new Date()
-                                return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear()
-                              }).length || 0}
+                              {(() => {
+                                const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+                                return users.filter((user: any) => {
+                                  const createdAt = new Date(user.createdAt)
+                                  const now = new Date()
+                                  return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear()
+                                }).length || 0
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">New This Month</p>
                           </div>
@@ -1045,19 +1066,28 @@ const AnalyticsPage = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-blue-600">
-                              {merchantsData?.data?.pagination?.total || 0}
+                              {(() => {
+                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                                return merchants.length
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">Total Merchants</p>
                           </div>
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-green-600">
-                              {merchantsData?.data?.data?.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0}
+                              {(() => {
+                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                                return merchants.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">Active Merchants</p>
                           </div>
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-purple-600">
-                              {merchantsData?.data?.data?.filter((merchant: any) => merchant.status === 'PENDING').length || 0}
+                              {(() => {
+                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                                return merchants.filter((merchant: any) => merchant.status === 'PENDING').length || 0
+                              })()}
                             </p>
                             <p className="text-sm text-gray-600">Pending Approval</p>
                           </div>

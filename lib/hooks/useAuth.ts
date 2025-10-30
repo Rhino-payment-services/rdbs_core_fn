@@ -66,7 +66,6 @@ export const useUsers = () => {
       return result
     },
     staleTime: 0, // Disable cache temporarily for debugging
-    cacheTime: 0, // Clear cache immediately
   })
 }
 
