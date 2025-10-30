@@ -43,10 +43,18 @@ export const useMerchants = (filters?: {
   const queryString = filters ? new URLSearchParams(filters as Record<string, string>).toString() : ''
   return useQuery({
     queryKey: [...merchantQueryKeys.merchants, filters],
-    queryFn: () => apiFetch(`/merchant-kyc/all${queryString ? `?${queryString}` : ''}`),
+    queryFn: async () => {
+      console.log('🏢 Fetching merchants from /merchant-kyc/all with filters:', filters)
+      const result = await apiFetch(`/merchant-kyc/all${queryString ? `?${queryString}` : ''}`)
+      console.log('🏢 Merchants API response:', result)
+      console.log('🏢 Merchants count:', result?.total || result?.merchants?.length || 0)
+      return result
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: false, // Don't retry on 404 errors
     throwOnError: false, // Don't throw errors, handle them gracefully
+    refetchOnMount: true, // Ensure it fetches on mount
+    refetchOnWindowFocus: false,
   })
 }
 

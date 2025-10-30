@@ -37,12 +37,25 @@ const CustomersPage = () => {
   // API hooks - add keepPreviousData to prevent loading flashes
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
   // Only fetch merchants when on merchants tab
-  const { data: merchantsData, isLoading: merchantsLoading, refetch: refetchMerchants } = useMerchants({
+  const { data: merchantsData, isLoading: merchantsLoading, refetch: refetchMerchants, error: merchantsError } = useMerchants({
     search: activeTab === 'merchants' ? searchTerm : '',  // Only search when on merchants tab
     page: currentPage,
     pageSize: itemsPerPage
   })
   const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
+  
+  // Log merchants data for debugging
+  React.useEffect(() => {
+    if (activeTab === 'merchants') {
+      console.log('🏢 Merchants Tab Active - Data:', {
+        merchantsData,
+        merchantsLoading,
+        merchantsError,
+        merchantsCount: merchantsData?.merchants?.length || 0,
+        total: merchantsData?.total || 0
+      })
+    }
+  }, [activeTab, merchantsData, merchantsLoading, merchantsError])
   
   // Log user data for debugging
   React.useEffect(() => {
