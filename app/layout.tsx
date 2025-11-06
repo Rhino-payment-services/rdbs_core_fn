@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import SessionProvider from "@/components/providers/SessionProvider";
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
   title: "RDBS - Database Management System",
@@ -45,8 +45,8 @@ export default function RootLayout({
             {children}
             <Toaster 
               position="top-center"
+              duration={4000}
               toastOptions={{
-                duration: 4000,
                 style: {
                   background: '#08163d',
                   color: '#fff',
@@ -54,18 +54,6 @@ export default function RootLayout({
                   padding: '16px 20px',
                   fontSize: '14px',
                   fontWeight: '500',
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
-                  },
                 },
               }}
             />

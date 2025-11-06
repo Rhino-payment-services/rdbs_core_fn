@@ -132,30 +132,7 @@ export default function ProductsPage() {
 
   const queryClient = useQueryClient();
 
-  // Check if user has permission to view this page
-  if (!hasPermission(PERMISSIONS.PRODUCTS_VIEW)) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-              <p className="text-gray-600 mb-6">
-                You don't have permission to view products.
-              </p>
-              <Button onClick={() => router.push('/dashboard')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
+  // All hooks must be called before any conditional returns
   // Fetch products
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products', activeTab, searchTerm],
@@ -184,9 +161,24 @@ export default function ProductsPage() {
   const { data: tariffs } = useQuery({
     queryKey: ['tariffs'],
     queryFn: async () => {
-      const { data } = await axios.get('/finance/tariffs');
-      return data;
+      try {
+        const { data } = await axios.get('/finance/tariffs');
+        console.log('Tariffs API response:', data);
+        // Handle both array and object responses
+        if (Array.isArray(data)) {
+          return data;
+        } else if (data.tariffs && Array.isArray(data.tariffs)) {
+          return data.tariffs;
+        } else {
+          console.error('Unexpected tariffs response format:', data);
+          return [];
+        }
+      } catch (error) {
+        console.error('Error fetching tariffs:', error);
+        return [];
+      }
     },
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Create product mutation
@@ -237,6 +229,30 @@ export default function ProductsPage() {
       toast.error(error.response?.data?.message || 'Failed to delete product');
     },
   });
+
+  // Check if user has permission to view this page
+  if (!hasPermission(PERMISSIONS.PRODUCTS_VIEW)) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+              <p className="text-gray-600 mb-6">
+                You don't have permission to view products.
+              </p>
+              <Button onClick={() => router.push('/dashboard')}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -551,7 +567,7 @@ interface ProductFormProps {
   isSubmitting: boolean;
 }
 
-function ProductForm({ initialData, transactionModes, tariffs, onSubmit, isSubmitting }: ProductFormProps) {
+function ProductForm({ initialData, transactionModes = [], tariffs = [], onSubmit, isSubmitting }: ProductFormProps) {
   const [formData, setFormData] = useState<CreateProductDto>({
     name: initialData?.name || '',
     description: initialData?.description || '',
@@ -640,7 +656,7 @@ function ProductForm({ initialData, transactionModes, tariffs, onSubmit, isSubmi
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
-              {transactionModes?.map((mode) => (
+              {Array.isArray(transactionModes) && transactionModes.map((mode) => (
                 <SelectItem key={mode.id} value={mode.id}>
                   {mode.displayName} ({mode.code})
                 </SelectItem>
@@ -665,7 +681,7 @@ function ProductForm({ initialData, transactionModes, tariffs, onSubmit, isSubmi
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
-              {tariffs?.map((tariff: any) => (
+              {Array.isArray(tariffs) && tariffs.map((tariff: any) => (
                 <SelectItem key={tariff.id} value={tariff.id}>
                   {tariff.name}
                 </SelectItem>

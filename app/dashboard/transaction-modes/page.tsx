@@ -97,6 +97,21 @@ export default function TransactionModesPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedMode, setSelectedMode] = useState<TransactionMode | null>(null);
 
+  // Filters based on active tab
+  const filters = {
+    search: searchTerm || undefined,
+    isActive: activeTab === 'active' ? true : activeTab === 'inactive' ? false : undefined,
+    isSystem: activeTab === 'system' ? true : activeTab === 'custom' ? false : undefined,
+  };
+
+  // All hooks must be called before any conditional returns
+  const { data: modes, isLoading, error } = useTransactionModes(filters);
+  const createMode = useCreateTransactionMode();
+  const updateMode = useUpdateTransactionMode();
+  const deleteMode = useDeleteTransactionMode();
+  const activateMode = useActivateTransactionMode();
+  const deactivateMode = useDeactivateTransactionMode();
+
   // Check if user has permission to view this page
   if (!hasPermission(PERMISSIONS.TRANSACTION_MODES_VIEW)) {
     return (
@@ -120,20 +135,6 @@ export default function TransactionModesPage() {
       </div>
     );
   }
-
-  // Filters based on active tab
-  const filters = {
-    search: searchTerm || undefined,
-    isActive: activeTab === 'active' ? true : activeTab === 'inactive' ? false : undefined,
-    isSystem: activeTab === 'system' ? true : activeTab === 'custom' ? false : undefined,
-  };
-
-  const { data: modes, isLoading, error } = useTransactionModes(filters);
-  const createMode = useCreateTransactionMode();
-  const updateMode = useUpdateTransactionMode();
-  const deleteMode = useDeleteTransactionMode();
-  const activateMode = useActivateTransactionMode();
-  const deactivateMode = useDeactivateTransactionMode();
 
   const handleCreate = (dto: CreateTransactionModeDto) => {
     createMode.mutate(dto, {

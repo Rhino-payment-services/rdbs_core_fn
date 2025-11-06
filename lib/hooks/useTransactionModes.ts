@@ -129,8 +129,12 @@ export function useCreateTransactionMode() {
       toast.success(`Transaction mode "${data.name}" created successfully`);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to create transaction mode';
-      toast.error(message);
+      if (error.status === 403 || error.response?.status === 403) {
+        toast.error('Action forbidden - You do not have permission to create transaction modes');
+      } else {
+        const message = error.response?.data?.message || error.message || 'Failed to create transaction mode';
+        toast.error(message);
+      }
     },
   });
 }
@@ -150,8 +154,12 @@ export function useUpdateTransactionMode() {
       toast.success(`Transaction mode "${data.name}" updated successfully`);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to update transaction mode';
-      toast.error(message);
+      if (error.status === 403 || error.response?.status === 403) {
+        toast.error('Action forbidden - You do not have permission to update transaction modes');
+      } else {
+        const message = error.response?.data?.message || error.message || 'Failed to update transaction mode';
+        toast.error(message);
+      }
     },
   });
 }
@@ -170,8 +178,12 @@ export function useDeleteTransactionMode() {
       toast.success('Transaction mode deleted successfully');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to delete transaction mode';
-      toast.error(message);
+      if (error.status === 403 || error.response?.status === 403) {
+        toast.error('Action forbidden - You do not have permission to delete transaction modes');
+      } else {
+        const message = error.response?.data?.message || error.message || 'Failed to delete transaction mode';
+        toast.error(message);
+      }
     },
   });
 }
@@ -191,8 +203,12 @@ export function useActivateTransactionMode() {
       toast.success(`Transaction mode "${data.name}" activated`);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to activate transaction mode';
-      toast.error(message);
+      if (error.status === 403 || error.response?.status === 403) {
+        toast.error('Action forbidden - You do not have permission to activate transaction modes');
+      } else {
+        const message = error.response?.data?.message || error.message || 'Failed to activate transaction mode';
+        toast.error(message);
+      }
     },
   });
 }
@@ -212,8 +228,12 @@ export function useDeactivateTransactionMode() {
       toast.success(`Transaction mode "${data.name}" deactivated`);
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to deactivate transaction mode';
-      toast.error(message);
+      if (error.status === 403 || error.response?.status === 403) {
+        toast.error('Action forbidden - You do not have permission to deactivate transaction modes');
+      } else {
+        const message = error.response?.data?.message || error.message || 'Failed to deactivate transaction mode';
+        toast.error(message);
+      }
     },
   });
 }
