@@ -15,12 +15,14 @@ import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
+import { useTransactionModes } from '@/lib/hooks/useTransactionModes'
 
 interface CreateTariffForm {
   name: string
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
   transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'WALLET_CREATION' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE'
+  transactionModeId?: string
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
   feeAmount: number
@@ -56,6 +58,7 @@ const CreateTariffPage = () => {
     description: '',
     tariffType: 'INTERNAL',
     transactionType: 'WALLET_TO_WALLET',
+    transactionModeId: undefined,
     currency: 'UGX',
     feeType: 'FIXED',
     feeAmount: 0,
@@ -71,6 +74,9 @@ const CreateTariffPage = () => {
     telecomBankCharge: 0,
     governmentTax: 0
   })
+
+  // Fetch transaction modes for selection
+  const { data: transactionModes } = useTransactionModes({ isActive: true })
 
   // Calculate total fee amount
   const totalFeeAmount = (form.partnerFee || 0) + (form.rukapayFee || 0) + (form.telecomBankCharge || 0)
@@ -281,6 +287,29 @@ const CreateTariffPage = () => {
                           )}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="transactionModeId">Transaction Mode (Optional)</Label>
+                      <Select 
+                        value={form.transactionModeId || 'none'} 
+                        onValueChange={(value) => handleInputChange('transactionModeId', value === 'none' ? undefined : value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transaction mode (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None (Use transaction type only)</SelectItem>
+                          {transactionModes?.map((mode) => (
+                            <SelectItem key={mode.id} value={mode.id}>
+                              {mode.displayName} ({mode.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Link this tariff to a specific transaction mode for more granular control
+                      </p>
                     </div>
 
                     <div>
