@@ -34,6 +34,7 @@ const CreateGatewayPartnerPage = () => {
   const [step, setStep] = useState(1) // 1: Create Partner, 2: Generate Key, 3: Create Tariffs
   const [partnerId, setPartnerId] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [apiKeyEnvironment, setApiKeyEnvironment] = useState<'DEVELOPMENT' | 'PRODUCTION'>('PRODUCTION')
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
 
   const createPartner = useCreateGatewayPartner()
@@ -51,6 +52,7 @@ const CreateGatewayPartnerPage = () => {
     website: '',
     address: '',
     description: '',
+    walletTypes: ['ESCROW'], // Default to ESCROW
   })
 
   // Tariff form state - separate percentage for each destination
@@ -64,14 +66,21 @@ const CreateGatewayPartnerPage = () => {
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validate wallet types
+    if (!formData.walletTypes || formData.walletTypes.length === 0) {
+      toast.error('Please select at least one wallet type')
+      return
+    }
+
     try {
       const result = await createPartner.mutateAsync(formData)
       const newPartnerId = result.partner.id
       setPartnerId(newPartnerId)
       setStep(2)
       toast.success('Partner created successfully!')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create partner:', error)
+      toast.error(error.response?.data?.message || 'Failed to create partner')
     }
   }
 
@@ -79,10 +88,12 @@ const CreateGatewayPartnerPage = () => {
     try {
       const result = await generateKey.mutateAsync({
         partnerId,
-        description: 'Production API key',
+        description: `${apiKeyEnvironment} API key`,
+        environment: apiKeyEnvironment,
         expiresInDays: 365,
       })
       setApiKey(result.data.apiKey)
+      setApiKeyEnvironment(result.data.environment || 'PRODUCTION')
       setShowApiKeyDialog(true)
       setStep(3)
     } catch (error) {
@@ -306,6 +317,71 @@ const CreateGatewayPartnerPage = () => {
                     />
                   </div>
 
+                  <div>
+                    <Label htmlFor="walletTypes">Wallet Types *</Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="wallet-escrow"
+                          checked={formData.walletTypes?.includes('ESCROW')}
+                          onChange={(e) => {
+                            const currentTypes = formData.walletTypes || [];
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                walletTypes: [...currentTypes, 'ESCROW'].filter((v, i, a) => a.indexOf(v) === i),
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                walletTypes: currentTypes.filter((t) => t !== 'ESCROW'),
+                              });
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <Label htmlFor="wallet-escrow" className="font-normal cursor-pointer">
+                          ESCROW Wallet
+                        </Label>
+                        <span className="text-xs text-gray-500">
+                          (For holding customer funds before transfer)
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="wallet-commission"
+                          checked={formData.walletTypes?.includes('COMMISSION')}
+                          onChange={(e) => {
+                            const currentTypes = formData.walletTypes || [];
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                walletTypes: [...currentTypes, 'COMMISSION'].filter((v, i, a) => a.indexOf(v) === i),
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                walletTypes: currentTypes.filter((t) => t !== 'COMMISSION'),
+                              });
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <Label htmlFor="wallet-commission" className="font-normal cursor-pointer">
+                          COMMISSION Wallet
+                        </Label>
+                        <span className="text-xs text-gray-500">
+                          (For storing partner commission/revenue)
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Select at least one wallet type. ESCROW is used for holding customer funds, COMMISSION for partner revenue.
+                    </p>
+                  </div>
+
                   <div className="flex justify-end space-x-3">
                     <Button
                       type="button"
@@ -346,6 +422,27 @@ const CreateGatewayPartnerPage = () => {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="environment">Environment *</Label>
+                    <Select
+                      value={apiKeyEnvironment}
+                      onValueChange={(value) => setApiKeyEnvironment(value as 'DEVELOPMENT' | 'PRODUCTION')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEVELOPMENT">Development</SelectItem>
+                        <SelectItem value="PRODUCTION">Production</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {apiKeyEnvironment === 'DEVELOPMENT' 
+                        ? 'Development keys are for testing and sandbox environments'
+                        : 'Production keys are for live transactions and real money'}
+                    </p>
                   </div>
 
                   <div className="flex justify-end space-x-3">
@@ -587,6 +684,7 @@ const CreateGatewayPartnerPage = () => {
               </p>
               <div className="space-y-2 text-sm font-mono bg-white p-3 rounded border">
                 <div><span className="text-gray-500">API Key:</span> {apiKey}</div>
+                <div><span className="text-gray-500">Environment:</span> {apiKeyEnvironment}</div>
                 <div><span className="text-gray-500">Header:</span> X-API-Key: {apiKey}</div>
                 <div><span className="text-gray-500">Base URL:</span> {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/gateway</div>
               </div>

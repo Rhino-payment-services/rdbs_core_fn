@@ -65,10 +65,18 @@ interface Tariff {
   userType: 'STAFF' | 'SUBSCRIBER' | 'MERCHANT'
   subscriberType: 'INDIVIDUAL' | 'BUSINESS' | null
   partnerId?: string
+  apiPartnerId?: string
   group?: string // Tariff group (G1, G2, G3) for partner-specific amount ranges
   partner?: {
     partnerName: string
     partnerCode: string
+  }
+  apiPartner?: {
+    id: string
+    partnerName: string
+    partnerType: string
+    contactEmail: string
+    contactPhone: string
   }
   isActive?: boolean
   // Approval workflow fields
@@ -374,9 +382,15 @@ const TariffsPage = () => {
     if (tariff.feeType === 'FIXED') {
       return `${tariff.feeAmount} ${tariff.currency}`
     } else if (tariff.feeType === 'PERCENTAGE') {
-      return `${(tariff.feePercentage * 100).toFixed(2)}%`
+      if (tariff.feePercentage !== undefined && tariff.feePercentage !== null) {
+        return `${(Number(tariff.feePercentage) * 100).toFixed(2)}%`
+      }
+      return 'N/A'
     } else if (tariff.feeType === 'HYBRID') {
-      return `${tariff.feeAmount} ${tariff.currency} + ${(tariff.feePercentage * 100).toFixed(2)}%`
+      const percentage = tariff.feePercentage !== undefined && tariff.feePercentage !== null
+        ? `${(Number(tariff.feePercentage) * 100).toFixed(2)}%`
+        : 'N/A'
+      return `${tariff.feeAmount} ${tariff.currency} + ${percentage}`
     }
     return 'N/A'
   }
@@ -581,8 +595,8 @@ const TariffsPage = () => {
                     <TableCell>
                       <Badge variant="outline">{tariff.feeType}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {tariff.feeAmount} {tariff.currency}
+                    <TableCell className="text-sm font-medium">
+                      {formatFeeAmount(tariff)}
                     </TableCell>
                     <TableCell className="text-sm">
                       {tariff.minAmount && tariff.maxAmount 
@@ -596,7 +610,25 @@ const TariffsPage = () => {
                     {!isInternalTariff && (
                       <TableCell>
                         {tariff.partner ? (
-                          <Badge variant="outline">{tariff.partner.partnerCode}</Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className="w-fit">
+                              {tariff.partner.partnerCode}
+                            </Badge>
+                            <span className="text-xs text-gray-500">
+                              {tariff.partner.partnerName}
+                            </span>
+                            <span className="text-xs text-blue-600 font-medium">External Partner</span>
+                          </div>
+                        ) : tariff.apiPartner ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className="w-fit bg-blue-50 border-blue-200">
+                              {tariff.apiPartner.partnerName}
+                            </Badge>
+                            <span className="text-xs text-gray-500">
+                              {tariff.apiPartner.partnerType}
+                            </span>
+                            <span className="text-xs text-green-600 font-medium">API Partner</span>
+                          </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -1236,8 +1268,21 @@ const TariffsPage = () => {
                   <div className="grid grid-cols-2 gap-3">
                     {viewTariff.partner && (
                       <div className="col-span-2">
-                        <Label className="text-xs text-gray-500">Partner</Label>
-                        <p className="text-sm">{viewTariff.partner.partnerName} ({viewTariff.partner.partnerCode})</p>
+                        <Label className="text-xs text-gray-500">External Payment Partner</Label>
+                        <div className="mt-1">
+                          <p className="text-sm font-medium">{viewTariff.partner.partnerName}</p>
+                          <p className="text-xs text-gray-500">Code: {viewTariff.partner.partnerCode}</p>
+                        </div>
+                      </div>
+                    )}
+                    {viewTariff.apiPartner && (
+                      <div className="col-span-2">
+                        <Label className="text-xs text-gray-500">API Partner (Gateway)</Label>
+                        <div className="mt-1">
+                          <p className="text-sm font-medium">{viewTariff.apiPartner.partnerName}</p>
+                          <p className="text-xs text-gray-500">Type: {viewTariff.apiPartner.partnerType}</p>
+                          <p className="text-xs text-gray-500">Email: {viewTariff.apiPartner.contactEmail}</p>
+                        </div>
                       </div>
                     )}
                     {viewTariff.group && (

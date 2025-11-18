@@ -45,6 +45,7 @@ export interface GatewayPartnerDetails extends GatewayPartner {
     id: string;
     keyPrefix: string;
     description?: string;
+    environment?: string;
     isActive: boolean;
     isRevoked: boolean;
     expiresAt?: string;
@@ -75,6 +76,7 @@ export interface CreateGatewayPartnerRequest {
   address?: string;
   description?: string;
   permissions?: string[];
+  walletTypes?: Array<'ESCROW' | 'COMMISSION'>;
   rateLimits?: {
     requests_per_second?: number;
     requests_per_minute?: number;
@@ -94,6 +96,7 @@ export interface CreateGatewayPartnerRequest {
 export interface GenerateApiKeyRequest {
   partnerId: string;
   description?: string;
+  environment?: 'DEVELOPMENT' | 'PRODUCTION';
   expiresInDays?: number;
   permissions?: string[];
 }

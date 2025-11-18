@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Save, X, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
@@ -32,6 +32,8 @@ interface CreateTariffForm {
   userType?: 'STAFF' | 'SUBSCRIBER'
   subscriberType?: 'INDIVIDUAL' | 'MERCHANT' | 'AGENT'
   partnerId?: string
+  apiPartnerId?: string
+  partnerType?: 'EXTERNAL_PARTNER' | 'API_PARTNER'
   group?: string
   partnerFee?: number
   rukapayFee?: number
@@ -45,10 +47,22 @@ interface Partner {
   partnerCode: string
 }
 
-const CreateTariffPage = () => {
+interface ApiPartner {
+  id: string
+  partnerName: string
+  partnerType: string
+  contactEmail: string
+  country?: string
+}
+
+function CreateTariffPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Get apiPartnerId from query params if present
+  const apiPartnerIdFromQuery = searchParams?.get('apiPartnerId')
   
   const { hasPermission } = usePermissions()
   const canCreateTariffs = hasPermission(PERMISSIONS.TARIFF_CREATE)
@@ -56,11 +70,11 @@ const CreateTariffPage = () => {
   const [form, setForm] = useState<CreateTariffForm>({
     name: '',
     description: '',
-    tariffType: 'INTERNAL',
+    tariffType: apiPartnerIdFromQuery ? 'EXTERNAL' : 'INTERNAL',
     transactionType: 'WALLET_TO_WALLET',
     transactionModeId: undefined,
     currency: 'UGX',
-    feeType: 'FIXED',
+    feeType: apiPartnerIdFromQuery ? 'PERCENTAGE' : 'FIXED',
     feeAmount: 0,
     feePercentage: 0,
     maxAmount: 0,
@@ -68,6 +82,8 @@ const CreateTariffPage = () => {
     userType: 'SUBSCRIBER',
     subscriberType: 'INDIVIDUAL',
     partnerId: undefined,
+    apiPartnerId: apiPartnerIdFromQuery || undefined,
+    partnerType: apiPartnerIdFromQuery ? 'API_PARTNER' : undefined,
     group: '',
     partnerFee: 0,
     rukapayFee: 0,
@@ -93,20 +109,33 @@ const CreateTariffPage = () => {
     }
   })
 
-  // Fetch partners for external tariffs
+  // Fetch external payment partners for external tariffs
   const { data: partnersData } = useQuery({
     queryKey: ['external-payment-partners'],
     queryFn: () => api.get('/admin/external-payment-partners').then(res => res.data),
     enabled: form.tariffType === 'EXTERNAL' // Only fetch if tariffType is EXTERNAL
   })
 
+  // Fetch API partners (gateway partners) for external tariffs
+  const { data: apiPartnersData } = useQuery({
+    queryKey: ['gateway-partners'],
+    queryFn: () => api.get('/api/v1/admin/gateway-partners?page=1&limit=100').then(res => res.data?.data || []),
+    enabled: form.tariffType === 'EXTERNAL' // Only fetch if tariffType is EXTERNAL
+  })
+
   const partners: Partner[] = partnersData || []
+  const apiPartners: ApiPartner[] = apiPartnersData || []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!form.name) {
       toast.error('Please fill in the tariff name')
+      return
+    }
+
+    if (!form.transactionModeId) {
+      toast.error('Transaction mode is required')
       return
     }
 
@@ -128,7 +157,7 @@ const CreateTariffPage = () => {
       return
     }
 
-    if (form.tariffType === 'EXTERNAL' && !form.partnerId) {
+    if (form.tariffType === 'EXTERNAL' && !form.partnerId && !form.apiPartnerId) {
       toast.error('Partner is required for external tariffs')
       return
     }
@@ -138,21 +167,29 @@ const CreateTariffPage = () => {
       ...form,
       // Set feeAmount to the calculated total for external tariffs
       feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
-      // Convert feePercentage from percentage (e.g., 2.5) to decimal (0.025)
-      feePercentage: form.feePercentage ? Number(form.feePercentage) / 100 : undefined,
+      // Convert feePercentage based on partner type
+      // API partners enter as percentage (e.g., 2.5), others as decimal (e.g., 0.025)
+      feePercentage: form.feePercentage 
+        ? (form.partnerType === 'API_PARTNER' 
+            ? Number(form.feePercentage) / 100  // Convert percentage to decimal for API partners
+            : Number(form.feePercentage))        // Already in decimal for others
+        : undefined,
       // Keep government tax as percentage value (no conversion needed)
       governmentTax: form.governmentTax || undefined,
-      // Remove undefined values
+      // Remove undefined values and UI-only fields
       description: form.description || undefined,
       minAmount: form.minAmount || undefined,
       maxAmount: form.maxAmount || undefined,
       userType: form.userType || undefined,
       subscriberType: form.subscriberType || undefined,
       partnerId: form.partnerId || undefined,
+      apiPartnerId: form.apiPartnerId || undefined,
       group: form.group || undefined,
       partnerFee: form.partnerFee || undefined,
       rukapayFee: form.rukapayFee || undefined,
-      telecomBankCharge: form.telecomBankCharge || undefined
+      telecomBankCharge: form.telecomBankCharge || undefined,
+      // Remove UI-only field
+      partnerType: undefined
     }
 
     createTariffMutation.mutate(submitData)
@@ -244,7 +281,18 @@ const CreateTariffPage = () => {
 
                     <div>
                       <Label htmlFor="tariffType">Tariff Type *</Label>
-                      <Select value={form.tariffType} onValueChange={(value) => handleInputChange('tariffType', value)}>
+                      <Select 
+                        value={form.tariffType} 
+                        onValueChange={(value) => {
+                          handleInputChange('tariffType', value)
+                          // Clear partner selections when switching to INTERNAL
+                          if (value === 'INTERNAL') {
+                            handleInputChange('partnerId', undefined)
+                            handleInputChange('apiPartnerId', undefined)
+                            handleInputChange('partnerType', undefined)
+                          }
+                        }}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -256,8 +304,67 @@ const CreateTariffPage = () => {
                     </div>
 
                     <div>
+                      <Label htmlFor="transactionModeId">Transaction Mode *</Label>
+                      <Select 
+                        value={form.transactionModeId || ''} 
+                        onValueChange={(value) => {
+                          handleInputChange('transactionModeId', value)
+                          // Auto-set transaction type based on selected mode if available
+                          const selectedMode = transactionModes?.find(m => m.id === value)
+                          if (selectedMode && selectedMode.code) {
+                            // Map transaction mode code to transaction type for backward compatibility
+                            const codeToType: Record<string, string> = {
+                              'GATEWAY_TO_MTN': 'GATEWAY_TO_MTN',
+                              'GATEWAY_TO_AIRTEL': 'GATEWAY_TO_AIRTEL',
+                              'GATEWAY_TO_BANK': 'GATEWAY_TO_BANK',
+                              'GATEWAY_TO_WALLET': 'GATEWAY_TO_WALLET',
+                              'WALLET_TO_MNO': 'WALLET_TO_MNO',
+                              'WALLET_TO_BANK': 'WALLET_TO_BANK',
+                              'MNO_TO_WALLET': 'MNO_TO_WALLET',
+                              'BANK_TO_WALLET': 'BANK_TO_WALLET',
+                            }
+                            const mappedType = codeToType[selectedMode.code] || form.transactionType
+                            handleInputChange('transactionType', mappedType as any)
+                          }
+                        }}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transaction mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {transactionModes && transactionModes.length > 0 ? (
+                            transactionModes
+                              .filter(mode => {
+                                // Filter by tariff type if needed
+                                if (form.tariffType === 'INTERNAL') {
+                                  return mode.category === 'WALLET' || mode.isSystem
+                                }
+                                return true
+                              })
+                              .map((mode) => (
+                                <SelectItem key={mode.id} value={mode.id}>
+                                  {mode.displayName} ({mode.code})
+                                  {mode.description && ` - ${mode.description}`}
+                                </SelectItem>
+                              ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-sm text-gray-500">Loading transaction modes...</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        <span className="font-medium text-blue-600">Required:</span> Select the transaction mode this tariff applies to. This provides more granular control than transaction types.
+                      </p>
+                    </div>
+
+                    <div>
                       <Label htmlFor="transactionType">Transaction Type *</Label>
-                      <Select value={form.transactionType} onValueChange={(value) => handleInputChange('transactionType', value)}>
+                      <Select 
+                        value={form.transactionType} 
+                        onValueChange={(value) => handleInputChange('transactionType', value)}
+                        required
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -283,32 +390,17 @@ const CreateTariffPage = () => {
                               <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>
                               <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
                               <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>
+                              <SelectItem value="GATEWAY_TO_MTN">Gateway to MTN</SelectItem>
+                              <SelectItem value="GATEWAY_TO_AIRTEL">Gateway to Airtel</SelectItem>
+                              <SelectItem value="GATEWAY_TO_BANK">Gateway to Bank</SelectItem>
+                              <SelectItem value="GATEWAY_TO_WALLET">Gateway to Wallet</SelectItem>
+                              <SelectItem value="GATEWAY_TRANSFER">Gateway Transfer</SelectItem>
                             </>
                           )}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="transactionModeId">Transaction Mode (Optional)</Label>
-                      <Select 
-                        value={form.transactionModeId || 'none'} 
-                        onValueChange={(value) => handleInputChange('transactionModeId', value === 'none' ? undefined : value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transaction mode (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None (Use transaction type only)</SelectItem>
-                          {transactionModes?.map((mode) => (
-                            <SelectItem key={mode.id} value={mode.id}>
-                              {mode.displayName} ({mode.code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <p className="text-xs text-gray-500 mt-1">
-                        Link this tariff to a specific transaction mode for more granular control
+                        Used for backward compatibility. Transaction mode takes precedence.
                       </p>
                     </div>
 
@@ -327,21 +419,92 @@ const CreateTariffPage = () => {
                     </div>
 
                     {form.tariffType === 'EXTERNAL' && (
-                      <div>
-                        <Label htmlFor="partnerId">Partner *</Label>
-                        <Select value={form.partnerId || ''} onValueChange={(value) => handleInputChange('partnerId', value)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a partner" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {partners.map((partner) => (
-                              <SelectItem key={partner.id} value={partner.id}>
-                                {partner.partnerName} ({partner.partnerCode})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <>
+                        <div>
+                          <Label htmlFor="partnerType">Partner Type *</Label>
+                          <Select 
+                            value={form.partnerType || ''} 
+                            onValueChange={(value) => {
+                              handleInputChange('partnerType', value)
+                              // Clear partner selections when switching types
+                              handleInputChange('partnerId', undefined)
+                              handleInputChange('apiPartnerId', undefined)
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select partner type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="EXTERNAL_PARTNER">External Payment Partner</SelectItem>
+                              <SelectItem value="API_PARTNER">API Partner (Gateway)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {form.partnerType === 'EXTERNAL_PARTNER' && (
+                          <div>
+                            <Label htmlFor="partnerId">External Payment Partner *</Label>
+                            <Select 
+                              value={form.partnerId || ''} 
+                              onValueChange={(value) => {
+                                handleInputChange('partnerId', value)
+                                handleInputChange('apiPartnerId', undefined)
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select an external payment partner" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {partners.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-sm text-gray-500">No partners available</div>
+                                ) : (
+                                  partners.map((partner) => (
+                                    <SelectItem key={partner.id} value={partner.id}>
+                                      {partner.partnerName} ({partner.partnerCode})
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {form.partnerType === 'API_PARTNER' && (
+                          <div>
+                            <Label htmlFor="apiPartnerId">API Partner (Gateway) *</Label>
+                            <Select 
+                              value={form.apiPartnerId || ''} 
+                              onValueChange={(value) => {
+                                handleInputChange('apiPartnerId', value)
+                                handleInputChange('partnerId', undefined)
+                                // API partners typically use percentage fees, so default to PERCENTAGE
+                                if (form.feeType === 'FIXED') {
+                                  handleInputChange('feeType', 'PERCENTAGE')
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select an API partner" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {apiPartners.length === 0 ? (
+                                  <div className="px-2 py-1.5 text-sm text-gray-500">No API partners available</div>
+                                ) : (
+                                  apiPartners.map((partner) => (
+                                    <SelectItem key={partner.id} value={partner.id}>
+                                      {partner.partnerName} {partner.country ? `(${partner.country})` : ''}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-gray-500 mt-1">
+                              API partners are gateway partners who use RukaPay to send money. 
+                              <span className="font-medium text-blue-600"> Note: API partners typically use percentage-based fees.</span>
+                            </p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -402,13 +565,18 @@ const CreateTariffPage = () => {
                           type="number"
                           value={form.feePercentage}
                           onChange={(e) => handleInputChange('feePercentage', parseFloat(e.target.value) || 0)}
-                          placeholder="0.01"
+                          placeholder={form.partnerType === 'API_PARTNER' ? "2.5 (for 2.5%)" : "0.01"}
                           min="0"
-                          max="1"
-                          step="0.001"
+                          max={form.partnerType === 'API_PARTNER' ? "100" : "1"}
+                          step={form.partnerType === 'API_PARTNER' ? "0.1" : "0.001"}
                           required
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter as decimal (0.01 = 1%)</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {form.partnerType === 'API_PARTNER' 
+                            ? 'Enter as percentage (e.g., 2.5 for 2.5%). Will be converted to decimal automatically.'
+                            : 'Enter as decimal (0.01 = 1%)'
+                          }
+                        </p>
                       </div>
                     )}
 
@@ -649,4 +817,26 @@ const CreateTariffPage = () => {
   )
 }
 
-export default CreateTariffPage 
+function CreateTariffPageContent() {
+  return <CreateTariffPage />
+}
+
+export default function CreateTariffPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d] mx-auto mb-4" />
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <CreateTariffPageContent />
+    </Suspense>
+  )
+} 
