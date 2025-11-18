@@ -46,7 +46,6 @@ export interface CreateSystemCardRequest {
   cardLast4: string
   expiryMonth: string
   expiryYear: string
-  cvv: string
   cardType: 'PHYSICAL' | 'VIRTUAL'
   cardTier: 'STANDARD' | 'PREMIUM' | 'GOLD' | 'PLATINUM'
   partnerCode?: string

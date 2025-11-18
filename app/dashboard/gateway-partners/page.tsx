@@ -61,7 +61,7 @@ const GatewayPartnersPage = () => {
 
   const handleSuspend = async (partnerId: string, isSuspended: boolean) => {
     const reason = isSuspended 
-      ? prompt('Enter suspension reason:')
+      ? prompt('Enter suspension reason:') || undefined
       : undefined
 
     if (isSuspended && !reason) return

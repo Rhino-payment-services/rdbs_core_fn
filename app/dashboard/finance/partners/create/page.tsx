@@ -57,6 +57,13 @@ const CreatePartnerPage = () => {
     baseUrl: '',
     isActive: true,
     supportedServices: [],
+    rateLimit: 100,
+    dailyQuota: 0,
+    monthlyQuota: 0,
+    costPerTransaction: 0,
+    priority: 1,
+    failoverPriority: 0,
+    geographicRegions: [],
     description: ''
   })
 

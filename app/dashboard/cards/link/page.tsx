@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Link, Save, X, UserSearch, Search, CheckCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,7 +13,7 @@ import Navbar from '@/components/dashboard/Navbar'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 
-export default function LinkCardPage() {
+function LinkCardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const linkCard = useLinkCardToUser()
@@ -290,5 +290,25 @@ export default function LinkCardPage() {
         </form>
       </main>
     </div>
+  )
+}
+
+export default function LinkCardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-3xl mx-auto p-6">
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d] mx-auto mb-4" />
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <LinkCardContent />
+    </Suspense>
   )
 }
