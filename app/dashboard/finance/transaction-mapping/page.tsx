@@ -54,17 +54,29 @@ interface Partner {
   geographicRegions?: string[]
 }
 
-interface TransactionMapping {
-  transactionType: string
+interface NetworkMapping {
+  network: string
+  mappingId: string | null
   primaryPartner: Partner | null
   secondaryPartner: Partner | null
   totalMappings: number
+}
+
+interface TransactionMapping {
+  transactionType: string
+  primaryPartner?: Partner | null
+  secondaryPartner?: Partner | null
+  totalMappings: number
+  network?: string
+  networks?: string[] // For MNO transactions with multiple network mappings
+  networkMappings?: NetworkMapping[] // For MNO transactions - separate mappings per network
 }
 
 interface SwitchForm {
   serviceType: string
   primaryPartnerId: string
   reason: string
+  network?: string // For MNO transactions
 }
 
 const TransactionMappingPage = () => {
@@ -214,10 +226,15 @@ const TransactionMappingPage = () => {
       console.log('Switch partner API call - data:', data)
       console.log('Switch partner API call - endpoint: /admin/external-payment-partners/switch')
       
-      const payload = {
+      const payload: any = {
         serviceType: data.serviceType,
         primaryPartnerId: data.primaryPartnerId,
         reason: data.reason
+      }
+      
+      // Include network for MNO transactions
+      if (data.network) {
+        payload.network = data.network
       }
       
       console.log('Switch partner API call - payload:', payload)
@@ -240,12 +257,20 @@ const TransactionMappingPage = () => {
     }
   })
 
-  const handleSwitchPartner = (mapping: TransactionMapping) => {
-    setSelectedMapping(mapping)
+  const handleSwitchPartner = (mapping: TransactionMapping | NetworkMapping, transactionType?: string) => {
+    // Check if it's a NetworkMapping (from MNO transactions)
+    const isNetworkMapping = 'network' in mapping && mapping.network;
+    const network = isNetworkMapping ? (mapping as NetworkMapping).network : undefined;
+    const primaryPartner = isNetworkMapping 
+      ? (mapping as NetworkMapping).primaryPartner 
+      : (mapping as TransactionMapping).primaryPartner;
+    
+    setSelectedMapping(mapping as TransactionMapping)
     setSwitchForm({
-      serviceType: mapping.transactionType,
-      primaryPartnerId: mapping.primaryPartner?.id || '',
-      reason: ''
+      serviceType: transactionType || (mapping as TransactionMapping).transactionType,
+      primaryPartnerId: primaryPartner?.id || '',
+      reason: '',
+      network: network
     })
     // Refetch partners data to ensure we have the latest information
     refetchPartners()
@@ -255,6 +280,13 @@ const TransactionMappingPage = () => {
   const handleSubmitSwitch = async () => {
     if (!switchForm.primaryPartnerId || !switchForm.reason.trim()) {
       toast.error('Please select a partner and provide a reason for the switch.')
+      return
+    }
+
+    // Validate network for MNO transactions
+    const isMno = switchForm.serviceType === 'MNO_TO_WALLET' || switchForm.serviceType === 'WALLET_TO_MNO'
+    if (isMno && !switchForm.network) {
+      toast.error('Please ensure network is specified for MNO transactions.')
       return
     }
 
@@ -277,6 +309,12 @@ const TransactionMappingPage = () => {
   }
 
   const getAvailablePartners = (serviceType: string) => {
+    // Guard against undefined or empty serviceType
+    if (!serviceType) {
+      console.warn('getAvailablePartners called with undefined or empty serviceType')
+      return []
+    }
+    
     console.log('getAvailablePartners called with serviceType:', serviceType)
     console.log('Available partners:', partners)
     
@@ -299,7 +337,7 @@ const TransactionMappingPage = () => {
       const serviceTypeVariations = [
         serviceType,
         serviceType + 'S',
-        serviceType.slice(0, -1), // Remove last 'S' if present
+        ...(serviceType.length > 0 ? [serviceType.slice(0, -1)] : []), // Remove last 'S' if present (only if string has length)
         // Specific mappings
         ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
         ...(serviceType === 'WALLET_TO_MNO' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
@@ -341,30 +379,70 @@ const TransactionMappingPage = () => {
     }
   }
 
+  const isMnoTransaction = (transactionType: string) => {
+    return transactionType === 'MNO_TO_WALLET' || transactionType === 'WALLET_TO_MNO'
+  }
+
   const MappingTable = ({ type, mapping }: { type: string, mapping: TransactionMapping | null }) => {
     const config = externalTransactionTypes[type as keyof typeof externalTransactionTypes]
     if (!config) return null
 
     const availablePartners = getAvailablePartners(type)
+    const isMno = isMnoTransaction(type)
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className={`w-12 h-12 ${config.color} rounded-xl flex items-center justify-center`}>
-            <config.icon className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className={`w-12 h-12 ${config.color} rounded-xl flex items-center justify-center`}>
+              <config.icon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">{config.name}</h3>
+              <p className="text-gray-600">{config.description}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-semibold">{config.name}</h3>
-            <p className="text-gray-600">{config.description}</p>
-          </div>
+          {isMno && (
+            <div className="flex items-center space-x-2">
+              <Badge variant="outline" className="text-xs">
+                Network-based routing
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/dashboard/finance/partners/configure-mapping')}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Configure Networks
+              </Button>
+            </div>
+          )}
         </div>
         
-        {!mapping ? (
+        {!mapping || (isMno && (!mapping.networkMappings || mapping.networkMappings.length === 0)) ? (
           <Card>
             <CardContent className="py-8 text-center">
               <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Partner Assigned</h3>
-              <p className="text-gray-500 mb-4">This transaction type has no active partner mapping.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {isMno ? 'No Network Mappings Configured' : 'No Partner Assigned'}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {isMno 
+                  ? 'This MNO transaction type requires separate mappings for each network (MTN and Airtel).'
+                  : 'This transaction type has no active partner mapping.'
+                }
+              </p>
+              {isMno && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4 max-w-md mx-auto mb-4">
+                  <p className="text-xs text-yellow-700">
+                    <strong>Required Networks:</strong> You need to create separate mappings for:
+                    <ul className="list-disc list-inside mt-2">
+                      <li>MTN network</li>
+                      <li>Airtel network</li>
+                    </ul>
+                  </p>
+                </div>
+              )}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4 max-w-sm mx-auto">
                 <p className="text-xs text-blue-700">
                   <strong>Note:</strong> Partner assignments are managed through the backend API. 
@@ -372,9 +450,12 @@ const TransactionMappingPage = () => {
                 </p>
               </div>
               {canManageMapping && availablePartners.length > 0 && (
-                <Button onClick={() => handleSwitchPartner({ transactionType: type, primaryPartner: null, secondaryPartner: null, totalMappings: 0 })}>
+                <Button 
+                  onClick={() => router.push('/dashboard/finance/partners/configure-mapping')}
+                  className="mt-4"
+                >
                   <Plus className="w-4 h-4 mr-2" />
-                  Assign Partner
+                  {isMno ? 'Configure Network Mappings' : 'Assign Partner'}
                 </Button>
               )}
             </CardContent>
@@ -385,6 +466,7 @@ const TransactionMappingPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Current Partner</TableHead>
+                  {isMno && <TableHead>Network</TableHead>}
                   <TableHead>Performance</TableHead>
                   <TableHead>Cost</TableHead>
                   <TableHead>Priority</TableHead>
@@ -393,87 +475,187 @@ const TransactionMappingPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell>
-                    {mapping.primaryPartner ? (
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-blue-600">
-                            {mapping.primaryPartner.partnerCode?.charAt(0) || '?'}
-                          </span>
+                {isMno && mapping.networkMappings ? (
+                  // For MNO transactions, show separate row for each network
+                  mapping.networkMappings.map((networkMapping: NetworkMapping) => (
+                    <TableRow key={networkMapping.network}>
+                      <TableCell>
+                        {networkMapping.primaryPartner ? (
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-blue-600">
+                                {networkMapping.primaryPartner.partnerCode?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium">{networkMapping.primaryPartner.partnerName}</p>
+                              <p className="text-sm text-gray-500">
+                                {networkMapping.primaryPartner.geographicRegions && networkMapping.primaryPartner.geographicRegions.length > 0 
+                                  ? networkMapping.primaryPartner.geographicRegions.join(', ')
+                                  : 'Regions not configured'
+                                }
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                            <span className="text-sm text-gray-500">No partner assigned</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{networkMapping.network}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {networkMapping.primaryPartner ? (
+                          <div className="text-sm">
+                            <p className="font-medium">{networkMapping.primaryPartner.successRate || 0}% success</p>
+                            <p className="text-gray-500">{networkMapping.primaryPartner.averageResponseTime || 0}ms avg</p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {networkMapping.primaryPartner ? (
+                          <span className="font-medium">{networkMapping.primaryPartner.costPerTransaction || 0} UGX</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {networkMapping.primaryPartner ? (
+                          <div className="text-sm">
+                            <p>Priority: {networkMapping.primaryPartner.priority}</p>
+                            <p className="text-gray-500">Failover: {networkMapping.primaryPartner.failoverPriority}</p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {networkMapping.primaryPartner ? (
+                          <Badge variant={networkMapping.primaryPartner.isActive ? "default" : "secondary"}>
+                            {networkMapping.primaryPartner.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Unassigned</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          {canManageMapping && (
+                            <>
+                              <Button variant="ghost" size="sm">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              {networkMapping.mappingId && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => router.push(`/dashboard/finance/partners/configure-mapping?edit=${networkMapping.mappingId}`)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleSwitchPartner(networkMapping, type)}
+                              >
+                                <ArrowLeftRight className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-medium">{mapping.primaryPartner.partnerName}</p>
-                          <p className="text-sm text-gray-500">
-                            {mapping.primaryPartner.geographicRegions && mapping.primaryPartner.geographicRegions.length > 0 
-                              ? mapping.primaryPartner.geographicRegions.join(', ')
-                              : 'Regions not configured'
-                            }
-                          </p>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  // For non-MNO transactions, show single row
+                  <TableRow>
+                    <TableCell>
+                      {mapping.primaryPartner ? (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-blue-600">
+                              {mapping.primaryPartner.partnerCode?.charAt(0) || '?'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{mapping.primaryPartner.partnerName}</p>
+                            <p className="text-sm text-gray-500">
+                              {mapping.primaryPartner.geographicRegions && mapping.primaryPartner.geographicRegions.length > 0 
+                                ? mapping.primaryPartner.geographicRegions.join(', ')
+                                : 'Regions not configured'
+                              }
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                        <span className="text-sm text-gray-500">No partner assigned</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {mapping.primaryPartner ? (
-                      <div className="text-sm">
-                        <p className="font-medium">{mapping.primaryPartner.successRate || 0}% success</p>
-                        <p className="text-gray-500">{mapping.primaryPartner.averageResponseTime || 0}ms avg</p>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {mapping.primaryPartner ? (
-                      <span className="font-medium">{mapping.primaryPartner.costPerTransaction || 0} UGX</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {mapping.primaryPartner ? (
-                      <div className="text-sm">
-                        <p>Priority: {mapping.primaryPartner.priority}</p>
-                        <p className="text-gray-500">Failover: {mapping.primaryPartner.failoverPriority}</p>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {mapping.primaryPartner ? (
-                      <Badge variant={mapping.primaryPartner.isActive ? "default" : "secondary"}>
-                        {mapping.primaryPartner.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Unassigned</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      {canManageMapping && (
-                        <>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleSwitchPartner(mapping)}
-                          >
-                            <ArrowLeftRight className="w-4 h-4" />
-                          </Button>
-                        </>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                          <span className="text-sm text-gray-500">No partner assigned</span>
+                        </div>
                       )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </TableCell>
+                    <TableCell>
+                      {mapping.primaryPartner ? (
+                        <div className="text-sm">
+                          <p className="font-medium">{mapping.primaryPartner.successRate || 0}% success</p>
+                          <p className="text-gray-500">{mapping.primaryPartner.averageResponseTime || 0}ms avg</p>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {mapping.primaryPartner ? (
+                        <span className="font-medium">{mapping.primaryPartner.costPerTransaction || 0} UGX</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {mapping.primaryPartner ? (
+                        <div className="text-sm">
+                          <p>Priority: {mapping.primaryPartner.priority}</p>
+                          <p className="text-gray-500">Failover: {mapping.primaryPartner.failoverPriority}</p>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {mapping.primaryPartner ? (
+                        <Badge variant={mapping.primaryPartner.isActive ? "default" : "secondary"}>
+                          {mapping.primaryPartner.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Unassigned</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        {canManageMapping && (
+                          <>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleSwitchPartner(mapping)}
+                            >
+                              <ArrowLeftRight className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -825,7 +1007,9 @@ const TransactionMappingPage = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {(() => {
-                          const availablePartners = selectedMapping ? getAvailablePartners(selectedMapping.transactionType) : []
+                          const availablePartners = selectedMapping?.transactionType 
+                            ? getAvailablePartners(selectedMapping.transactionType) 
+                            : []
                           console.log('Dialog - selectedMapping:', selectedMapping)
                           console.log('Dialog - availablePartners:', availablePartners)
                           console.log('Dialog - all partners:', partners)

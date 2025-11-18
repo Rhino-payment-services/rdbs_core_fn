@@ -30,7 +30,8 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  RotateCcw
 } from 'lucide-react'
 import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
 
@@ -70,6 +71,14 @@ const TransactionsPage = () => {
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  
+  // Reversal modal state
+  const [reversalModalOpen, setReversalModalOpen] = useState(false)
+  const [reversalTransaction, setReversalTransaction] = useState<any>(null)
+  const [reversalReason, setReversalReason] = useState('')
+  const [reversalDetails, setReversalDetails] = useState('')
+  const [reversalTicketRef, setReversalTicketRef] = useState('')
+  const [reversalProcessing, setReversalProcessing] = useState(false)
 
   // Fetch real transaction system stats with filters
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
@@ -194,6 +203,53 @@ const TransactionsPage = () => {
   const handleViewTransaction = (transaction: any) => {
     setSelectedTransaction(transaction)
     setIsModalOpen(true)
+  }
+
+  // Handle reversal request
+  const handleReverseTransaction = (transaction: any) => {
+    setReversalTransaction(transaction)
+    setReversalReason('')
+    setReversalDetails('')
+    setReversalTicketRef('')
+    setReversalModalOpen(true)
+  }
+
+  // Submit reversal
+  const submitReversal = async () => {
+    if (!reversalReason || !reversalDetails) {
+      alert('Please provide reversal reason and details')
+      return
+    }
+
+    setReversalProcessing(true)
+    try {
+      const response = await fetch('/api/transactions/reversal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: reversalTransaction.id,
+          reason: reversalReason,
+          details: reversalDetails,
+          ticketReference: reversalTicketRef || undefined
+        })
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        alert(result.message || 'Reversal request submitted successfully!')
+        setReversalModalOpen(false)
+        // Refresh transactions list
+        window.location.reload()
+      } else {
+        alert(result.error || 'Failed to submit reversal request')
+      }
+    } catch (error) {
+      console.error('Reversal error:', error)
+      alert('An error occurred while submitting reversal request')
+    } finally {
+      setReversalProcessing(false)
+    }
   }
 
   // Calculate enhanced fee statistics from current page
@@ -675,13 +731,28 @@ const TransactionsPage = () => {
                               <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                           <TableCell className="text-sm">{formatDate(transaction.createdAt)}</TableCell>
                               <TableCell>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => handleViewTransaction(transaction)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => handleViewTransaction(transaction)}
+                                    title="View Details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {transaction.type === 'WALLET_TO_MNO' && 
+                                   (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => handleReverseTransaction(transaction)}
+                                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                      title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1341,6 +1412,136 @@ const TransactionsPage = () => {
                 <Button variant="default">
                   <Download className="h-4 w-4 mr-2" />
                   Export Details
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reversal Modal */}
+      <Dialog open={reversalModalOpen} onOpenChange={setReversalModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-orange-600" />
+              Reverse Transaction
+            </DialogTitle>
+            <DialogDescription>
+              Submit a reversal request for this WALLET_TO_MNO transaction
+            </DialogDescription>
+          </DialogHeader>
+
+          {reversalTransaction && (
+            <div className="space-y-4">
+              {/* Transaction Info */}
+              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Transaction ID:</span>
+                  <span className="font-mono font-medium text-xs">{reversalTransaction.reference || reversalTransaction.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Amount:</span>
+                  <span className="font-bold">{formatAmount(Number(reversalTransaction.amount))}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total to Refund (incl. fees):</span>
+                  <span className="font-bold text-green-600">
+                    {formatAmount(Number(reversalTransaction.amount) + Number(reversalTransaction.fee || 0))}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Status:</span>
+                  {getStatusBadge(reversalTransaction.status)}
+                </div>
+              </div>
+
+              {/* High Value Warning */}
+              {Number(reversalTransaction.amount) + Number(reversalTransaction.fee || 0) >= 50000 && (
+                <div className="p-3 bg-yellow-50 border border-yellow-300 rounded-lg flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-yellow-900">High-Value Transaction</p>
+                    <p className="text-yellow-800 mt-1">
+                      This reversal requires approval from an admin with TRANSACTION_REVERSAL_APPROVE permission.
+                      Your request will be reviewed before processing.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Reversal Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reversal Reason <span className="text-red-500">*</span>
+                  </label>
+                  <Select value={reversalReason} onValueChange={setReversalReason}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MNO_FAILURE">MNO Transfer Failed</SelectItem>
+                      <SelectItem value="DUPLICATE_TRANSACTION">Duplicate Transaction</SelectItem>
+                      <SelectItem value="CUSTOMER_DISPUTE">Customer Dispute</SelectItem>
+                      <SelectItem value="TECHNICAL_ERROR">Technical Error</SelectItem>
+                      <SelectItem value="FRAUD_PREVENTION">Fraud Prevention</SelectItem>
+                      <SelectItem value="INCORRECT_RECIPIENT">Incorrect Recipient</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Detailed Explanation <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={reversalDetails}
+                    onChange={(e) => setReversalDetails(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={4}
+                    placeholder="Provide detailed explanation of why this transaction needs to be reversed. Include verification steps taken with MNO if applicable."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Support Ticket Reference (Optional)
+                  </label>
+                  <Input
+                    value={reversalTicketRef}
+                    onChange={(e) => setReversalTicketRef(e.target.value)}
+                    placeholder="e.g., TICKET-12345"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setReversalModalOpen(false)}
+                  disabled={reversalProcessing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={submitReversal}
+                  disabled={!reversalReason || !reversalDetails || reversalProcessing}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {reversalProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Submit Reversal Request
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

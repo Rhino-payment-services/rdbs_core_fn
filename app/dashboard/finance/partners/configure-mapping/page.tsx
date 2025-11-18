@@ -54,6 +54,7 @@ interface PartnerMapping {
   transactionType: string
   partnerId: string
   geographicRegion: string
+  network?: string
   isActive: boolean
   priority: number
   createdAt?: string
@@ -64,6 +65,7 @@ interface CreateMappingForm {
   transactionType: string
   partnerId: string
   geographicRegion: string
+  network?: string
   priority: number
 }
 
@@ -89,23 +91,25 @@ const ConfigureMappingPage = () => {
       category: 'Utilities',
       isExternal: true
     },
-    'WITHDRAWAL': {
+    'WALLET_TO_MNO': {
       name: 'Wallet to MNO',
       description: 'Wallet to Mobile Network Operator transfers',
       icon: Smartphone,
       color: 'bg-green-500',
       tabId: 'wallet-to-mno',
       category: 'Mobile Money',
-      isExternal: true
+      isExternal: true,
+      requiresNetwork: true
     },
-    'DEPOSIT': {
+    'MNO_TO_WALLET': {
       name: 'MNO to Wallet',
       description: 'Mobile Network Operator to Wallet transfers',
       icon: Smartphone,
       color: 'bg-blue-500',
       tabId: 'mno-to-wallet',
       category: 'Mobile Money',
-      isExternal: true
+      isExternal: true,
+      requiresNetwork: true
     },
     'WALLET_TO_EXTERNAL_MERCHANT': {
       name: 'Bank Transfers',
@@ -141,11 +145,20 @@ const ConfigureMappingPage = () => {
     { code: 'UG', name: 'Uganda' }
   ]
 
+  // Available networks for MNO transactions
+  const availableNetworks = [
+    { code: 'Airtel', name: 'Airtel' },
+    { code: 'MTN', name: 'MTN' },
+    { code: 'Africell', name: 'Africell' },
+    { code: 'LycaMobile', name: 'LycaMobile' }
+  ]
+
   // Form state
   const [formData, setFormData] = useState<CreateMappingForm>({
     transactionType: 'BILL_PAYMENT',
     partnerId: '',
     geographicRegion: 'UG',
+    network: '',
     priority: 1
   })
 
@@ -224,33 +237,27 @@ const ConfigureMappingPage = () => {
   // Create mapping mutation
   const createMappingMutation = useMutation({
     mutationFn: async (data: CreateMappingForm) => {
-      try {
-        return await api.post('/admin/external-payment-partners/mappings', data)
-      } catch (error: any) {
-        if (error.response?.status === 404 || error.response?.status === 401) {
-          // Simulate successful creation for demo purposes
-          toast.success('Partner mapping created (demo mode)')
-          return { data: { id: `demo-${Date.now()}`, ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } }
-        }
-        throw error
-      }
+      const response = await api.post('/admin/external-payment-partners/mappings', data)
+      return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['partner-mappings'] })
       toast.success('Partner mapping created successfully!')
       setShowCreateForm(false)
+      setIsLoading(false)
+      // Reset form
       setFormData({
         transactionType: 'BILL_PAYMENT',
         partnerId: '',
         geographicRegion: 'UG',
+        network: '',
         priority: 1
       })
     },
     onError: (error: any) => {
       console.error('Failed to create mapping:', error)
-      toast.error(error.response?.data?.message || 'Failed to create partner mapping.')
-    },
-    onSettled: () => {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to create partner mapping.'
+      toast.error(errorMessage)
       setIsLoading(false)
     }
   })
@@ -258,27 +265,28 @@ const ConfigureMappingPage = () => {
   // Update mapping mutation
   const updateMappingMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string, data: Partial<CreateMappingForm> }) => {
-      try {
-        return await api.put(`/admin/external-payment-partners/mappings/${id}`, data)
-      } catch (error: any) {
-        if (error.response?.status === 404 || error.response?.status === 401) {
-          // Simulate successful update for demo purposes
-          toast.success('Partner mapping updated (demo mode)')
-          return { data: { id, ...data, updatedAt: new Date().toISOString() } }
-        }
-        throw error
-      }
+      const response = await api.put(`/admin/external-payment-partners/mappings/${id}`, data)
+      return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['partner-mappings'] })
       toast.success('Partner mapping updated successfully!')
       setEditingMapping(null)
+      setShowCreateForm(false)
+      setIsLoading(false)
+      // Reset form
+      setFormData({
+        transactionType: 'BILL_PAYMENT',
+        partnerId: '',
+        geographicRegion: 'UG',
+        network: '',
+        priority: 1
+      })
     },
     onError: (error: any) => {
       console.error('Failed to update mapping:', error)
-      toast.error(error.response?.data?.message || 'Failed to update partner mapping.')
-    },
-    onSettled: () => {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to update partner mapping.'
+      toast.error(errorMessage)
       setIsLoading(false)
     }
   })
@@ -315,12 +323,30 @@ const ConfigureMappingPage = () => {
       return
     }
 
+    // Validate network for MNO transactions
+    if (isMnoTransaction(formData.transactionType) && !formData.network) {
+      toast.error('Please select a network for MNO transactions')
+      return
+    }
+
     setIsLoading(true)
     
+    // Prepare data - only include network if it's an MNO transaction
+    const submitData: any = {
+      transactionType: formData.transactionType,
+      partnerId: formData.partnerId,
+      geographicRegion: formData.geographicRegion,
+      priority: formData.priority
+    }
+
+    if (isMnoTransaction(formData.transactionType) && formData.network) {
+      submitData.network = formData.network
+    }
+    
     if (editingMapping) {
-      updateMappingMutation.mutate({ id: editingMapping.id!, data: formData })
+      updateMappingMutation.mutate({ id: editingMapping.id!, data: submitData })
     } else {
-      createMappingMutation.mutate(formData)
+      createMappingMutation.mutate(submitData)
     }
   }
 
@@ -330,6 +356,7 @@ const ConfigureMappingPage = () => {
       transactionType: mapping.transactionType,
       partnerId: mapping.partnerId,
       geographicRegion: mapping.geographicRegion,
+      network: mapping.network || '',
       priority: mapping.priority
     })
     setShowCreateForm(true)
@@ -422,6 +449,10 @@ const ConfigureMappingPage = () => {
     return mappings.filter((mapping: PartnerMapping) => mapping.transactionType === transactionType)
   }
 
+  const isMnoTransaction = (transactionType: string) => {
+    return transactionType === 'MNO_TO_WALLET' || transactionType === 'WALLET_TO_MNO'
+  }
+
   const getPartnerName = (partnerId: string) => {
     const partner = partners.find((p: Partner) => p.id === partnerId)
     return partner ? partner.partnerName : 'Unknown Partner'
@@ -496,6 +527,7 @@ const ConfigureMappingPage = () => {
                 <TableRow>
                   <TableHead>Partner</TableHead>
                   <TableHead>Region</TableHead>
+                  {isMnoTransaction(transactionType) && <TableHead>Network</TableHead>}
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Cost</TableHead>
@@ -523,6 +555,13 @@ const ConfigureMappingPage = () => {
                         {geographicRegions.find(r => r.code === mapping.geographicRegion)?.name || mapping.geographicRegion}
                       </Badge>
                     </TableCell>
+                    {isMnoTransaction(transactionType) && (
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {mapping.network || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <span className="font-medium">{mapping.priority}</span>
                     </TableCell>
@@ -871,6 +910,28 @@ const ConfigureMappingPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {isMnoTransaction(formData.transactionType) && (
+                      <div>
+                        <Label htmlFor="network">Network *</Label>
+                        <Select 
+                          value={formData.network || ''} 
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, network: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select network" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableNetworks.map((network) => (
+                              <SelectItem key={network.code} value={network.code}>
+                                {network.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500 mt-1">Required for MNO transactions</p>
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="partnerId">Partner</Label>

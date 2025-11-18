@@ -58,17 +58,16 @@ const CreatePartnerPage = () => {
     isActive: true,
     supportedServices: [],
     rateLimit: 100,
-    dailyQuota: 10000,
-    monthlyQuota: 300000,
-    costPerTransaction: 500,
+    dailyQuota: 0,
+    monthlyQuota: 0,
+    costPerTransaction: 0,
     priority: 1,
-    failoverPriority: 2,
-    geographicRegions: ['UGANDA'],
+    failoverPriority: 0,
+    geographicRegions: [],
     description: ''
   })
 
   const [selectedServices, setSelectedServices] = useState<string[]>([])
-  const [selectedRegions, setSelectedRegions] = useState<string[]>(['UGANDA'])
 
   const availableServices = [
     'UTILITIES',
@@ -119,14 +118,6 @@ const CreatePartnerPage = () => {
     setForm(prev => ({ ...prev, supportedServices: newServices }))
   }
 
-  const handleRegionToggle = (region: string) => {
-    const newRegions = selectedRegions.includes(region)
-      ? selectedRegions.filter(r => r !== region)
-      : [...selectedRegions, region]
-    
-    setSelectedRegions(newRegions)
-    setForm(prev => ({ ...prev, geographicRegions: newRegions }))
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -141,12 +132,6 @@ const CreatePartnerPage = () => {
 
     if (selectedServices.length === 0) {
       toast.error('Please select at least one supported service.')
-      setIsLoading(false)
-      return
-    }
-
-    if (selectedRegions.length === 0) {
-      toast.error('Please select at least one geographic region.')
       setIsLoading(false)
       return
     }
@@ -286,13 +271,13 @@ const CreatePartnerPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Activity className="w-5 h-5" />
-                  <span>Services & Configuration</span>
+                  <span>Supported Services</span>
                 </CardTitle>
                 <CardDescription>
-                  Configure supported services and operational parameters
+                  Select the transaction types this partner supports
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent>
                 <div>
                   <Label>Supported Services *</Label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
@@ -311,126 +296,6 @@ const CreatePartnerPage = () => {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <Label htmlFor="rateLimit">Rate Limit (requests/min)</Label>
-                    <Input
-                      id="rateLimit"
-                      type="number"
-                      value={form.rateLimit}
-                      onChange={(e) => handleInputChange('rateLimit', parseInt(e.target.value))}
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="dailyQuota">Daily Quota</Label>
-                    <Input
-                      id="dailyQuota"
-                      type="number"
-                      value={form.dailyQuota}
-                      onChange={(e) => handleInputChange('dailyQuota', parseInt(e.target.value))}
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="monthlyQuota">Monthly Quota</Label>
-                    <Input
-                      id="monthlyQuota"
-                      type="number"
-                      value={form.monthlyQuota}
-                      onChange={(e) => handleInputChange('monthlyQuota', parseInt(e.target.value))}
-                      min="1"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <DollarSign className="w-5 h-5" />
-                  <span>Pricing & Priority</span>
-                </CardTitle>
-                <CardDescription>
-                  Set pricing and priority levels for partner routing
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label htmlFor="costPerTransaction">Cost Per Transaction (UGX)</Label>
-                  <Input
-                    id="costPerTransaction"
-                    type="number"
-                    value={form.costPerTransaction}
-                    onChange={(e) => handleInputChange('costPerTransaction', parseInt(e.target.value))}
-                    min="0"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="priority">Priority Level</Label>
-                    <Select value={form.priority.toString()} onValueChange={(value) => handleInputChange('priority', parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                          <SelectItem key={level} value={level.toString()}>
-                            Level {level} {level === 1 ? '(Highest)' : level === 10 ? '(Lowest)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="failoverPriority">Failover Priority</Label>
-                    <Select value={form.failoverPriority.toString()} onValueChange={(value) => handleInputChange('failoverPriority', parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5].map((level) => (
-                          <SelectItem key={level} value={level.toString()}>
-                            Level {level} {level === 1 ? '(Primary)' : level === 5 ? '(Last Resort)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Globe className="w-5 h-5" />
-                  <span>Geographic Coverage</span>
-                </CardTitle>
-                <CardDescription>
-                  Select the regions where this partner operates
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {availableRegions.map((region) => (
-                    <div key={region} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={region}
-                        checked={selectedRegions.includes(region)}
-                        onChange={() => handleRegionToggle(region)}
-                        className="rounded border-gray-300"
-                      />
-                      <Label htmlFor={region} className="text-sm">
-                        {region.replace(/_/g, ' ')}
-                      </Label>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>
