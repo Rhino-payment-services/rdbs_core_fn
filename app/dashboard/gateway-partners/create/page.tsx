@@ -29,6 +29,8 @@ import {
   CreateGatewayPartnerRequest,
 } from '@/lib/hooks/useGatewayPartners'
 
+type WalletType = 'ESCROW' | 'COMMISSION'
+
 const CreateGatewayPartnerPage = () => {
   const router = useRouter()
   const [step, setStep] = useState(1) // 1: Create Partner, 2: Generate Key, 3: Create Tariffs
@@ -99,6 +101,18 @@ const CreateGatewayPartnerPage = () => {
     } catch (error) {
       console.error('Failed to generate API key:', error)
     }
+  }
+
+  const toggleWalletType = (type: WalletType, checked: boolean) => {
+    setFormData((prev) => {
+      const current: WalletType[] = prev.walletTypes ? [...prev.walletTypes] : []
+      const next = checked
+        ? current.includes(type)
+          ? current
+          : [...current, type]
+        : current.filter((t) => t !== type)
+      return { ...prev, walletTypes: next }
+    })
   }
 
   const handleCreateTariffs = async () => {
@@ -325,20 +339,7 @@ const CreateGatewayPartnerPage = () => {
                           type="checkbox"
                           id="wallet-escrow"
                           checked={formData.walletTypes?.includes('ESCROW')}
-                          onChange={(e) => {
-                            const currentTypes = formData.walletTypes || [];
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                walletTypes: [...currentTypes, 'ESCROW'].filter((v, i, a) => a.indexOf(v) === i),
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                walletTypes: currentTypes.filter((t) => t !== 'ESCROW'),
-                              });
-                            }
-                          }}
+                          onChange={(e) => toggleWalletType('ESCROW', e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <Label htmlFor="wallet-escrow" className="font-normal cursor-pointer">
@@ -353,20 +354,7 @@ const CreateGatewayPartnerPage = () => {
                           type="checkbox"
                           id="wallet-commission"
                           checked={formData.walletTypes?.includes('COMMISSION')}
-                          onChange={(e) => {
-                            const currentTypes = formData.walletTypes || [];
-                            if (e.target.checked) {
-                              setFormData({
-                                ...formData,
-                                walletTypes: [...currentTypes, 'COMMISSION'].filter((v, i, a) => a.indexOf(v) === i),
-                              });
-                            } else {
-                              setFormData({
-                                ...formData,
-                                walletTypes: currentTypes.filter((t) => t !== 'COMMISSION'),
-                              });
-                            }
-                          }}
+                          onChange={(e) => toggleWalletType('COMMISSION', e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <Label htmlFor="wallet-commission" className="font-normal cursor-pointer">
