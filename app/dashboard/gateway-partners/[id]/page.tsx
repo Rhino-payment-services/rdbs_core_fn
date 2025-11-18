@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { 
   ArrowLeft, 
   Key,
@@ -34,7 +35,6 @@ import {
   useGenerateApiKey,
   useSuspendGatewayPartner,
   useRevokeApiKey,
-  useCreateTariffs,
 } from '@/lib/hooks/useGatewayPartners'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -45,34 +45,48 @@ const GatewayPartnerDetailsPage = () => {
   const partnerId = params.id as string
 
   const [showGenerateKeyDialog, setShowGenerateKeyDialog] = useState(false)
+  const [showSelectEnvironmentDialog, setShowSelectEnvironmentDialog] = useState(false)
+  const [selectedEnvironment, setSelectedEnvironment] = useState<'DEVELOPMENT' | 'PRODUCTION'>('PRODUCTION')
   const [generatedApiKey, setGeneratedApiKey] = useState('')
+  const [generatedApiKeyEnvironment, setGeneratedApiKeyEnvironment] = useState<'DEVELOPMENT' | 'PRODUCTION'>('PRODUCTION')
   const [showRevokeDialog, setShowRevokeDialog] = useState(false)
   const [keyToRevoke, setKeyToRevoke] = useState('')
-  const [showCreateTariffsDialog, setShowCreateTariffsDialog] = useState(false)
-  const [tariffData, setTariffData] = useState({
-    mtn: 2.0,
-    airtel: 2.0,
-    bank: 2.0,
-    wallet: 2.0,
-  })
 
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
   const suspendPartner = useSuspendGatewayPartner()
   const revokeKey = useRevokeApiKey()
-  const createTariffs = useCreateTariffs()
+
+  const handleGenerateKeyClick = () => {
+    // Check if there's an active production key
+    const hasActiveProductionKey = partner?.apiKeys.some(
+      key => key.environment === 'PRODUCTION' && key.isActive && !key.isRevoked
+    )
+
+    if (hasActiveProductionKey) {
+      toast.error('An active production API key already exists. Please revoke it first before generating a new one.')
+      return
+    }
+
+    // Open environment selection dialog
+    setShowSelectEnvironmentDialog(true)
+  }
 
   const handleGenerateKey = async () => {
     try {
       const result = await generateKey.mutateAsync({
         partnerId,
-        description: 'Production API key',
+        environment: selectedEnvironment,
+        description: `${selectedEnvironment} API key`,
         expiresInDays: 365,
       })
       setGeneratedApiKey(result.data.apiKey)
+      setGeneratedApiKeyEnvironment(result.data.environment || selectedEnvironment)
+      setShowSelectEnvironmentDialog(false)
       setShowGenerateKeyDialog(true)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate key:', error)
+      toast.error(error?.response?.data?.message || 'Failed to generate API key')
     }
   }
 
@@ -89,39 +103,6 @@ const GatewayPartnerDetailsPage = () => {
     }
   }
 
-  const handleCreateTariffs = async () => {
-    try {
-      // Create tariffs individually for each destination type
-      const tariffPromises = [
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.mtn,
-          destinationType: 'MTN',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.airtel,
-          destinationType: 'AIRTEL',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.bank,
-          destinationType: 'BANK',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.wallet,
-          destinationType: 'WALLET',
-        }),
-      ]
-
-      await Promise.all(tariffPromises)
-      setShowCreateTariffsDialog(false)
-      toast.success('All tariffs created successfully!')
-    } catch (error) {
-      console.error('Failed to create tariffs:', error)
-    }
-  }
 
   const handleSuspend = async () => {
     if (!partner) return
@@ -410,7 +391,7 @@ const GatewayPartnerDetailsPage = () => {
                     Manage API keys for partner authentication
                   </CardDescription>
                 </div>
-                <Button onClick={handleGenerateKey} disabled={generateKey.isPending}>
+                <Button onClick={handleGenerateKeyClick} disabled={generateKey.isPending}>
                   <Plus className="w-4 h-4 mr-2" />
                   Generate New Key
                 </Button>
@@ -421,7 +402,7 @@ const GatewayPartnerDetailsPage = () => {
                 <div className="text-center py-8">
                   <Key className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600">No API keys generated yet</p>
-                  <Button onClick={handleGenerateKey} className="mt-4">
+                  <Button onClick={handleGenerateKeyClick} className="mt-4">
                     <Plus className="w-4 h-4 mr-2" />
                     Generate First Key
                   </Button>
@@ -432,6 +413,7 @@ const GatewayPartnerDetailsPage = () => {
                     <TableRow>
                       <TableHead>Key Prefix</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Environment</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Expires</TableHead>
                       <TableHead>Last Used</TableHead>
@@ -448,6 +430,17 @@ const GatewayPartnerDetailsPage = () => {
                           </code>
                         </TableCell>
                         <TableCell>{key.description || 'N/A'}</TableCell>
+                        <TableCell>
+                          {key.environment === 'DEVELOPMENT' ? (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                              Development
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Production
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {key.isRevoked ? (
                             <Badge variant="destructive">Revoked</Badge>
@@ -512,15 +505,16 @@ const GatewayPartnerDetailsPage = () => {
                 <div>
                   <CardTitle>Tariffs</CardTitle>
                   <CardDescription>
-                    Transaction fees for different destination types
+                    Transaction fees for this API partner
                   </CardDescription>
                 </div>
-                {partner.tariffs.length === 0 && (
-                  <Button onClick={() => setShowCreateTariffsDialog(true)} disabled={createTariffs.isPending}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Tariffs
-                  </Button>
-                )}
+                <Button 
+                  onClick={() => router.push(`/dashboard/finance/tariffs/create?apiPartnerId=${partnerId}`)}
+                  variant="outline"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Tariff
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -528,34 +522,42 @@ const GatewayPartnerDetailsPage = () => {
                 <div className="text-center py-8">
                   <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 mb-3">No tariffs configured yet</p>
-                  <Button onClick={() => setShowCreateTariffsDialog(true)}>
+                  <Button onClick={() => router.push(`/dashboard/finance/tariffs/create?apiPartnerId=${partnerId}`)}>
                     <Plus className="w-4 h-4 mr-2" />
-                    Create Tariffs Now
+                    Create Tariff
                   </Button>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Destination Type</TableHead>
-                      <TableHead>RukaPay Commission</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Transaction Mode</TableHead>
+                      <TableHead>Fee Type</TableHead>
+                      <TableHead>Fee Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {partner.tariffs.map((tariff) => (
+                    {partner.tariffs.map((tariff: any) => (
                       <TableRow key={tariff.id}>
+                        <TableCell className="font-medium">{tariff.name || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-sm">
-                            {tariff.destinationType}
+                            {tariff.transactionType || tariff.destinationType || 'N/A'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium text-lg">
-                          {Number(tariff.commissionPercentage).toFixed(2)}%
+                        <TableCell>
+                          <Badge variant="outline">{tariff.feeType || 'N/A'}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          {tariff.description || `Commission for ${tariff.destinationType} transfers`}
+                        <TableCell className="font-medium">
+                          {tariff.feeType === 'PERCENTAGE' && tariff.feePercentage !== undefined && tariff.feePercentage !== null
+                            ? `${(Number(tariff.feePercentage) * 100).toFixed(2)}%`
+                            : tariff.feeType === 'FIXED'
+                            ? `${tariff.feeAmount} ${tariff.currency || 'UGX'}`
+                            : tariff.feeType === 'HYBRID'
+                            ? `${tariff.feeAmount} ${tariff.currency || 'UGX'} + ${tariff.feePercentage ? (Number(tariff.feePercentage) * 100).toFixed(2) : 0}%`
+                            : 'N/A'}
                         </TableCell>
                         <TableCell>
                           {tariff.isActive ? (
@@ -573,6 +575,75 @@ const GatewayPartnerDetailsPage = () => {
           </Card>
         </div>
       </main>
+
+      {/* Select Environment Dialog */}
+      <Dialog open={showSelectEnvironmentDialog} onOpenChange={setShowSelectEnvironmentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-blue-600" />
+              Select Environment
+            </DialogTitle>
+            <DialogDescription>
+              Choose the environment for the new API key
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="environment">Environment *</Label>
+              <Select
+                value={selectedEnvironment}
+                onValueChange={(value) => setSelectedEnvironment(value as 'DEVELOPMENT' | 'PRODUCTION')}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DEVELOPMENT">Development</SelectItem>
+                  <SelectItem value="PRODUCTION">Production</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-2">
+                {selectedEnvironment === 'DEVELOPMENT' 
+                  ? 'Development keys are for testing and sandbox environments. You can have multiple development keys.'
+                  : 'Production keys are for live transactions. Only one active production key is allowed per partner.'}
+              </p>
+            </div>
+
+            {selectedEnvironment === 'PRODUCTION' && partner?.apiKeys.some(
+              key => key.environment === 'PRODUCTION' && key.isActive && !key.isRevoked
+            ) && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-red-900 mb-1">Active Production Key Exists</h4>
+                    <p className="text-sm text-red-700">
+                      You must revoke the existing active production key before generating a new one.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSelectEnvironmentDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateKey}
+              disabled={
+                generateKey.isPending ||
+                (selectedEnvironment === 'PRODUCTION' && partner?.apiKeys.some(
+                  key => key.environment === 'PRODUCTION' && key.isActive && !key.isRevoked
+                ))
+              }
+            >
+              {generateKey.isPending ? 'Generating...' : 'Generate Key'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Generate API Key Dialog */}
       <Dialog open={showGenerateKeyDialog} onOpenChange={setShowGenerateKeyDialog}>
@@ -596,6 +667,21 @@ const GatewayPartnerDetailsPage = () => {
                     Store this API key securely. It provides full gateway access.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <Label>Environment</Label>
+              <div className="mt-2">
+                {generatedApiKeyEnvironment === 'DEVELOPMENT' ? (
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                    Development
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                    Production
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -648,134 +734,6 @@ const GatewayPartnerDetailsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create Tariffs Dialog */}
-      <Dialog open={showCreateTariffsDialog} onOpenChange={setShowCreateTariffsDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-blue-600" />
-              Create Gateway Tariffs
-            </DialogTitle>
-            <DialogDescription>
-              Set RukaPay's commission for this gateway partner
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-900 mb-1">Commission Only</h4>
-                  <p className="text-sm text-blue-700">
-                    This creates 4 tariffs (MTN, Airtel, Bank, Wallet) with your commission percentage.
-                    Network/Bank charges will be handled by external partners (ABC, Pegasus).
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="mtnCommission" className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                  MTN Commission (%)
-                </Label>
-                <Input
-                  id="mtnCommission"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={tariffData.mtn}
-                  onChange={(e) => setTariffData({ ...tariffData, mtn: parseFloat(e.target.value) || 0 })}
-                  className="mt-2"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="airtelCommission" className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  Airtel Commission (%)
-                </Label>
-                <Input
-                  id="airtelCommission"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={tariffData.airtel}
-                  onChange={(e) => setTariffData({ ...tariffData, airtel: parseFloat(e.target.value) || 0 })}
-                  className="mt-2"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="bankCommission" className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  Bank Commission (%)
-                </Label>
-                <Input
-                  id="bankCommission"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={tariffData.bank}
-                  onChange={(e) => setTariffData({ ...tariffData, bank: parseFloat(e.target.value) || 0 })}
-                  className="mt-2"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="walletCommission" className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  Wallet Commission (%)
-                </Label>
-                <Input
-                  id="walletCommission"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={tariffData.wallet}
-                  onChange={(e) => setTariffData({ ...tariffData, wallet: parseFloat(e.target.value) || 0 })}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <h4 className="font-medium text-gray-900 mb-2 text-sm">Commission Preview (on 100,000 UGX)</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex justify-between bg-white p-2 rounded">
-                  <span className="text-gray-600">MTN:</span>
-                  <span className="font-medium">{((100000 * tariffData.mtn) / 100).toLocaleString()} UGX</span>
-                </div>
-                <div className="flex justify-between bg-white p-2 rounded">
-                  <span className="text-gray-600">Airtel:</span>
-                  <span className="font-medium">{((100000 * tariffData.airtel) / 100).toLocaleString()} UGX</span>
-                </div>
-                <div className="flex justify-between bg-white p-2 rounded">
-                  <span className="text-gray-600">Bank:</span>
-                  <span className="font-medium">{((100000 * tariffData.bank) / 100).toLocaleString()} UGX</span>
-                </div>
-                <div className="flex justify-between bg-white p-2 rounded">
-                  <span className="text-gray-600">Wallet:</span>
-                  <span className="font-medium">{((100000 * tariffData.wallet) / 100).toLocaleString()} UGX</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateTariffsDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateTariffs} disabled={createTariffs.isPending}>
-              {createTariffs.isPending ? 'Creating...' : 'Create Tariffs'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
