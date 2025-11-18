@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Workflow, Package } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Workflow, Package, Network } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -184,7 +184,7 @@ const Navbar = () => {
                 <Link 
                   href="/dashboard" 
                   className={`nav-slider-item ${
-                    isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers')
+                    isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/gateway-partners')
                       ? 'active'
                       : ''
                   }`}
@@ -237,7 +237,7 @@ const Navbar = () => {
                     <Link 
                       href="/dashboard/finance/tariffs" 
                       className={`nav-slider-item ${
-                        isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')
+                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')) && !isActive('/dashboard/gateway-partners')
                           ? 'active'
                           : ''
                       }`}
@@ -246,6 +246,21 @@ const Navbar = () => {
                       <span>Finance</span>
                     </Link>
                   </div>
+                </PermissionGuard>
+                
+                {/* Gateway Partners Menu - Show if user has tariff permissions */}
+                <PermissionGuard permission={PERMISSIONS.TARIFF_VIEW}>
+                  <Link 
+                    href="/dashboard/gateway-partners" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/gateway-partners')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <Network className="nav-icon" />
+                    <span>Gateway Partners</span>
+                  </Link>
                 </PermissionGuard>
                 
                 {/* Transaction Modes Menu - Show if user has transaction modes permissions */}
