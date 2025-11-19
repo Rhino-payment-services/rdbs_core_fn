@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Workflow, Package, Network } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -246,36 +246,6 @@ const Navbar = () => {
                       <span>Finance</span>
                     </Link>
                   </div>
-                </PermissionGuard>
-                
-                {/* Gateway Partners Menu - Show if user has tariff permissions */}
-                <PermissionGuard permission={PERMISSIONS.TARIFF_VIEW}>
-                  <Link 
-                    href="/dashboard/gateway-partners" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/gateway-partners')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Network className="nav-icon" />
-                    <span>Gateway Partners</span>
-                  </Link>
-                </PermissionGuard>
-                
-                {/* Transaction Modes Menu - Show if user has transaction modes permissions */}
-                <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>
-                  <Link 
-                    href="/dashboard/transaction-modes" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/transaction-modes')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Workflow className="nav-icon" />
-                    <span>Transaction Modes</span>
-                  </Link>
                 </PermissionGuard>
                 
                 {/* Products Menu */}

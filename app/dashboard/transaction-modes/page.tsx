@@ -87,6 +87,17 @@ const CATEGORIES = [
 
 const CURRENCIES = ['UGX', 'USD', 'EUR', 'GBP', 'KES', 'TZS'];
 
+const TRANSACTION_TYPES = [
+  { value: 'WALLET_TO_MNO', label: 'Wallet to MNO' },
+  { value: 'WALLET_TO_BANK', label: 'Wallet to Bank' },
+  { value: 'BILL_PAYMENT', label: 'Bill Payment' },
+  { value: 'MNO_TO_WALLET', label: 'MNO to Wallet' },
+  { value: 'WALLET_TOPUP_PULL', label: 'Wallet Topup Pull' },
+  { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet' },
+  { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
+  { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
+];
+
 export default function TransactionModesPage() {
   const router = useRouter();
   const { hasPermission } = usePermissions();
@@ -320,6 +331,7 @@ export default function TransactionModesPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>Transaction Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Limits</TableHead>
@@ -329,12 +341,16 @@ export default function TransactionModesPage() {
                   <TableBody>
                     {modes?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           No transaction modes found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      modes?.map((mode) => (
+                      modes?.map((mode) => {
+                        const transactionType = (mode.metadata as any)?.transactionType;
+                        const transactionTypeLabel = TRANSACTION_TYPES.find(t => t.value === transactionType)?.label || transactionType || 'Not set';
+                        
+                        return (
                         <TableRow key={mode.id}>
                           <TableCell className="font-medium">
                             <div>
@@ -347,6 +363,15 @@ export default function TransactionModesPage() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{mode.category}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {transactionType ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                {transactionTypeLabel}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Not set</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Badge variant={mode.isActive ? 'default' : 'secondary'}>
@@ -414,7 +439,8 @@ export default function TransactionModesPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -479,6 +505,9 @@ interface TransactionModeFormProps {
 }
 
 function TransactionModeForm({ initialData, onSubmit, isSubmitting }: TransactionModeFormProps) {
+  // Extract transactionType from metadata if it exists
+  const initialTransactionType = initialData?.metadata?.transactionType || '';
+  
   const [formData, setFormData] = useState<CreateTransactionModeDto>({
     code: initialData?.code || '',
     name: initialData?.name || '',
@@ -491,11 +520,24 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
     maxAmount: initialData?.maxAmount || undefined,
     requiresApproval: initialData?.requiresApproval || false,
     approvalThreshold: initialData?.approvalThreshold || undefined,
+    metadata: initialData?.metadata || {},
   });
+
+  const [transactionType, setTransactionType] = useState<string>(initialTransactionType);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Include transactionType in metadata if provided
+    const submitData = {
+      ...formData,
+      metadata: {
+        ...formData.metadata,
+        ...(transactionType && { transactionType }),
+      },
+    };
+    
+    onSubmit(submitData);
   };
 
   return (
@@ -564,6 +606,29 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           rows={3}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="transactionType">Transaction Type *</Label>
+        <Select
+          value={transactionType}
+          onValueChange={(value) => setTransactionType(value)}
+          required
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select transaction type" />
+          </SelectTrigger>
+          <SelectContent>
+            {TRANSACTION_TYPES.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          This determines which transaction type this mode belongs to. Required for custom modes.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
