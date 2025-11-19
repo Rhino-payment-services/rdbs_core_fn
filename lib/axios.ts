@@ -164,7 +164,7 @@ api.interceptors.response.use(
       // Handle other error statuses
       switch (status) {
         case 403:
-          console.error('Access forbidden')
+          // 403 errors are handled by individual mutation error handlers with user-friendly toasts
           break
         case 404:
           // Don't log 404 errors for endpoints that might not be implemented yet
