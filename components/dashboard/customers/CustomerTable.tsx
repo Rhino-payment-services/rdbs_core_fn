@@ -76,6 +76,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
       maximumFractionDigits: 0,
     }).format(amount)
   }
+  
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {

@@ -13,6 +13,7 @@ import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import type { User } from '@/lib/types/api'
 import toast from 'react-hot-toast'
+import api from '@/lib/axios'
 import { Users, Building2, Handshake, Plus } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
@@ -33,6 +34,7 @@ const CustomersPage = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  
 
   // API hooks - add keepPreviousData to prevent loading flashes
   const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
@@ -43,6 +45,7 @@ const CustomersPage = () => {
     pageSize: itemsPerPage
   })
   const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
+  
   
   // Log merchants data for debugging
   React.useEffect(() => {
@@ -76,18 +79,194 @@ const CustomersPage = () => {
 
 
 
+
   // Export functionality
   const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     setIsProcessing(true)
     try {
-      // Mock export - replace with actual export API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      toast.success(`Customer data exported as ${format.toUpperCase()}`)
+      if (format === 'csv') {
+        if (activeTab === 'merchants') {
+          // Fetch all merchants for export (not just current page)
+          await exportMerchantsToCSV()
+        } else {
+          // Export subscribers/partners to CSV
+          exportUsersToCSV(filteredUsers, activeTab)
+        }
+        toast.success(`Customer data exported as ${format.toUpperCase()}`)
+      } else {
+        // For Excel and PDF, show a message that it's coming soon
+        toast.error(`${format.toUpperCase()} export is coming soon. Please use CSV for now.`)
+      }
     } catch (error) {
+      console.error('Export error:', error)
       toast.error('Failed to export customer data')
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  // Export merchants to CSV - fetches all merchants
+  const exportMerchantsToCSV = async () => {
+    try {
+      // Fetch all merchants (no pagination for export)
+      const response = await api({
+        url: '/merchant-kyc/all',
+        method: 'GET',
+        params: {
+          pageSize: 10000, // Large page size to get all merchants
+        },
+      })
+      
+      const merchantsData = response.data?.merchants || response.data?.data || []
+      
+      if (!merchantsData || merchantsData.length === 0) {
+        toast.error('No merchants to export')
+        return
+      }
+      
+      // Debug: Log first merchant structure to understand data format
+      if (merchantsData.length > 0) {
+        console.log('📊 First merchant data structure:', merchantsData[0])
+        console.log('📊 Available fields:', Object.keys(merchantsData[0]))
+      }
+
+    // Define CSV headers
+    const headers = ['Name', 'Owner', 'Status', 'Joined', 'Phone', 'Email', 'Merchant Code']
+    
+    // Convert merchants data to CSV rows
+    const csvRows = merchantsData.map(merchant => {
+      const name = merchant.businessTradeName || 'Unknown Business'
+      const owner = `${merchant.ownerFirstName || ''} ${merchant.ownerLastName || ''}`.trim() || 'N/A'
+      const status = merchant.isVerified ? 'Verified' : 'Pending'
+      const joined = merchant.onboardedAt 
+        ? new Date(merchant.onboardedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : 'N/A'
+      
+      // API returns phone and email directly on merchant object (mapped from registeredPhoneNumber and businessEmail)
+      // Try phone first (API response), then fallback to registeredPhoneNumber (direct DB field)
+      const phone = merchant.phone 
+        || merchant.registeredPhoneNumber 
+        || merchant.user?.phone 
+        || merchant.user?.registeredPhoneNumber
+        || 'N/A'
+      
+      // Try email first (API response), then fallback to businessEmail (direct DB field)
+      const email = merchant.email 
+        || merchant.businessEmail 
+        || merchant.user?.email 
+        || merchant.user?.businessEmail
+        || 'N/A'
+      
+      const merchantCode = merchant.merchantCode || 'N/A'
+      
+      // Escape commas and quotes in CSV values
+      const escapeCSV = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }
+      
+      return [
+        escapeCSV(name),
+        escapeCSV(owner),
+        escapeCSV(status),
+        escapeCSV(joined),
+        escapeCSV(phone),
+        escapeCSV(email),
+        escapeCSV(merchantCode)
+      ].join(',')
+    })
+    
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...csvRows
+    ].join('\n')
+    
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `merchants_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error exporting merchants:', error)
+      throw error
+    }
+  }
+
+  // Export users (subscribers/partners) to CSV
+  const exportUsersToCSV = (usersData: User[], tab: string) => {
+    if (!usersData || usersData.length === 0) {
+      toast.error(`No ${tab} to export`)
+      return
+    }
+
+    // Define CSV headers
+    const headers = ['Name', 'Email', 'Phone', 'Status', 'Type', 'Joined', 'Location']
+    
+    // Convert users data to CSV rows
+    const csvRows = usersData.map(user => {
+      const name = user.profile 
+        ? `${user.profile.firstName || ''} ${user.profile.middleName ? user.profile.middleName + ' ' : ''}${user.profile.lastName || ''}`.trim()
+        : `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown'
+      const email = user.email || 'N/A'
+      const phone = user.phone || 'N/A'
+      const status = user.status || 'N/A'
+      const type = user.userType || user.subscriberType || 'N/A'
+      const joined = user.createdAt 
+        ? new Date(user.createdAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        : 'N/A'
+      const location = (user as any)?.country || (user as any)?.profile?.country || 'N/A'
+      
+      // Escape commas and quotes in CSV values
+      const escapeCSV = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`
+        }
+        return value
+      }
+      
+      return [
+        escapeCSV(name),
+        escapeCSV(email),
+        escapeCSV(phone),
+        escapeCSV(status),
+        escapeCSV(type),
+        escapeCSV(joined),
+        escapeCSV(location)
+      ].join(',')
+    })
+    
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...csvRows
+    ].join('\n')
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `${tab}_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   // Handler functions
@@ -376,6 +555,7 @@ const CustomersPage = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
+
 
   // Show loading state to prevent "Access Restricted" flash
   if (usersLoading && !usersData) {
