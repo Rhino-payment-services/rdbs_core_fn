@@ -56,6 +56,7 @@ export interface CreateTransactionModeDto {
   requiredFields: string[];
   validationRules?: any;
   metadata?: any;
+  systemTransactionModeCode?: string;
 }
 
 export interface UpdateTransactionModeDto extends CreateTransactionModeDto {

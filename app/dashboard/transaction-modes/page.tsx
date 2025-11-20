@@ -13,6 +13,7 @@ import {
   useDeleteTransactionMode,
   useActivateTransactionMode,
   useDeactivateTransactionMode,
+  useSystemTransactionModes,
   type TransactionMode,
   type CreateTransactionModeDto,
 } from '@/lib/hooks/useTransactionModes';
@@ -505,9 +506,13 @@ interface TransactionModeFormProps {
 }
 
 function TransactionModeForm({ initialData, onSubmit, isSubmitting }: TransactionModeFormProps) {
+  const { data: systemModes = [] } = useSystemTransactionModes();
+  
   // Extract transactionType from metadata if it exists
   const initialTransactionType = initialData?.metadata?.transactionType || '';
   
+  // Extract systemTransactionModeCode from metadata if editing
+  const systemTransactionModeCodeFromMetadata = initialData?.metadata?.transactionType;
   const [formData, setFormData] = useState<CreateTransactionModeDto>({
     code: initialData?.code || '',
     name: initialData?.name || '',
@@ -521,6 +526,7 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
     requiresApproval: initialData?.requiresApproval || false,
     approvalThreshold: initialData?.approvalThreshold || undefined,
     metadata: initialData?.metadata || {},
+    systemTransactionModeCode: systemTransactionModeCodeFromMetadata || undefined,
   });
 
   const [transactionType, setTransactionType] = useState<string>(initialTransactionType);
@@ -657,6 +663,34 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
             }
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="systemTransactionModeCode">System Transaction Mode (Reference)</Label>
+        <Select
+          value={formData.systemTransactionModeCode || '__none__'}
+          onValueChange={(value) =>
+            setFormData({ 
+              ...formData, 
+              systemTransactionModeCode: value === '__none__' ? undefined : value 
+            })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a system transaction mode (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">None (No reference)</SelectItem>
+            {systemModes.map((mode) => (
+              <SelectItem key={mode.code} value={mode.code}>
+                {mode.displayName} ({mode.code})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground">
+          Select a system transaction mode to reference. This will be stored in metadata as transactionType.
+        </p>
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-4">
