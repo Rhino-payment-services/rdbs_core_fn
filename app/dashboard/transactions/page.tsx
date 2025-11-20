@@ -31,9 +31,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  RotateCcw
+  RotateCcw,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react'
 import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
+import api from '@/lib/axios'
+import toast from 'react-hot-toast'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // Helper function to shorten long transaction IDs for display
 const shortenTransactionId = (id: string): string => {
@@ -79,6 +89,9 @@ const TransactionsPage = () => {
   const [reversalDetails, setReversalDetails] = useState('')
   const [reversalTicketRef, setReversalTicketRef] = useState('')
   const [reversalProcessing, setReversalProcessing] = useState(false)
+  
+  // Export state
+  const [isExporting, setIsExporting] = useState(false)
 
   // Fetch real transaction system stats with filters
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
@@ -249,6 +262,157 @@ const TransactionsPage = () => {
       alert('An error occurred while submitting reversal request')
     } finally {
       setReversalProcessing(false)
+    }
+  }
+
+  // Export transactions to CSV
+  const exportTransactionsToCSV = async (exportAll: boolean = false) => {
+    setIsExporting(true)
+    try {
+      let transactionsToExport = transactions
+      
+      if (exportAll) {
+        // Fetch all transactions with current filters
+        const response = await api({
+          url: '/transactions/all',
+          method: 'GET',
+          params: {
+            limit: 10000, // Large limit to get all transactions
+            status: statusFilter || undefined,
+            type: typeFilter || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
+          },
+        })
+        
+        transactionsToExport = response.data?.transactions || response.data?.data || []
+        
+        if (transactionsToExport.length === 0) {
+          toast.error('No transactions to export')
+          setIsExporting(false)
+          return
+        }
+      } else {
+        // Export current page only
+        if (transactions.length === 0) {
+          toast.error('No transactions on current page to export')
+          setIsExporting(false)
+          return
+        }
+      }
+
+      // Define CSV headers
+      const headers = [
+        'Reference',
+        'Transaction ID',
+        'Type',
+        'Status',
+        'Direction',
+        'Amount',
+        'Currency',
+        'Fee',
+        'Net Amount',
+        'Sender Name',
+        'Sender Contact',
+        'Receiver Name',
+        'Receiver Contact',
+        'Partner',
+        'Date & Time',
+        'Description',
+        'Error Message'
+      ]
+      
+      // Convert transactions to CSV rows
+      const csvRows = transactionsToExport.map((tx: any) => {
+        // Get sender info
+        const senderName = tx.direction === 'DEBIT' 
+          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+              : 'Unknown User')
+          : (tx.metadata?.counterpartyInfo?.name || 'External')
+        
+        const senderContact = tx.direction === 'DEBIT'
+          ? (tx.user?.phone || tx.user?.email || 'N/A')
+          : (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
+        
+        // Get receiver info
+        const receiverName = tx.direction === 'DEBIT'
+          ? (tx.metadata?.counterpartyInfo?.name || 'External')
+          : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+              : 'Unknown User')
+        
+        const receiverContact = tx.direction === 'DEBIT'
+          ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
+          : (tx.user?.phone || tx.user?.email || 'N/A')
+        
+        // Format date
+        const dateTime = tx.createdAt 
+          ? new Date(tx.createdAt).toLocaleString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })
+          : 'N/A'
+        
+        // Escape commas and quotes in CSV values
+        const escapeCSV = (value: any) => {
+          const str = value?.toString() || 'N/A'
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`
+          }
+          return str
+        }
+        
+        return [
+          escapeCSV(tx.reference || tx.id),
+          escapeCSV(tx.id),
+          escapeCSV(tx.type || 'N/A'),
+          escapeCSV(tx.status || 'N/A'),
+          escapeCSV(tx.direction || 'N/A'),
+          escapeCSV(Number(tx.amount) || 0),
+          escapeCSV(tx.currency || 'UGX'),
+          escapeCSV(Number(tx.fee) || 0),
+          escapeCSV(Number(tx.netAmount) || Number(tx.amount) || 0),
+          escapeCSV(senderName),
+          escapeCSV(senderContact),
+          escapeCSV(receiverName),
+          escapeCSV(receiverContact),
+          escapeCSV(tx.partnerMapping?.partner?.partnerCode || 'Direct'),
+          escapeCSV(dateTime),
+          escapeCSV(tx.description || 'N/A'),
+          escapeCSV(tx.errorMessage || 'N/A')
+        ].join(',')
+      })
+      
+      // Combine headers and rows
+      const csvContent = [
+        headers.join(','),
+        ...csvRows
+      ].join('\n')
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      const exportType = exportAll ? 'all' : 'current_page'
+      const dateStr = new Date().toISOString().split('T')[0]
+      link.setAttribute('download', `transactions_${exportType}_${dateStr}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast.success(`Exported ${transactionsToExport.length} transaction(s) as CSV`)
+    } catch (error) {
+      console.error('Export error:', error)
+      toast.error('Failed to export transactions')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -512,10 +676,30 @@ const TransactionsPage = () => {
                   Reset
                       </Button>
 
-                <Button variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                        Export
-                      </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={isExporting}>
+                      <Download className="h-4 w-4 mr-2" />
+                      {isExporting ? 'Exporting...' : 'Export'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => exportTransactionsToCSV(false)}
+                      disabled={isExporting || transactions.length === 0}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export Current Page ({transactions.length} transactions)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => exportTransactionsToCSV(true)}
+                      disabled={isExporting}
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Export All Transactions
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                     </div>
 
               {/* Enhanced Current Page Stats */}
@@ -879,16 +1063,31 @@ const TransactionsPage = () => {
                   <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded">
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold text-red-900 text-sm">Failure Reason:</p>
-                        <p className="text-red-800 text-sm mt-1">
-                          {selectedTransaction.metadata?.externalMessage ||
-                           selectedTransaction.failureReason || 
-                           selectedTransaction.metadata?.failureReason || 
-                           selectedTransaction.metadata?.errorMessage ||
-                           selectedTransaction.errorMessage ||
-                           'Transaction failed due to processing error. Please contact support for more details.'}
+                        <p className="text-red-800 text-sm mt-1 font-medium">
+                          {(() => {
+                            // Priority order: Check errorMessage first (contains ABC error like "Insufficient funds")
+                            // Then check metadata for ABC-specific error messages
+                            const errorMsg = 
+                              selectedTransaction.errorMessage || // Direct errorMessage field (ABC error: "Insufficient funds")
+                              selectedTransaction.metadata?.abcErrorMessage || // ABC's specific error message from metadata
+                              selectedTransaction.metadata?.abcResponse?.message || // ABC response message
+                              selectedTransaction.metadata?.externalMessage || // External partner message
+                              selectedTransaction.failureReason || // Legacy field
+                              selectedTransaction.metadata?.failureReason || // Legacy metadata field
+                              selectedTransaction.metadata?.errorMessage || // Legacy metadata errorMessage
+                              'Transaction failed due to processing error. Please contact support for more details.';
+                            
+                            return errorMsg;
+                          })()}
                         </p>
+                        {/* Show ABC partner info if available */}
+                        {selectedTransaction.partnerMapping?.partner?.partnerCode === 'ABC' && (
+                          <p className="text-red-700 text-xs mt-1 italic">
+                            Error from ABC partner
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

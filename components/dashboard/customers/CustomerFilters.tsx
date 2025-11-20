@@ -181,6 +181,7 @@ export const CustomerFilters: React.FC<CustomerFiltersProps> = ({
                   <SelectContent>
                     <SelectItem value="name">Name</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="balance">Balance</SelectItem>
                     <SelectItem value="createdAt">Created Date</SelectItem>
                     <SelectItem value="lastLogin">Last Login</SelectItem>
                     <SelectItem value="status">Status</SelectItem>
