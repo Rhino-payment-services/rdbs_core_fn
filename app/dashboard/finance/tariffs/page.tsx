@@ -168,6 +168,7 @@ const TariffsPage = () => {
       'WALLET_TO_MERCHANT': 'Wallet to Merchant',
       'BILL_PAYMENT': 'Bill Payment',
       'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal',
+      'CUSTOM': 'Custom (Partner)',
     }
     return typeLabels[type] || type
   }
@@ -289,6 +290,13 @@ const TariffsPage = () => {
       icon: DollarSign,
       color: 'bg-amber-600',
       tabId: 'merchant-withdrawal'
+    },
+    'CUSTOM': {
+      name: 'Custom (Partner)',
+      description: 'Custom transaction modes for partners',
+      icon: Settings,
+      color: 'bg-indigo-600',
+      tabId: 'custom'
     }
   }
 
@@ -324,15 +332,16 @@ const TariffsPage = () => {
     'WALLET_TO_UTILITY': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_UTILITY'),
     'BILL_PAYMENT': externalTariffs.filter((t: Tariff) => t.transactionType === 'BILL_PAYMENT'),
     'MERCHANT_WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_WITHDRAWAL'),
+    'CUSTOM': externalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
 
   // Get available transaction types from actual data
   const availableInternalTypes = Object.keys(internalTransactionTypes).filter(type => 
-    internalGroupedTariffs[type as keyof typeof internalGroupedTariffs].length > 0
+    internalGroupedTariffs[type as keyof typeof internalGroupedTariffs]?.length > 0
   )
   
   const availableExternalTypes = Object.keys(externalTransactionTypes).filter(type => 
-    externalGroupedTariffs[type as keyof typeof externalGroupedTariffs].length > 0
+    externalGroupedTariffs[type as keyof typeof externalGroupedTariffs]?.length > 0
   )
 
   // Set initial active tabs when data loads
