@@ -33,9 +33,14 @@ import {
   Loader2,
   RotateCcw,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Smartphone,
+  Store,
+  Phone,
+  Globe,
+  Code
 } from 'lucide-react'
-import { useTransactionSystemStats, useAllTransactions } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions, useChannelStatistics } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import {
@@ -101,6 +106,12 @@ const TransactionsPage = () => {
     endDate: endDate || undefined
   })
 
+  // Fetch channel statistics
+  const { data: channelStatsData, isLoading: channelStatsLoading } = useChannelStatistics(
+    startDate || undefined,
+    endDate || undefined
+  )
+
   
   // Fetch paginated transactions
   const { 
@@ -132,8 +143,9 @@ const TransactionsPage = () => {
   }
 
 
-  // Get transactions data  
-  const transactions = (transactionsData as any)?.transactions || []
+  // Get transactions data and filter out WALLET_INIT
+  const allTransactions = (transactionsData as any)?.transactions || []
+  const transactions = allTransactions.filter((tx: any) => tx.type !== 'WALLET_INIT')
   const totalTransactions = (transactionsData as any)?.total || 0
   const totalPages = (transactionsData as any)?.totalPages || 1
 
@@ -596,6 +608,108 @@ const TransactionsPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Channel Statistics Cards */}
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Transactions by Channel</h3>
+            {channelStatsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Card key={i} className="border-gray-200 bg-white">
+                    <CardContent className="px-4 py-3">
+                      <div className="flex items-center justify-center h-24">
+                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : channelStatsData?.data?.channels && channelStatsData.data.channels.filter((ch: any) => ch.transactionCount > 0).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                {channelStatsData.data.channels
+                  .filter((ch: any) => ch.transactionCount > 0)
+                  .map((channel: any) => {
+                    const getChannelIcon = () => {
+                      switch (channel.channel) {
+                        case 'APP':
+                          return <Smartphone className="h-5 w-5" />
+                        case 'MERCHANT_PORTAL':
+                          return <Store className="h-5 w-5" />
+                        case 'USSD':
+                          return <Phone className="h-5 w-5" />
+                        case 'WEB':
+                          return <Globe className="h-5 w-5" />
+                        case 'API':
+                          return <Code className="h-5 w-5" />
+                        default:
+                          return <Activity className="h-5 w-5" />
+                      }
+                    }
+
+                    const getChannelColor = () => {
+                      switch (channel.channel) {
+                        case 'APP':
+                          return 'border-blue-200 bg-blue-50'
+                        case 'MERCHANT_PORTAL':
+                          return 'border-purple-200 bg-purple-50'
+                        case 'USSD':
+                          return 'border-green-200 bg-green-50'
+                        case 'WEB':
+                          return 'border-indigo-200 bg-indigo-50'
+                        case 'API':
+                          return 'border-gray-200 bg-gray-50'
+                        default:
+                          return 'border-slate-200 bg-slate-50'
+                      }
+                    }
+
+                    return (
+                      <Card key={channel.channel} className={`${getChannelColor()} border`}>
+                        <CardContent className="px-4 py-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-white/70 rounded">
+                                {getChannelIcon()}
+                              </div>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {channel.label}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div>
+                              <p className="text-xs text-gray-600">Transactions</p>
+                              <p className="text-lg font-bold text-gray-900">
+                                {channelStatsLoading ? '...' : channel.transactionCount.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Volume</p>
+                              <p className="text-sm font-semibold text-gray-900">
+                                {channelStatsLoading ? '...' : formatAmount(channel.totalValue)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">
+                                Avg: {channelStatsLoading ? '...' : formatAmount(channel.averageValue)}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+              </div>
+            ) : (
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="px-4 py-6">
+                  <div className="text-center text-gray-500 text-sm">
+                    No channel statistics available for the selected period
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
 
