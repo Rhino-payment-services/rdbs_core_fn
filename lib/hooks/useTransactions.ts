@@ -257,3 +257,28 @@ export const usePayMerchant = () => {
     },
   })
 }
+
+// Hook to get channel statistics
+export const useChannelStatistics = (startDate?: string, endDate?: string) => {
+  const queryParams = new URLSearchParams()
+  if (startDate) queryParams.append('startDate', startDate)
+  if (endDate) queryParams.append('endDate', endDate)
+
+  return useQuery({
+    queryKey: ['transactions', 'channels', 'stats', startDate, endDate],
+    queryFn: () => apiFetch(`/transactions/channels/stats?${queryParams.toString()}`),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  })
+}
+
+// Hook to get daily new wallets
+export const useDailyNewWallets = (date?: string) => {
+  const queryParams = new URLSearchParams()
+  if (date) queryParams.append('date', date)
+
+  return useQuery({
+    queryKey: ['wallets', 'daily-new', date],
+    queryFn: () => apiFetch(`/transactions/wallets/daily-new?${queryParams.toString()}`),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
