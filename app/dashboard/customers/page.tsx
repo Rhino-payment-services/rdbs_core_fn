@@ -134,7 +134,7 @@ const CustomersPage = () => {
     const headers = ['Name', 'Owner', 'Status', 'Joined', 'Phone', 'Email', 'Merchant Code']
     
     // Convert merchants data to CSV rows
-    const csvRows = merchantsData.map(merchant => {
+    const csvRows = merchantsData.map((merchant: any) => {
       const name = merchant.businessTradeName || 'Unknown Business'
       const owner = `${merchant.ownerFirstName || ''} ${merchant.ownerLastName || ''}`.trim() || 'N/A'
       const status = merchant.isVerified ? 'Verified' : 'Pending'
