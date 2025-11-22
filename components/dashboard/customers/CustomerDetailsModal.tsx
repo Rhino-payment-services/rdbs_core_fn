@@ -4,6 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { 
   User, 
   Mail, 
@@ -20,10 +23,15 @@ import {
   Building2,
   CheckCircle,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react'
 import type { User as CustomerType } from '@/lib/types/api'
 import api from '@/lib/axios'
+import { useSession } from 'next-auth/react'
+import toast from 'react-hot-toast'
 
 interface CustomerDetailsModalProps {
   customer: CustomerType | null
@@ -40,17 +48,32 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   onEdit,
   onDelete
 }) => {
+  const { data: session } = useSession()
   const [wallets, setWallets] = useState<any[]>([])
   const [loadingWallets, setLoadingWallets] = useState(false)
   const [totalBalance, setTotalBalance] = useState(0)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loadingTransactions, setLoadingTransactions] = useState(false)
+  const [fundModalOpen, setFundModalOpen] = useState(false)
+  const [fundAmount, setFundAmount] = useState('')
+  const [fundDescription, setFundDescription] = useState('')
+  const [funding, setFunding] = useState(false)
 
-  // Fetch wallets when modal opens
+  // Check if user is admin
+  const isAdmin = session?.user && (
+    (session.user as any).role === 'ADMIN' || 
+    (session.user as any).role === 'SUPER_ADMIN'
+  )
+
+  // Fetch wallets and transactions when modal opens
   useEffect(() => {
     if (isOpen && customer?.id) {
       fetchUserWallets()
+      fetchUserTransactions()
     } else {
       setWallets([])
       setTotalBalance(0)
+      setTransactions([])
     }
   }, [isOpen, customer?.id])
 
@@ -80,6 +103,97 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
       setWallets([])
     } finally {
       setLoadingWallets(false)
+    }
+  }
+
+  const fetchUserTransactions = async () => {
+    if (!customer?.id) return
+    
+    setLoadingTransactions(true)
+    try {
+      const response = await api({
+        url: `/wallet/${customer.id}/transactions`,
+        method: 'GET',
+        params: {
+          page: 1,
+          limit: 5
+        }
+      })
+      
+      const transactionsData = response.data?.transactions || response.data?.data || []
+      setTransactions(transactionsData)
+    } catch (error) {
+      console.error('Error fetching transactions:', error)
+      setTransactions([])
+    } finally {
+      setLoadingTransactions(false)
+    }
+  }
+
+  const handleFundWallet = async () => {
+    if (!fundAmount || parseFloat(fundAmount) <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    if (!customer?.id) {
+      toast.error('Customer ID is required')
+      return
+    }
+
+    setFunding(true)
+    try {
+      // Use the wallet balance update endpoint
+      const response = await api({
+        url: `/wallet/${customer.id}/balance`,
+        method: 'PATCH',
+        data: {
+          amount: parseFloat(fundAmount),
+          description: fundDescription || `Admin wallet funding - ${new Date().toLocaleString()}`
+        }
+      })
+
+      toast.success(`Successfully funded wallet with ${formatCurrency(parseFloat(fundAmount))}`)
+      setFundModalOpen(false)
+      setFundAmount('')
+      setFundDescription('')
+      
+      // Refresh wallets and transactions
+      await fetchUserWallets()
+      await fetchUserTransactions()
+    } catch (error: any) {
+      console.error('Error funding wallet:', error)
+      toast.error(error.response?.data?.message || 'Failed to fund wallet')
+    } finally {
+      setFunding(false)
+    }
+  }
+
+  const getTransactionTypeDisplay = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'DEPOSIT': 'Deposit',
+      'WITHDRAWAL': 'Withdrawal',
+      'WALLET_TO_WALLET': 'P2P Transfer',
+      'WALLET_TO_MNO': 'Mobile Money',
+      'WALLET_TO_MERCHANT': 'Merchant Payment',
+      'MERCHANT_TO_WALLET': 'Merchant Payment',
+      'MNO_TO_WALLET': 'Mobile Money Deposit',
+      'REVERSAL': 'Reversal',
+    }
+    return typeMap[type] || type
+  }
+
+  const getTransactionStatusBadge = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'SUCCESS':
+      case 'COMPLETED':
+        return <Badge className="bg-green-100 text-green-800">Success</Badge>
+      case 'PENDING':
+        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+      case 'FAILED':
+        return <Badge className="bg-red-100 text-red-800">Failed</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
   }
 
@@ -457,11 +571,23 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
           {/* Wallet Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5" />
-                Wallet Information
-                {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  Wallet Information
+                  {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                </CardTitle>
+                {isAdmin && wallets.length > 0 && (
+                  <Button
+                    size="sm"
+                    onClick={() => setFundModalOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Fund Wallet
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loadingWallets ? (
@@ -529,6 +655,71 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
             </CardContent>
           </Card>
 
+          {/* Last 5 Transactions */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Recent Transactions (Last 5)
+                  {loadingTransactions && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingTransactions ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-500">Loading transactions...</span>
+                  </div>
+                ) : transactions.length > 0 ? (
+                  <div className="space-y-3">
+                    {transactions.map((tx: any) => (
+                      <div key={tx.id} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {tx.direction === 'CREDIT' || tx.type === 'DEPOSIT' || tx.type === 'MNO_TO_WALLET' ? (
+                                <ArrowDownRight className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <ArrowUpRight className="h-4 w-4 text-red-600" />
+                              )}
+                              <p className="font-medium text-sm">{getTransactionTypeDisplay(tx.type)}</p>
+                              {getTransactionStatusBadge(tx.status)}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              {tx.reference || tx.id.slice(0, 8)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(tx.createdAt)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-semibold ${
+                              tx.direction === 'CREDIT' || tx.type === 'DEPOSIT' || tx.type === 'MNO_TO_WALLET'
+                                ? 'text-green-600'
+                                : 'text-red-600'
+                            }`}>
+                              {tx.direction === 'CREDIT' || tx.type === 'DEPOSIT' || tx.type === 'MNO_TO_WALLET' ? '+' : '-'}
+                              {formatCurrency(Number(tx.amount) || 0)}
+                            </p>
+                            {tx.description && (
+                              <p className="text-xs text-gray-500 mt-1">{tx.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <Activity className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No recent transactions</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Merchant Information (if applicable) */}
           {customer.subscriberType === 'MERCHANT' && (customer as any)?.merchantCode && (
             <Card>
@@ -554,6 +745,85 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
           )}
         </div>
       </DialogContent>
+
+      {/* Fund Wallet Modal */}
+      <Dialog open={fundModalOpen} onOpenChange={setFundModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Fund Wallet
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="amount">Amount (UGX)</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Enter amount"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Enter description for this funding"
+                value={fundDescription}
+                onChange={(e) => setFundDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-900">
+                <strong>Customer:</strong> {getCustomerName()}
+              </p>
+              <p className="text-sm text-blue-900">
+                <strong>Current Balance:</strong> {formatCurrency(totalBalance)}
+              </p>
+              {fundAmount && parseFloat(fundAmount) > 0 && (
+                <p className="text-sm text-blue-900 mt-2">
+                  <strong>New Balance:</strong> {formatCurrency(totalBalance + parseFloat(fundAmount))}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFundModalOpen(false)
+                  setFundAmount('')
+                  setFundDescription('')
+                }}
+                disabled={funding}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleFundWallet}
+                disabled={!fundAmount || parseFloat(fundAmount) <= 0 || funding}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {funding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Funding...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund Wallet
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
