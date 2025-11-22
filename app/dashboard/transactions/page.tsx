@@ -986,7 +986,61 @@ const TransactionsPage = () => {
                                     )}
                                   </>
                                 ) : (
-                                  <span className="text-gray-500">External</span>
+                                  <>
+                                    {/* Extract receiver info from metadata when counterpartyInfo is not available */}
+                                    {transaction.metadata?.mnoProvider ? (
+                                      <>
+                                        <span className="font-medium">
+                                          {transaction.metadata.mnoProvider} Mobile Money
+                                        </span>
+                                        {transaction.metadata.phoneNumber && (
+                                          <span className="text-xs text-gray-500">
+                                            📱 {transaction.metadata.phoneNumber}
+                                          </span>
+                                        )}
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          {transaction.metadata.mnoProvider} Network
+                                        </span>
+                                      </>
+                                    ) : transaction.metadata?.phoneNumber ? (
+                                      <>
+                                        <span className="font-medium">
+                                          {transaction.metadata.userName || transaction.metadata.recipientName || 'Mobile Money User'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.metadata.phoneNumber}
+                                        </span>
+                                        {transaction.type?.includes('MNO') && (
+                                          <span className="text-xs text-gray-500">
+                                            📱 Mobile Money
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : transaction.metadata?.accountNumber ? (
+                                      <>
+                                        <span className="font-medium">
+                                          {transaction.metadata.userName || transaction.metadata.recipientName || 'External Account'}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {transaction.type?.includes('BANK') 
+                                            ? `🏦 Bank: ${transaction.metadata.accountNumber}`
+                                            : transaction.type?.includes('UTILITY')
+                                            ? `⚡ Utility: ${transaction.metadata.accountNumber}`
+                                            : transaction.type?.includes('MERCHANT')
+                                            ? `🏪 Merchant: ${transaction.metadata.accountNumber}`
+                                            : `Account: ${transaction.metadata.accountNumber}`
+                                          }
+                                        </span>
+                                      </>
+                                    ) : transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO') ? (
+                                      <>
+                                        <span className="font-medium">Mobile Money</span>
+                                        <span className="text-xs text-gray-500">📱 External Network</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-500">External</span>
+                                    )}
+                                  </>
                                 )
                               ) : (
                                 <>
