@@ -82,14 +82,20 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     
     setLoadingWallets(true)
     try {
+      console.log('🔍 Fetching wallet for user:', customer.id)
+      
       // Try to get the primary wallet for this user
       const response = await api({
         url: `/wallet/${customer.id}`,
         method: 'GET'
       })
       
+      console.log('📦 Raw wallet response:', response)
+      
       // The response is a single wallet object, not an array
       const wallet = response.data?.data || response.data
+      
+      console.log('💼 Parsed wallet:', wallet)
       
       // Convert to array format for consistency
       const walletsData = wallet ? [wallet] : []
@@ -101,16 +107,25 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
       }, 0)
       setTotalBalance(total)
       
-      console.log('✅ Fetched wallet:', wallet)
+      console.log('✅ Wallets set:', walletsData, 'Total balance:', total)
     } catch (error: any) {
-      console.error('Error fetching wallets:', error)
+      console.error('❌ Error fetching wallets:', error)
+      console.error('Error details:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        message: error?.message
+      })
+      
       // If it's a 404, the user doesn't have a wallet
       if (error?.response?.status === 404) {
-        console.log('No wallet found for user')
+        console.log('⚠️ No wallet found for user (404)')
         setWallets([])
         setTotalBalance(0)
       } else {
+        console.log('⚠️ Other error, clearing wallets')
         setWallets([])
+        setTotalBalance(0)
       }
     } finally {
       setLoadingWallets(false)
@@ -297,7 +312,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[60vw] max-w-none max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Customer Details
@@ -320,32 +335,25 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              {/* Quick Wallet Balance */}
-              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-md">
-                <p className="text-xs text-green-100">Wallet Balance</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onEdit(customer)}
-                  className="flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onDelete(customer)}
-                  className="flex items-center gap-2 text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(customer)}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(customer)}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
             </div>
           </div>
 
