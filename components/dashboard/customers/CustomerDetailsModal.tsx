@@ -82,15 +82,17 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     
     setLoadingWallets(true)
     try {
+      // Try to get the primary wallet for this user
       const response = await api({
-        url: `/admin/wallets`,
-        method: 'GET',
-        params: {
-          userId: customer.id
-        }
+        url: `/wallet/${customer.id}`,
+        method: 'GET'
       })
       
-      const walletsData = response.data?.data || response.data || []
+      // The response is a single wallet object, not an array
+      const wallet = response.data?.data || response.data
+      
+      // Convert to array format for consistency
+      const walletsData = wallet ? [wallet] : []
       setWallets(walletsData)
       
       // Calculate total balance across all wallets
@@ -98,9 +100,18 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
         return sum + (Number(wallet.balance) || 0)
       }, 0)
       setTotalBalance(total)
-    } catch (error) {
+      
+      console.log('✅ Fetched wallet:', wallet)
+    } catch (error: any) {
       console.error('Error fetching wallets:', error)
-      setWallets([])
+      // If it's a 404, the user doesn't have a wallet
+      if (error?.response?.status === 404) {
+        console.log('No wallet found for user')
+        setWallets([])
+        setTotalBalance(0)
+      } else {
+        setWallets([])
+      }
     } finally {
       setLoadingWallets(false)
     }
