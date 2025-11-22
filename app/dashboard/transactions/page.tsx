@@ -1504,10 +1504,10 @@ const TransactionsPage = () => {
                                   {transaction.type === 'WALLET_TO_MNO' && 
                                    (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
                                     <Button 
-                                      variant="ghost" 
+                                      variant="outline" 
                                       size="sm"
                                       onClick={() => handleReverseTransaction(transaction)}
-                                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                      className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-600 font-medium"
                                       title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
                                     >
                                       <RotateCcw className="h-4 w-4" />
@@ -1576,7 +1576,7 @@ const TransactionsPage = () => {
 
       {/* Transaction Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -2465,7 +2465,7 @@ const TransactionsPage = () => {
 
       {/* Reversal Modal */}
       <Dialog open={reversalModalOpen} onOpenChange={setReversalModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <RotateCcw className="h-5 w-5 text-orange-600" />

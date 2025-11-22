@@ -310,7 +310,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[60vw] max-w-[60vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[90vw] max-w-[90vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Customer Details
@@ -605,7 +605,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   <Button
                     size="sm"
                     onClick={() => setFundModalOpen(true)}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md z-10"
                     disabled={wallets.length === 0}
                   >
                     <Plus className="h-4 w-4" />
@@ -647,7 +647,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                           size="sm"
                           variant="outline"
                           onClick={() => setFundModalOpen(true)}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 border-green-600 text-green-600 hover:bg-green-50 font-medium"
                         >
                           <Plus className="h-3 w-3" />
                           Add Funds
@@ -804,7 +804,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
       {/* Fund Wallet Modal */}
       <Dialog open={fundModalOpen} onOpenChange={setFundModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-full max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <div className="p-2 bg-green-100 rounded-lg">
