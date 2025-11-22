@@ -286,7 +286,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Customer Details
@@ -309,25 +309,32 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(customer)}
-                className="flex items-center gap-2"
-              >
-                <Edit className="h-4 w-4" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onDelete(customer)}
-                className="flex items-center gap-2 text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
+            <div className="flex flex-col items-end gap-2">
+              {/* Quick Wallet Balance */}
+              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-md">
+                <p className="text-xs text-green-100">Wallet Balance</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEdit(customer)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(customer)}
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -577,11 +584,12 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   Wallet Information
                   {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                 </CardTitle>
-                {isAdmin && wallets.length > 0 && (
+                {isAdmin && (
                   <Button
                     size="sm"
                     onClick={() => setFundModalOpen(true)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    disabled={wallets.length === 0}
                   >
                     <Plus className="h-4 w-4" />
                     Fund Wallet
@@ -597,24 +605,40 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 </div>
               ) : wallets.length > 0 ? (
                 <div className="space-y-4">
-                  {/* Total Balance Summary */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  {/* Total Balance Summary - More Prominent */}
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-blue-600 font-medium">Total Balance</p>
-                        <p className="text-2xl font-bold text-blue-900">
+                        <p className="text-sm text-blue-100 font-medium mb-1">Total Wallet Balance</p>
+                        <p className="text-4xl font-bold">
                           {formatCurrency(totalBalance)}
                         </p>
+                        <p className="text-sm text-blue-100 mt-2">
+                          Across {wallets.length} wallet{wallets.length > 1 ? 's' : ''}
+                        </p>
                       </div>
-                      <Wallet className="h-8 w-8 text-blue-600" />
+                      <Wallet className="h-16 w-16 text-blue-200" />
                     </div>
                   </div>
                   
                   {/* Individual Wallets */}
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-gray-700">Wallets ({wallets.length})</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-700">Wallet Details</p>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setFundModalOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Funds
+                        </Button>
+                      )}
+                    </div>
                     {wallets.map((wallet: any) => (
-                      <div key={wallet.id} className="border rounded-lg p-4 bg-gray-50">
+                      <div key={wallet.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <p className="text-xs text-gray-500">Wallet Type</p>
@@ -622,7 +646,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Balance</p>
-                            <p className="font-semibold text-lg text-green-600">
+                            <p className="font-semibold text-xl text-green-600">
                               {formatCurrency(Number(wallet.balance) || 0)}
                             </p>
                           </div>
@@ -647,9 +671,24 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-4">
-                  <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">No wallets found for this user</p>
+                <div className="text-center py-8">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-4">
+                    <Wallet className="h-16 w-16 text-yellow-400 mx-auto mb-3" />
+                    <p className="text-lg font-semibold text-gray-900 mb-2">No Wallet Found</p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      This user doesn't have any wallet yet. {customer.canHaveWallet ? 'A wallet needs to be created before funding.' : 'This user is not allowed to have a wallet.'}
+                    </p>
+                    {customer.canHaveWallet && isAdmin && (
+                      <div className="flex flex-col items-center gap-3">
+                        <Badge className="bg-blue-100 text-blue-800">
+                          Balance: {formatCurrency(0)}
+                        </Badge>
+                        <p className="text-xs text-gray-500">
+                          Contact system administrator to create a wallet for this user
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -748,50 +787,92 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
       {/* Fund Wallet Modal */}
       <Dialog open={fundModalOpen} onOpenChange={setFundModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Plus className="h-5 w-5 text-green-600" />
+              </div>
               Fund Wallet
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Customer Info Card */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4">
+              <p className="text-sm text-blue-100 mb-1">Funding wallet for</p>
+              <p className="text-lg font-bold">{getCustomerName()}</p>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-400">
+                <div>
+                  <p className="text-xs text-blue-100">Current Balance</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+                </div>
+                {fundAmount && parseFloat(fundAmount) > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-blue-100">New Balance</p>
+                    <p className="text-2xl font-bold text-green-300">
+                      {formatCurrency(totalBalance + parseFloat(fundAmount))}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Amount Input */}
             <div>
-              <Label htmlFor="amount">Amount (UGX)</Label>
+              <Label htmlFor="amount" className="text-base font-semibold">
+                Amount (UGX) <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="Enter amount"
+                placeholder="Enter amount to add"
                 value={fundAmount}
                 onChange={(e) => setFundAmount(e.target.value)}
                 min="0"
-                step="0.01"
+                step="1000"
+                className="text-lg h-12 mt-1"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Minimum: {formatCurrency(1000)} | Suggested: {formatCurrency(10000)}
+              </p>
             </div>
+
+            {/* Description */}
             <div>
-              <Label htmlFor="description">Description (Optional)</Label>
+              <Label htmlFor="description" className="text-base font-semibold">
+                Description (Optional)
+              </Label>
               <Textarea
                 id="description"
-                placeholder="Enter description for this funding"
+                placeholder="Add a note about this funding (e.g., 'Customer service credit', 'Promotional bonus')"
                 value={fundDescription}
                 onChange={(e) => setFundDescription(e.target.value)}
                 rows={3}
+                className="mt-1"
               />
             </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm text-blue-900">
-                <strong>Customer:</strong> {getCustomerName()}
-              </p>
-              <p className="text-sm text-blue-900">
-                <strong>Current Balance:</strong> {formatCurrency(totalBalance)}
-              </p>
-              {fundAmount && parseFloat(fundAmount) > 0 && (
-                <p className="text-sm text-blue-900 mt-2">
-                  <strong>New Balance:</strong> {formatCurrency(totalBalance + parseFloat(fundAmount))}
-                </p>
-              )}
+
+            {/* Quick Amount Buttons */}
+            <div>
+              <Label className="text-sm text-gray-600">Quick amounts:</Label>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {[5000, 10000, 20000, 50000].map((amount) => (
+                  <Button
+                    key={amount}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFundAmount(amount.toString())}
+                    className="text-xs"
+                  >
+                    {formatCurrency(amount)}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2 justify-end">
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -806,17 +887,17 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               <Button
                 onClick={handleFundWallet}
                 disabled={!fundAmount || parseFloat(fundAmount) <= 0 || funding}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white px-6"
               >
                 {funding ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Funding...
+                    Processing...
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Fund Wallet
+                    Fund {fundAmount && parseFloat(fundAmount) > 0 ? formatCurrency(parseFloat(fundAmount)) : 'Wallet'}
                   </>
                 )}
               </Button>
