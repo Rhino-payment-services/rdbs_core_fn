@@ -166,7 +166,10 @@ const TransactionsPage = () => {
       
       // Get sender name - for DEBIT (outgoing), sender is the wallet owner
       let senderName = ''
-      if (tx.direction === 'DEBIT') {
+      // Check if admin funded the wallet
+      if (tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin) {
+        senderName = (tx.metadata?.adminName?.toLowerCase() || 'admin')
+      } else if (tx.direction === 'DEBIT') {
         if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
           senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
         } else if (tx.user) {
@@ -571,15 +574,19 @@ const TransactionsPage = () => {
       // Convert transactions to CSV rows
       const csvRows = transactionsToExport.map((tx: any) => {
         // Get sender info
-        const senderName = tx.direction === 'DEBIT' 
-          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-              : 'Unknown User')
-          : (tx.metadata?.counterpartyInfo?.name || 'External')
+        const senderName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.metadata.adminName || 'Admin User')
+          : tx.direction === 'DEBIT' 
+            ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+                : 'Unknown User')
+            : (tx.metadata?.counterpartyInfo?.name || 'External')
         
-        const senderContact = tx.direction === 'DEBIT'
-          ? (tx.user?.phone || tx.user?.email || 'N/A')
-          : (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
+        const senderContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.metadata.adminPhone || tx.metadata.adminEmail || 'Admin')
+          : tx.direction === 'DEBIT'
+            ? (tx.user?.phone || tx.user?.email || 'N/A')
+            : (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
         
         // Get receiver info
         const receiverName = tx.direction === 'DEBIT'
@@ -1169,6 +1176,19 @@ const TransactionsPage = () => {
                                   </span>
                                   <span className="text-xs text-orange-600 font-medium">
                                     🔄 Reversal
+                                  </span>
+                                </>
+                              ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
+                                <>
+                                  {/* Admin funded wallet */}
+                                  <span className="font-medium text-purple-900">
+                                    {transaction.metadata.adminName || 'Admin User'}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    📱 {transaction.metadata.adminPhone || transaction.metadata.adminEmail || 'Admin'}
+                                  </span>
+                                  <span className="text-xs text-purple-600 font-medium">
+                                    👨‍💼 Admin Funding
                                   </span>
                                 </>
                               ) : transaction.direction === 'DEBIT' ? (
@@ -1804,6 +1824,31 @@ const TransactionsPage = () => {
                           </div>
                         )}
                         <Badge className="bg-orange-600 text-white">Reversal Transaction</Badge>
+                      </>
+                    ) : selectedTransaction.type === 'DEPOSIT' && selectedTransaction.metadata?.fundedByAdmin ? (
+                      <>
+                        {/* Admin funded wallet */}
+                        <div>
+                          <span className="text-blue-600">Admin:</span>
+                          <p className="font-medium text-blue-900">
+                            {selectedTransaction.metadata.adminName || 'Admin User'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600">Contact:</span>
+                          <p className="font-medium text-blue-900">
+                            {selectedTransaction.metadata.adminPhone || selectedTransaction.metadata.adminEmail || 'N/A'}
+                          </p>
+                        </div>
+                        {selectedTransaction.metadata.adminId && (
+                          <div>
+                            <span className="text-blue-600">Admin ID:</span>
+                            <p className="font-medium text-blue-900 font-mono text-xs">
+                              {selectedTransaction.metadata.adminId.substring(0, 16)}...
+                            </p>
+                          </div>
+                        )}
+                        <Badge className="bg-purple-600 text-white">Admin Funding</Badge>
                       </>
                     ) : selectedTransaction.direction === 'DEBIT' ? (
                       <>
