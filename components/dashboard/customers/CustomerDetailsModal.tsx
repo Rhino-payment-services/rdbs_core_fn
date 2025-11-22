@@ -58,6 +58,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   const [fundAmount, setFundAmount] = useState('')
   const [fundDescription, setFundDescription] = useState('')
   const [funding, setFunding] = useState(false)
+  const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
 
   // Check if user is admin
   const isAdmin = session?.user && (
@@ -595,24 +596,11 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
           {/* Wallet Information */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Wallet className="h-5 w-5" />
-                  Wallet Information
-                  {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-                </CardTitle>
-                {isAdmin && (
-                  <Button
-                    size="sm"
-                    onClick={() => setFundModalOpen(true)}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium shadow-md z-10"
-                    disabled={wallets.length === 0}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Fund Wallet
-                  </Button>
-                )}
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Wallet Information
+                {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {loadingWallets ? (
@@ -640,43 +628,45 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   
                   {/* Individual Wallets */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-700">Wallet Details</p>
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setFundModalOpen(true)}
-                          className="flex items-center gap-2 border-green-600 text-green-600 hover:bg-green-50 font-medium"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Add Funds
-                        </Button>
-                      )}
-                    </div>
+                    <p className="text-sm font-medium text-gray-700">Wallet Details</p>
                     {wallets.map((wallet: any) => (
                       <div key={wallet.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                          <div>
-                            <p className="text-xs text-gray-500">Wallet Type</p>
-                            <p className="font-medium text-sm">{wallet.walletType || 'N/A'}</p>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 flex-1">
+                            <div>
+                              <p className="text-xs text-gray-500">Wallet Type</p>
+                              <p className="font-medium text-sm">{wallet.walletType || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Balance</p>
+                              <p className="font-semibold text-xl text-green-600">
+                                {formatCurrency(Number(wallet.balance) || 0)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Currency</p>
+                              <p className="font-medium text-sm">{wallet.currency || 'UGX'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Status</p>
+                              <Badge className={wallet.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                                {wallet.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Balance</p>
-                            <p className="font-semibold text-xl text-green-600">
-                              {formatCurrency(Number(wallet.balance) || 0)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Currency</p>
-                            <p className="font-medium text-sm">{wallet.currency || 'UGX'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Status</p>
-                            <Badge className={wallet.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                              {wallet.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </div>
+                          {isAdmin && wallet.isActive && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelectedWalletId(wallet.id)
+                                setFundModalOpen(true)
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white font-medium shrink-0"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Fund
+                            </Button>
+                          )}
                         </div>
                         {wallet.id && (
                           <div className="mt-2">
@@ -818,16 +808,29 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
             <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4">
               <p className="text-sm text-blue-100 mb-1">Funding wallet for</p>
               <p className="text-lg font-bold">{getCustomerName()}</p>
+              {selectedWalletId && wallets.find(w => w.id === selectedWalletId) && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge className="bg-blue-400 text-white border-blue-300">
+                    {wallets.find(w => w.id === selectedWalletId)?.walletType || 'Wallet'}
+                  </Badge>
+                </div>
+              )}
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-blue-400">
                 <div>
                   <p className="text-xs text-blue-100">Current Balance</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+                  <p className="text-2xl font-bold">
+                    {selectedWalletId && wallets.find(w => w.id === selectedWalletId) 
+                      ? formatCurrency(Number(wallets.find(w => w.id === selectedWalletId)?.balance) || 0)
+                      : formatCurrency(totalBalance)}
+                  </p>
                 </div>
                 {fundAmount && parseFloat(fundAmount) > 0 && (
                   <div className="text-right">
                     <p className="text-xs text-blue-100">New Balance</p>
                     <p className="text-2xl font-bold text-green-300">
-                      {formatCurrency(totalBalance + parseFloat(fundAmount))}
+                      {selectedWalletId && wallets.find(w => w.id === selectedWalletId)
+                        ? formatCurrency((Number(wallets.find(w => w.id === selectedWalletId)?.balance) || 0) + parseFloat(fundAmount))
+                        : formatCurrency(totalBalance + parseFloat(fundAmount))}
                     </p>
                   </div>
                 )}
@@ -896,6 +899,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   setFundModalOpen(false)
                   setFundAmount('')
                   setFundDescription('')
+                  setSelectedWalletId(null)
                 }}
                 disabled={funding}
               >
@@ -903,7 +907,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               </Button>
               <Button
                 onClick={handleFundWallet}
-                disabled={!fundAmount || parseFloat(fundAmount) <= 0 || funding}
+                disabled={!fundAmount || parseFloat(fundAmount) <= 0 || funding || !selectedWalletId}
                 className="bg-green-600 hover:bg-green-700 text-white px-6"
               >
                 {funding ? (
