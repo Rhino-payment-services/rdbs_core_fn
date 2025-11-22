@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import { 
   Search, 
   Filter, 
@@ -97,6 +98,9 @@ const TransactionsPage = () => {
   
   // Export state
   const [isExporting, setIsExporting] = useState(false)
+  const [exportDateRangeOpen, setExportDateRangeOpen] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState("")
+  const [exportEndDate, setExportEndDate] = useState("")
 
   // Fetch real transaction system stats with filters
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
@@ -145,7 +149,44 @@ const TransactionsPage = () => {
 
   // Get transactions data and filter out WALLET_INIT
   const allTransactions = (transactionsData as any)?.transactions || []
-  const transactions = allTransactions.filter((tx: any) => tx.type !== 'WALLET_INIT')
+  const transactionsWithoutInit = allTransactions.filter((tx: any) => tx.type !== 'WALLET_INIT')
+  
+  // Filter transactions by search term (sender name, receiver name, transaction ID)
+  const filteredTransactions = searchTerm ? transactionsWithoutInit.filter((tx: any) => {
+    const searchLower = searchTerm.toLowerCase()
+    
+    // Search by transaction ID
+    const matchesId = tx.id?.toLowerCase().includes(searchLower) || 
+                      tx.reference?.toLowerCase().includes(searchLower)
+    
+    // Get sender name
+    const senderName = tx.direction === 'DEBIT' 
+      ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+          ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+          : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+      : (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+         tx.metadata?.merchantName?.toLowerCase() || 
+         tx.metadata?.userName?.toLowerCase() || 
+         tx.metadata?.mnoProvider?.toLowerCase() || '')
+    
+    // Get receiver name
+    const receiverName = tx.direction === 'DEBIT'
+      ? (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+         tx.metadata?.merchantName?.toLowerCase() || 
+         tx.metadata?.userName?.toLowerCase() || 
+         tx.metadata?.recipientName?.toLowerCase() || 
+         tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
+           ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+           : '')
+      : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+          ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+          : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+    
+    // Check if search term matches any of these
+    return matchesId || senderName.includes(searchLower) || receiverName.includes(searchLower)
+  }) : transactionsWithoutInit
+  
+  const transactions = filteredTransactions
   const totalTransactions = (transactionsData as any)?.total || 0
   const totalPages = (transactionsData as any)?.totalPages || 1
 
@@ -224,6 +265,92 @@ const TransactionsPage = () => {
       CUSTOM: 'Custom Transaction'
     }
     return typeMap[type as keyof typeof typeMap] || type
+  }
+
+  // Get channel display information
+  const getChannelDisplay = (channel: string | null | undefined, metadata?: any) => {
+    const channelValue = channel || metadata?.channel || 'APP'
+    const channelUpper = channelValue.toUpperCase()
+    
+    const channelMap: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
+      APP: {
+        label: 'Mobile App',
+        icon: Smartphone,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50 border-blue-200'
+      },
+      USSD: {
+        label: 'USSD',
+        icon: Phone,
+        color: 'text-green-600',
+        bgColor: 'bg-green-50 border-green-200'
+      },
+      WEB: {
+        label: 'Web',
+        icon: Globe,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50 border-purple-200'
+      },
+      API: {
+        label: 'API',
+        icon: Code,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50 border-gray-200'
+      },
+      BACKOFFICE: {
+        label: 'Back Office',
+        icon: Building2,
+        color: 'text-indigo-600',
+        bgColor: 'bg-indigo-50 border-indigo-200'
+      },
+      MERCHANT_PORTAL: {
+        label: 'Merchant Portal',
+        icon: Store,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50 border-orange-200'
+      },
+      AGENT_PORTAL: {
+        label: 'Agent Portal',
+        icon: Users,
+        color: 'text-teal-600',
+        bgColor: 'bg-teal-50 border-teal-200'
+      },
+      PARTNER_PORTAL: {
+        label: 'Partner Portal',
+        icon: Users,
+        color: 'text-pink-600',
+        bgColor: 'bg-pink-50 border-pink-200'
+      }
+    }
+    
+    // Find exact match or pattern match
+    let matchedChannel = channelMap[channelUpper]
+    
+    if (!matchedChannel) {
+      // Pattern matching for variations
+      if (channelUpper.includes('APP') || channelUpper.includes('MOBILE')) {
+        matchedChannel = channelMap.APP
+      } else if (channelUpper.includes('USSD')) {
+        matchedChannel = channelMap.USSD
+      } else if (channelUpper.includes('WEB') || channelUpper.includes('BROWSER')) {
+        matchedChannel = channelMap.WEB
+      } else if (channelUpper.includes('API')) {
+        matchedChannel = channelMap.API
+      } else if (channelUpper.includes('BACKOFFICE') || channelUpper.includes('ADMIN')) {
+        matchedChannel = channelMap.BACKOFFICE
+      } else if (channelUpper.includes('MERCHANT')) {
+        matchedChannel = channelMap.MERCHANT_PORTAL
+      } else if (channelUpper.includes('AGENT')) {
+        matchedChannel = channelMap.AGENT_PORTAL
+      } else if (channelUpper.includes('PARTNER')) {
+        matchedChannel = channelMap.PARTNER_PORTAL
+      } else {
+        // Default to APP
+        matchedChannel = channelMap.APP
+      }
+    }
+    
+    return matchedChannel
   }
 
   // Reset filters
@@ -307,10 +434,14 @@ const TransactionsPage = () => {
   }
 
   // Export transactions to CSV
-  const exportTransactionsToCSV = async (exportAll: boolean = false) => {
+  const exportTransactionsToCSV = async (exportAll: boolean = false, customStartDate?: string, customEndDate?: string) => {
     setIsExporting(true)
     try {
       let transactionsToExport = transactions
+      
+      // Use custom dates if provided, otherwise use current filters
+      const exportStart = customStartDate || startDate
+      const exportEnd = customEndDate || endDate
       
       if (exportAll) {
         // Fetch all transactions with current filters
@@ -321,12 +452,45 @@ const TransactionsPage = () => {
             limit: 10000, // Large limit to get all transactions
             status: statusFilter || undefined,
             type: typeFilter || undefined,
-            startDate: startDate || undefined,
-            endDate: endDate || undefined,
+            startDate: exportStart || undefined,
+            endDate: exportEnd || undefined,
           },
         })
         
         transactionsToExport = response.data?.transactions || response.data?.data || []
+        
+        // Filter out WALLET_INIT
+        transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
+        
+        // Apply search filter if exists
+        if (searchTerm) {
+          const searchLower = searchTerm.toLowerCase()
+          transactionsToExport = transactionsToExport.filter((tx: any) => {
+            const matchesId = tx.id?.toLowerCase().includes(searchLower) || 
+                              tx.reference?.toLowerCase().includes(searchLower)
+            
+            const senderName = tx.direction === 'DEBIT' 
+              ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+                  ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+                  : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+              : (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+                 tx.metadata?.merchantName?.toLowerCase() || 
+                 tx.metadata?.userName?.toLowerCase() || '')
+            
+            const receiverName = tx.direction === 'DEBIT'
+              ? (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+                 tx.metadata?.merchantName?.toLowerCase() || 
+                 tx.metadata?.userName?.toLowerCase() || 
+                 tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
+                   ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+                   : '')
+              : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+                  ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+                  : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+            
+            return matchesId || senderName.includes(searchLower) || receiverName.includes(searchLower)
+          })
+        }
         
         if (transactionsToExport.length === 0) {
           toast.error('No transactions to export')
@@ -347,6 +511,7 @@ const TransactionsPage = () => {
         'Reference',
         'Transaction ID',
         'Type',
+        'Channel',
         'Status',
         'Direction',
         'Amount',
@@ -412,6 +577,7 @@ const TransactionsPage = () => {
           escapeCSV(tx.reference || tx.id),
           escapeCSV(tx.id),
           escapeCSV(tx.type || 'N/A'),
+          escapeCSV(getChannelDisplay(tx.channel, tx.metadata).label),
           escapeCSV(tx.status || 'N/A'),
           escapeCSV(tx.direction || 'N/A'),
           escapeCSV(Number(tx.amount) || 0),
@@ -441,7 +607,9 @@ const TransactionsPage = () => {
       const url = URL.createObjectURL(blob)
       link.setAttribute('href', url)
       const exportType = exportAll ? 'all' : 'current_page'
-      const dateStr = new Date().toISOString().split('T')[0]
+      const dateStr = exportStart && exportEnd 
+        ? `${exportStart}_to_${exportEnd}`.replace(/\//g, '-')
+        : new Date().toISOString().split('T')[0]
       link.setAttribute('download', `transactions_${exportType}_${dateStr}.csv`)
       link.style.visibility = 'hidden'
       document.body.appendChild(link)
@@ -755,7 +923,7 @@ const TransactionsPage = () => {
                   <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                         <Input
-                          placeholder="Search transactions..."
+                          placeholder="Search by ID, sender name, or receiver name..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                           className="pl-10"
@@ -841,6 +1009,13 @@ const TransactionsPage = () => {
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       Export All Transactions
                     </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => setExportDateRangeOpen(true)}
+                      disabled={isExporting}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Export by Date Range
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                     </div>
@@ -905,6 +1080,7 @@ const TransactionsPage = () => {
                             <TableHead>Transaction ID</TableHead>
                             <TableHead>Partner</TableHead>
                             <TableHead>Type</TableHead>
+                            <TableHead>Channel</TableHead>
                             <TableHead>Sender</TableHead>
                             <TableHead>Receiver</TableHead>
                             <TableHead>Amount</TableHead>
@@ -934,6 +1110,19 @@ const TransactionsPage = () => {
                             )}
                           </TableCell>
                           <TableCell>{getTypeDisplay(transaction.type)}</TableCell>
+                          {/* Channel Column */}
+                          <TableCell>
+                            {(() => {
+                              const channelInfo = getChannelDisplay(transaction.channel, transaction.metadata)
+                              const ChannelIcon = channelInfo.icon
+                              return (
+                                <Badge className={`${channelInfo.bgColor} ${channelInfo.color} border flex items-center gap-1.5 px-2 py-1`}>
+                                  <ChannelIcon className="h-3.5 w-3.5" />
+                                  <span className="text-xs font-medium">{channelInfo.label}</span>
+                                </Badge>
+                              )
+                            })()}
+                          </TableCell>
                           {/* Sender Column */}
                           <TableCell>
                             <div className="flex flex-col">
@@ -1040,30 +1229,30 @@ const TransactionsPage = () => {
                                       </span>
                                     </>
                                   ) : transaction.metadata?.counterpartyInfo ? (
-                                    <>
-                                      <span className="font-medium">
-                                        {transaction.metadata.counterpartyInfo.name}
+                                  <>
+                                    <span className="font-medium">
+                                      {transaction.metadata.counterpartyInfo.name}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {transaction.metadata.counterpartyInfo.type === 'USER' 
+                                        ? '👤 Mobile User'
+                                        : transaction.metadata.counterpartyInfo.type === 'UTILITY'
+                                        ? '⚡ Utility'
+                                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                                        ? '🏪 Merchant'
+                                        : transaction.metadata.counterpartyInfo.type === 'MNO'
+                                        ? '📱 Mobile Money'
+                                        : transaction.metadata.counterpartyInfo.type
+                                      }
+                                    </span>
+                                    {transaction.metadata.counterpartyInfo.type === 'USER' && (
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
                                       </span>
-                                      <span className="text-xs text-gray-500">
-                                        {transaction.metadata.counterpartyInfo.type === 'USER' 
-                                          ? '👤 Mobile User'
-                                          : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                                          ? '⚡ Utility'
-                                          : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                                          ? '🏪 Merchant'
-                                          : transaction.metadata.counterpartyInfo.type === 'MNO'
-                                          ? '📱 Mobile Money'
-                                          : transaction.metadata.counterpartyInfo.type
-                                        }
-                                      </span>
-                                      {transaction.metadata.counterpartyInfo.type === 'USER' && (
-                                        <span className="text-xs text-blue-600 font-medium">
-                                          🏦 RukaPay Subscriber
-                                        </span>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <span className="text-gray-500">External</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500">External</span>
                                   )}
                                 </>
                               )}
@@ -1120,29 +1309,29 @@ const TransactionsPage = () => {
                                       </span>
                                     </>
                                   ) : transaction.metadata?.counterpartyInfo ? (
-                                    <>
-                                      <span className="font-medium">
-                                        {transaction.metadata.counterpartyInfo.name}
+                                  <>
+                                    <span className="font-medium">
+                                      {transaction.metadata.counterpartyInfo.name}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {transaction.metadata.counterpartyInfo.type === 'USER' 
+                                        ? (transaction.type === 'WALLET_TO_WALLET' 
+                                           ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
+                                           : '👤 Mobile User')
+                                        : transaction.metadata.counterpartyInfo.type === 'UTILITY'
+                                        ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
+                                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                                        ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
+                                        : transaction.metadata.counterpartyInfo.type === 'MNO'
+                                        ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
+                                        : transaction.metadata.counterpartyInfo.type
+                                      }
+                                    </span>
+                                    {transaction.metadata.counterpartyInfo.type === 'USER' && transaction.type === 'WALLET_TO_WALLET' && (
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
                                       </span>
-                                      <span className="text-xs text-gray-500">
-                                        {transaction.metadata.counterpartyInfo.type === 'USER' 
-                                          ? (transaction.type === 'WALLET_TO_WALLET' 
-                                             ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
-                                             : '👤 Mobile User')
-                                          : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                                          ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
-                                          : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                                          ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
-                                          : transaction.metadata.counterpartyInfo.type === 'MNO'
-                                          ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
-                                          : transaction.metadata.counterpartyInfo.type
-                                        }
-                                      </span>
-                                      {transaction.metadata.counterpartyInfo.type === 'USER' && transaction.type === 'WALLET_TO_WALLET' && (
-                                        <span className="text-xs text-blue-600 font-medium">
-                                          🏦 RukaPay Subscriber
-                                        </span>
-                                      )}
+                                    )}
                                     </>
                                   ) : (
                                     <>
@@ -1197,9 +1386,9 @@ const TransactionsPage = () => {
                                           {/* External Mobile Money (no metadata) */}
                                           <span className="font-medium">Mobile Money</span>
                                           <span className="text-xs text-gray-500">📱 External Network</span>
-                                        </>
-                                      ) : (
-                                        <span className="text-gray-500">External</span>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500">External</span>
                                       )}
                                     </>
                                   )}
@@ -1450,6 +1639,21 @@ const TransactionsPage = () => {
                       </span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-gray-600">Channel:</span>
+                      <span className="font-medium text-gray-900">
+                        {(() => {
+                          const channelInfo = getChannelDisplay(selectedTransaction.channel, selectedTransaction.metadata)
+                          const ChannelIcon = channelInfo.icon
+                          return (
+                            <Badge className={`${channelInfo.bgColor} ${channelInfo.color} border flex items-center gap-1.5 px-2 py-1`}>
+                              <ChannelIcon className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium">{channelInfo.label}</span>
+                            </Badge>
+                          )
+                        })()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-600">Date & Time:</span>
                       <span className="font-medium text-gray-900">{formatDate(selectedTransaction.createdAt)}</span>
                     </div>
@@ -1572,28 +1776,28 @@ const TransactionsPage = () => {
                             {/* Mobile Money sending to wallet */}
                             {selectedTransaction.metadata?.mnoProvider ? (
                               <>
-                                <div>
-                                  <span className="text-blue-600">Source:</span>
-                                  <p className="font-medium text-blue-900">
+                        <div>
+                          <span className="text-blue-600">Source:</span>
+                          <p className="font-medium text-blue-900">
                                     {selectedTransaction.metadata.mnoProvider} Mobile Money
-                                  </p>
-                                </div>
+                          </p>
+                        </div>
                                 {selectedTransaction.metadata.phoneNumber && (
-                                  <div>
-                                    <span className="text-blue-600">Phone Number:</span>
-                                    <p className="font-medium text-blue-900">
-                                      {selectedTransaction.metadata.phoneNumber}
-                                    </p>
-                                  </div>
-                                )}
+                          <div>
+                            <span className="text-blue-600">Phone Number:</span>
+                            <p className="font-medium text-blue-900">
+                              {selectedTransaction.metadata.phoneNumber}
+                            </p>
+                          </div>
+                        )}
                                 {selectedTransaction.metadata.userName && (
-                                  <div>
-                                    <span className="text-blue-600">Name:</span>
-                                    <p className="font-medium text-blue-900">
-                                      {selectedTransaction.metadata.userName}
-                                    </p>
-                                  </div>
-                                )}
+                          <div>
+                            <span className="text-blue-600">Name:</span>
+                            <p className="font-medium text-blue-900">
+                              {selectedTransaction.metadata.userName}
+                            </p>
+                          </div>
+                        )}
                                 <Badge className="bg-blue-600 text-white">
                                   {selectedTransaction.metadata.mnoProvider} Network
                                 </Badge>
@@ -1659,10 +1863,10 @@ const TransactionsPage = () => {
                                 {selectedTransaction.metadata.counterpartyInfo.name}
                               </p>
                             </div>
-                            <div>
-                              <span className="text-blue-600">Type:</span>
-                              <p className="font-medium text-blue-900">
-                                {selectedTransaction.metadata.counterpartyInfo.type}
+                          <div>
+                            <span className="text-blue-600">Type:</span>
+                            <p className="font-medium text-blue-900">
+                              {selectedTransaction.metadata.counterpartyInfo.type}
                               </p>
                             </div>
                             {selectedTransaction.metadata.counterpartyInfo.type === 'USER' && (
@@ -1694,13 +1898,13 @@ const TransactionsPage = () => {
                                 <span className="text-blue-600">Name:</span>
                                 <p className="font-medium text-blue-900">
                                   {selectedTransaction.metadata.userName}
-                                </p>
-                              </div>
-                            )}
-                            {selectedTransaction.metadata?.mnoProvider && (
-                              <Badge className="bg-blue-600 text-white">
-                                {selectedTransaction.metadata.mnoProvider} Network
-                              </Badge>
+                            </p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.mnoProvider && (
+                          <Badge className="bg-blue-600 text-white">
+                            {selectedTransaction.metadata.mnoProvider} Network
+                          </Badge>
                             )}
                           </>
                         )}
@@ -1747,15 +1951,15 @@ const TransactionsPage = () => {
                           {selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
                             <>
                               {/* P2P Internal Transaction */}
-                              <div>
+                          <div>
                                 <span className="text-green-600">Name:</span>
-                                <p className="font-medium text-green-900">
+                            <p className="font-medium text-green-900">
                                   {selectedTransaction.counterpartyUser?.profile?.firstName && selectedTransaction.counterpartyUser?.profile?.lastName
                                     ? `${selectedTransaction.counterpartyUser.profile.firstName} ${selectedTransaction.counterpartyUser.profile.lastName}`
                                     : selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName || 'RukaPay User'
-                                  }
-                                </p>
-                              </div>
+                              }
+                            </p>
+                          </div>
                               {selectedTransaction.counterpartyUser?.phone && (
                                 <div>
                                   <span className="text-green-600">Contact:</span>
@@ -1853,54 +2057,54 @@ const TransactionsPage = () => {
                                 </p>
                               </div>
 
-                              {selectedTransaction.metadata?.phoneNumber && (
-                                <div>
-                                  <span className="text-green-600">Phone Number:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.phoneNumber}
-                                  </p>
-                                </div>
-                              )}
-                              {selectedTransaction.metadata?.accountNumber && (
-                                <div>
-                                  <span className="text-green-600">Account Number:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.accountNumber}
-                                  </p>
-                                </div>
-                              )}
-                              {selectedTransaction.metadata?.userName && (
-                                <div>
-                                  <span className="text-green-600">Recipient Name:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.userName}
-                                  </p>
-                                </div>
-                              )}
-                              {selectedTransaction.metadata?.recipientName && (
-                                <div>
-                                  <span className="text-green-600">Recipient Name:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.recipientName}
-                                  </p>
-                                </div>
-                              )}
-                              {selectedTransaction.metadata?.bankName && (
-                                <div>
-                                  <span className="text-green-600">Bank:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.bankName}
-                                  </p>
-                                </div>
-                              )}
-                              {selectedTransaction.metadata?.utilityName && (
-                                <div>
-                                  <span className="text-green-600">Utility:</span>
-                                  <p className="font-medium text-green-900">
-                                    {selectedTransaction.metadata.utilityName}
-                                  </p>
-                                </div>
-                              )}
+                          {selectedTransaction.metadata?.phoneNumber && (
+                            <div>
+                              <span className="text-green-600">Phone Number:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.phoneNumber}
+                              </p>
+                            </div>
+                          )}
+                          {selectedTransaction.metadata?.accountNumber && (
+                            <div>
+                              <span className="text-green-600">Account Number:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.accountNumber}
+                              </p>
+                            </div>
+                          )}
+                          {selectedTransaction.metadata?.userName && (
+                            <div>
+                              <span className="text-green-600">Recipient Name:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.userName}
+                              </p>
+                            </div>
+                          )}
+                          {selectedTransaction.metadata?.recipientName && (
+                            <div>
+                              <span className="text-green-600">Recipient Name:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.recipientName}
+                              </p>
+                            </div>
+                          )}
+                          {selectedTransaction.metadata?.bankName && (
+                            <div>
+                              <span className="text-green-600">Bank:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.bankName}
+                              </p>
+                            </div>
+                          )}
+                          {selectedTransaction.metadata?.utilityName && (
+                            <div>
+                              <span className="text-green-600">Utility:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.utilityName}
+                              </p>
+                            </div>
+                          )}
                               {selectedTransaction.metadata?.mnoProvider && (
                                 <Badge className="bg-blue-600 text-white">
                                   {selectedTransaction.metadata.mnoProvider} Network
@@ -2271,6 +2475,98 @@ const TransactionsPage = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Date Range Dialog */}
+      <Dialog open={exportDateRangeOpen} onOpenChange={setExportDateRangeOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Export Transactions by Date Range
+            </DialogTitle>
+            <DialogDescription>
+              Select a date range to export transactions. The export will include all transactions within the selected dates.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="export-start-date">Start Date</Label>
+              <Input
+                id="export-start-date"
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                max={exportEndDate || undefined}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="export-end-date">End Date</Label>
+              <Input
+                id="export-end-date"
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                min={exportStartDate || undefined}
+              />
+            </div>
+            
+            {exportStartDate && exportEndDate && new Date(exportStartDate) > new Date(exportEndDate) && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <AlertTriangle className="h-4 w-4 inline mr-1" />
+                  Start date must be before end date
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setExportDateRangeOpen(false)
+                setExportStartDate("")
+                setExportEndDate("")
+              }}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!exportStartDate || !exportEndDate) {
+                  toast.error('Please select both start and end dates')
+                  return
+                }
+                if (new Date(exportStartDate) > new Date(exportEndDate)) {
+                  toast.error('Start date must be before end date')
+                  return
+                }
+                setExportDateRangeOpen(false)
+                await exportTransactionsToCSV(true, exportStartDate, exportEndDate)
+                setExportStartDate("")
+                setExportEndDate("")
+              }}
+              disabled={isExporting || !exportStartDate || !exportEndDate}
+              className="bg-[#08163d] hover:bg-[#0a1f4f]"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Transactions
+                </>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
