@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Copy,
   AlertCircle,
-  DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -25,7 +24,6 @@ import toast from 'react-hot-toast'
 import {
   useCreateGatewayPartner,
   useGenerateApiKey,
-  useCreateTariffs,
   CreateGatewayPartnerRequest,
 } from '@/lib/hooks/useGatewayPartners'
 
@@ -33,7 +31,7 @@ type WalletType = 'ESCROW' | 'COMMISSION'
 
 const CreateGatewayPartnerPage = () => {
   const router = useRouter()
-  const [step, setStep] = useState(1) // 1: Create Partner, 2: Generate Key, 3: Create Tariffs
+  const [step, setStep] = useState(1) // 1: Create Partner, 2: Generate Key
   const [partnerId, setPartnerId] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiKeyEnvironment, setApiKeyEnvironment] = useState<'DEVELOPMENT' | 'PRODUCTION'>('PRODUCTION')
@@ -41,7 +39,6 @@ const CreateGatewayPartnerPage = () => {
 
   const createPartner = useCreateGatewayPartner()
   const generateKey = useGenerateApiKey()
-  const createTariffs = useCreateTariffs()
 
   // Form state
   const [formData, setFormData] = useState<CreateGatewayPartnerRequest>({
@@ -57,13 +54,6 @@ const CreateGatewayPartnerPage = () => {
     walletTypes: ['ESCROW'], // Default to ESCROW
   })
 
-  // Tariff form state - separate percentage for each destination
-  const [tariffData, setTariffData] = useState({
-    mtn: 2.0,
-    airtel: 2.0,
-    bank: 2.0,
-    wallet: 2.0,
-  })
 
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,7 +87,6 @@ const CreateGatewayPartnerPage = () => {
       setApiKey(result.data.apiKey)
       setApiKeyEnvironment(result.data.environment || 'PRODUCTION')
       setShowApiKeyDialog(true)
-      setStep(3)
     } catch (error) {
       console.error('Failed to generate API key:', error)
     }
@@ -115,41 +104,6 @@ const CreateGatewayPartnerPage = () => {
     })
   }
 
-  const handleCreateTariffs = async () => {
-    try {
-      // Create tariffs individually for each destination type
-      const tariffPromises = [
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.mtn,
-          destinationType: 'MTN',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.airtel,
-          destinationType: 'AIRTEL',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.bank,
-          destinationType: 'BANK',
-        }),
-        createTariffs.mutateAsync({
-          partnerId,
-          percentageFee: tariffData.wallet,
-          destinationType: 'WALLET',
-        }),
-      ]
-
-      await Promise.all(tariffPromises)
-      toast.success('Setup complete! Redirecting...')
-      setTimeout(() => {
-        router.push(`/dashboard/gateway-partners/${partnerId}`)
-      }, 1500)
-    } catch (error) {
-      console.error('Failed to create tariffs:', error)
-    }
-  }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -195,16 +149,9 @@ const CreateGatewayPartnerPage = () => {
                 <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
                 <div className={`flex items-center gap-2 ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                    {step > 2 ? <CheckCircle className="w-5 h-5" /> : '2'}
+                    2
                   </div>
                   <span className="font-medium">API Key</span>
-                </div>
-                <div className="flex-1 h-0.5 bg-gray-200 mx-4"></div>
-                <div className={`flex items-center gap-2 ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                    3
-                  </div>
-                  <span className="font-medium">Tariffs</span>
                 </div>
               </div>
             </CardContent>
@@ -452,174 +399,6 @@ const CreateGatewayPartnerPage = () => {
             </Card>
           )}
 
-          {/* Step 3: Create Tariffs */}
-          {step === 3 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Configure Tariffs</CardTitle>
-                <CardDescription>
-                  Set RukaPay commission for each destination type
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <DollarSign className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-blue-900 mb-1">Set Commission Per Destination</h4>
-                        <p className="text-sm text-blue-700">
-                          Set different commission percentages for MTN, Airtel, Bank, and Wallet transfers.
-                          Network/bank charges will be handled by external partners (ABC, Pegasus).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="mtn" className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                        MTN Mobile Money (%)
-                      </Label>
-                      <Input
-                        id="mtn"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={tariffData.mtn}
-                        onChange={(e) =>
-                          setTariffData({ ...tariffData, mtn: parseFloat(e.target.value) || 0 })
-                        }
-                        className="mt-2"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Commission on MTN transfers
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="airtel" className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                        Airtel Money (%)
-                      </Label>
-                      <Input
-                        id="airtel"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={tariffData.airtel}
-                        onChange={(e) =>
-                          setTariffData({ ...tariffData, airtel: parseFloat(e.target.value) || 0 })
-                        }
-                        className="mt-2"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Commission on Airtel transfers
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="bank" className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        Bank Transfer (%)
-                      </Label>
-                      <Input
-                        id="bank"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={tariffData.bank}
-                        onChange={(e) =>
-                          setTariffData({ ...tariffData, bank: parseFloat(e.target.value) || 0 })
-                        }
-                        className="mt-2"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Commission on bank transfers
-                      </p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="wallet" className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        Wallet Transfer (%)
-                      </Label>
-                      <Input
-                        id="wallet"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={tariffData.wallet}
-                        onChange={(e) =>
-                          setTariffData({ ...tariffData, wallet: parseFloat(e.target.value) || 0 })
-                        }
-                        className="mt-2"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Commission on wallet transfers
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <h4 className="font-medium text-gray-900 mb-3">Commission Preview (on 100,000 UGX)</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex justify-between bg-white p-3 rounded border">
-                        <span className="text-gray-600">MTN:</span>
-                        <span className="font-medium">
-                          {((100000 * tariffData.mtn) / 100).toLocaleString()} UGX
-                        </span>
-                      </div>
-                      <div className="flex justify-between bg-white p-3 rounded border">
-                        <span className="text-gray-600">Airtel:</span>
-                        <span className="font-medium">
-                          {((100000 * tariffData.airtel) / 100).toLocaleString()} UGX
-                        </span>
-                      </div>
-                      <div className="flex justify-between bg-white p-3 rounded border">
-                        <span className="text-gray-600">Bank:</span>
-                        <span className="font-medium">
-                          {((100000 * tariffData.bank) / 100).toLocaleString()} UGX
-                        </span>
-                      </div>
-                      <div className="flex justify-between bg-white p-3 rounded border">
-                        <span className="text-gray-600">Wallet:</span>
-                        <span className="font-medium">
-                          {((100000 * tariffData.wallet) / 100).toLocaleString()} UGX
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-300">
-                      <p className="text-xs text-gray-600">
-                        <strong>Note:</strong> Network/bank charges will be added automatically by external partners (ABC, Pegasus).
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setStep(2)}
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back
-                    </Button>
-                    <Button onClick={handleCreateTariffs} disabled={createTariffs.isPending}>
-                      {createTariffs.isPending ? 'Creating...' : 'Create Tariffs & Finish'}
-                      <Save className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </main>
 
@@ -679,8 +458,11 @@ const CreateGatewayPartnerPage = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button onClick={() => setShowApiKeyDialog(false)}>
-                Continue to Tariff Setup
+              <Button onClick={() => {
+                setShowApiKeyDialog(false)
+                router.push(`/dashboard/gateway-partners/${partnerId}`)
+              }}>
+                View Partner Details
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             </div>

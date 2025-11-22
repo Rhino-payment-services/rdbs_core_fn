@@ -33,6 +33,7 @@ import { useUsers } from '@/lib/hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
+import ChannelStatsCard from '@/components/dashboard/ChannelStatsCard'
 
 const DashboardPage = () => {
   const { hasPermission } = usePermissions()
@@ -313,6 +314,11 @@ const DashboardPage = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Channel Statistics & New Wallets Card */}
+            <div className="mb-4">
+              <ChannelStatsCard />
             </div>
 
             {/* Charts Section */}

@@ -21,7 +21,7 @@ interface CreateTariffForm {
   name: string
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
-  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'WALLET_CREATION' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE'
+  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'WALLET_CREATION' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM'
   transactionModeId?: string
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
@@ -312,19 +312,22 @@ function CreateTariffPage() {
                           // Auto-set transaction type based on selected mode if available
                           const selectedMode = transactionModes?.find(m => m.id === value)
                           if (selectedMode && selectedMode.code) {
-                            // Map transaction mode code to transaction type for backward compatibility
-                            const codeToType: Record<string, string> = {
-                              'GATEWAY_TO_MTN': 'GATEWAY_TO_MTN',
-                              'GATEWAY_TO_AIRTEL': 'GATEWAY_TO_AIRTEL',
-                              'GATEWAY_TO_BANK': 'GATEWAY_TO_BANK',
-                              'GATEWAY_TO_WALLET': 'GATEWAY_TO_WALLET',
-                              'WALLET_TO_MNO': 'WALLET_TO_MNO',
-                              'WALLET_TO_BANK': 'WALLET_TO_BANK',
-                              'MNO_TO_WALLET': 'MNO_TO_WALLET',
-                              'BANK_TO_WALLET': 'BANK_TO_WALLET',
+                            // For custom transaction modes, use CUSTOM type
+                            if (!selectedMode.isSystem) {
+                              handleInputChange('transactionType', 'CUSTOM' as any)
+                            } else {
+                              // For system modes, map transaction mode code to transaction type
+                              const codeToType: Record<string, string> = {
+                                'WALLET_TO_MNO': 'WALLET_TO_MNO',
+                                'WALLET_TO_BANK': 'WALLET_TO_BANK',
+                                'MNO_TO_WALLET': 'MNO_TO_WALLET',
+                                'BANK_TO_WALLET': 'BANK_TO_WALLET',
+                                'BILL_PAYMENT': 'BILL_PAYMENT',
+                                'WALLET_TO_WALLET': 'WALLET_TO_WALLET',
+                              }
+                              const mappedType = codeToType[selectedMode.code] || form.transactionType
+                              handleInputChange('transactionType', mappedType as any)
                             }
-                            const mappedType = codeToType[selectedMode.code] || form.transactionType
-                            handleInputChange('transactionType', mappedType as any)
                           }
                         }}
                         required
@@ -335,13 +338,6 @@ function CreateTariffPage() {
                         <SelectContent>
                           {transactionModes && transactionModes.length > 0 ? (
                             transactionModes
-                              .filter(mode => {
-                                // Filter by tariff type if needed
-                                if (form.tariffType === 'INTERNAL') {
-                                  return mode.category === 'WALLET' || mode.isSystem
-                                }
-                                return true
-                              })
                               .map((mode) => (
                                 <SelectItem key={mode.id} value={mode.id}>
                                   {mode.displayName} ({mode.code})

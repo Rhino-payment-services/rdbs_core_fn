@@ -37,6 +37,11 @@ export interface User {
     isActive: boolean
     createdAt: string
     updatedAt: string
+    // Merchant properties (may exist in typeData at runtime)
+    merchantBusinessTradeName?: string
+    businessTradeName?: string
+    merchant_names?: string
+    owner_name?: string
   }
   // Merchant information (populated if userType is MERCHANT)
   merchant?: {

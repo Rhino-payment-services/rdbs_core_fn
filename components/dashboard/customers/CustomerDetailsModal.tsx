@@ -1,5 +1,5 @@
 "use client"
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,9 +19,11 @@ import {
   CreditCard,
   Building2,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import type { User as CustomerType } from '@/lib/types/api'
+import api from '@/lib/axios'
 
 interface CustomerDetailsModalProps {
   customer: CustomerType | null
@@ -38,6 +40,49 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   onEdit,
   onDelete
 }) => {
+  const [wallets, setWallets] = useState<any[]>([])
+  const [loadingWallets, setLoadingWallets] = useState(false)
+  const [totalBalance, setTotalBalance] = useState(0)
+
+  // Fetch wallets when modal opens
+  useEffect(() => {
+    if (isOpen && customer?.id) {
+      fetchUserWallets()
+    } else {
+      setWallets([])
+      setTotalBalance(0)
+    }
+  }, [isOpen, customer?.id])
+
+  const fetchUserWallets = async () => {
+    if (!customer?.id) return
+    
+    setLoadingWallets(true)
+    try {
+      const response = await api({
+        url: `/admin/wallets`,
+        method: 'GET',
+        params: {
+          userId: customer.id
+        }
+      })
+      
+      const walletsData = response.data?.data || response.data || []
+      setWallets(walletsData)
+      
+      // Calculate total balance across all wallets
+      const total = walletsData.reduce((sum: number, wallet: any) => {
+        return sum + (Number(wallet.balance) || 0)
+      }, 0)
+      setTotalBalance(total)
+    } catch (error) {
+      console.error('Error fetching wallets:', error)
+      setWallets([])
+    } finally {
+      setLoadingWallets(false)
+    }
+  }
+
   if (!customer) return null
 
   // Debug: Log customer data to see what we're receiving
@@ -409,41 +454,80 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
             </CardContent>
           </Card>
 
-          {/* Wallet Information (if available) */}
-          {(customer as any)?.wallet && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wallet className="h-5 w-5" />
-                  Wallet Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Wallet ID</p>
-                    <p className="font-medium">{(customer as any).wallet.id}</p>
+          {/* Wallet Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Wallet Information
+                {loadingWallets && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingWallets ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                  <span className="ml-2 text-sm text-gray-500">Loading wallets...</span>
+                </div>
+              ) : wallets.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Total Balance Summary */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-blue-600 font-medium">Total Balance</p>
+                        <p className="text-2xl font-bold text-blue-900">
+                          {formatCurrency(totalBalance)}
+                        </p>
+                      </div>
+                      <Wallet className="h-8 w-8 text-blue-600" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Balance</p>
-                    <p className="font-medium">
-                      {formatCurrency((customer as any).wallet.balance || 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Currency</p>
-                    <p className="font-medium">{(customer as any).wallet.currency}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Status</p>
-                    <p className="font-medium">
-                      {(customer as any).wallet.isActive ? 'Active' : 'Inactive'}
-                    </p>
+                  
+                  {/* Individual Wallets */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium text-gray-700">Wallets ({wallets.length})</p>
+                    {wallets.map((wallet: any) => (
+                      <div key={wallet.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Wallet Type</p>
+                            <p className="font-medium text-sm">{wallet.walletType || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Balance</p>
+                            <p className="font-semibold text-lg text-green-600">
+                              {formatCurrency(Number(wallet.balance) || 0)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Currency</p>
+                            <p className="font-medium text-sm">{wallet.currency || 'UGX'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Status</p>
+                            <Badge className={wallet.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                              {wallet.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                        </div>
+                        {wallet.id && (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-400 font-mono">ID: {wallet.id.slice(0, 8)}...</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-4">
+                  <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No wallets found for this user</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Merchant Information (if applicable) */}
           {customer.subscriberType === 'MERCHANT' && (customer as any)?.merchantCode && (
