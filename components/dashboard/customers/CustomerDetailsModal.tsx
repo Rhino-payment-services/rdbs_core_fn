@@ -312,7 +312,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[60vw] max-w-none max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[60vw] max-w-[60vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Customer Details
