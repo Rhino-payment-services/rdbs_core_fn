@@ -310,7 +310,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[90vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!w-[90vw] !max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             Customer Details
@@ -364,7 +364,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-gray-400" />
                   <div>
@@ -395,7 +395,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               <CardContent className="space-y-4">
                 {customer.merchant ? (
                   // Full merchant data available
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-gray-600">Business Name</p>
                       <p className="font-medium">{customer.merchant.businessTradeName}</p>
@@ -471,8 +471,8 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   Profile Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Full Name</p>
                     <p className="font-medium">
@@ -519,7 +519,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">User Type</p>
                   <p className="font-medium">{customer.userType}</p>
@@ -557,7 +557,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-gray-400" />
                   <div>
@@ -656,7 +656,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                     </div>
                     {wallets.map((wallet: any) => (
                       <div key={wallet.id} className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                           <div>
                             <p className="text-xs text-gray-500">Wallet Type</p>
                             <p className="font-medium text-sm">{wallet.walletType || 'N/A'}</p>
@@ -786,7 +786,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-gray-600">Merchant Code</p>
                     <p className="font-medium">{(customer as any).merchantCode}</p>
