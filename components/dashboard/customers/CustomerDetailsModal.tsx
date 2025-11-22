@@ -82,32 +82,30 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     
     setLoadingWallets(true)
     try {
-      console.log('🔍 Fetching wallet for user:', customer.id)
+      console.log('🔍 Fetching ALL wallets for user:', customer.id)
       
-      // Try to get the primary wallet for this user
+      // Get ALL wallets for this user (PERSONAL and BUSINESS)
       const response = await api({
-        url: `/wallet/${customer.id}`,
+        url: `/wallet/${customer.id}/all`,
         method: 'GET'
       })
       
       console.log('📦 Raw wallet response:', response)
       
-      // The response is a single wallet object, not an array
-      const wallet = response.data?.data || response.data
+      // The response is an array of wallet objects
+      const walletsData = response.data?.data || response.data || []
       
-      console.log('💼 Parsed wallet:', wallet)
+      console.log('💼 Parsed wallets:', walletsData)
       
-      // Convert to array format for consistency
-      const walletsData = wallet ? [wallet] : []
-      setWallets(walletsData)
+      setWallets(Array.isArray(walletsData) ? walletsData : [])
       
       // Calculate total balance across all wallets
-      const total = walletsData.reduce((sum: number, wallet: any) => {
+      const total = (Array.isArray(walletsData) ? walletsData : []).reduce((sum: number, wallet: any) => {
         return sum + (Number(wallet.balance) || 0)
       }, 0)
       setTotalBalance(total)
       
-      console.log('✅ Wallets set:', walletsData, 'Total balance:', total)
+      console.log('✅ Wallets set:', walletsData.length, 'wallet(s), Total balance:', total)
     } catch (error: any) {
       console.error('❌ Error fetching wallets:', error)
       console.error('Error details:', {
@@ -117,9 +115,9 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
         message: error?.message
       })
       
-      // If it's a 404, the user doesn't have a wallet
+      // If it's a 404, the user doesn't have wallets
       if (error?.response?.status === 404) {
-        console.log('⚠️ No wallet found for user (404)')
+        console.log('⚠️ No wallets found for user (404)')
         setWallets([])
         setTotalBalance(0)
       } else {
