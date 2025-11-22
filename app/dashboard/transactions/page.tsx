@@ -184,15 +184,44 @@ const TransactionsPage = () => {
   // Get transaction type display
   const getTypeDisplay = (type: string) => {
     const typeMap = {
+      // P2P and Internal Transfers
       WALLET_TO_WALLET: 'P2P Transfer',
-      WALLET_TO_MNO: 'Mobile Money',
+      
+      // Mobile Money Transactions
+      WALLET_TO_MNO: 'Send to Mobile Money',
+      MNO_TO_WALLET: 'Receive from Mobile Money',
+      WALLET_TOPUP_PULL: 'Mobile Money Top-up',
+      
+      // Merchant Transactions
+      WALLET_TO_MERCHANT: 'Pay Merchant',
+      WALLET_TO_INTERNAL_MERCHANT: 'Pay Merchant', // Legacy naming
+      WALLET_TO_EXTERNAL_MERCHANT: 'Pay External Merchant',
+      MERCHANT_TO_WALLET: 'Receive from Merchant',
+      MERCHANT_TO_INTERNAL_WALLET: 'Receive from Merchant', // Legacy naming
+      MERCHANT_WITHDRAWAL: 'Merchant Withdrawal',
+      
+      // Bank Transactions
       WALLET_TO_BANK: 'Bank Transfer',
+      BANK_TO_WALLET: 'Receive from Bank',
+      
+      // Card Transactions
+      CARD_TO_WALLET: 'Card Top-up',
+      
+      // Utility and Bill Payments
       WALLET_TO_UTILITY: 'Utility Payment',
-      WALLET_TO_MERCHANT: 'Merchant Payment',
       BILL_PAYMENT: 'Bill Payment',
-      DEPOSIT: 'Deposit',
-      WITHDRAWAL: 'Withdrawal',
-      REFUND: 'Refund'
+      
+      // Wallet Operations
+      DEPOSIT: 'Wallet Deposit',
+      WITHDRAWAL: 'Wallet Withdrawal',
+      WALLET_CREATION: 'Wallet Created',
+      WALLET_INIT: 'Wallet Initialized',
+      
+      // System Transactions
+      REVERSAL: 'Transaction Reversal',
+      REFUND: 'Refund',
+      FEE_CHARGE: 'Fee Charge',
+      CUSTOM: 'Custom Transaction'
     }
     return typeMap[type as keyof typeof typeMap] || type
   }
@@ -910,6 +939,7 @@ const TransactionsPage = () => {
                             <div className="flex flex-col">
                               {transaction.direction === 'DEBIT' ? (
                                 <>
+                                  {/* Outgoing transaction - sender is the wallet owner */}
                                   <span className="font-medium">
                                     {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
                                       ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
@@ -926,32 +956,116 @@ const TransactionsPage = () => {
                                   )}
                                 </>
                               ) : (
-                                transaction.metadata?.counterpartyInfo ? (
-                                  <>
-                                    <span className="font-medium">
-                                      {transaction.metadata.counterpartyInfo.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {transaction.metadata.counterpartyInfo.type === 'USER' 
-                                        ? '👤 Mobile User'
-                                        : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                                        ? '⚡ Utility'
-                                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                                        ? '🏪 Merchant'
-                                        : transaction.metadata.counterpartyInfo.type === 'MNO'
-                                        ? '📱 Mobile Money'
-                                        : transaction.metadata.counterpartyInfo.type
-                                      }
-                                    </span>
-                                    {transaction.metadata.counterpartyInfo.type === 'USER' && (
+                                <>
+                                  {/* Incoming transaction - extract sender info */}
+                                  {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET') || transaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
+                                    <>
+                                      {/* Merchant sending to wallet */}
+                                      <span className="font-medium">
+                                        {transaction.metadata?.merchantName || transaction.metadata?.counterpartyInfo?.name || 'Merchant'}
+                                      </span>
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Code: {transaction.metadata.merchantCode}
+                                        </span>
+                                      )}
+                                      {transaction.metadata?.accountNumber && (
+                                        <span className="text-xs text-gray-500">
+                                          Account: {transaction.metadata.accountNumber}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Internal Account
+                                      </span>
+                                    </>
+                                  ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
+                                    <>
+                                      {/* Mobile Money sending to wallet */}
+                                      {transaction.metadata?.mnoProvider ? (
+                                        <>
+                                          <span className="font-medium">
+                                            {transaction.metadata.mnoProvider} Mobile Money
+                                          </span>
+                                          {transaction.metadata.phoneNumber && (
+                                            <span className="text-xs text-gray-500">
+                                              📱 {transaction.metadata.phoneNumber}
+                                            </span>
+                                          )}
+                                          {transaction.metadata.userName && (
+                                            <span className="text-xs text-gray-500">
+                                              👤 {transaction.metadata.userName}
+                                            </span>
+                                          )}
+                                          <span className="text-xs text-blue-600 font-medium">
+                                            {transaction.metadata.mnoProvider} Network
+                                          </span>
+                                        </>
+                                      ) : transaction.metadata?.phoneNumber ? (
+                                        <>
+                                          <span className="font-medium">
+                                            {transaction.metadata.userName || 'Mobile Money User'}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            📱 {transaction.metadata.phoneNumber}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            📱 Mobile Money
+                                          </span>
+                                        </>
+                                      ) : (
+                                        <span className="text-gray-500">External</span>
+                                      )}
+                                    </>
+                                  ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
+                                    <>
+                                      {/* P2P - Wallet to Wallet - sender is another RukaPay user */}
+                                      <span className="font-medium">
+                                        {transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
+                                          ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
+                                          : transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'RukaPay User'
+                                        }
+                                      </span>
+                                      {transaction.counterpartyUser?.phone && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.counterpartyUser.phone}
+                                        </span>
+                                      )}
+                                      {transaction.counterpartyId && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 RukaPay ID: {transaction.counterpartyId.slice(0, 8)}...
+                                        </span>
+                                      )}
                                       <span className="text-xs text-blue-600 font-medium">
                                         🏦 RukaPay Subscriber
                                       </span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-gray-500">External</span>
-                                )
+                                    </>
+                                  ) : transaction.metadata?.counterpartyInfo ? (
+                                    <>
+                                      <span className="font-medium">
+                                        {transaction.metadata.counterpartyInfo.name}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {transaction.metadata.counterpartyInfo.type === 'USER' 
+                                          ? '👤 Mobile User'
+                                          : transaction.metadata.counterpartyInfo.type === 'UTILITY'
+                                          ? '⚡ Utility'
+                                          : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                                          ? '🏪 Merchant'
+                                          : transaction.metadata.counterpartyInfo.type === 'MNO'
+                                          ? '📱 Mobile Money'
+                                          : transaction.metadata.counterpartyInfo.type
+                                        }
+                                      </span>
+                                      {transaction.metadata.counterpartyInfo.type === 'USER' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-500">External</span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </TableCell>
@@ -960,90 +1074,139 @@ const TransactionsPage = () => {
                           <TableCell>
                             <div className="flex flex-col">
                               {transaction.direction === 'DEBIT' ? (
-                                transaction.metadata?.counterpartyInfo ? (
-                                  <>
-                                    <span className="font-medium">
-                                      {transaction.metadata.counterpartyInfo.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {transaction.metadata.counterpartyInfo.type === 'USER' 
-                                        ? (transaction.type === 'WALLET_TO_WALLET' 
-                                           ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
-                                           : '👤 Mobile User')
-                                        : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                                        ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
-                                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                                        ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
-                                        : transaction.metadata.counterpartyInfo.type === 'MNO'
-                                        ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
-                                        : transaction.metadata.counterpartyInfo.type
-                                      }
-                                    </span>
-                                    {transaction.metadata.counterpartyInfo.type === 'USER' && transaction.type === 'WALLET_TO_WALLET' && (
+                                <>
+                                  {/* Outgoing transaction - extract receiver info */}
+                                  {transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
+                                    <>
+                                      {/* P2P - Wallet to Wallet - receiver is another RukaPay user */}
+                                      <span className="font-medium">
+                                        {transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
+                                          ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
+                                          : transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'RukaPay User'
+                                        }
+                                      </span>
+                                      {transaction.counterpartyUser?.phone && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.counterpartyUser.phone}
+                                        </span>
+                                      )}
+                                      {transaction.counterpartyId && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 RukaPay ID: {transaction.counterpartyId.slice(0, 8)}...
+                                        </span>
+                                      )}
                                       <span className="text-xs text-blue-600 font-medium">
                                         🏦 RukaPay Subscriber
                                       </span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    {/* Extract receiver info from metadata when counterpartyInfo is not available */}
-                                    {transaction.metadata?.mnoProvider ? (
-                                      <>
-                                        <span className="font-medium">
-                                          {transaction.metadata.mnoProvider} Mobile Money
+                                    </>
+                                  ) : transaction.type === 'WALLET_TO_MERCHANT' || transaction.type === 'WALLET_TO_INTERNAL_MERCHANT' || transaction.type?.includes('MERCHANT') || transaction.metadata?.merchantName ? (
+                                    <>
+                                      {/* Wallet to Merchant - receiver is merchant */}
+                                      <span className="font-medium">
+                                        {transaction.metadata?.merchantName || transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'Merchant'}
+                                      </span>
+                                      {transaction.metadata?.accountNumber && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Account: {transaction.metadata.accountNumber}
                                         </span>
-                                        {transaction.metadata.phoneNumber && (
+                                      )}
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          Code: {transaction.metadata.merchantCode}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Internal Account
+                                      </span>
+                                    </>
+                                  ) : transaction.metadata?.counterpartyInfo ? (
+                                    <>
+                                      <span className="font-medium">
+                                        {transaction.metadata.counterpartyInfo.name}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {transaction.metadata.counterpartyInfo.type === 'USER' 
+                                          ? (transaction.type === 'WALLET_TO_WALLET' 
+                                             ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
+                                             : '👤 Mobile User')
+                                          : transaction.metadata.counterpartyInfo.type === 'UTILITY'
+                                          ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
+                                          : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                                          ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
+                                          : transaction.metadata.counterpartyInfo.type === 'MNO'
+                                          ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
+                                          : transaction.metadata.counterpartyInfo.type
+                                        }
+                                      </span>
+                                      {transaction.metadata.counterpartyInfo.type === 'USER' && transaction.type === 'WALLET_TO_WALLET' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Extract receiver info from metadata when counterpartyInfo is not available */}
+                                      {transaction.metadata?.mnoProvider ? (
+                                        <>
+                                          {/* External Mobile Money */}
+                                          <span className="font-medium">
+                                            {transaction.metadata.mnoProvider} Mobile Money
+                                          </span>
+                                          {transaction.metadata.phoneNumber && (
+                                            <span className="text-xs text-gray-500">
+                                              📱 {transaction.metadata.phoneNumber}
+                                            </span>
+                                          )}
+                                          <span className="text-xs text-blue-600 font-medium">
+                                            {transaction.metadata.mnoProvider} Network
+                                          </span>
+                                        </>
+                                      ) : transaction.metadata?.phoneNumber ? (
+                                        <>
+                                          {/* External Mobile Money (no provider specified) */}
+                                          <span className="font-medium">
+                                            {transaction.metadata.userName || transaction.metadata.recipientName || 'Mobile Money User'}
+                                          </span>
                                           <span className="text-xs text-gray-500">
                                             📱 {transaction.metadata.phoneNumber}
                                           </span>
-                                        )}
-                                        <span className="text-xs text-blue-600 font-medium">
-                                          {transaction.metadata.mnoProvider} Network
-                                        </span>
-                                      </>
-                                    ) : transaction.metadata?.phoneNumber ? (
-                                      <>
-                                        <span className="font-medium">
-                                          {transaction.metadata.userName || transaction.metadata.recipientName || 'Mobile Money User'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          📱 {transaction.metadata.phoneNumber}
-                                        </span>
-                                        {transaction.type?.includes('MNO') && (
-                                          <span className="text-xs text-gray-500">
-                                            📱 Mobile Money
+                                          {transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO') ? (
+                                            <span className="text-xs text-gray-500">
+                                              📱 Mobile Money
+                                            </span>
+                                          ) : null}
+                                        </>
+                                      ) : transaction.metadata?.accountNumber ? (
+                                        <>
+                                          {/* Bank/Utility/Other External Account */}
+                                          <span className="font-medium">
+                                            {transaction.metadata.userName || transaction.metadata.recipientName || 'External Account'}
                                           </span>
-                                        )}
-                                      </>
-                                    ) : transaction.metadata?.accountNumber ? (
-                                      <>
-                                        <span className="font-medium">
-                                          {transaction.metadata.userName || transaction.metadata.recipientName || 'External Account'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {transaction.type?.includes('BANK') 
-                                            ? `🏦 Bank: ${transaction.metadata.accountNumber}`
-                                            : transaction.type?.includes('UTILITY')
-                                            ? `⚡ Utility: ${transaction.metadata.accountNumber}`
-                                            : transaction.type?.includes('MERCHANT')
-                                            ? `🏪 Merchant: ${transaction.metadata.accountNumber}`
-                                            : `Account: ${transaction.metadata.accountNumber}`
-                                          }
-                                        </span>
-                                      </>
-                                    ) : transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO') ? (
-                                      <>
-                                        <span className="font-medium">Mobile Money</span>
-                                        <span className="text-xs text-gray-500">📱 External Network</span>
-                                      </>
-                                    ) : (
-                                      <span className="text-gray-500">External</span>
-                                    )}
-                                  </>
-                                )
+                                          <span className="text-xs text-gray-500">
+                                            {transaction.type?.includes('BANK') 
+                                              ? `🏦 Bank: ${transaction.metadata.accountNumber}`
+                                              : transaction.type?.includes('UTILITY')
+                                              ? `⚡ Utility: ${transaction.metadata.accountNumber}`
+                                              : `Account: ${transaction.metadata.accountNumber}`
+                                            }
+                                          </span>
+                                        </>
+                                      ) : transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO') ? (
+                                        <>
+                                          {/* External Mobile Money (no metadata) */}
+                                          <span className="font-medium">Mobile Money</span>
+                                          <span className="text-xs text-gray-500">📱 External Network</span>
+                                        </>
+                                      ) : (
+                                        <span className="text-gray-500">External</span>
+                                      )}
+                                    </>
+                                  )}
+                                </>
                               ) : (
                                 <>
+                                  {/* Incoming transaction - receiver is always the wallet owner */}
                                   <span className="font-medium">
                                     {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
                                       ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
@@ -1354,6 +1517,7 @@ const TransactionsPage = () => {
                   <div className="space-y-2 text-sm">
                     {selectedTransaction.direction === 'DEBIT' ? (
                       <>
+                        {/* Outgoing - sender is wallet owner */}
                         <div>
                           <span className="text-blue-600">Name:</span>
                           <p className="font-medium text-blue-900">
@@ -1375,44 +1539,170 @@ const TransactionsPage = () => {
                       </>
                     ) : (
                       <>
-                        {/* External Source - Extract from metadata */}
-                        <div>
-                          <span className="text-blue-600">Source:</span>
-                          <p className="font-medium text-blue-900">
-                            {selectedTransaction.metadata?.mnoProvider 
-                              ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
-                              : selectedTransaction.metadata?.counterpartyInfo?.name || 'External Source'
-                            }
-                          </p>
-                        </div>
-                        {selectedTransaction.metadata?.phoneNumber && (
-                          <div>
-                            <span className="text-blue-600">Phone Number:</span>
-                            <p className="font-medium text-blue-900">
-                              {selectedTransaction.metadata.phoneNumber}
-                            </p>
-                          </div>
-                        )}
-                        {selectedTransaction.metadata?.userName && (
-                          <div>
-                            <span className="text-blue-600">Name:</span>
-                            <p className="font-medium text-blue-900">
-                              {selectedTransaction.metadata.userName}
-                            </p>
-                          </div>
-                        )}
-                        {selectedTransaction.metadata?.counterpartyInfo?.type && (
-                          <div>
-                            <span className="text-blue-600">Type:</span>
-                            <p className="font-medium text-blue-900">
-                              {selectedTransaction.metadata.counterpartyInfo.type}
-                            </p>
-                          </div>
-                        )}
-                        {selectedTransaction.metadata?.mnoProvider && (
-                          <Badge className="bg-blue-600 text-white">
-                            {selectedTransaction.metadata.mnoProvider} Network
-                          </Badge>
+                        {/* Incoming - extract sender info */}
+                        {selectedTransaction.type === 'MERCHANT_TO_WALLET' || selectedTransaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || selectedTransaction.type?.includes('MERCHANT_TO_WALLET') || selectedTransaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
+                          <>
+                            {/* Merchant sending to wallet */}
+                            <div>
+                              <span className="text-blue-600">Merchant:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.metadata?.merchantName || selectedTransaction.metadata?.counterpartyInfo?.name || 'Merchant'}
+                              </p>
+                            </div>
+                            {selectedTransaction.metadata?.merchantCode && (
+                              <div>
+                                <span className="text-blue-600">Merchant Code:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.metadata.merchantCode}
+                                </p>
+                              </div>
+                            )}
+                            {selectedTransaction.metadata?.accountNumber && (
+                              <div>
+                                <span className="text-blue-600">Account:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.metadata.accountNumber}
+                                </p>
+                              </div>
+                            )}
+                            <Badge className="bg-blue-600 text-white">Internal Account</Badge>
+                          </>
+                        ) : selectedTransaction.type === 'MNO_TO_WALLET' || selectedTransaction.type?.includes('MNO_TO_WALLET') ? (
+                          <>
+                            {/* Mobile Money sending to wallet */}
+                            {selectedTransaction.metadata?.mnoProvider ? (
+                              <>
+                                <div>
+                                  <span className="text-blue-600">Source:</span>
+                                  <p className="font-medium text-blue-900">
+                                    {selectedTransaction.metadata.mnoProvider} Mobile Money
+                                  </p>
+                                </div>
+                                {selectedTransaction.metadata.phoneNumber && (
+                                  <div>
+                                    <span className="text-blue-600">Phone Number:</span>
+                                    <p className="font-medium text-blue-900">
+                                      {selectedTransaction.metadata.phoneNumber}
+                                    </p>
+                                  </div>
+                                )}
+                                {selectedTransaction.metadata.userName && (
+                                  <div>
+                                    <span className="text-blue-600">Name:</span>
+                                    <p className="font-medium text-blue-900">
+                                      {selectedTransaction.metadata.userName}
+                                    </p>
+                                  </div>
+                                )}
+                                <Badge className="bg-blue-600 text-white">
+                                  {selectedTransaction.metadata.mnoProvider} Network
+                                </Badge>
+                              </>
+                            ) : selectedTransaction.metadata?.phoneNumber ? (
+                              <>
+                                <div>
+                                  <span className="text-blue-600">Name:</span>
+                                  <p className="font-medium text-blue-900">
+                                    {selectedTransaction.metadata.userName || 'Mobile Money User'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-blue-600">Phone Number:</span>
+                                  <p className="font-medium text-blue-900">
+                                    {selectedTransaction.metadata.phoneNumber}
+                                  </p>
+                                </div>
+                                <Badge className="bg-blue-600 text-white">Mobile Money</Badge>
+                              </>
+                            ) : (
+                              <div>
+                                <span className="text-blue-600">Source:</span>
+                                <p className="font-medium text-blue-900">External Source</p>
+                              </div>
+                            )}
+                          </>
+                        ) : selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
+                          <>
+                            {/* P2P - Wallet to Wallet - sender is another RukaPay user */}
+                            <div>
+                              <span className="text-blue-600">Name:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.counterpartyUser?.profile?.firstName && selectedTransaction.counterpartyUser?.profile?.lastName
+                                  ? `${selectedTransaction.counterpartyUser.profile.firstName} ${selectedTransaction.counterpartyUser.profile.lastName}`
+                                  : selectedTransaction.metadata?.counterpartyInfo?.name || selectedTransaction.metadata?.userName || 'RukaPay User'
+                                }
+                              </p>
+                            </div>
+                            {selectedTransaction.counterpartyUser?.phone && (
+                              <div>
+                                <span className="text-blue-600">Contact:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.counterpartyUser.phone}
+                                </p>
+                              </div>
+                            )}
+                            {selectedTransaction.counterpartyId && (
+                              <div>
+                                <span className="text-blue-600">RukaPay ID:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.counterpartyId}
+                                </p>
+                              </div>
+                            )}
+                            <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                          </>
+                        ) : selectedTransaction.metadata?.counterpartyInfo ? (
+                          <>
+                            <div>
+                              <span className="text-blue-600">Name:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.metadata.counterpartyInfo.name}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-blue-600">Type:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.metadata.counterpartyInfo.type}
+                              </p>
+                            </div>
+                            {selectedTransaction.metadata.counterpartyInfo.type === 'USER' && (
+                              <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {/* External Source - Extract from metadata */}
+                            <div>
+                              <span className="text-blue-600">Source:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.metadata?.mnoProvider 
+                                  ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
+                                  : 'External Source'
+                                }
+                              </p>
+                            </div>
+                            {selectedTransaction.metadata?.phoneNumber && (
+                              <div>
+                                <span className="text-blue-600">Phone Number:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.metadata.phoneNumber}
+                                </p>
+                              </div>
+                            )}
+                            {selectedTransaction.metadata?.userName && (
+                              <div>
+                                <span className="text-blue-600">Name:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.metadata.userName}
+                                </p>
+                              </div>
+                            )}
+                            {selectedTransaction.metadata?.mnoProvider && (
+                              <Badge className="bg-blue-600 text-white">
+                                {selectedTransaction.metadata.mnoProvider} Network
+                              </Badge>
+                            )}
+                          </>
                         )}
                       </>
                     )}
@@ -1452,30 +1742,76 @@ const TransactionsPage = () => {
                         </>
                       ) : (
                         <>
-                          {/* External Recipient - Extract from metadata */}
-                          <div>
-                            <span className="text-green-600">Type:</span>
-                            <p className="font-medium text-green-900">
-                              {selectedTransaction.metadata?.mnoProvider 
-                                ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
-                                : selectedTransaction.type?.includes('BANK')
-                                ? 'Bank Transfer'
-                                : selectedTransaction.type?.includes('UTILITY')
-                                ? 'Utility Payment'
-                                : selectedTransaction.type?.includes('MERCHANT')
-                                ? 'Merchant Payment'
-                                : selectedTransaction.type === 'DEPOSIT'
-                                ? 'Wallet Deposit'
-                                : selectedTransaction.type === 'WITHDRAWAL'
-                                ? 'Wallet Withdrawal'
-                                : 'External Account'
-                              }
-                            </p>
-                          </div>
-                          
-                          {/* Show wallet information for deposits */}
-                          {selectedTransaction.type === 'DEPOSIT' && (
+                          {/* Extract receiver info from metadata when counterpartyInfo is not available */}
+                          {/* Check for internal transactions first */}
+                          {selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
                             <>
+                              {/* P2P Internal Transaction */}
+                              <div>
+                                <span className="text-green-600">Name:</span>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.counterpartyUser?.profile?.firstName && selectedTransaction.counterpartyUser?.profile?.lastName
+                                    ? `${selectedTransaction.counterpartyUser.profile.firstName} ${selectedTransaction.counterpartyUser.profile.lastName}`
+                                    : selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName || 'RukaPay User'
+                                  }
+                                </p>
+                              </div>
+                              {selectedTransaction.counterpartyUser?.phone && (
+                                <div>
+                                  <span className="text-green-600">Contact:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.counterpartyUser.phone}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.counterpartyId && (
+                                <div>
+                                  <span className="text-green-600">RukaPay ID:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.counterpartyId}
+                                  </p>
+                                </div>
+                              )}
+                              <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                            </>
+                          ) : selectedTransaction.type === 'WALLET_TO_MERCHANT' || selectedTransaction.type === 'WALLET_TO_INTERNAL_MERCHANT' || selectedTransaction.type?.includes('MERCHANT') || selectedTransaction.metadata?.merchantName ? (
+                            <>
+                              {/* Internal Merchant Transaction */}
+                              <div>
+                                <span className="text-green-600">Type:</span>
+                                <p className="font-medium text-green-900">Merchant Payment</p>
+                              </div>
+                              <div>
+                                <span className="text-green-600">Merchant:</span>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.metadata?.merchantName || selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName || 'Merchant'}
+                                </p>
+                              </div>
+                              {selectedTransaction.metadata?.accountNumber && (
+                                <div>
+                                  <span className="text-green-600">Account Number:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.accountNumber}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.merchantCode && (
+                                <div>
+                                  <span className="text-green-600">Merchant Code:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.merchantCode}
+                                  </p>
+                                </div>
+                              )}
+                              <Badge className="bg-blue-600 text-white">Internal Account</Badge>
+                            </>
+                          ) : selectedTransaction.type === 'DEPOSIT' ? (
+                            <>
+                              {/* Wallet Deposit */}
+                              <div>
+                                <span className="text-green-600">Type:</span>
+                                <p className="font-medium text-green-900">Wallet Deposit</p>
+                              </div>
                               <div>
                                 <span className="text-green-600">Account:</span>
                                 <p className="font-medium text-green-900">
@@ -1492,63 +1828,85 @@ const TransactionsPage = () => {
                                 </p>
                               </div>
                             </>
-                          )}
+                          ) : selectedTransaction.type === 'WITHDRAWAL' ? (
+                            <>
+                              {/* Wallet Withdrawal */}
+                              <div>
+                                <span className="text-green-600">Type:</span>
+                                <p className="font-medium text-green-900">Wallet Withdrawal</p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* External Recipient - Extract from metadata */}
+                              <div>
+                                <span className="text-green-600">Type:</span>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.metadata?.mnoProvider 
+                                    ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
+                                    : selectedTransaction.type?.includes('BANK')
+                                    ? 'Bank Transfer'
+                                    : selectedTransaction.type?.includes('UTILITY')
+                                    ? 'Utility Payment'
+                                    : 'External Account'
+                                  }
+                                </p>
+                              </div>
 
-                          {selectedTransaction.metadata?.phoneNumber && (
-                            <div>
-                              <span className="text-green-600">Phone Number:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.phoneNumber}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.accountNumber && (
-                            <div>
-                              <span className="text-green-600">Account Number:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.accountNumber}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.userName && (
-                            <div>
-                              <span className="text-green-600">Recipient Name:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.userName}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.recipientName && (
-                            <div>
-                              <span className="text-green-600">Recipient Name:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.recipientName}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.bankName && (
-                            <div>
-                              <span className="text-green-600">Bank:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.bankName}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.utilityName && (
-                            <div>
-                              <span className="text-green-600">Utility:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.utilityName}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.merchantName && (
-                            <div>
-                              <span className="text-green-600">Merchant:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.merchantName}
-                              </p>
-                            </div>
+                              {selectedTransaction.metadata?.phoneNumber && (
+                                <div>
+                                  <span className="text-green-600">Phone Number:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.phoneNumber}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.accountNumber && (
+                                <div>
+                                  <span className="text-green-600">Account Number:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.accountNumber}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.userName && (
+                                <div>
+                                  <span className="text-green-600">Recipient Name:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.userName}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.recipientName && (
+                                <div>
+                                  <span className="text-green-600">Recipient Name:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.recipientName}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.bankName && (
+                                <div>
+                                  <span className="text-green-600">Bank:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.bankName}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.utilityName && (
+                                <div>
+                                  <span className="text-green-600">Utility:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.utilityName}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.mnoProvider && (
+                                <Badge className="bg-blue-600 text-white">
+                                  {selectedTransaction.metadata.mnoProvider} Network
+                                </Badge>
+                              )}
+                            </>
                           )}
                           {selectedTransaction.metadata?.narration && (
                             <div>
