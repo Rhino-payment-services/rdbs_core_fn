@@ -153,37 +153,63 @@ const TransactionsPage = () => {
   
   // Filter transactions by search term (sender name, receiver name, transaction ID)
   const filteredTransactions = searchTerm ? transactionsWithoutInit.filter((tx: any) => {
-    const searchLower = searchTerm.toLowerCase()
+    const searchLower = searchTerm.toLowerCase().trim()
+    
+    if (!searchLower) return true
     
     // Search by transaction ID
-    const matchesId = tx.id?.toLowerCase().includes(searchLower) || 
-                      tx.reference?.toLowerCase().includes(searchLower)
+    const matchesId = (tx.id?.toLowerCase().includes(searchLower) || false) || 
+                      (tx.reference?.toLowerCase().includes(searchLower) || false)
     
-    // Get sender name
-    const senderName = tx.direction === 'DEBIT' 
-      ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-          ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-          : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
-      : (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-         tx.metadata?.merchantName?.toLowerCase() || 
-         tx.metadata?.userName?.toLowerCase() || 
-         tx.metadata?.mnoProvider?.toLowerCase() || '')
+    if (matchesId) return true
     
-    // Get receiver name
-    const receiverName = tx.direction === 'DEBIT'
-      ? (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-         tx.metadata?.merchantName?.toLowerCase() || 
-         tx.metadata?.userName?.toLowerCase() || 
-         tx.metadata?.recipientName?.toLowerCase() || 
-         tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
-           ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-           : '')
-      : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-          ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-          : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+    // Get sender name - for DEBIT (outgoing), sender is the wallet owner
+    let senderName = ''
+    if (tx.direction === 'DEBIT') {
+      if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+        senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+      } else {
+        senderName = (tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+      }
+    } else {
+      // For INCOMING transactions, sender is the external party
+      senderName = (
+        tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+        tx.metadata?.merchantName?.toLowerCase() || 
+        tx.metadata?.userName?.toLowerCase() || 
+        tx.metadata?.mnoProvider?.toLowerCase() || 
+        tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
+          ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+          : ''
+      )
+    }
+    
+    // Get receiver name - for DEBIT (outgoing), receiver is the external party
+    let receiverName = ''
+    if (tx.direction === 'DEBIT') {
+      // For outgoing, receiver could be counterparty user, merchant, or external
+      if (tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName) {
+        receiverName = `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+      } else {
+        receiverName = (
+          tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+          tx.metadata?.merchantName?.toLowerCase() || 
+          tx.metadata?.userName?.toLowerCase() || 
+          tx.metadata?.recipientName?.toLowerCase() || 
+          ''
+        )
+      }
+    } else {
+      // For INCOMING transactions, receiver is the wallet owner
+      if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+        receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+      } else {
+        receiverName = (tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+      }
+    }
     
     // Check if search term matches any of these
-    return matchesId || senderName.includes(searchLower) || receiverName.includes(searchLower)
+    return senderName.includes(searchLower) || receiverName.includes(searchLower)
   }) : transactionsWithoutInit
   
   const transactions = filteredTransactions
@@ -910,12 +936,23 @@ const TransactionsPage = () => {
           </div>
 
 
-          {/* Transactions Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Transaction Management</CardTitle>
-              <CardDescription>View and manage different types of transactions</CardDescription>
-            </CardHeader>
+              {/* Transactions Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Transaction Management</CardTitle>
+                  <CardDescription>
+                    {searchTerm ? (
+                      <span>
+                        Showing {transactions.length} result{transactions.length !== 1 ? 's' : ''} for "{searchTerm}" 
+                        {transactions.length === 0 && transactionsWithoutInit.length > 0 && (
+                          <span className="text-orange-600"> (search limited to current page)</span>
+                        )}
+                      </span>
+                    ) : (
+                      'View and manage different types of transactions'
+                    )}
+                  </CardDescription>
+                </CardHeader>
             <CardContent>
               {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
