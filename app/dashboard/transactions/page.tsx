@@ -432,7 +432,7 @@ const TransactionsPage = () => {
   // Submit reversal
   const submitReversal = async () => {
     if (!reversalReason || !reversalDetails) {
-      alert('Please provide reversal reason and details')
+      toast.error('Please provide reversal reason and details')
       return
     }
 
@@ -452,16 +452,22 @@ const TransactionsPage = () => {
       const result = await response.json()
       
       if (response.ok) {
-        alert(result.message || 'Reversal request submitted successfully!')
+        toast.success(result.message || 'Reversal request submitted successfully!')
         setReversalModalOpen(false)
+        // Reset form
+        setReversalReason('')
+        setReversalDetails('')
+        setReversalTicketRef('')
         // Refresh transactions list
-        window.location.reload()
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000) // Small delay to show the success message
       } else {
-        alert(result.error || 'Failed to submit reversal request')
+        toast.error(result.error || 'Failed to submit reversal request')
       }
     } catch (error) {
       console.error('Reversal error:', error)
-      alert('An error occurred while submitting reversal request')
+      toast.error('An error occurred while submitting reversal request')
     } finally {
       setReversalProcessing(false)
     }
