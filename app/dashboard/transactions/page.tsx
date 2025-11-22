@@ -153,63 +153,71 @@ const TransactionsPage = () => {
   
   // Filter transactions by search term (sender name, receiver name, transaction ID)
   const filteredTransactions = searchTerm ? transactionsWithoutInit.filter((tx: any) => {
-    const searchLower = searchTerm.toLowerCase().trim()
-    
-    if (!searchLower) return true
-    
-    // Search by transaction ID
-    const matchesId = (tx.id?.toLowerCase().includes(searchLower) || false) || 
-                      (tx.reference?.toLowerCase().includes(searchLower) || false)
-    
-    if (matchesId) return true
-    
-    // Get sender name - for DEBIT (outgoing), sender is the wallet owner
-    let senderName = ''
-    if (tx.direction === 'DEBIT') {
-      if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-        senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+    try {
+      const searchLower = searchTerm.toLowerCase().trim()
+      
+      if (!searchLower) return true
+      
+      // Search by transaction ID
+      const matchesId = (tx?.id?.toLowerCase().includes(searchLower) || false) || 
+                        (tx?.reference?.toLowerCase().includes(searchLower) || false)
+      
+      if (matchesId) return true
+      
+      // Get sender name - for DEBIT (outgoing), sender is the wallet owner
+      let senderName = ''
+      if (tx.direction === 'DEBIT') {
+        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
+          senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+        } else if (tx.user) {
+          senderName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || '')
+        }
       } else {
-        senderName = (tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
-      }
-    } else {
-      // For INCOMING transactions, sender is the external party
-      senderName = (
-        tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-        tx.metadata?.merchantName?.toLowerCase() || 
-        tx.metadata?.userName?.toLowerCase() || 
-        tx.metadata?.mnoProvider?.toLowerCase() || 
-        tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
-          ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-          : ''
-      )
-    }
-    
-    // Get receiver name - for DEBIT (outgoing), receiver is the external party
-    let receiverName = ''
-    if (tx.direction === 'DEBIT') {
-      // For outgoing, receiver could be counterparty user, merchant, or external
-      if (tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName) {
-        receiverName = `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-      } else {
-        receiverName = (
+        // For INCOMING transactions, sender is the external party
+        senderName = (
           tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
           tx.metadata?.merchantName?.toLowerCase() || 
           tx.metadata?.userName?.toLowerCase() || 
-          tx.metadata?.recipientName?.toLowerCase() || 
-          ''
+          tx.metadata?.mnoProvider?.toLowerCase() || 
+          (tx.counterpartyUser && tx.counterpartyUser.profile && tx.counterpartyUser.profile.firstName && tx.counterpartyUser.profile.lastName
+            ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+            : '')
         )
       }
-    } else {
-      // For INCOMING transactions, receiver is the wallet owner
-      if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-        receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+      
+      // Get receiver name - for DEBIT (outgoing), receiver is the external party
+      let receiverName = ''
+      if (tx.direction === 'DEBIT') {
+        // For outgoing, receiver could be counterparty user, merchant, or external
+        if (tx.counterpartyUser && tx.counterpartyUser.profile && tx.counterpartyUser.profile.firstName && tx.counterpartyUser.profile.lastName) {
+          receiverName = `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
+        } else {
+          receiverName = (
+            tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
+            tx.metadata?.merchantName?.toLowerCase() || 
+            tx.metadata?.userName?.toLowerCase() || 
+            tx.metadata?.recipientName?.toLowerCase() || 
+            ''
+          )
+        }
       } else {
-        receiverName = (tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
+        // For INCOMING transactions, receiver is the wallet owner
+        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
+          receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+        } else if (tx.user) {
+          receiverName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || '')
+        }
       }
+      
+      // Check if search term matches any of these
+      return senderName.includes(searchLower) || receiverName.includes(searchLower)
+    } catch (error) {
+      // If there's an error accessing properties, include the transaction if ID matches
+      console.error('Error filtering transaction:', error, tx)
+      const searchLower = searchTerm.toLowerCase().trim()
+      return (tx?.id?.toLowerCase().includes(searchLower) || false) || 
+             (tx?.reference?.toLowerCase().includes(searchLower) || false)
     }
-    
-    // Check if search term matches any of these
-    return senderName.includes(searchLower) || receiverName.includes(searchLower)
   }) : transactionsWithoutInit
   
   const transactions = filteredTransactions
@@ -1144,7 +1152,20 @@ const TransactionsPage = () => {
                           {/* Sender Column */}
                           <TableCell>
                             <div className="flex flex-col">
-                              {transaction.direction === 'DEBIT' ? (
+                              {transaction.type === 'REVERSAL' ? (
+                                <>
+                                  {/* Reversal transaction - sender is the system crediting back */}
+                                  <span className="font-medium text-orange-600">
+                                    System Reversal
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    Reversing transaction {transaction.metadata?.originalTransactionReference || transaction.metadata?.originalTransactionId?.substring(0, 8) || 'N/A'}
+                                  </span>
+                                  <span className="text-xs text-orange-600 font-medium">
+                                    🔄 Reversal
+                                  </span>
+                                </>
+                              ) : transaction.direction === 'DEBIT' ? (
                                 <>
                                   {/* Outgoing transaction - sender is the wallet owner */}
                                   <span className="font-medium">
@@ -1280,7 +1301,28 @@ const TransactionsPage = () => {
                           {/* Receiver Column */}
                           <TableCell>
                             <div className="flex flex-col">
-                              {transaction.direction === 'DEBIT' ? (
+                              {transaction.type === 'REVERSAL' ? (
+                                <>
+                                  {/* Reversal transaction - receiver is the wallet owner getting credited back */}
+                                  <span className="font-medium text-green-600">
+                                    {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                      ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                      : transaction.user?.phone || transaction.user?.email || 'Wallet Owner'
+                                    }
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                                  </span>
+                                  <span className="text-xs text-green-600 font-medium">
+                                    💰 Credited Back
+                                  </span>
+                                  {transaction.metadata?.reversalReason && (
+                                    <span className="text-xs text-gray-500 italic">
+                                      Reason: {transaction.metadata.reversalReason}
+                                    </span>
+                                  )}
+                                </>
+                              ) : transaction.direction === 'DEBIT' ? (
                                 <>
                                   {/* Outgoing transaction - extract receiver info */}
                                   {transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
@@ -1725,10 +1767,39 @@ const TransactionsPage = () => {
                 <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <h4 className="font-semibold text-blue-900 flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Sender
+                    {selectedTransaction.type === 'REVERSAL' ? 'Reversal Source' : 'Sender'}
                   </h4>
                   <div className="space-y-2 text-sm">
-                    {selectedTransaction.direction === 'DEBIT' ? (
+                    {selectedTransaction.type === 'REVERSAL' ? (
+                      <>
+                        {/* Reversal transaction - sender is the system */}
+                        <div>
+                          <span className="text-orange-600">Source:</span>
+                          <p className="font-medium text-orange-900">System Reversal</p>
+                        </div>
+                        <div>
+                          <span className="text-orange-600">Original Transaction:</span>
+                          <p className="font-medium text-orange-900 font-mono text-xs">
+                            {selectedTransaction.metadata?.originalTransactionReference || 
+                             selectedTransaction.metadata?.originalTransactionId?.substring(0, 16) || 
+                             'N/A'}
+                          </p>
+                        </div>
+                        {selectedTransaction.metadata?.reversalReason && (
+                          <div>
+                            <span className="text-orange-600">Reason:</span>
+                            <p className="font-medium text-orange-900">{selectedTransaction.metadata.reversalReason}</p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.reversalDetails && (
+                          <div>
+                            <span className="text-orange-600">Details:</span>
+                            <p className="font-medium text-orange-900 text-xs">{selectedTransaction.metadata.reversalDetails}</p>
+                          </div>
+                        )}
+                        <Badge className="bg-orange-600 text-white">Reversal Transaction</Badge>
+                      </>
+                    ) : selectedTransaction.direction === 'DEBIT' ? (
                       <>
                         {/* Outgoing - sender is wallet owner */}
                         <div>
@@ -1926,10 +1997,39 @@ const TransactionsPage = () => {
                 <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
                   <h4 className="font-semibold text-green-900 flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Receiver
+                    {selectedTransaction.type === 'REVERSAL' ? 'Credited To' : 'Receiver'}
                   </h4>
                   <div className="space-y-2 text-sm">
-                    {selectedTransaction.direction === 'DEBIT' ? (
+                    {selectedTransaction.type === 'REVERSAL' ? (
+                      <>
+                        {/* Reversal transaction - receiver is the wallet owner getting credited back */}
+                        <div>
+                          <span className="text-green-600">Name:</span>
+                          <p className="font-medium text-green-900">
+                            {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
+                              ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
+                              : selectedTransaction.user?.phone || selectedTransaction.user?.email || 'Wallet Owner'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-green-600">Contact:</span>
+                          <p className="font-medium text-green-900">
+                            {selectedTransaction.user?.phone || selectedTransaction.user?.email || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-green-600">Amount Credited:</span>
+                          <p className="font-medium text-green-900">
+                            {formatAmount(Number(selectedTransaction.amount) + Number(selectedTransaction.fee || 0))}
+                          </p>
+                        </div>
+                        {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
+                          <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
+                        )}
+                        <Badge className="bg-green-600 text-white">💰 Credited Back</Badge>
+                      </>
+                    ) : selectedTransaction.direction === 'DEBIT' ? (
                       selectedTransaction.metadata?.counterpartyInfo ? (
                         <>
                           <div>
