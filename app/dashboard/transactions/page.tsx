@@ -848,98 +848,82 @@ const TransactionsPage = () => {
                   </Card>
                 ))}
               </div>
-            ) : channelStatsData?.data?.channels && channelStatsData.data.channels.filter((ch: any) => ch.transactionCount > 0).length > 0 ? (
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                {channelStatsData.data.channels
-                  .filter((ch: any) => ch.transactionCount > 0)
-                  .map((channel: any) => {
-                    const getChannelIcon = () => {
-                      switch (channel.channel) {
-                        case 'APP':
-                          return <Smartphone className="h-5 w-5" />
-                        case 'MERCHANT_PORTAL':
-                          return <Store className="h-5 w-5" />
-                        case 'USSD':
-                          return <Phone className="h-5 w-5" />
-                        case 'WEB':
-                          return <Globe className="h-5 w-5" />
-                        case 'API':
-                          return <Code className="h-5 w-5" />
-                        default:
-                          return <Activity className="h-5 w-5" />
-                      }
+                {(() => {
+                  // Define all possible channels with default values
+                  const allChannels = [
+                    { channel: 'APP', label: 'Mobile App', icon: Smartphone, color: 'border-blue-200 bg-blue-50' },
+                    { channel: 'USSD', label: 'USSD', icon: Phone, color: 'border-green-200 bg-green-50' },
+                    { channel: 'WEB', label: 'Web', icon: Globe, color: 'border-purple-200 bg-purple-50' },
+                    { channel: 'API', label: 'API', icon: Code, color: 'border-gray-200 bg-gray-50' },
+                    { channel: 'BACKOFFICE', label: 'Back Office', icon: Building2, color: 'border-indigo-200 bg-indigo-50' },
+                    { channel: 'MERCHANT_PORTAL', label: 'Merchant Portal', icon: Store, color: 'border-orange-200 bg-orange-50' },
+                    { channel: 'AGENT_PORTAL', label: 'Agent Portal', icon: Users, color: 'border-teal-200 bg-teal-50' },
+                    { channel: 'PARTNER_PORTAL', label: 'Partner Portal', icon: Users, color: 'border-pink-200 bg-pink-50' }
+                  ]
+                  
+                  const existingChannels = channelStatsData?.data?.channels || []
+                  const existingChannelMap = new Map(existingChannels.map((ch: any) => [ch.channel, ch]))
+                  
+                  return allChannels.map((defaultChannel) => {
+                    const existingData = existingChannelMap.get(defaultChannel.channel)
+                    const channelData: any = existingData || {
+                      channel: defaultChannel.channel,
+                      label: defaultChannel.label,
+                      transactionCount: 0,
+                      totalValue: 0,
+                      averageValue: 0
                     }
-
-                    const getChannelColor = () => {
-                      switch (channel.channel) {
-                        case 'APP':
-                          return 'border-blue-200 bg-blue-50'
-                        case 'MERCHANT_PORTAL':
-                          return 'border-purple-200 bg-purple-50'
-                        case 'USSD':
-                          return 'border-green-200 bg-green-50'
-                        case 'WEB':
-                          return 'border-indigo-200 bg-indigo-50'
-                        case 'API':
-                          return 'border-gray-200 bg-gray-50'
-                        default:
-                          return 'border-slate-200 bg-slate-50'
-                      }
-                    }
+                    const ChannelIcon = defaultChannel.icon
 
                     return (
-                      <Card key={channel.channel} className={`${getChannelColor()} border`}>
+                      <Card key={defaultChannel.channel} className={`${defaultChannel.color} border`}>
                         <CardContent className="px-4 py-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-white/70 rounded">
-                                {getChannelIcon()}
+                              <div className="p-1.5 bg-white rounded">
+                                <ChannelIcon className="h-4 w-4 text-gray-600" />
                               </div>
                               <p className="text-sm font-semibold text-gray-900">
-                                {channel.label}
+                                {channelData.label || defaultChannel.label}
                               </p>
                             </div>
                           </div>
                           <div className="space-y-1">
                             <div>
-                              <p className="text-xs text-gray-600">Transactions</p>
+                              <p className="text-xs text-gray-500">Transactions</p>
                               <p className="text-lg font-bold text-gray-900">
-                                {channelStatsLoading ? '...' : channel.transactionCount.toLocaleString()}
+                                {channelStatsLoading ? '...' : (channelData.transactionCount || 0).toLocaleString()}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-gray-600">Volume</p>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {channelStatsLoading ? '...' : formatAmount(channel.totalValue)}
+                              <p className="text-xs text-gray-500">Total Value</p>
+                              <p className="text-sm font-semibold text-gray-700">
+                                {channelStatsLoading ? '...' : formatAmount(channelData.totalValue || 0)}
                               </p>
                             </div>
                             <div>
-                              <p className="text-xs text-gray-500">
-                                Avg: {channelStatsLoading ? '...' : formatAmount(channel.averageValue)}
+                              <p className="text-xs text-gray-500">Average</p>
+                              <p className="text-xs font-medium text-gray-600">
+                                Avg: {channelStatsLoading ? '...' : formatAmount(channelData.averageValue || 0)}
                               </p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     )
-                  })}
+                  })
+                })()}
               </div>
-            ) : (
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="px-4 py-6">
-                  <div className="text-center text-gray-500 text-sm">
-                    No channel statistics available for the selected period
-                  </div>
-                </CardContent>
-              </Card>
             )}
           </div>
 
 
-              {/* Transactions Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Transaction Management</CardTitle>
+          {/* Transactions Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Management</CardTitle>
                   <CardDescription>
                     {searchTerm ? (
                       <span>
@@ -952,7 +936,7 @@ const TransactionsPage = () => {
                       'View and manage different types of transactions'
                     )}
                   </CardDescription>
-                </CardHeader>
+            </CardHeader>
             <CardContent>
               {/* Filters */}
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -1122,9 +1106,6 @@ const TransactionsPage = () => {
                             <TableHead>Receiver</TableHead>
                             <TableHead>Amount</TableHead>
                             <TableHead>RukaPay Fee</TableHead>
-                            <TableHead>Partner Fee</TableHead>
-                            <TableHead>Gov Tax</TableHead>
-                            <TableHead>Total Fee</TableHead>
                             <TableHead>Net Amount</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Date</TableHead>
@@ -1456,15 +1437,6 @@ const TransactionsPage = () => {
                           </TableCell>
                           <TableCell className="font-medium text-blue-600">
                             {formatAmount(Number(transaction.rukapayFee) || 0)}
-                          </TableCell>
-                          <TableCell className="font-medium text-orange-600">
-                            {formatAmount(Number(transaction.thirdPartyFee) || 0)}
-                          </TableCell>
-                          <TableCell className="font-medium text-red-600">
-                            {formatAmount(Number(transaction.governmentTax) || 0)}
-                          </TableCell>
-                          <TableCell className="font-medium text-yellow-600">
-                            {formatAmount(Number(transaction.fee) || 0)}
                               </TableCell>
                           <TableCell className="font-medium text-green-600">
                             {formatAmount(Number(transaction.netAmount))}
