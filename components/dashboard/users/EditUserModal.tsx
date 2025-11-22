@@ -219,7 +219,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
         )}
       </DialogTrigger>
       <DialogOverlay className="z-[99998]" />
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto z-[99999]">
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto z-[99999]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
