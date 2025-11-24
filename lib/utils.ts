@@ -79,8 +79,8 @@ export function extractErrorStatusCode(error: unknown): number | null {
     return axiosError.response?.status || null
   }
 
-  if (error && typeof error === 'object') {``
-    const errorObj = error as { statusCode?: number; status?: number }
+  if (error && typeof error === 'object') {
+    const errorObj = error as { statusCode?: number; status?: number; isNetworkError?: boolean; isTimeout?: boolean; code?: string }
     return errorObj.statusCode || errorObj.status || null
   }
 
@@ -101,13 +101,31 @@ export function getFriendlyErrorMessage(error: unknown): string {
   const statusCode = extractErrorStatusCode(error)
   const message = extractErrorMessage(error)
 
+  // Check for network errors (status 0 or network error flags)
+  if (error && typeof error === 'object') {
+    const errorObj = error as { isNetworkError?: boolean; isTimeout?: boolean; code?: string }
+    
+    if (errorObj.isNetworkError || statusCode === 0) {
+      if (errorObj.isTimeout) {
+        return 'Request timeout - server took too long to respond. Please try again.'
+      }
+      // Use the message from axios if available, otherwise provide a generic one
+      if (message && message !== 'Network error - no response received' && message !== 'An unexpected error occurred') {
+        return message
+      }
+      return 'Cannot connect to server. Please check your internet connection and ensure the server is running.'
+    }
+  }
+
   // If we have a specific message from the backend, use it
-  if (message && message !== 'An unexpected error occurred') {
+  if (message && message !== 'An unexpected error occurred' && message !== 'Network error - no response received') {
     return message
   }
 
   // Otherwise, provide user-friendly messages based on status code
   switch (statusCode) {
+    case 0:
+      return 'Network error - unable to connect to server. Please check your connection.'
     case 400:
       return 'Invalid request. Please check your input and try again.'
     case 401:

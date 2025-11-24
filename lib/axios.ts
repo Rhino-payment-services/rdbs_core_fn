@@ -189,16 +189,64 @@ api.interceptors.response.use(
         data,
       })
     } else if (error.request) {
-      console.error('Network error - no response received')
+      // Network error - request was made but no response received
+      const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+      const isNetworkError = error.code === 'ERR_NETWORK' || error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED'
+      
+      let errorMessage = 'Network error - unable to connect to server'
+      
+      if (isTimeout) {
+        errorMessage = 'Request timeout - server took too long to respond'
+      } else if (isNetworkError) {
+        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        errorMessage = `Cannot connect to server at ${baseURL}. Please check if the server is running.`
+      }
+      
+      // Only log in development to avoid console spam
+      if (process.env.NODE_ENV === 'development') {
+        const errorDetails: Record<string, any> = {}
+        
+        if (error.message) {
+          errorDetails.message = error.message
+        }
+        if (error.code) {
+          errorDetails.code = error.code
+        }
+        if (originalRequest) {
+          errorDetails.config = {
+            url: originalRequest.url,
+            baseURL: originalRequest.baseURL || api.defaults.baseURL,
+            method: originalRequest.method || 'GET',
+          }
+        }
+        
+        // Only log if we have some details
+        if (Object.keys(errorDetails).length > 0) {
+          console.error('Network error details:', errorDetails)
+        } else {
+          console.error('Network error - no response received (no additional details available)')
+        }
+      }
+      
       return Promise.reject({
-        message: 'Network error - no response received',
+        message: errorMessage,
         status: 0,
+        code: error.code,
+        isNetworkError: true,
+        isTimeout,
       })
     } else {
-      console.error('Request setup error:', error.message)
+      // Request setup error (before request was sent)
+      const errorMessage = error.message || 'Request setup error'
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Request setup error:', error.message)
+      }
+      
       return Promise.reject({
-        message: error.message,
+        message: errorMessage,
         status: 0,
+        isRequestError: true,
       })
     }
   }
