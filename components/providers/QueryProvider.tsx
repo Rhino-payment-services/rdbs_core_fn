@@ -14,10 +14,26 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
             // above 0 to avoid refetching immediately on the client
             staleTime: 60 * 1000, // 1 minute
             refetchOnWindowFocus: false,
-            retry: 1,
+            retry: (failureCount, error: any) => {
+              // Don't retry on network errors (status 0) - server is likely down
+              if (error?.status === 0 || error?.isNetworkError) {
+                return false
+              }
+              // Retry once for other errors
+              return failureCount < 1
+            },
+            retryDelay: 3000, // Wait 3 seconds before retry
           },
           mutations: {
-            retry: 1,
+            retry: (failureCount, error: any) => {
+              // Don't retry mutations on network errors
+              if (error?.status === 0 || error?.isNetworkError) {
+                return false
+              }
+              // Retry once for other errors
+              return failureCount < 1
+            },
+            retryDelay: 3000,
           },
         },
       })

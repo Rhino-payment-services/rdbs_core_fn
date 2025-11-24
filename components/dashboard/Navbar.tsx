@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -262,6 +262,64 @@ const Navbar = () => {
                     <span>Products</span>
                   </Link>
                 </PermissionGuard>
+                
+                {/* Transaction Modes Menu */}
+                <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>
+                  <Link 
+                    href="/dashboard/transaction-modes" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/transaction-modes')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <Layers className="nav-icon" />
+                    <span>Transaction Modes</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Gateway Partners Menu */}
+                <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
+                  <Link 
+                    href="/dashboard/gateway-partners" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/gateway-partners')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <Globe className="nav-icon" />
+                    <span>Gateway Partners</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Wallet Menu */}
+                <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                  <Link 
+                    href="/dashboard/wallet" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/wallet')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <Wallet className="nav-icon" />
+                    <span>Wallet</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Activity Menu */}
+                <Link 
+                  href="/dashboard/activity" 
+                  className={`nav-slider-item ${
+                    isActive('/dashboard/activity')
+                      ? 'active'
+                      : ''
+                  }`}
+                >
+                  <Activity className="nav-icon" />
+                  <span>Activity</span>
+                </Link>
                 
                 <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
