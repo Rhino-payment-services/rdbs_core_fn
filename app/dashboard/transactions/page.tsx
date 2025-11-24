@@ -1458,9 +1458,9 @@ const TransactionsPage = () => {
                                       {/* Extract receiver info from metadata when counterpartyInfo is not available */}
                                       {transaction.metadata?.mnoProvider ? (
                                         <>
-                                          {/* External Mobile Money */}
+                                          {/* External Mobile Money - show recipient name if available */}
                                           <span className="font-medium">
-                                            {transaction.metadata.mnoProvider} Mobile Money
+                                            {transaction.metadata.userName || transaction.metadata.recipientName || `${transaction.metadata.mnoProvider} Mobile Money`}
                                           </span>
                                           {transaction.metadata.phoneNumber && (
                                             <span className="text-xs text-gray-500">
@@ -2237,19 +2237,29 @@ const TransactionsPage = () => {
                           ) : (
                             <>
                               {/* External Recipient - Extract from metadata */}
-                              <div>
-                                <span className="text-green-600">Type:</span>
-                                <p className="font-medium text-green-900">
-                                  {selectedTransaction.metadata?.mnoProvider 
-                                    ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
-                                    : selectedTransaction.type?.includes('BANK')
-                                    ? 'Bank Transfer'
-                                    : selectedTransaction.type?.includes('UTILITY')
-                                    ? 'Utility Payment'
-                                    : 'External Account'
-                                  }
-                                </p>
-                              </div>
+                              {/* Show recipient name first if available, otherwise show type */}
+                              {(selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName) ? (
+                                <div>
+                                  <span className="text-green-600">Name:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.userName || selectedTransaction.metadata.recipientName}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="text-green-600">Type:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata?.mnoProvider 
+                                      ? `${selectedTransaction.metadata.mnoProvider} Mobile Money`
+                                      : selectedTransaction.type?.includes('BANK')
+                                      ? 'Bank Transfer'
+                                      : selectedTransaction.type?.includes('UTILITY')
+                                      ? 'Utility Payment'
+                                      : 'External Account'
+                                    }
+                                  </p>
+                                </div>
+                              )}
 
                           {selectedTransaction.metadata?.phoneNumber && (
                             <div>
@@ -2264,22 +2274,6 @@ const TransactionsPage = () => {
                               <span className="text-green-600">Account Number:</span>
                               <p className="font-medium text-green-900">
                                 {selectedTransaction.metadata.accountNumber}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.userName && (
-                            <div>
-                              <span className="text-green-600">Recipient Name:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.userName}
-                              </p>
-                            </div>
-                          )}
-                          {selectedTransaction.metadata?.recipientName && (
-                            <div>
-                              <span className="text-green-600">Recipient Name:</span>
-                              <p className="font-medium text-green-900">
-                                {selectedTransaction.metadata.recipientName}
                               </p>
                             </div>
                           )}
@@ -2299,6 +2293,7 @@ const TransactionsPage = () => {
                               </p>
                             </div>
                           )}
+                              {/* Show network badge only once */}
                               {selectedTransaction.metadata?.mnoProvider && (
                                 <Badge className="bg-blue-600 text-white">
                                   {selectedTransaction.metadata.mnoProvider} Network
@@ -2334,12 +2329,8 @@ const TransactionsPage = () => {
                               </p>
                             </div>
                           )}
-
-                          {selectedTransaction.metadata?.mnoProvider && (
-                            <Badge className="bg-green-600 text-white">
-                              {selectedTransaction.metadata.mnoProvider} Network
-                            </Badge>
-                          )}
+                          
+                          {/* Network badge removed - already shown in receiver section above */}
                           {selectedTransaction.type?.includes('BANK') && (
                             <Badge className="bg-green-600 text-white">Bank Transfer</Badge>
                           )}
