@@ -40,11 +40,22 @@ const WalletPage = () => {
     reason: '',
     reference: ''
   })
-  const [filters, setFilters] = useState({
-    category: '',
-    search: '',
-    currency: '',
+  type WalletFilters = {
+    category?: 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER'
+    search?: string
+    currency?: string
+    isActive?: boolean
+    isSuspended?: boolean
+    page?: number
+    limit?: number
+  }
+
+  const [filters, setFilters] = useState<WalletFilters>({
+    category: undefined,
+    search: undefined,
+    currency: undefined,
     isActive: undefined,
+    isSuspended: undefined,
     page: 1,
     limit: 50
   })
@@ -210,11 +221,14 @@ const WalletPage = () => {
   }
 
   const handleSearchChange = (value: string) => {
-    setFilters(prev => ({ ...prev, search: value, page: 1 }))
+    setFilters(prev => ({ ...prev, search: value || undefined, page: 1 }))
   }
 
   const handleCategoryChange = (value: string) => {
-    setFilters(prev => ({ ...prev, category: value, page: 1 }))
+    const categoryValue = value === '' || value === 'all' 
+      ? undefined 
+      : (value as 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER')
+    setFilters(prev => ({ ...prev, category: categoryValue, page: 1 }))
   }
 
   const totalBalance = walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
@@ -327,12 +341,15 @@ const WalletPage = () => {
               <div className="flex-1">
                 <Input
                   placeholder="Search by owner name, email, phone, or wallet ID..."
-                  value={filters.search}
+                  value={filters.search || ''}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full"
                 />
               </div>
-              <Select value={filters.category || undefined} onValueChange={(value) => handleCategoryChange(value === 'all' ? '' : value)}>
+              <Select 
+                value={filters.category || 'all'} 
+                onValueChange={(value) => handleCategoryChange(value)}
+              >
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
@@ -344,7 +361,7 @@ const WalletPage = () => {
                   <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filters.currency || undefined} onValueChange={(value) => setFilters(prev => ({ ...prev, currency: value === 'all' ? '' : value, page: 1 }))}>
+              <Select value={filters.currency || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, currency: value === 'all' ? undefined : value, page: 1 }))}>
                 <SelectTrigger className="w-full sm:w-32">
                   <SelectValue placeholder="Currency" />
                 </SelectTrigger>
@@ -503,7 +520,7 @@ const WalletPage = () => {
                   </Button>
                   <div className="mt-4 text-xs text-gray-400">
                     <p>Debug Info:</p>
-                    <p>Error status: {walletsError?.status || 'N/A'}</p>
+                    <p>Error status: {(walletsError as any)?.status || 'N/A'}</p>
                     <p>Error message: {walletsError?.message || 'N/A'}</p>
                   </div>
                 </div>
@@ -517,7 +534,7 @@ const WalletPage = () => {
                   {!isWalletsLoading && (
                     <Button 
                       onClick={() => {
-                        setFilters({ category: '', search: '', currency: '', isActive: undefined, page: 1, limit: 50 })
+                        setFilters({ category: undefined, search: undefined, currency: undefined, isActive: undefined, isSuspended: undefined, page: 1, limit: 50 })
                         refetch()
                       }} 
                       variant="outline" 
@@ -594,22 +611,22 @@ const WalletPage = () => {
                                 </p>
                               )}
                             </div>
-                          ) : wallet.user ? (
+                          ) : (wallet as any).user ? (
                             <div className="pt-2 border-t border-gray-200">
                               <p className="text-xs font-medium text-gray-500 mb-2">Owner</p>
-                              {wallet.user.profile && (
+                              {(wallet as any).user.profile && (
                                 <p className="text-sm text-gray-900 font-medium">
-                                  {wallet.user.profile.firstName} {wallet.user.profile.lastName}
+                                  {(wallet as any).user.profile.firstName} {(wallet as any).user.profile.lastName}
                                 </p>
                               )}
-                              {wallet.user.email && (
+                              {(wallet as any).user.email && (
                                 <p className="text-xs text-gray-600 mt-1">
-                                  📧 {wallet.user.email}
+                                  📧 {(wallet as any).user.email}
                                 </p>
                               )}
-                              {wallet.user.phone && (
+                              {(wallet as any).user.phone && (
                                 <p className="text-xs text-gray-600 mt-1">
-                                  📱 {wallet.user.phone}
+                                  📱 {(wallet as any).user.phone}
                                 </p>
                               )}
                             </div>
@@ -671,8 +688,8 @@ const WalletPage = () => {
                     <>
                       Add funds to{' '}
                       {(selectedWallet as any).ownerName || 
-                       (selectedWallet.user?.profile ? 
-                         `${selectedWallet.user.profile.firstName} ${selectedWallet.user.profile.lastName}` : 
+                       ((selectedWallet as any).user?.profile ? 
+                         `${(selectedWallet as any).user.profile.firstName} ${(selectedWallet as any).user.profile.lastName}` : 
                          'this wallet')}
                       's wallet
                       {(selectedWallet as any).ownerEmail && (
@@ -820,30 +837,30 @@ const WalletPage = () => {
                   <div className="border-t pt-4">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Owner Information</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {(selectedWallet as any).ownerName || (selectedWallet.user?.profile) ? (
+                      {(selectedWallet as any).ownerName || ((selectedWallet as any).user?.profile) ? (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Name</label>
                           <p className="text-sm text-gray-900 mt-1">
                             {(selectedWallet as any).ownerName || 
-                             (selectedWallet.user?.profile ? 
-                               `${selectedWallet.user.profile.firstName} ${selectedWallet.user.profile.lastName}` : 
+                             ((selectedWallet as any).user?.profile ? 
+                               `${(selectedWallet as any).user.profile.firstName} ${(selectedWallet as any).user.profile.lastName}` : 
                                'N/A')}
                           </p>
                         </div>
                       ) : null}
-                      {(selectedWallet as any).ownerEmail || selectedWallet.user?.email ? (
+                      {(selectedWallet as any).ownerEmail || (selectedWallet as any).user?.email ? (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Email</label>
                           <p className="text-sm text-gray-900 mt-1">
-                            {(selectedWallet as any).ownerEmail || selectedWallet.user?.email || 'N/A'}
+                            {(selectedWallet as any).ownerEmail || (selectedWallet as any).user?.email || 'N/A'}
                           </p>
                         </div>
                       ) : null}
-                      {(selectedWallet as any).ownerPhone || selectedWallet.user?.phone ? (
+                      {(selectedWallet as any).ownerPhone || (selectedWallet as any).user?.phone ? (
                         <div>
                           <label className="text-sm font-medium text-gray-500">Phone</label>
                           <p className="text-sm text-gray-900 mt-1">
-                            {(selectedWallet as any).ownerPhone || selectedWallet.user?.phone || 'N/A'}
+                            {(selectedWallet as any).ownerPhone || (selectedWallet as any).user?.phone || 'N/A'}
                           </p>
                         </div>
                       ) : null}
