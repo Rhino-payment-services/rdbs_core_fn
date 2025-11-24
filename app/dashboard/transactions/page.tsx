@@ -188,9 +188,16 @@ const TransactionsPage = () => {
         )
       }
       
-      // Get receiver name - for DEBIT (outgoing), receiver is the external party
+      // Get receiver name - for DEPOSIT, receiver is the RukaPay user; for DEBIT (outgoing), receiver is the external party
       let receiverName = ''
-      if (tx.direction === 'DEBIT') {
+      if (tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin) {
+        // For admin-funded deposits, receiver is the RukaPay user receiving funds
+        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
+          receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
+        } else if (tx.user) {
+          receiverName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || 'rukapay user')
+        }
+      } else if (tx.direction === 'DEBIT') {
         // For outgoing, receiver could be counterparty user, merchant, or external
         if (tx.counterpartyUser && tx.counterpartyUser.profile && tx.counterpartyUser.profile.firstName && tx.counterpartyUser.profile.lastName) {
           receiverName = `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
@@ -589,15 +596,21 @@ const TransactionsPage = () => {
             : (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
         
         // Get receiver info
-        const receiverName = tx.direction === 'DEBIT'
-          ? (tx.metadata?.counterpartyInfo?.name || 'External')
-          : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+        const receiverName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
               ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-              : 'Unknown User')
+              : tx.user?.phone || tx.user?.email || 'RukaPay User')
+          : tx.direction === 'DEBIT'
+            ? (tx.metadata?.counterpartyInfo?.name || 'External')
+            : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+                : 'Unknown User')
         
-        const receiverContact = tx.direction === 'DEBIT'
-          ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
-          : (tx.user?.phone || tx.user?.email || 'N/A')
+        const receiverContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.user?.phone || tx.user?.email || 'N/A')
+          : tx.direction === 'DEBIT'
+            ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
+            : (tx.user?.phone || tx.user?.email || 'N/A')
         
         // Format date
         const dateTime = tx.createdAt 
@@ -1347,6 +1360,27 @@ const TransactionsPage = () => {
                                       Reason: {transaction.metadata.reversalReason}
                                     </span>
                                   )}
+                                </>
+                              ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
+                                <>
+                                  {/* Wallet Deposit - receiver is the RukaPay user receiving funds */}
+                                  <span className="font-medium text-green-600">
+                                    {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                      ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                      : transaction.user?.phone || transaction.user?.email || 'RukaPay User'
+                                    }
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                                  </span>
+                                  {transaction.user?.userType === 'SUBSCRIBER' && (
+                                    <span className="text-xs text-blue-600 font-medium">
+                                      🏦 RukaPay Subscriber
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-green-600 font-medium">
+                                    💰 Wallet Credit
+                                  </span>
                                 </>
                               ) : transaction.direction === 'DEBIT' ? (
                                 <>
