@@ -66,10 +66,10 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
   }
 
   // Define all possible channels with default values
+  // Note: WEB is mapped to MERCHANT_PORTAL on backend, so WEB is not included here
   const allChannels = [
     { channel: 'APP', label: 'Mobile App' },
     { channel: 'USSD', label: 'USSD' },
-    { channel: 'WEB', label: 'Web' },
     { channel: 'API', label: 'API' },
     { channel: 'BACKOFFICE', label: 'Back Office' },
     { channel: 'MERCHANT_PORTAL', label: 'Merchant Portal' },
@@ -97,11 +97,51 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
   }
 
   const existingChannels = channelStats?.data?.channels || []
-  const existingChannelMap = new Map(existingChannels.map((ch: any) => [ch.channel, ch]))
+  // Merge WEB into MERCHANT_PORTAL if WEB exists in the data (for backward compatibility)
+  const processedChannels = existingChannels.map((ch: any) => {
+    if (ch.channel === 'WEB') {
+      return {
+        ...ch,
+        channel: 'MERCHANT_PORTAL',
+        label: 'Merchant Portal'
+      };
+    }
+    return ch;
+  });
+  
+  // Group by channel and merge WEB into MERCHANT_PORTAL
+  const channelMap = new Map<string, any>();
+  processedChannels.forEach((ch: any) => {
+    const key = ch.channel;
+    if (channelMap.has(key)) {
+      const existing = channelMap.get(key);
+      channelMap.set(key, {
+        ...existing,
+        transactionCount: existing.transactionCount + (ch.transactionCount || 0),
+        totalValue: existing.totalValue + (ch.totalValue || 0),
+        averageValue: 0 // Will be recalculated
+      });
+    } else {
+      channelMap.set(key, {
+        channel: ch.channel,
+        label: ch.label || allChannels.find(c => c.channel === ch.channel)?.label || ch.channel,
+        transactionCount: ch.transactionCount || 0,
+        totalValue: ch.totalValue || 0,
+        averageValue: ch.averageValue || 0
+      });
+    }
+  });
+  
+  // Recalculate average for merged channels
+  channelMap.forEach((ch) => {
+    if (ch.transactionCount > 0) {
+      ch.averageValue = ch.totalValue / ch.transactionCount;
+    }
+  });
   
   // Merge existing channels with all possible channels, defaulting to 0 for missing ones
   const channels = allChannels.map((defaultChannel) => {
-    const existingData = existingChannelMap.get(defaultChannel.channel)
+    const existingData = channelMap.get(defaultChannel.channel)
     return existingData || {
       channel: defaultChannel.channel,
       label: defaultChannel.label,

@@ -316,6 +316,9 @@ const TransactionsPage = () => {
     const channelValue = channel || metadata?.channel || 'APP'
     const channelUpper = channelValue.toUpperCase()
     
+    // Map WEB to MERCHANT_PORTAL since they are the same thing
+    const normalizedChannel = channelUpper === 'WEB' ? 'MERCHANT_PORTAL' : channelUpper
+    
     const channelMap: Record<string, { label: string; icon: any; color: string; bgColor: string }> = {
       APP: {
         label: 'Mobile App',
@@ -328,12 +331,6 @@ const TransactionsPage = () => {
         icon: Phone,
         color: 'text-green-600',
         bgColor: 'bg-green-50 border-green-200'
-      },
-      WEB: {
-        label: 'Web',
-        icon: Globe,
-        color: 'text-purple-600',
-        bgColor: 'bg-purple-50 border-purple-200'
       },
       API: {
         label: 'API',
@@ -368,25 +365,25 @@ const TransactionsPage = () => {
     }
     
     // Find exact match or pattern match
-    let matchedChannel = channelMap[channelUpper]
+    let matchedChannel = channelMap[normalizedChannel]
     
     if (!matchedChannel) {
       // Pattern matching for variations
-      if (channelUpper.includes('APP') || channelUpper.includes('MOBILE')) {
+      if (normalizedChannel.includes('APP') || normalizedChannel.includes('MOBILE')) {
         matchedChannel = channelMap.APP
-      } else if (channelUpper.includes('USSD')) {
+      } else if (normalizedChannel.includes('USSD')) {
         matchedChannel = channelMap.USSD
-      } else if (channelUpper.includes('WEB') || channelUpper.includes('BROWSER')) {
-        matchedChannel = channelMap.WEB
-      } else if (channelUpper.includes('API')) {
+      } else if (normalizedChannel.includes('WEB') || normalizedChannel.includes('BROWSER')) {
+        matchedChannel = channelMap.MERCHANT_PORTAL // Map WEB to MERCHANT_PORTAL
+      } else if (normalizedChannel.includes('API')) {
         matchedChannel = channelMap.API
-      } else if (channelUpper.includes('BACKOFFICE') || channelUpper.includes('ADMIN')) {
+      } else if (normalizedChannel.includes('BACKOFFICE') || normalizedChannel.includes('ADMIN')) {
         matchedChannel = channelMap.BACKOFFICE
-      } else if (channelUpper.includes('MERCHANT')) {
+      } else if (normalizedChannel.includes('MERCHANT')) {
         matchedChannel = channelMap.MERCHANT_PORTAL
-      } else if (channelUpper.includes('AGENT')) {
+      } else if (normalizedChannel.includes('AGENT')) {
         matchedChannel = channelMap.AGENT_PORTAL
-      } else if (channelUpper.includes('PARTNER')) {
+      } else if (normalizedChannel.includes('PARTNER')) {
         matchedChannel = channelMap.PARTNER_PORTAL
       } else {
         // Default to APP
@@ -886,10 +883,10 @@ const TransactionsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 {(() => {
                   // Define all possible channels with default values
+                  // Note: WEB is mapped to MERCHANT_PORTAL on backend, so WEB is not included here
                   const allChannels = [
                     { channel: 'APP', label: 'Mobile App', icon: Smartphone, color: 'border-blue-200 bg-blue-50' },
                     { channel: 'USSD', label: 'USSD', icon: Phone, color: 'border-green-200 bg-green-50' },
-                    { channel: 'WEB', label: 'Web', icon: Globe, color: 'border-purple-200 bg-purple-50' },
                     { channel: 'API', label: 'API', icon: Code, color: 'border-gray-200 bg-gray-50' },
                     { channel: 'BACKOFFICE', label: 'Back Office', icon: Building2, color: 'border-indigo-200 bg-indigo-50' },
                     { channel: 'MERCHANT_PORTAL', label: 'Merchant Portal', icon: Store, color: 'border-orange-200 bg-orange-50' },
@@ -898,7 +895,40 @@ const TransactionsPage = () => {
                   ]
                   
                   const existingChannels = channelStatsData?.data?.channels || []
-                  const existingChannelMap = new Map(existingChannels.map((ch: any) => [ch.channel, ch]))
+                  // Merge WEB into MERCHANT_PORTAL if WEB exists in the data (for backward compatibility)
+                  const channelMap = new Map<string, any>();
+                  existingChannels.forEach((ch: any) => {
+                    const channelKey = ch.channel === 'WEB' ? 'MERCHANT_PORTAL' : ch.channel;
+                    if (channelMap.has(channelKey)) {
+                      const existing = channelMap.get(channelKey);
+                      channelMap.set(channelKey, {
+                        ...existing,
+                        transactionCount: existing.transactionCount + (ch.transactionCount || 0),
+                        totalValue: existing.totalValue + (ch.totalValue || 0),
+                        averageValue: 0 // Will be recalculated
+                      });
+                    } else {
+                      const channelLabel = channelKey === 'MERCHANT_PORTAL' 
+                        ? 'Merchant Portal' 
+                        : (ch.label || allChannels.find(c => c.channel === channelKey)?.label || channelKey);
+                      channelMap.set(channelKey, {
+                        channel: channelKey,
+                        label: channelLabel,
+                        transactionCount: ch.transactionCount || 0,
+                        totalValue: ch.totalValue || 0,
+                        averageValue: ch.averageValue || 0
+                      });
+                    }
+                  });
+                  
+                  // Recalculate average for merged channels
+                  channelMap.forEach((ch) => {
+                    if (ch.transactionCount > 0) {
+                      ch.averageValue = ch.totalValue / ch.transactionCount;
+                    }
+                  });
+                  
+                  const existingChannelMap = channelMap
                   
                   return allChannels.map((defaultChannel) => {
                     const existingData = existingChannelMap.get(defaultChannel.channel)
@@ -908,6 +938,10 @@ const TransactionsPage = () => {
                       transactionCount: 0,
                       totalValue: 0,
                       averageValue: 0
+                    }
+                    // Recalculate average if we have data
+                    if (channelData.transactionCount > 0 && channelData.averageValue === 0) {
+                      channelData.averageValue = channelData.totalValue / channelData.transactionCount;
                     }
                     const ChannelIcon = defaultChannel.icon
 
