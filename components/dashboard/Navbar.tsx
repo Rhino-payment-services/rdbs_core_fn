@@ -304,7 +304,7 @@ const Navbar = () => {
                     }`}
                   >
                     <Wallet className="nav-icon" />
-                    <span>Wallet</span>
+                    <span>Wallets</span>
                   </Link>
                 </PermissionGuard>
                 

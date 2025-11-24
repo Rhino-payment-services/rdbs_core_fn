@@ -138,7 +138,10 @@ const TariffsPage = () => {
   const { data: tariffsData, isLoading: tariffsLoading, error: tariffsError, refetch } = useQuery({
     queryKey: ['tariffs'],
     queryFn: () => api.get('/finance/tariffs', { params: { limit: 1000 } }).then(res => res.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always consider data stale to ensure fresh data on mount
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    refetchOnReconnect: true, // Refetch when network reconnects
   })
 
   // Approval workflow mutations
@@ -343,6 +346,11 @@ const TariffsPage = () => {
   const availableExternalTypes = Object.keys(externalTransactionTypes).filter(type => 
     externalGroupedTariffs[type as keyof typeof externalGroupedTariffs]?.length > 0
   )
+
+  // Refetch tariffs when component mounts or becomes visible
+  useEffect(() => {
+    refetch()
+  }, [refetch])
 
   // Set initial active tabs when data loads
   useEffect(() => {
