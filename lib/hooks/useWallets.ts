@@ -83,12 +83,105 @@ export const useWalletTransactions = (userId: string, page: number = 1, limit: n
   })
 }
 
-// Admin wallet hooks
-export const useAdminWallets = () => {
-  return useQuery<ApiResponse<Wallet[]>>({
-    queryKey: ['admin', 'wallets'],
-    queryFn: () => apiFetch('/admin/wallets'),
+// Admin wallet hooks - Get all wallets for admin view with filtering and search
+export const useAdminWallets = (filters?: {
+  category?: 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER'
+  search?: string
+  walletType?: string
+  currency?: string
+  isActive?: boolean
+  isSuspended?: boolean
+  page?: number
+  limit?: number
+}) => {
+  const queryString = filters ? new URLSearchParams(
+    Object.entries(filters)
+      .filter(([_, value]) => value !== undefined && value !== null && value !== '')
+      .map(([key, value]) => [key, String(value)])
+  ).toString() : ''
+  
+  return useQuery({
+    queryKey: ['admin', 'wallets', filters],
+    queryFn: async () => {
+      try {
+        const endpoint = `/wallet/admin/all${queryString ? `?${queryString}` : ''}`
+        console.log('Fetching admin wallets from:', endpoint)
+        // Use the new admin endpoint that returns all wallets with categorization
+        const response = await apiFetch(endpoint)
+        console.log('Admin wallets response:', response)
+        
+        // Ensure response has the expected structure
+        if (response && typeof response === 'object') {
+          // If response already has wallets array, return as is
+          if (Array.isArray(response.wallets)) {
+            return response
+          }
+          // If response is the wallets array directly, wrap it
+          if (Array.isArray(response)) {
+            return { wallets: response, total: response.length, categoryStats: {} }
+          }
+        }
+        
+        return response
+      } catch (error: any) {
+        console.error('Error fetching admin wallets:', error)
+        
+        // If 404, try fallback to finance endpoints
+        if (error?.status === 404) {
+          console.warn('Admin endpoint not available, trying finance endpoints as fallback...')
+          try {
+            const [companyResponse, partnerResponse] = await Promise.all([
+              apiFetch('/finance/wallets/company?limit=1000').catch(() => ({ wallets: [] })),
+              apiFetch('/finance/wallets/partner?limit=1000').catch(() => ({ wallets: [] }))
+            ])
+            
+            const companyWallets = Array.isArray(companyResponse?.wallets) ? companyResponse.wallets : []
+            const partnerWallets = Array.isArray(partnerResponse?.wallets) ? partnerResponse.wallets : []
+            const allWallets = [...companyWallets, ...partnerWallets]
+            
+            console.log('Fallback: Found wallets from finance endpoints:', allWallets.length)
+            
+            return {
+              wallets: allWallets,
+              total: allWallets.length,
+              page: 1,
+              limit: 1000,
+              totalPages: 1,
+              categoryStats: {}
+            }
+          } catch (fallbackError) {
+            console.error('Fallback also failed:', fallbackError)
+            return { wallets: [], total: 0, page: 1, limit: 50, totalPages: 0, categoryStats: {} }
+          }
+        }
+        
+        // If 403, user might not have admin permissions
+        if (error?.status === 403) {
+          console.warn('Could not fetch admin wallets - may not have permissions')
+          return { wallets: [], total: 0, page: 1, limit: 50, totalPages: 0, categoryStats: {} }
+        }
+        
+        // For other errors, throw to be handled by error boundary
+        throw error
+      }
+    },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // Don't retry on 404/403
+  })
+}
+
+// Fund wallet mutation
+export const useFundWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<Wallet>, Error, { walletId: string; amount: number; reason: string; reference?: string }>({
+    mutationFn: ({ walletId, amount, reason, reference }) => apiFetch(`/wallet/admin/${walletId}/fund`, {
+      method: 'POST',
+      data: { amount, reason, reference },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
   })
 }
 

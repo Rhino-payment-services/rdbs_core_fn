@@ -169,7 +169,18 @@ api.interceptors.response.use(
         case 404:
           // Don't log 404 errors for endpoints that might not be implemented yet
           const url = originalRequest?.url || ''
-          const silent404Endpoints = ['/merchants', '/kyc/stats', '/transactions/system/stats', '/analytics', '/admin/external-payment-partners/mappings', '/admin/external-payment-partners/mapping', '/mapping/transaction-types']
+          const silent404Endpoints = [
+            '/merchants', 
+            '/kyc/stats', 
+            '/transactions/system/stats', 
+            '/analytics', 
+            '/admin/external-payment-partners/mappings', 
+            '/admin/external-payment-partners/mapping', 
+            '/mapping/transaction-types',
+            '/admin/wallets', // Admin wallets endpoint might not exist
+            '/wallet/me/all', // User's wallets endpoint - may not exist for all users
+            '/wallet/admin/all' // Admin all wallets endpoint - may not be deployed yet
+          ]
           const shouldLog404 = !silent404Endpoints.some(endpoint => url.includes(endpoint))
           
           if (shouldLog404) {
