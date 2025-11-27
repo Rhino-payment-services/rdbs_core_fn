@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useLinkCardToUser } from '@/lib/hooks/useCards'
 import { useUsers as useUsersList } from '@/lib/hooks/useAuth'
+import api from '@/lib/axios'
 import Navbar from '@/components/dashboard/Navbar'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
@@ -22,10 +23,13 @@ function LinkCardContent() {
   const [formData, setFormData] = useState({
     serialNumber: '',
     userId: '',
+    walletId: '',
   })
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [userWallets, setUserWallets] = useState<any[]>([])
+  const [loadingWallets, setLoadingWallets] = useState(false)
 
   // Get serial number from URL query parameter
   useEffect(() => {
@@ -84,10 +88,39 @@ function LinkCardContent() {
     }))
   }
 
-  const handleUserSelect = (user: any) => {
+  const handleUserSelect = async (user: any) => {
     setSelectedUser(user)
     handleInputChange('userId', user.id)
     setSearchTerm('') // Clear search
+    setFormData(prev => ({ ...prev, walletId: '' })) // Reset wallet selection
+    
+    // Fetch user wallets
+    if (user.id) {
+      setLoadingWallets(true)
+      try {
+        // Use admin endpoint to get all wallets for the user
+        const response = await api.get(`/wallet/user/${user.id}/all`)
+        const wallets = response.data?.data || response.data || []
+        setUserWallets(Array.isArray(wallets) ? wallets : [])
+      } catch (error: any) {
+        console.error('Error fetching user wallets:', error)
+        // Try admin all wallets endpoint and filter as fallback
+        try {
+          const response = await api.get(`/wallet/admin/all`)
+          const allWallets = response.data?.wallets || response.data?.data || response.data || []
+          // Filter wallets by userId
+          const userWallets = Array.isArray(allWallets) 
+            ? allWallets.filter((w: any) => w.userId === user.id)
+            : []
+          setUserWallets(userWallets)
+        } catch (err) {
+          console.error('Error fetching wallets from admin endpoint:', err)
+          setUserWallets([])
+        }
+      } finally {
+        setLoadingWallets(false)
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +128,11 @@ function LinkCardContent() {
     
     if (!formData.userId) {
       toast.error('Please select a user')
+      return
+    }
+    
+    if (!formData.walletId) {
+      toast.error('Please select a wallet')
       return
     }
     
@@ -211,7 +249,7 @@ function LinkCardContent() {
 
               {/* Selected User Info */}
               {selectedUser && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
                   <div className="flex items-start gap-3">
                     <UserSearch className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div className="flex-1">
@@ -247,12 +285,50 @@ function LinkCardContent() {
                       size="sm"
                       onClick={() => {
                         setSelectedUser(null)
+                        setUserWallets([])
                         handleInputChange('userId', '')
+                        handleInputChange('walletId', '')
                       }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {/* Wallet Selection */}
+                  {selectedUser && (
+                    <div className="space-y-2">
+                      <Label htmlFor="walletId">Select Wallet *</Label>
+                      {loadingWallets ? (
+                        <div className="p-4 text-center text-gray-500 text-sm">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2" />
+                          Loading wallets...
+                        </div>
+                      ) : userWallets.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500 text-sm border border-gray-200 rounded-lg">
+                          No wallets found for this user
+                        </div>
+                      ) : (
+                        <select
+                          id="walletId"
+                          value={formData.walletId}
+                          onChange={(e) => handleInputChange('walletId', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent"
+                          required
+                        >
+                          <option value="">-- Select a wallet --</option>
+                          {userWallets.map((wallet: any) => (
+                            <option key={wallet.id} value={wallet.id}>
+                              {wallet.walletType} - {wallet.currency} {wallet.balance ? Number(wallet.balance).toLocaleString() : '0.00'}
+                              {wallet.description ? ` (${wallet.description})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        Select the wallet this card will be linked to
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -260,7 +336,7 @@ function LinkCardContent() {
               <div className="flex gap-4 pt-4">
                 <Button
                   type="submit"
-                  disabled={linkCard.isPending || !selectedUser}
+                  disabled={linkCard.isPending || !selectedUser || !formData.walletId}
                   className="flex-1"
                 >
                   {linkCard.isPending ? (
