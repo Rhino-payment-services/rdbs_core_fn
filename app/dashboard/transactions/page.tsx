@@ -1549,20 +1549,40 @@ const TransactionsPage = () => {
                                 </>
                               ) : (
                                 <>
-                                  {/* Incoming transaction - receiver is always the wallet owner */}
-                                  <span className="font-medium">
-                                    {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
-                                      ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                                      : 'Unknown User'
-                                    }
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    📱 {transaction.user?.phone || transaction.user?.email}
-                                  </span>
-                                  {transaction.user?.userType === 'SUBSCRIBER' && (
-                                    <span className="text-xs text-blue-600 font-medium">
-                                      🏦 RukaPay Subscriber
-                                    </span>
+                                  {/* Incoming transaction - check if it's a merchant transaction */}
+                                  {transaction.metadata?.merchantName || transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || transaction.metadata?.walletType === 'BUSINESS' ? (
+                                    <>
+                                      {/* Merchant transaction - receiver is the merchant */}
+                                      <span className="font-medium">
+                                        {transaction.metadata?.merchantName || 'Merchant'}
+                                      </span>
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Code: {transaction.metadata.merchantCode}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Merchant Account
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Regular user transaction - receiver is the wallet owner */}
+                                      <span className="font-medium">
+                                        {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                          ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                          : transaction.user?.phone || transaction.user?.email || 'Unknown User'
+                                        }
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                                      </span>
+                                      {transaction.user?.userType === 'SUBSCRIBER' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
                                   )}
                                 </>
                               )}
@@ -2175,8 +2195,27 @@ const TransactionsPage = () => {
                       ) : (
                         <>
                           {/* Extract receiver info from metadata when counterpartyInfo is not available */}
-                          {/* Check for internal transactions first */}
-                          {selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
+                          {/* Check if it's a merchant transaction first */}
+                          {selectedTransaction.metadata?.merchantName || selectedTransaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || selectedTransaction.metadata?.walletType === 'BUSINESS' ? (
+                            <>
+                              {/* Merchant transaction - receiver is the merchant */}
+                              <div>
+                                <span className="text-green-600">Merchant:</span>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.metadata?.merchantName || 'Merchant'}
+                                </p>
+                              </div>
+                              {selectedTransaction.metadata?.merchantCode && (
+                                <div>
+                                  <span className="text-green-600">Merchant Code:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.merchantCode}
+                                  </p>
+                                </div>
+                              )}
+                              <Badge className="bg-green-600 text-white">Merchant Account</Badge>
+                            </>
+                          ) : selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
                             <>
                               {/* P2P Internal Transaction */}
                           <div>
