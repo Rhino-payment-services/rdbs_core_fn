@@ -894,7 +894,19 @@ const TransactionsPage = () => {
                     { channel: 'PARTNER_PORTAL', label: 'Partner Portal', icon: Users, color: 'border-pink-200 bg-pink-50' }
                   ]
                   
-                  const existingChannels = channelStatsData?.data?.channels || []
+                  // Backend returns channels directly, not wrapped in data property
+                  const existingChannels = channelStatsData?.channels || channelStatsData?.data?.channels || []
+                  
+                  // Debug logging in development
+                  if (process.env.NODE_ENV === 'development' && channelStatsData && !channelStatsLoading) {
+                    console.log('📊 Ledger Channel Stats:', {
+                      hasChannels: !!channelStatsData?.channels,
+                      hasDataChannels: !!channelStatsData?.data?.channels,
+                      channelCount: existingChannels.length,
+                      channels: existingChannels.map((c: any) => ({ channel: c.channel, count: c.transactionCount }))
+                    });
+                  }
+                  
                   // Merge WEB into MERCHANT_PORTAL if WEB exists in the data (for backward compatibility)
                   const channelMap = new Map<string, any>();
                   existingChannels.forEach((ch: any) => {
