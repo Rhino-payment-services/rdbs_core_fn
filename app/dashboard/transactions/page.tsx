@@ -1263,7 +1263,13 @@ const TransactionsPage = () => {
                                     <>
                                       {/* Merchant sending to wallet */}
                                       <span className="font-medium">
-                                        {transaction.metadata?.merchantName || transaction.metadata?.counterpartyInfo?.name || 'Merchant'}
+                                        {transaction.metadata?.merchantName || 
+                                         transaction.metadata?.counterpartyInfo?.name ||
+                                         transaction.user?.merchant?.businessTradeName ||
+                                         transaction.user?.profile?.merchantBusinessTradeName ||
+                                         transaction.user?.profile?.businessTradeName ||
+                                         transaction.user?.profile?.merchant_names ||
+                                         (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
                                       </span>
                                       {transaction.metadata?.merchantCode && (
                                         <span className="text-xs text-gray-500">
@@ -1446,7 +1452,14 @@ const TransactionsPage = () => {
                                     <>
                                       {/* Wallet to Merchant - receiver is merchant */}
                                       <span className="font-medium">
-                                        {transaction.metadata?.merchantName || transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'Merchant'}
+                                        {transaction.metadata?.merchantName || 
+                                         transaction.metadata?.counterpartyInfo?.name || 
+                                         transaction.metadata?.userName ||
+                                         transaction.user?.merchant?.businessTradeName ||
+                                         transaction.user?.profile?.merchantBusinessTradeName ||
+                                         transaction.user?.profile?.businessTradeName ||
+                                         transaction.user?.profile?.merchant_names ||
+                                         (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
                                       </span>
                                       {transaction.metadata?.accountNumber && (
                                         <span className="text-xs text-gray-500">
@@ -1550,22 +1563,44 @@ const TransactionsPage = () => {
                               ) : (
                                 <>
                                   {/* Incoming transaction - check if it's a merchant transaction */}
-                                  {transaction.metadata?.merchantName || transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || transaction.metadata?.walletType === 'BUSINESS' ? (
-                                    <>
-                                      {/* Merchant transaction - receiver is the merchant */}
-                                      <span className="font-medium">
-                                        {transaction.metadata?.merchantName || 'Merchant'}
-                                      </span>
-                                      {transaction.metadata?.merchantCode && (
-                                        <span className="text-xs text-gray-500">
-                                          🏪 Code: {transaction.metadata.merchantCode}
+                                  {(() => {
+                                    // Check if this is a merchant transaction
+                                    const isMerchantTransaction = 
+                                      transaction.metadata?.merchantName || 
+                                      transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || 
+                                      transaction.metadata?.walletType === 'BUSINESS' ||
+                                      transaction.user?.merchantCode ||
+                                      transaction.user?.merchant?.businessTradeName;
+                                    
+                                    // Get merchant name from various sources
+                                    const merchantName = 
+                                      transaction.metadata?.merchantName ||
+                                      transaction.user?.merchant?.businessTradeName ||
+                                      transaction.user?.profile?.merchantBusinessTradeName ||
+                                      transaction.user?.profile?.businessTradeName ||
+                                      transaction.user?.profile?.merchant_names ||
+                                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null);
+                                    
+                                    const merchantCode = 
+                                      transaction.metadata?.merchantCode ||
+                                      transaction.user?.merchantCode;
+                                    
+                                    return isMerchantTransaction ? (
+                                      <>
+                                        {/* Merchant transaction - receiver is the merchant */}
+                                        <span className="font-medium">
+                                          {merchantName || 'Merchant'}
                                         </span>
-                                      )}
-                                      <span className="text-xs text-blue-600 font-medium">
-                                        🏦 Merchant Account
-                                      </span>
-                                    </>
-                                  ) : (
+                                        {merchantCode && (
+                                          <span className="text-xs text-gray-500">
+                                            🏪 Code: {merchantCode}
+                                          </span>
+                                        )}
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 Merchant Account
+                                        </span>
+                                      </>
+                                    ) : (
                                     <>
                                       {/* Regular user transaction - receiver is the wallet owner */}
                                       <span className="font-medium">
@@ -1583,7 +1618,8 @@ const TransactionsPage = () => {
                                         </span>
                                       )}
                                     </>
-                                  )}
+                                  );
+                                  })()}
                                 </>
                               )}
                             </div>
@@ -2196,13 +2232,29 @@ const TransactionsPage = () => {
                         <>
                           {/* Extract receiver info from metadata when counterpartyInfo is not available */}
                           {/* Check if it's a merchant transaction first */}
-                          {selectedTransaction.metadata?.merchantName || selectedTransaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || selectedTransaction.metadata?.walletType === 'BUSINESS' ? (
+                          {(() => {
+                            const isMerchantTxn = 
+                              selectedTransaction.metadata?.merchantName || 
+                              selectedTransaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || 
+                              selectedTransaction.metadata?.walletType === 'BUSINESS' ||
+                              selectedTransaction.user?.merchantCode ||
+                              selectedTransaction.user?.merchant?.businessTradeName;
+                            
+                            const merchantName = 
+                              selectedTransaction.metadata?.merchantName ||
+                              selectedTransaction.user?.merchant?.businessTradeName ||
+                              selectedTransaction.user?.profile?.merchantBusinessTradeName ||
+                              selectedTransaction.user?.profile?.businessTradeName ||
+                              selectedTransaction.user?.profile?.merchant_names ||
+                              (selectedTransaction.user?.merchantCode ? `Merchant (${selectedTransaction.user.merchantCode})` : 'Merchant');
+                            
+                            return isMerchantTxn ? (
                             <>
                               {/* Merchant transaction - receiver is the merchant */}
                               <div>
                                 <span className="text-green-600">Merchant:</span>
                                 <p className="font-medium text-green-900">
-                                  {selectedTransaction.metadata?.merchantName || 'Merchant'}
+                                  {merchantName}
                                 </p>
                               </div>
                               {selectedTransaction.metadata?.merchantCode && (
@@ -2255,7 +2307,14 @@ const TransactionsPage = () => {
                               <div>
                                 <span className="text-green-600">Merchant:</span>
                                 <p className="font-medium text-green-900">
-                                  {selectedTransaction.metadata?.merchantName || selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName || 'Merchant'}
+                                  {selectedTransaction.metadata?.merchantName || 
+                                   selectedTransaction.metadata?.userName || 
+                                   selectedTransaction.metadata?.recipientName ||
+                                   selectedTransaction.user?.merchant?.businessTradeName ||
+                                   selectedTransaction.user?.profile?.merchantBusinessTradeName ||
+                                   selectedTransaction.user?.profile?.businessTradeName ||
+                                   selectedTransaction.user?.profile?.merchant_names ||
+                                   (selectedTransaction.user?.merchantCode ? `Merchant (${selectedTransaction.user.merchantCode})` : 'Merchant')}
                                 </p>
                               </div>
                               {selectedTransaction.metadata?.accountNumber && (
@@ -2373,7 +2432,8 @@ const TransactionsPage = () => {
                                 </Badge>
                               )}
                             </>
-                          )}
+                          );
+                          })()}
                           {selectedTransaction.metadata?.narration && (
                             <div>
                               <span className="text-green-600">Notes:</span>
