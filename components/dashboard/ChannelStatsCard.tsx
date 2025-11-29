@@ -96,7 +96,20 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
     )
   }
 
-  const existingChannels = channelStats?.data?.channels || []
+  // Backend returns channels directly, not wrapped in data property
+  const existingChannels = channelStats?.channels || channelStats?.data?.channels || []
+  
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development' && channelStats) {
+    console.log('📊 Channel Stats Response:', {
+      hasChannels: !!channelStats?.channels,
+      hasDataChannels: !!channelStats?.data?.channels,
+      channelCount: existingChannels.length,
+      structure: Object.keys(channelStats),
+      total: channelStats?.total || channelStats?.data?.total
+    });
+  }
+  
   // Merge WEB into MERCHANT_PORTAL if WEB exists in the data (for backward compatibility)
   const processedChannels = existingChannels.map((ch: any) => {
     if (ch.channel === 'WEB') {
@@ -151,9 +164,9 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
     }
   })
   
-  const newWallets = walletStats?.data?.newWalletsCount || 0
-  const totalTransactions = channelStats?.data?.total?.transactionCount || 0
-  const totalValue = channelStats?.data?.total?.totalValue || 0
+  const newWallets = walletStats?.data?.newWalletsCount || walletStats?.newWalletsCount || 0
+  const totalTransactions = channelStats?.total?.transactionCount || channelStats?.data?.total?.transactionCount || 0
+  const totalValue = channelStats?.total?.totalValue || channelStats?.data?.total?.totalValue || 0
 
   return (
     <Card>
