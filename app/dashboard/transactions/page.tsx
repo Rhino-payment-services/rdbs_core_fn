@@ -2043,17 +2043,40 @@ const TransactionsPage = () => {
                             <p className="font-medium text-orange-900 text-xs">{selectedTransaction.metadata.reversalDetails}</p>
                           </div>
                         )}
-                        {selectedTransaction.metadata?.processedByUser && (
+                        {/* Debug: Show metadata structure for reversals */}
+                        {selectedTransaction.type === 'REVERSAL' && process.env.NODE_ENV === 'development' && (
+                          <div className="text-xs text-gray-400 border-t pt-2 mt-2">
+                            <p>Debug Metadata:</p>
+                            <pre className="text-xs overflow-auto max-h-20">
+                              {JSON.stringify(selectedTransaction.metadata, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {(selectedTransaction.metadata?.processedByUser || selectedTransaction.metadata?.processedBy) && (
                           <div>
                             <span className="text-orange-600">Processed By:</span>
-                            <p className="font-medium text-orange-900">
-                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
-                            </p>
-                            {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                            {selectedTransaction.metadata?.processedByUser ? (
+                              <>
+                                <p className="font-medium text-orange-900">
+                                  {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                                </p>
+                                {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="font-medium text-orange-900 font-mono text-xs">
+                                Admin ID: {selectedTransaction.metadata.processedBy?.substring(0, 8)}...
                               </p>
                             )}
+                          </div>
+                        )}
+                        {/* Fallback: Try to show admin info from different metadata paths */}
+                        {selectedTransaction.type === 'REVERSAL' && !selectedTransaction.metadata?.processedByUser && !selectedTransaction.metadata?.processedBy && (
+                          <div className="text-xs text-orange-500 italic">
+                            Admin information not available
                           </div>
                         )}
                         {selectedTransaction.metadata?.reversalId && (
@@ -2341,15 +2364,23 @@ const TransactionsPage = () => {
                             </p>
                           </div>
                         )}
-                        {selectedTransaction.metadata?.processedByUser && (
+                        {(selectedTransaction.metadata?.processedByUser || selectedTransaction.metadata?.processedBy) && (
                           <div>
                             <span className="text-green-600">Processed By Admin:</span>
-                            <p className="font-medium text-green-900">
-                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
-                            </p>
-                            {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                            {selectedTransaction.metadata?.processedByUser ? (
+                              <>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                                </p>
+                                {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="font-medium text-green-900 font-mono text-xs">
+                                Admin ID: {selectedTransaction.metadata.processedBy?.substring(0, 8)}...
                               </p>
                             )}
                           </div>
