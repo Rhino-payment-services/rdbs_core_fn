@@ -866,7 +866,19 @@ const TransactionsPage = () => {
 
           {/* Channel Statistics Cards */}
           <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Transactions by Channel</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Transactions by Channel</h3>
+              {/* Date Range Indicator */}
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <Calendar className="h-3 w-3" />
+                <span>
+                  {startDate || endDate 
+                    ? `${startDate || 'Beginning'} - ${endDate || 'Today'}`
+                    : 'All-time (Cumulative)'
+                  }
+                </span>
+              </div>
+            </div>
             {channelStatsLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 {[1, 2, 3, 4, 5].map((i) => (
