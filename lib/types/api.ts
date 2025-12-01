@@ -279,6 +279,9 @@ export interface Wallet {
   description?: string
   createdAt: string
   updatedAt: string
+  dailyLimit?: number
+  dailyUsed?: number
+  lastResetDate?: string
 }
 
 export interface WalletBalance {

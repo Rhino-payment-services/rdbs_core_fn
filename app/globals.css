@@ -212,6 +212,18 @@
   background-color: hsl(var(--secondary) / 0.8);
 }
 
+/* Force fund wallet button to always be visible */
+.fund-wallet-button,
+.fund-wallet-button-wrapper {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+.fund-wallet-button {
+  display: inline-flex !important;
+}
+
 /* Form elements in modals */
 .modal-input {
   width: 100%;
