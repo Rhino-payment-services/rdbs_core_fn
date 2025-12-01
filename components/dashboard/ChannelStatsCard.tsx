@@ -10,7 +10,8 @@ import {
   Code, 
   Wallet,
   TrendingUp,
-  Loader2
+  Loader2,
+  Calendar
 } from 'lucide-react'
 import { useChannelStatistics, useDailyNewWallets } from '@/lib/hooks/useTransactions'
 
@@ -204,6 +205,22 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
               Total: {totalTransactions} ({formatAmount(totalValue)})
             </div>
           </div>
+          
+          {/* Date Range Indicator */}
+          {channelStats?.dateRange && (
+            <div className="mb-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Calendar className="h-3 w-3" />
+                <span>
+                  {channelStats.dateRange.label || 
+                   (channelStats.dateRange.start || channelStats.dateRange.end
+                     ? `${channelStats.dateRange.start || 'Beginning'} - ${channelStats.dateRange.end || 'Today'}`
+                     : 'All-time (Cumulative)')
+                  }
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             {channels.map((channel: any) => (
