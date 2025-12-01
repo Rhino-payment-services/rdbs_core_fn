@@ -901,26 +901,16 @@ const WalletPage = () => {
                   )}
 
                   {/* Actions */}
-                  <div className="border-t pt-4 flex gap-3">
+                  <div className="border-t pt-4">
                     <Button
                       variant="outline"
                       onClick={() => {
                         setShowWalletDetails(false)
                         setSelectedWallet(null)
                       }}
-                      className="flex-1"
+                      className="w-full"
                     >
                       Close
-                    </Button>
-                    <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => {
-                        setShowWalletDetails(false)
-                        setShowFundWallet(true)
-                      }}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Fund This Wallet
                     </Button>
                   </div>
                 </div>
