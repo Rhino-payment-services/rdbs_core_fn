@@ -1783,7 +1783,7 @@ const TransactionsPage = () => {
 
       {/* Transaction Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-6xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
@@ -2052,31 +2052,17 @@ const TransactionsPage = () => {
                             </pre>
                           </div>
                         )}
-                        {(selectedTransaction.metadata?.processedByUser || selectedTransaction.metadata?.processedBy) && (
+                        {selectedTransaction.metadata?.processedByUser && (
                           <div>
                             <span className="text-orange-600">Processed By:</span>
-                            {selectedTransaction.metadata?.processedByUser ? (
-                              <>
-                                <p className="font-medium text-orange-900">
-                                  {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
-                                </p>
-                                {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="font-medium text-orange-900 font-mono text-xs">
-                                Admin ID: {selectedTransaction.metadata.processedBy?.substring(0, 8)}...
+                            <p className="font-medium text-orange-900">
+                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                            </p>
+                            {selectedTransaction.metadata.processedByUser.email && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {selectedTransaction.metadata.processedByUser.email}
                               </p>
                             )}
-                          </div>
-                        )}
-                        {/* Fallback: Try to show admin info from different metadata paths */}
-                        {selectedTransaction.type === 'REVERSAL' && !selectedTransaction.metadata?.processedByUser && !selectedTransaction.metadata?.processedBy && (
-                          <div className="text-xs text-orange-500 italic">
-                            Admin information not available
                           </div>
                         )}
                         {selectedTransaction.metadata?.reversalId && (
@@ -2364,23 +2350,15 @@ const TransactionsPage = () => {
                             </p>
                           </div>
                         )}
-                        {(selectedTransaction.metadata?.processedByUser || selectedTransaction.metadata?.processedBy) && (
+                        {selectedTransaction.metadata?.processedByUser && (
                           <div>
                             <span className="text-green-600">Processed By Admin:</span>
-                            {selectedTransaction.metadata?.processedByUser ? (
-                              <>
-                                <p className="font-medium text-green-900">
-                                  {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
-                                </p>
-                                {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="font-medium text-green-900 font-mono text-xs">
-                                Admin ID: {selectedTransaction.metadata.processedBy?.substring(0, 8)}...
+                            <p className="font-medium text-green-900">
+                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                            </p>
+                            {selectedTransaction.metadata.processedByUser.email && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {selectedTransaction.metadata.processedByUser.email}
                               </p>
                             )}
                           </div>
