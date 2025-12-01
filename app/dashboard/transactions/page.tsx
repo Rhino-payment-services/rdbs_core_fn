@@ -683,12 +683,17 @@ const TransactionsPage = () => {
   }
 
   // Calculate enhanced fee statistics from current page
+  // Count fees from ALL transactions (fees are charged regardless of status)
+  // Only count volume from SUCCESS transactions
   const pageStats = transactions.reduce((acc: any, tx: any) => {
+    // Fees are charged regardless of transaction status
+    acc.totalFees += Number(tx.fee) || 0
+    acc.rukapayFees += Number(tx.rukapayFee) || 0
+    acc.partnerFees += Number(tx.thirdPartyFee) || 0
+    acc.governmentTaxes += Number(tx.governmentTax) || 0
+    
+    // Only count volume and success count for successful transactions
     if (tx.status === 'SUCCESS') {
-      acc.totalFees += Number(tx.fee) || 0
-      acc.rukapayFees += Number(tx.rukapayFee) || 0
-      acc.partnerFees += Number(tx.thirdPartyFee) || 0
-      acc.governmentTaxes += Number(tx.governmentTax) || 0
       acc.totalVolume += Number(tx.amount) || 0
       acc.successfulCount += 1
     }
