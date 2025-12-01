@@ -2012,7 +2012,7 @@ const TransactionsPage = () => {
                           <div>
                             <span className="text-orange-600">Reversal Reason:</span>
                             <p className="font-medium text-orange-900">
-                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </p>
                           </div>
                         )}
@@ -2286,7 +2286,7 @@ const TransactionsPage = () => {
                           <div>
                             <span className="text-green-600">Reversal Reason:</span>
                             <p className="font-medium text-green-900">
-                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                             </p>
                           </div>
                         )}
