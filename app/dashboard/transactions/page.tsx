@@ -63,6 +63,40 @@ const shortenTransactionId = (id: string): string => {
     return `WALLET_INIT_${timestamp.slice(-6)}`;
   }
   
+  // If ID starts with REV- (reversal transaction), shorten it
+  if (id.startsWith('REV-')) {
+    const parts = id.split('-');
+    if (parts.length >= 3) {
+      // Format: REV-TXN672778856-1764600481633
+      // Return: REV-TXN672778856-[last 6 digits of timestamp]
+      const originalTxn = parts[1]; // TXN672778856
+      const timestamp = parts[2]; // 1764600481633
+      return `REV-${originalTxn}-${timestamp.slice(-6)}`;
+    }
+  }
+  
+  // If ID contains ADMIN_FUND (admin fund transaction), shorten it
+  if (id.includes('ADMIN_FUND_')) {
+    const parts = id.split('_');
+    if (parts.length >= 3) {
+      // Format: ADMIN_FUND_1764600481633
+      // Return: ADMIN_FUND_[last 6 digits]
+      const timestamp = parts[parts.length - 1];
+      return `ADMIN_FUND_${timestamp.slice(-6)}`;
+    }
+  }
+  
+  // If ID contains FUND- (other fund transaction formats), shorten it
+  if (id.includes('FUND-') || id.includes('ADMIN-FUND')) {
+    const parts = id.split('-');
+    if (parts.length >= 2) {
+      // Show prefix and last 8 characters
+      const prefix = parts[0];
+      const lastPart = parts[parts.length - 1];
+      return `${prefix}-${lastPart.slice(-8)}`;
+    }
+  }
+  
   // If ID is very long (>30 chars), shorten it
   if (id.length > 30) {
     // Show first 15 and last 8 characters
@@ -1958,22 +1992,42 @@ const TransactionsPage = () => {
                         </div>
                         <div>
                           <span className="text-orange-600">Original Transaction:</span>
-                          <p className="font-medium text-orange-900 font-mono text-xs">
-                            {selectedTransaction.metadata?.originalTransactionReference || 
-                             selectedTransaction.metadata?.originalTransactionId?.substring(0, 16) || 
-                             'N/A'}
+                          <p className="font-medium text-orange-900 font-mono text-xs" title={selectedTransaction.metadata?.originalTransactionReference || selectedTransaction.metadata?.originalTransactionId || 'N/A'}>
+                            {shortenTransactionId(
+                              selectedTransaction.metadata?.originalTransactionReference || 
+                              selectedTransaction.metadata?.originalTransactionId || 
+                              'N/A'
+                            )}
                           </p>
                         </div>
+                        {selectedTransaction.metadata?.originalTransactionId && (
+                          <div>
+                            <span className="text-orange-600">Original Transaction ID:</span>
+                            <p className="font-medium text-orange-900 font-mono text-xs" title={selectedTransaction.metadata.originalTransactionId}>
+                              {shortenTransactionId(selectedTransaction.metadata.originalTransactionId)}
+                            </p>
+                          </div>
+                        )}
                         {selectedTransaction.metadata?.reversalReason && (
                           <div>
-                            <span className="text-orange-600">Reason:</span>
-                            <p className="font-medium text-orange-900">{selectedTransaction.metadata.reversalReason}</p>
+                            <span className="text-orange-600">Reversal Reason:</span>
+                            <p className="font-medium text-orange-900">
+                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </p>
                           </div>
                         )}
                         {selectedTransaction.metadata?.reversalDetails && (
                           <div>
-                            <span className="text-orange-600">Details:</span>
+                            <span className="text-orange-600">Reversal Details:</span>
                             <p className="font-medium text-orange-900 text-xs">{selectedTransaction.metadata.reversalDetails}</p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.reversalId && (
+                          <div>
+                            <span className="text-orange-600">Reversal Request ID:</span>
+                            <p className="font-medium text-orange-900 font-mono text-xs">
+                              {shortenTransactionId(selectedTransaction.metadata.reversalId)}
+                            </p>
                           </div>
                         )}
                         <Badge className="bg-orange-600 text-white">Reversal Transaction</Badge>
@@ -2228,6 +2282,22 @@ const TransactionsPage = () => {
                             {formatAmount(Number(selectedTransaction.amount) + Number(selectedTransaction.fee || 0))}
                           </p>
                         </div>
+                        {selectedTransaction.metadata?.reversalReason && (
+                          <div>
+                            <span className="text-green-600">Reversal Reason:</span>
+                            <p className="font-medium text-green-900">
+                              {selectedTransaction.metadata.reversalReason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.reversalDetails && (
+                          <div>
+                            <span className="text-green-600">Details:</span>
+                            <p className="font-medium text-green-900 text-xs">
+                              {selectedTransaction.metadata.reversalDetails}
+                            </p>
+                          </div>
+                        )}
                         {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
                           <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
                         )}
