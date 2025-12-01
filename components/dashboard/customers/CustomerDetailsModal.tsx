@@ -661,7 +661,8 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                                 setSelectedWalletId(wallet.id)
                                 setFundModalOpen(true)
                               }}
-                              className="bg-green-600 hover:bg-green-700 text-white font-bold shrink-0 shadow-lg border-2 border-green-500 px-4 py-2"
+                              className="bg-green-600 hover:bg-green-700 text-white font-bold shrink-0 shadow-lg border-2 border-green-500 px-4 py-2 opacity-100 visible"
+                              style={{ opacity: 1, visibility: 'visible' }}
                             >
                               <Plus className="h-4 w-4 mr-1.5 font-bold" />
                               <span className="text-sm">Fund Wallet</span>
