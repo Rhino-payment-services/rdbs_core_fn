@@ -2758,11 +2758,13 @@ const TransactionsPage = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="MNO_FAILURE">MNO Transfer Failed</SelectItem>
-                      <SelectItem value="DUPLICATE_TRANSACTION">Duplicate Transaction</SelectItem>
-                      <SelectItem value="CUSTOMER_DISPUTE">Customer Dispute</SelectItem>
-                      <SelectItem value="TECHNICAL_ERROR">Technical Error</SelectItem>
-                      <SelectItem value="FRAUD_PREVENTION">Fraud Prevention</SelectItem>
+                      <SelectItem value="DUPLICATE">Duplicate Transaction</SelectItem>
+                      <SelectItem value="CUSTOMER_REQUEST">Customer Dispute</SelectItem>
+                      <SelectItem value="SYSTEM_ERROR">Technical Error</SelectItem>
+                      <SelectItem value="FRAUD">Fraud Prevention</SelectItem>
                       <SelectItem value="INCORRECT_RECIPIENT">Incorrect Recipient</SelectItem>
+                      <SelectItem value="SERVICE_UNAVAILABLE">Service Unavailable</SelectItem>
+                      <SelectItem value="INSUFFICIENT_FUNDS">Insufficient Funds</SelectItem>
                       <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
