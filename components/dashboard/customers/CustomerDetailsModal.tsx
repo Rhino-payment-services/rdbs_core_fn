@@ -655,18 +655,19 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                             </div>
                           </div>
                           {isAdmin && wallet.isActive && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedWalletId(wallet.id)
-                                setFundModalOpen(true)
-                              }}
-                              className="bg-green-600 hover:bg-green-700 text-white font-bold shrink-0 shadow-lg border-2 border-green-500 px-4 py-2 opacity-100 visible"
-                              style={{ opacity: 1, visibility: 'visible' }}
-                            >
-                              <Plus className="h-4 w-4 mr-1.5 font-bold" />
-                              <span className="text-sm">Fund Wallet</span>
-                            </Button>
+                            <div className="shrink-0 fund-wallet-button-wrapper">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedWalletId(wallet.id)
+                                  setFundModalOpen(true)
+                                }}
+                                className="fund-wallet-button bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg border-2 border-green-500 px-4 py-2"
+                              >
+                                <Plus className="h-4 w-4 mr-1.5 font-bold" />
+                                <span className="text-sm">Fund Wallet</span>
+                              </Button>
+                            </div>
                           )}
                         </div>
                         {wallet.id && (

@@ -212,3 +212,17 @@ export const useSuspendWallet = () => {
     },
   })
 }
+
+export const useUpdateDailyLimit = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<any>, Error, { walletId: string; dailyLimit: number; reason?: string }>({
+    mutationFn: ({ walletId, dailyLimit, reason }) => apiFetch(`/wallet/admin/${walletId}/daily-limit`, {
+      method: 'PATCH',
+      data: { dailyLimit, reason },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
