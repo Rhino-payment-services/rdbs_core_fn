@@ -1992,13 +1992,33 @@ const TransactionsPage = () => {
                         </div>
                         <div>
                           <span className="text-orange-600">Original Transaction:</span>
-                          <p className="font-medium text-orange-900 font-mono text-xs" title={selectedTransaction.metadata?.originalTransactionReference || selectedTransaction.metadata?.originalTransactionId || 'N/A'}>
-                            {shortenTransactionId(
-                              selectedTransaction.metadata?.originalTransactionReference || 
-                              selectedTransaction.metadata?.originalTransactionId || 
-                              'N/A'
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="font-medium text-orange-900 font-mono text-xs" title={selectedTransaction.metadata?.originalTransactionReference || selectedTransaction.metadata?.originalTransactionId || 'N/A'}>
+                              {shortenTransactionId(
+                                selectedTransaction.metadata?.originalTransactionReference || 
+                                selectedTransaction.metadata?.originalTransactionId || 
+                                'N/A'
+                              )}
+                            </p>
+                            {selectedTransaction.metadata?.originalTransactionId && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-xs px-2"
+                                onClick={() => {
+                                  // Find and select the original transaction
+                                  const originalTx = transactions.find((tx: any) => tx.id === selectedTransaction.metadata.originalTransactionId)
+                                  if (originalTx) {
+                                    setSelectedTransaction(originalTx)
+                                  } else {
+                                    toast.error('Original transaction not found in current page. Please search for it.')
+                                  }
+                                }}
+                              >
+                                View Original
+                              </Button>
                             )}
-                          </p>
+                          </div>
                         </div>
                         {selectedTransaction.metadata?.originalTransactionId && (
                           <div>
@@ -2006,6 +2026,7 @@ const TransactionsPage = () => {
                             <p className="font-medium text-orange-900 font-mono text-xs" title={selectedTransaction.metadata.originalTransactionId}>
                               {shortenTransactionId(selectedTransaction.metadata.originalTransactionId)}
                             </p>
+                            <Badge className="bg-red-600 text-white mt-1">Status: REVERSED</Badge>
                           </div>
                         )}
                         {selectedTransaction.metadata?.reversalReason && (
@@ -2022,11 +2043,33 @@ const TransactionsPage = () => {
                             <p className="font-medium text-orange-900 text-xs">{selectedTransaction.metadata.reversalDetails}</p>
                           </div>
                         )}
+                        {selectedTransaction.metadata?.processedByUser && (
+                          <div>
+                            <span className="text-orange-600">Processed By:</span>
+                            <p className="font-medium text-orange-900">
+                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                            </p>
+                            {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {selectedTransaction.metadata?.reversalId && (
                           <div>
                             <span className="text-orange-600">Reversal Request ID:</span>
                             <p className="font-medium text-orange-900 font-mono text-xs">
                               {shortenTransactionId(selectedTransaction.metadata.reversalId)}
+                            </p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.originalTransactionId && (
+                          <div className="pt-2 border-t border-orange-200">
+                            <span className="text-orange-600 font-medium">Original Transaction Status:</span>
+                            <Badge className="bg-red-600 text-white ml-2">REVERSED</Badge>
+                            <p className="text-xs text-gray-500 mt-1">
+                              The original transaction has been marked as reversed
                             </p>
                           </div>
                         )}
@@ -2296,6 +2339,19 @@ const TransactionsPage = () => {
                             <p className="font-medium text-green-900 text-xs">
                               {selectedTransaction.metadata.reversalDetails}
                             </p>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata?.processedByUser && (
+                          <div>
+                            <span className="text-green-600">Processed By Admin:</span>
+                            <p className="font-medium text-green-900">
+                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                            </p>
+                            {(selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone) && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {selectedTransaction.metadata.processedByUser.email || selectedTransaction.metadata.processedByUser.phone}
+                              </p>
+                            )}
                           </div>
                         )}
                         {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
