@@ -42,7 +42,6 @@ import {
   Code
 } from 'lucide-react'
 import { useTransactionSystemStats, useAllTransactions, useChannelStatistics } from '@/lib/hooks/useTransactions'
-import { useUser } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import {
@@ -121,14 +120,6 @@ const TransactionsPage = () => {
   
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
-  
-  // Fetch admin user details if we have processedBy but not processedByUser
-  const processedByAdminId = selectedTransaction?.type === 'REVERSAL' && 
-    selectedTransaction?.metadata?.processedBy && 
-    !selectedTransaction?.metadata?.processedByUser 
-    ? selectedTransaction.metadata.processedBy 
-    : '';
-  const { data: adminUserData } = useUser(processedByAdminId);
   const [isModalOpen, setIsModalOpen] = useState(false)
   
   // Reversal modal state
@@ -2054,43 +2045,29 @@ const TransactionsPage = () => {
                         )}
                         {/* Admin who processed the reversal */}
                         {(() => {
+                          // Debug: Log metadata to console
+                          if (selectedTransaction.type === 'REVERSAL') {
+                            console.log('Reversal Transaction Metadata:', selectedTransaction.metadata);
+                            console.log('ProcessedByUser:', selectedTransaction.metadata?.processedByUser);
+                          }
+                          
                           const processedByUser = selectedTransaction.metadata?.processedByUser;
-                          const adminUserFromQuery = adminUserData?.data;
-                          const adminUser = processedByUser || (adminUserFromQuery ? {
-                            name: adminUserFromQuery.profile 
-                              ? `${adminUserFromQuery.profile.firstName || ''} ${adminUserFromQuery.profile.lastName || ''}`.trim()
-                              : adminUserFromQuery.email || adminUserFromQuery.phone || 'Admin User',
-                            email: adminUserFromQuery.email,
-                            phone: adminUserFromQuery.phone
-                          } : null);
-
-                          return adminUser ? (
+                          if (!processedByUser) return null;
+                          
+                          return (
                             <div>
                               <span className="text-orange-600">Processed By:</span>
                               <p className="font-medium text-orange-900">
-                                {adminUser.name || 'Admin User'}
+                                {processedByUser.name || 'Admin User'}
                               </p>
-                              {adminUser.email && (
+                              {processedByUser.email && (
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {adminUser.email}
+                                  {processedByUser.email}
                                 </p>
                               )}
                             </div>
-                          ) : processedByAdminId ? (
-                            <div className="text-xs text-orange-500 italic">
-                              Loading admin details...
-                            </div>
-                          ) : null;
+                          );
                         })()}
-                        {/* Debug: Show metadata structure for reversals - always show for debugging */}
-                        {selectedTransaction.type === 'REVERSAL' && (
-                          <div className="text-xs text-gray-400 border-t pt-2 mt-2">
-                            <p className="font-semibold mb-1">Debug Metadata:</p>
-                            <pre className="text-xs overflow-auto max-h-32 bg-gray-100 p-2 rounded">
-                              {JSON.stringify(selectedTransaction.metadata, null, 2)}
-                            </pre>
-                          </div>
-                        )}
                         {selectedTransaction.metadata?.reversalId && (
                           <div>
                             <span className="text-orange-600">Reversal Request ID:</span>
@@ -2376,35 +2353,19 @@ const TransactionsPage = () => {
                             </p>
                           </div>
                         )}
-                        {(() => {
-                          const processedByUser = selectedTransaction.metadata?.processedByUser;
-                          const adminUserFromQuery = adminUserData?.data;
-                          const adminUser = processedByUser || (adminUserFromQuery ? {
-                            name: adminUserFromQuery.profile 
-                              ? `${adminUserFromQuery.profile.firstName || ''} ${adminUserFromQuery.profile.lastName || ''}`.trim()
-                              : adminUserFromQuery.email || adminUserFromQuery.phone || 'Admin User',
-                            email: adminUserFromQuery.email,
-                            phone: adminUserFromQuery.phone
-                          } : null);
-
-                          return adminUser ? (
-                            <div>
-                              <span className="text-green-600">Processed By Admin:</span>
-                              <p className="font-medium text-green-900">
-                                {adminUser.name || 'Admin User'}
+                        {selectedTransaction.metadata?.processedByUser && (
+                          <div>
+                            <span className="text-green-600">Processed By Admin:</span>
+                            <p className="font-medium text-green-900">
+                              {selectedTransaction.metadata.processedByUser.name || 'Admin User'}
+                            </p>
+                            {selectedTransaction.metadata.processedByUser.email && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {selectedTransaction.metadata.processedByUser.email}
                               </p>
-                              {adminUser.email && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {adminUser.email}
-                                </p>
-                              )}
-                            </div>
-                          ) : processedByAdminId ? (
-                            <div className="text-xs text-green-500 italic">
-                              Loading admin details...
-                            </div>
-                          ) : null;
-                        })()}
+                            )}
+                          </div>
+                        )}
                         {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
                           <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
                         )}
