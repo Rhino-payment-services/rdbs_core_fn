@@ -1306,20 +1306,45 @@ const TransactionsPage = () => {
                                 </>
                               ) : transaction.direction === 'DEBIT' ? (
                                 <>
-                                  {/* Outgoing transaction - sender is the wallet owner */}
-                                  <span className="font-medium">
-                                    {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
-                                      ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                                      : 'Unknown User'
-                                    }
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    📱 {transaction.user?.phone || transaction.user?.email}
-                                  </span>
-                                  {transaction.user?.userType === 'SUBSCRIBER' && (
-                                    <span className="text-xs text-blue-600 font-medium">
-                                      🏦 RukaPay Subscriber
-                                    </span>
+                                  {/* Outgoing transaction */}
+                                  {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                                    <>
+                                      {/* MERCHANT_TO_WALLET DEBIT - sender is the merchant business */}
+                                      <span className="font-medium">
+                                        {transaction.metadata?.merchantName || 
+                                         transaction.user?.merchant?.businessTradeName ||
+                                         transaction.user?.profile?.merchantBusinessTradeName ||
+                                         transaction.user?.profile?.businessTradeName ||
+                                         transaction.user?.profile?.merchant_names ||
+                                         (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                                      </span>
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Code: {transaction.metadata.merchantCode}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Internal Account
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Other outgoing transaction - sender is the wallet owner */}
+                                      <span className="font-medium">
+                                        {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                          ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                          : 'Unknown User'
+                                        }
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {transaction.user?.phone || transaction.user?.email}
+                                      </span>
+                                      {transaction.user?.userType === 'SUBSCRIBER' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
                                   )}
                                 </>
                               ) : (
