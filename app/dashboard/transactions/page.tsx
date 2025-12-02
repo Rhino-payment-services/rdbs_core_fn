@@ -304,33 +304,32 @@ const TransactionsPage = () => {
   }
 
   // Get transaction type display
-  // Helper function to get display name - shows merchant business name for merchants, user name for individuals
-  const getDisplayName = (user: any, metadata?: any, counterpartyUser?: any) => {
-    // Check if it's a merchant (has merchantCode or merchant relation)
-    const isMerchant = user?.merchantCode || user?.merchant?.businessTradeName || metadata?.merchantName || metadata?.merchantCode
-    
-    if (isMerchant) {
-      // Show merchant business name
-      return metadata?.merchantName || 
-             user?.merchant?.businessTradeName ||
-             user?.profile?.merchantBusinessTradeName ||
-             user?.profile?.businessTradeName ||
-             user?.profile?.merchant_names ||
-             (user?.merchantCode ? `Merchant (${user.merchantCode})` : 'Merchant')
-    } else {
-      // Show individual user name - prioritize counterpartyUser if available (for receiver in DEBIT)
-      if (counterpartyUser?.profile?.firstName && counterpartyUser?.profile?.lastName) {
-        return `${counterpartyUser.profile.firstName} ${counterpartyUser.profile.lastName}`
-      }
-      if (user?.profile?.firstName && user?.profile?.lastName) {
-        return `${user.profile.firstName} ${user.profile.lastName}`
-      }
-      // Fallback to metadata recipient name
-      if (metadata?.recipientName) {
-        return metadata.recipientName
-      }
-      return user?.phone || user?.email || counterpartyUser?.phone || counterpartyUser?.email || 'RukaPay User'
+  // Helper function to get merchant name from metadata or user
+  const getMerchantName = (metadata?: any, user?: any) => {
+    return metadata?.merchantName || 
+           user?.merchant?.businessTradeName ||
+           user?.profile?.merchantBusinessTradeName ||
+           user?.profile?.businessTradeName ||
+           user?.profile?.merchant_names ||
+           (user?.merchantCode ? `Merchant (${user.merchantCode})` : null)
+  }
+
+  // Helper function to get user name (individual, not merchant)
+  const getUserName = (user?: any, metadata?: any, counterpartyUser?: any) => {
+    // Prioritize counterpartyUser if available
+    if (counterpartyUser?.profile?.firstName && counterpartyUser?.profile?.lastName) {
+      return `${counterpartyUser.profile.firstName} ${counterpartyUser.profile.lastName}`
     }
+    // Then check metadata for recipient name
+    if (metadata?.recipientName) {
+      return metadata.recipientName
+    }
+    // Then check user profile
+    if (user?.profile?.firstName && user?.profile?.lastName) {
+      return `${user.profile.firstName} ${user.profile.lastName}`
+    }
+    // Fallback to phone/email
+    return counterpartyUser?.phone || counterpartyUser?.email || user?.phone || user?.email || 'RukaPay User'
   }
 
   // Helper function to get contact info
@@ -1345,75 +1344,56 @@ const TransactionsPage = () => {
                                 </>
                               ) : transaction.direction === 'DEBIT' ? (
                                 <>
-                                  {/* Outgoing transaction */}
-                                  {(() => {
-                                    const isMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName || transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                                    const displayName = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                                    
-                                    return (
-                                      <>
-                                        <span className="font-medium">
-                                          {displayName}
+                                  {/* Outgoing transaction - DEBIT */}
+                                  {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                                    <>
+                                      {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
+                                      <span className="font-medium">
+                                        {getMerchantName(transaction.metadata, transaction.user) || 'Merchant'}
+                                      </span>
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Code: {transaction.metadata.merchantCode}
                                         </span>
-                                        {isMerchant && transaction.metadata?.merchantCode && (
-                                          <span className="text-xs text-gray-500">
-                                            🏪 Code: {transaction.metadata.merchantCode}
-                                          </span>
-                                        )}
-                                        {!isMerchant && (
-                                          <span className="text-xs text-gray-500">
-                                            📱 {getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)}
-                                          </span>
-                                        )}
-                                        {isMerchant ? (
-                                          <span className="text-xs text-blue-600 font-medium">
-                                            🏦 Internal Account
-                                          </span>
-                                        ) : transaction.user?.userType === 'SUBSCRIBER' && (
-                                          <span className="text-xs text-blue-600 font-medium">
-                                            🏦 RukaPay Subscriber
-                                          </span>
-                                        )}
-                                      </>
-                                    )
-                                  })()}
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Internal Account
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Other DEBIT transactions - sender is the wallet owner */}
+                                      <span className="font-medium">
+                                        {getUserName(transaction.user, transaction.metadata, null)}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {getContactInfo(transaction.user, transaction.metadata, null)}
+                                      </span>
+                                      {transaction.user?.userType === 'SUBSCRIBER' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
                                 </>
                               ) : (
                                 <>
                                   {/* Incoming transaction - extract sender info */}
                                   {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET') || transaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
                                     <>
-                                      {/* Merchant sending to wallet - check if sender is merchant */}
-                                      {(() => {
-                                        // For incoming MERCHANT_TO_WALLET, the sender is the merchant (from metadata)
-                                        const isMerchant = transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                                        const displayName = transaction.metadata?.merchantName || 
-                                                           transaction.metadata?.counterpartyInfo?.name ||
-                                                           getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                                        
-                                        return (
-                                          <>
-                                            <span className="font-medium">
-                                              {displayName}
-                                            </span>
-                                            {isMerchant && transaction.metadata?.merchantCode && (
-                                              <span className="text-xs text-gray-500">
-                                                🏪 Code: {transaction.metadata.merchantCode}
-                                              </span>
-                                            )}
-                                            {transaction.metadata?.accountNumber && (
-                                              <span className="text-xs text-gray-500">
-                                                Account: {transaction.metadata.accountNumber}
-                                              </span>
-                                            )}
-                                            {isMerchant && (
-                                              <span className="text-xs text-blue-600 font-medium">
-                                                🏦 Internal Account
-                                              </span>
-                                            )}
-                                          </>
-                                        )
-                                      })()}
+                                      {/* MERCHANT_TO_WALLET CREDIT - sender is always the merchant (from metadata) */}
+                                      <span className="font-medium">
+                                        {getMerchantName(transaction.metadata, null) || 'Merchant'}
+                                      </span>
+                                      {transaction.metadata?.merchantCode && (
+                                        <span className="text-xs text-gray-500">
+                                          🏪 Code: {transaction.metadata.merchantCode}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 Internal Account
+                                      </span>
                                     </>
                                   ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
                                     <>
@@ -1557,37 +1537,16 @@ const TransactionsPage = () => {
                                   {/* Outgoing transaction - extract receiver info */}
                                   {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                                     <>
-                                      {/* Merchant to Wallet - receiver is the RukaPay user recipient (individual, not merchant) */}
-                                      {(() => {
-                                        // Receiver is always an individual user for MERCHANT_TO_WALLET
-                                        const displayName = getDisplayName(
-                                          null, // No user for receiver in DEBIT, use counterpartyUser
-                                          transaction.metadata, 
-                                          transaction.counterpartyUser
-                                        )
-                                        const contact = getContactInfo(null, transaction.metadata, transaction.counterpartyUser)
-                                        
-                                        return (
-                                          <>
-                                            <span className="font-medium">
-                                              {displayName}
-                                            </span>
-                                            {contact !== 'N/A' && (
-                                              <span className="text-xs text-gray-500">
-                                                📱 {contact}
-                                              </span>
-                                            )}
-                                            {transaction.counterpartyId && (
-                                              <span className="text-xs text-gray-500">
-                                                📱 RukaPay ID: {transaction.counterpartyId.slice(0, 8)}...
-                                              </span>
-                                            )}
-                                            <span className="text-xs text-blue-600 font-medium">
-                                              🏦 RukaPay Subscriber
-                                            </span>
-                                          </>
-                                        )
-                                      })()}
+                                      {/* MERCHANT_TO_WALLET DEBIT - receiver is always the RukaPay user (individual) */}
+                                      <span className="font-medium">
+                                        {getUserName(null, transaction.metadata, transaction.counterpartyUser)}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {getContactInfo(null, transaction.metadata, transaction.counterpartyUser)}
+                                      </span>
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
+                                      </span>
                                     </>
                                   ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
                                     <>
@@ -1729,32 +1688,16 @@ const TransactionsPage = () => {
                                   {/* Incoming transaction */}
                                   {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                                     <>
-                                      {/* MERCHANT_TO_WALLET - receiver is the RukaPay user (individual, not merchant) */}
-                                      {(() => {
-                                        // Receiver is always an individual user for MERCHANT_TO_WALLET
-                                        const displayName = getDisplayName(
-                                          transaction.user, 
-                                          transaction.metadata, 
-                                          transaction.counterpartyUser
-                                        )
-                                        const contact = getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                                        
-                                        return (
-                                          <>
-                                            <span className="font-medium">
-                                              {displayName}
-                                            </span>
-                                            {contact !== 'N/A' && (
-                                              <span className="text-xs text-gray-500">
-                                                📱 {contact}
-                                              </span>
-                                            )}
-                                            <span className="text-xs text-blue-600 font-medium">
-                                              🏦 RukaPay Subscriber
-                                            </span>
-                                          </>
-                                        )
-                                      })()}
+                                      {/* MERCHANT_TO_WALLET CREDIT - receiver is always the RukaPay user (individual) */}
+                                      <span className="font-medium">
+                                        {getUserName(transaction.user, transaction.metadata, transaction.counterpartyUser)}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)}
+                                      </span>
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
+                                      </span>
                                     </>
                                   ) : (() => {
                                     // Check if this is a merchant transaction (but not MERCHANT_TO_WALLET)
