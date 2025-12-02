@@ -1491,7 +1491,34 @@ const TransactionsPage = () => {
                               ) : transaction.direction === 'DEBIT' ? (
                                 <>
                                   {/* Outgoing transaction - extract receiver info */}
-                                  {transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
+                                  {transaction.type === 'MERCHANT_TO_WALLET' ? (
+                                    <>
+                                      {/* Merchant to Wallet - receiver is the RukaPay user recipient */}
+                                      <span className="font-medium">
+                                        {transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
+                                          ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
+                                          : transaction.metadata?.recipientName || transaction.metadata?.userName || 'RukaPay User'
+                                        }
+                                      </span>
+                                      {transaction.counterpartyUser?.phone ? (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.counterpartyUser.phone}
+                                        </span>
+                                      ) : transaction.metadata?.recipientPhone ? (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.metadata.recipientPhone}
+                                        </span>
+                                      ) : null}
+                                      {transaction.counterpartyId && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 RukaPay ID: {transaction.counterpartyId.slice(0, 8)}...
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
+                                      </span>
+                                    </>
+                                  ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
                                     <>
                                       {/* P2P - Wallet to Wallet - receiver is another RukaPay user */}
                                       <span className="font-medium">
@@ -1514,7 +1541,7 @@ const TransactionsPage = () => {
                                         🏦 RukaPay Subscriber
                                       </span>
                                     </>
-                                  ) : transaction.type === 'WALLET_TO_MERCHANT' || transaction.type === 'WALLET_TO_INTERNAL_MERCHANT' || transaction.type?.includes('MERCHANT') || transaction.metadata?.merchantName ? (
+                                  ) : transaction.type === 'WALLET_TO_MERCHANT' || transaction.type === 'WALLET_TO_INTERNAL_MERCHANT' || (transaction.type?.includes('MERCHANT') && transaction.type !== 'MERCHANT_TO_WALLET') || transaction.metadata?.merchantName ? (
                                     <>
                                       {/* Wallet to Merchant - receiver is merchant */}
                                       <span className="font-medium">
@@ -2375,7 +2402,44 @@ const TransactionsPage = () => {
                         <Badge className="bg-green-600 text-white">💰 Credited Back</Badge>
                       </>
                     ) : selectedTransaction.direction === 'DEBIT' ? (
-                      selectedTransaction.metadata?.counterpartyInfo ? (
+                      selectedTransaction.type === 'MERCHANT_TO_WALLET' ? (
+                        <>
+                          {/* Merchant to Wallet - receiver is the RukaPay user recipient */}
+                          <div>
+                            <span className="text-green-600">Name:</span>
+                            <p className="font-medium text-green-900">
+                              {selectedTransaction.counterpartyUser?.profile?.firstName && selectedTransaction.counterpartyUser?.profile?.lastName
+                                ? `${selectedTransaction.counterpartyUser.profile.firstName} ${selectedTransaction.counterpartyUser.profile.lastName}`
+                                : selectedTransaction.metadata?.recipientName || selectedTransaction.metadata?.userName || 'RukaPay User'
+                              }
+                            </p>
+                          </div>
+                          {selectedTransaction.counterpartyUser?.phone ? (
+                            <div>
+                              <span className="text-green-600">Contact:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.counterpartyUser.phone}
+                              </p>
+                            </div>
+                          ) : selectedTransaction.metadata?.recipientPhone ? (
+                            <div>
+                              <span className="text-green-600">Contact:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.metadata.recipientPhone}
+                              </p>
+                            </div>
+                          ) : null}
+                          {selectedTransaction.counterpartyId && (
+                            <div>
+                              <span className="text-green-600">RukaPay ID:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.counterpartyId}
+                              </p>
+                            </div>
+                          )}
+                          <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
+                        </>
+                      ) : selectedTransaction.metadata?.counterpartyInfo ? (
                         <>
                           <div>
                             <span className="text-green-600">Name:</span>
@@ -2404,7 +2468,8 @@ const TransactionsPage = () => {
                           {/* Check if it's a merchant transaction first */}
                           {(() => {
                             const isMerchantTxn = 
-                              selectedTransaction.metadata?.merchantName || 
+                              (selectedTransaction.type === 'WALLET_TO_MERCHANT' || selectedTransaction.type === 'WALLET_TO_INTERNAL_MERCHANT') ||
+                              (selectedTransaction.metadata?.merchantName && selectedTransaction.type !== 'MERCHANT_TO_WALLET') || 
                               selectedTransaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || 
                               selectedTransaction.metadata?.walletType === 'BUSINESS' ||
                               selectedTransaction.user?.merchantCode ||
