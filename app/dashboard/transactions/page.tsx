@@ -2197,24 +2197,55 @@ const TransactionsPage = () => {
                       </>
                     ) : selectedTransaction.direction === 'DEBIT' ? (
                       <>
-                        {/* Outgoing - sender is wallet owner */}
-                        <div>
-                          <span className="text-blue-600">Name:</span>
-                          <p className="font-medium text-blue-900">
-                            {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
-                              ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
-                              : 'Unknown User'
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-blue-600">Contact:</span>
-                          <p className="font-medium text-blue-900">
-                            {selectedTransaction.user?.phone || selectedTransaction.user?.email}
-                          </p>
-                        </div>
-                        {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
-                          <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                        {/* Outgoing transaction */}
+                        {selectedTransaction.type === 'MERCHANT_TO_WALLET' || selectedTransaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                          <>
+                            {/* MERCHANT_TO_WALLET DEBIT - sender is the merchant business */}
+                            <div>
+                              <span className="text-blue-600">Merchant:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.metadata?.merchantName || 
+                                 selectedTransaction.user?.merchant?.businessTradeName ||
+                                 selectedTransaction.user?.profile?.merchantBusinessTradeName ||
+                                 selectedTransaction.user?.profile?.businessTradeName ||
+                                 selectedTransaction.user?.profile?.merchant_names ||
+                                 (selectedTransaction.user?.merchantCode ? `Merchant (${selectedTransaction.user.merchantCode})` : 'Merchant')}
+                              </p>
+                            </div>
+                            {selectedTransaction.metadata?.merchantCode && (
+                              <div>
+                                <span className="text-blue-600">Merchant Code:</span>
+                                <p className="font-medium text-blue-900">
+                                  {selectedTransaction.metadata.merchantCode}
+                                </p>
+                              </div>
+                            )}
+                            <Badge className="bg-blue-600 text-white">Internal Account</Badge>
+                            <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
+                          </>
+                        ) : (
+                          <>
+                            {/* Other outgoing - sender is wallet owner */}
+                            <div>
+                              <span className="text-blue-600">Name:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
+                                  ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
+                                  : 'Unknown User'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-blue-600">Contact:</span>
+                              <p className="font-medium text-blue-900">
+                                {selectedTransaction.user?.phone || selectedTransaction.user?.email}
+                              </p>
+                            </div>
+                            {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
+                              <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                            )}
+                            <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
+                          </>
                         )}
                       </>
                     ) : (
@@ -2246,6 +2277,7 @@ const TransactionsPage = () => {
                               </div>
                             )}
                             <Badge className="bg-blue-600 text-white">Internal Account</Badge>
+                            <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
                           </>
                         ) : selectedTransaction.type === 'MNO_TO_WALLET' || selectedTransaction.type?.includes('MNO_TO_WALLET') ? (
                           <>
@@ -2765,23 +2797,51 @@ const TransactionsPage = () => {
                       )
                     ) : (
                       <>
-                        <div>
-                          <span className="text-green-600">Name:</span>
-                          <p className="font-medium text-green-900">
-                            {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
-                              ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
-                              : 'Unknown User'
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-green-600">Contact:</span>
-                          <p className="font-medium text-green-900">
-                            {selectedTransaction.user?.phone || selectedTransaction.user?.email}
-                          </p>
-                        </div>
-                        {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
-                          <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
+                        {/* Incoming transaction - receiver is the wallet owner */}
+                        {selectedTransaction.type === 'MERCHANT_TO_WALLET' || selectedTransaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                          <>
+                            {/* MERCHANT_TO_WALLET CREDIT - receiver is the RukaPay user */}
+                            <div>
+                              <span className="text-green-600">Name:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
+                                  ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
+                                  : selectedTransaction.counterpartyUser?.profile?.firstName && selectedTransaction.counterpartyUser?.profile?.lastName
+                                  ? `${selectedTransaction.counterpartyUser.profile.firstName} ${selectedTransaction.counterpartyUser.profile.lastName}`
+                                  : selectedTransaction.metadata?.recipientName || 'RukaPay User'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-green-600">Contact:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.user?.phone || selectedTransaction.counterpartyUser?.phone || selectedTransaction.metadata?.recipientPhone || 'N/A'}
+                              </p>
+                            </div>
+                            <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
+                            <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <span className="text-green-600">Name:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
+                                  ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
+                                  : 'Unknown User'
+                                }
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-green-600">Contact:</span>
+                              <p className="font-medium text-green-900">
+                                {selectedTransaction.user?.phone || selectedTransaction.user?.email}
+                              </p>
+                            </div>
+                            {selectedTransaction.user?.userType === 'SUBSCRIBER' && (
+                              <Badge className="bg-green-600 text-white">RukaPay Subscriber</Badge>
+                            )}
+                          </>
                         )}
                       </>
                     )}
@@ -2831,8 +2891,12 @@ const TransactionsPage = () => {
                       </div>
                     )}
 
-                    {/* MNO Provider */}
-                    {selectedTransaction.metadata.mnoProvider && (
+                    {/* MNO Provider - only show for external MNO transactions, not internal transfers */}
+                    {selectedTransaction.metadata.mnoProvider && 
+                     selectedTransaction.type !== 'MERCHANT_TO_WALLET' && 
+                     selectedTransaction.type !== 'MERCHANT_TO_INTERNAL_WALLET' && 
+                     selectedTransaction.type !== 'WALLET_TO_WALLET' && 
+                     selectedTransaction.type !== 'WALLET_TO_MERCHANT' && (
                       <div className="bg-white p-3 rounded-lg border border-gray-200">
                         <span className="text-xs text-gray-500 block mb-1">Network Provider</span>
                         <p className="font-medium text-gray-900">{selectedTransaction.metadata.mnoProvider}</p>
