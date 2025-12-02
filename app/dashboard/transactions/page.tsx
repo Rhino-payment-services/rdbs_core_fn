@@ -2267,7 +2267,6 @@ const TransactionsPage = () => {
                               </div>
                             )}
                             <Badge className="bg-blue-600 text-white">Internal Account</Badge>
-                            <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
                           </>
                         ) : selectedTransaction.type === 'MNO_TO_WALLET' || selectedTransaction.type?.includes('MNO_TO_WALLET') ? (
                           <>
