@@ -1655,9 +1655,37 @@ const TransactionsPage = () => {
                                 </>
                               ) : (
                                 <>
-                                  {/* Incoming transaction - check if it's a merchant transaction */}
-                                  {(() => {
-                                    // Check if this is a merchant transaction
+                                  {/* Incoming transaction */}
+                                  {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                                    <>
+                                      {/* MERCHANT_TO_WALLET - receiver is the RukaPay user (transaction.user) */}
+                                      <span className="font-medium">
+                                        {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                          ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                          : transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
+                                          ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
+                                          : transaction.metadata?.recipientName || transaction.user?.phone || transaction.user?.email || 'RukaPay User'
+                                        }
+                                      </span>
+                                      {transaction.user?.phone ? (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.user.phone}
+                                        </span>
+                                      ) : transaction.counterpartyUser?.phone ? (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.counterpartyUser.phone}
+                                        </span>
+                                      ) : transaction.metadata?.recipientPhone ? (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.metadata.recipientPhone}
+                                        </span>
+                                      ) : null}
+                                      <span className="text-xs text-blue-600 font-medium">
+                                        🏦 RukaPay Subscriber
+                                      </span>
+                                    </>
+                                  ) : (() => {
+                                    // Check if this is a merchant transaction (but not MERCHANT_TO_WALLET)
                                     const isMerchantTransaction = 
                                       transaction.metadata?.merchantName || 
                                       transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || 
