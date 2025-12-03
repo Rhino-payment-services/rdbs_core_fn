@@ -1360,6 +1360,23 @@ const TransactionsPage = () => {
                                         🏦 Internal Account
                                       </span>
                                     </>
+                                  ) : transaction.type === 'WALLET_TO_MNO' || (transaction.type?.includes('WALLET_TO_MNO') && !transaction.type?.includes('MNO_TO_WALLET')) ? (
+                                    <>
+                                      {/* WALLET_TO_MNO DEBIT - sender is ALWAYS the RukaPay user (wallet owner), NOT the external mobile money user */}
+                                      <span className="font-medium">
+                                        {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
+                                          ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                                          : transaction.user?.phone || transaction.user?.email || 'RukaPay User'}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                                      </span>
+                                      {transaction.user?.userType === 'SUBSCRIBER' && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          🏦 RukaPay Subscriber
+                                        </span>
+                                      )}
+                                    </>
                                   ) : (
                                     <>
                                       {/* Other DEBIT transactions - sender is the wallet owner */}
@@ -1514,20 +1531,30 @@ const TransactionsPage = () => {
                               ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
                                 <>
                                   {/* Wallet Deposit - receiver is the RukaPay user receiving funds */}
+                                  {/* For merchant wallets, show business name; for personal wallets, show user name */}
                                   <span className="font-medium text-green-600">
-                                    {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                                    {transaction.user?.merchant?.businessTradeName || 
+                                     transaction.user?.profile?.merchantBusinessTradeName ||
+                                     transaction.user?.profile?.businessTradeName ||
+                                     transaction.user?.profile?.merchant_names ||
+                                     (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null) ||
+                                     (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
                                       ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                                      : transaction.user?.phone || transaction.user?.email || 'RukaPay User'
+                                      : transaction.user?.phone || transaction.user?.email || 'RukaPay User')
                                     }
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
                                   </span>
-                                  {transaction.user?.userType === 'SUBSCRIBER' && (
+                                  {transaction.user?.merchant ? (
+                                    <span className="text-xs text-blue-600 font-medium">
+                                      🏦 Merchant Account
+                                    </span>
+                                  ) : transaction.user?.userType === 'SUBSCRIBER' ? (
                                     <span className="text-xs text-blue-600 font-medium">
                                       🏦 RukaPay Subscriber
                                     </span>
-                                  )}
+                                  ) : null}
                                   <span className="text-xs text-green-600 font-medium">
                                     💰 Wallet Credit
                                   </span>
@@ -1550,7 +1577,8 @@ const TransactionsPage = () => {
                                     </>
                                   ) : transaction.type === 'WALLET_TO_MNO' || (transaction.type?.includes('WALLET_TO_MNO') && !transaction.type?.includes('MNO_TO_WALLET')) ? (
                                     <>
-                                      {/* WALLET_TO_MNO - receiver is always the external mobile money user */}
+                                      {/* WALLET_TO_MNO - receiver is ALWAYS the external mobile money user, NOT the RukaPay user */}
+                                      {/* Do NOT use getUserName here as it might show the RukaPay user if counterpartyUser exists */}
                                       <span className="font-medium">
                                         {transaction.metadata?.userName || transaction.metadata?.recipientName || `${transaction.metadata?.mnoProvider || 'Mobile Money'} User`}
                                       </span>
@@ -1559,9 +1587,13 @@ const TransactionsPage = () => {
                                           📱 {transaction.metadata.phoneNumber}
                                         </span>
                                       )}
-                                      {transaction.metadata?.mnoProvider && (
+                                      {transaction.metadata?.mnoProvider ? (
                                         <span className="text-xs text-blue-600 font-medium">
                                           {transaction.metadata.mnoProvider} Network
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs text-gray-500 font-medium">
+                                          📱 Mobile Money
                                         </span>
                                       )}
                                     </>
@@ -2201,6 +2233,37 @@ const TransactionsPage = () => {
                           </div>
                         )}
                         <Badge className="bg-purple-600 text-white">Admin Funding</Badge>
+                      </>
+                    ) : selectedTransaction.direction === 'INCOMING' && selectedTransaction.type === 'DEPOSIT' && selectedTransaction.metadata?.fundedByAdmin ? (
+                      <>
+                        {/* Admin funded wallet - receiver section */}
+                        {/* For merchant wallets, show business name; for personal wallets, show user name */}
+                        <div>
+                          <span className="text-green-600">Name:</span>
+                          <p className="font-medium text-green-900">
+                            {selectedTransaction.user?.merchant?.businessTradeName || 
+                             selectedTransaction.user?.profile?.merchantBusinessTradeName ||
+                             selectedTransaction.user?.profile?.businessTradeName ||
+                             selectedTransaction.user?.profile?.merchant_names ||
+                             (selectedTransaction.user?.merchantCode ? `Merchant (${selectedTransaction.user.merchantCode})` : null) ||
+                             (selectedTransaction.user?.profile?.firstName && selectedTransaction.user?.profile?.lastName 
+                              ? `${selectedTransaction.user.profile.firstName} ${selectedTransaction.user.profile.lastName}`
+                              : selectedTransaction.user?.phone || selectedTransaction.user?.email || 'RukaPay User')
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-green-600">Contact:</span>
+                          <p className="font-medium text-green-900">
+                            {selectedTransaction.user?.phone || selectedTransaction.user?.email || 'N/A'}
+                          </p>
+                        </div>
+                        {selectedTransaction.user?.merchant ? (
+                          <Badge className="bg-blue-600 text-white">Merchant Account</Badge>
+                        ) : selectedTransaction.user?.userType === 'SUBSCRIBER' ? (
+                          <Badge className="bg-blue-600 text-white">RukaPay Subscriber</Badge>
+                        ) : null}
+                        <Badge className="bg-green-600 text-white">💰 Wallet Credit</Badge>
                       </>
                     ) : selectedTransaction.direction === 'DEBIT' ? (
                       <>
