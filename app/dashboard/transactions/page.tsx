@@ -1548,6 +1548,23 @@ const TransactionsPage = () => {
                                         🏦 RukaPay Subscriber
                                       </span>
                                     </>
+                                  ) : transaction.type === 'WALLET_TO_MNO' || (transaction.type?.includes('WALLET_TO_MNO') && !transaction.type?.includes('MNO_TO_WALLET')) ? (
+                                    <>
+                                      {/* WALLET_TO_MNO - receiver is always the external mobile money user */}
+                                      <span className="font-medium">
+                                        {transaction.metadata?.userName || transaction.metadata?.recipientName || `${transaction.metadata?.mnoProvider || 'Mobile Money'} User`}
+                                      </span>
+                                      {transaction.metadata?.phoneNumber && (
+                                        <span className="text-xs text-gray-500">
+                                          📱 {transaction.metadata.phoneNumber}
+                                        </span>
+                                      )}
+                                      {transaction.metadata?.mnoProvider && (
+                                        <span className="text-xs text-blue-600 font-medium">
+                                          {transaction.metadata.mnoProvider} Network
+                                        </span>
+                                      )}
+                                    </>
                                   ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
                                     <>
                                       {/* P2P - Wallet to Wallet - receiver is another RukaPay user */}
@@ -2575,6 +2592,29 @@ const TransactionsPage = () => {
                                 </div>
                               )}
                               <Badge className="bg-green-600 text-white">Merchant Account</Badge>
+                            </>
+                          ) : selectedTransaction.type === 'WALLET_TO_MNO' || (selectedTransaction.type?.includes('WALLET_TO_MNO') && !selectedTransaction.type?.includes('MNO_TO_WALLET')) ? (
+                            <>
+                              {/* WALLET_TO_MNO - receiver is always the external mobile money user */}
+                              <div>
+                                <span className="text-green-600">Name:</span>
+                                <p className="font-medium text-green-900">
+                                  {selectedTransaction.metadata?.userName || selectedTransaction.metadata?.recipientName || `${selectedTransaction.metadata?.mnoProvider || 'Mobile Money'} User`}
+                                </p>
+                              </div>
+                              {selectedTransaction.metadata?.phoneNumber && (
+                                <div>
+                                  <span className="text-green-600">Phone Number:</span>
+                                  <p className="font-medium text-green-900">
+                                    {selectedTransaction.metadata.phoneNumber}
+                                  </p>
+                                </div>
+                              )}
+                              {selectedTransaction.metadata?.mnoProvider && (
+                                <Badge className="bg-blue-600 text-white">
+                                  {selectedTransaction.metadata.mnoProvider} Network
+                                </Badge>
+                              )}
                             </>
                           ) : selectedTransaction.type === 'WALLET_TO_WALLET' || selectedTransaction.counterpartyId || selectedTransaction.counterpartyUser ? (
                             <>
