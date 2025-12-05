@@ -102,6 +102,7 @@ interface Tariff {
   rukapayFee?: number // RukaPay fee amount for external tariffs
   telecomBankCharge?: number // Telecom/Bank charge (optional)
   governmentTax?: number
+  transactionModeCode?: string // Transaction mode code for CUSTOM transaction types
 }
 
 interface Partner {
@@ -150,7 +151,12 @@ const TariffsPage = () => {
   const submitForApprovalMutation = useSubmitTariffForApproval()
 
   // Helper function to get human-readable transaction type label
-  const getTransactionTypeLabel = (type: string): string => {
+  const getTransactionTypeLabel = (type: string, tariff?: Tariff): string => {
+    // For CUSTOM type, show the transaction mode code if available
+    if (type === 'CUSTOM' && tariff?.transactionModeCode) {
+      return tariff.transactionModeCode;
+    }
+    
     const typeLabels: Record<string, string> = {
       // Internal types
       'WALLET_TO_INTERNAL_MERCHANT': 'Wallet to Internal Merchant',
@@ -622,7 +628,7 @@ const TariffsPage = () => {
                       }
                     </TableCell>
                     <TableCell className="text-sm">
-                      <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType)}</Badge>
+                      <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType, tariff)}</Badge>
                     </TableCell>
                     {!isInternalTariff && (
                       <TableCell>
@@ -1198,7 +1204,7 @@ const TariffsPage = () => {
                   </div>
                   <div>
                     <Label className="text-xs text-gray-500">Transaction Type</Label>
-                    <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType)}</Badge>
+                    <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType, viewTariff)}</Badge>
                   </div>
                 </div>
               </div>
