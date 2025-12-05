@@ -147,6 +147,7 @@ export interface Transaction {
   externalId?: string | null
   externalReference?: string | null
   partnerMappingId?: string | null
+  partnerId?: string | null  // ✅ API Partner ID (from api_partners table)
   
   // Transaction details
   description?: string | null
@@ -172,7 +173,15 @@ export interface Transaction {
   counterpartyUser?: User | null
   ledgerEntries?: LedgerEntry[]
   
-  // Partner Information (from partnerMapping relation)
+  // API Partner Information (from api_partners table)
+  partner?: {
+    id: string
+    partnerName: string
+    partnerType: string
+    isActive: boolean
+  } | null
+  
+  // Partner Information (from partnerMapping relation - external payment partners like ABC, Pegasus)
   partnerMapping?: {
     id: string
     transactionType: string

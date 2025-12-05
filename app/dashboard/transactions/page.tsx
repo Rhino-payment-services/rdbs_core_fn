@@ -1380,8 +1380,14 @@ const TransactionsPage = () => {
                                   ) : (
                                     <>
                                       {/* Other DEBIT transactions - sender is the wallet owner */}
+                                      {/* ✅ Check for API partner first */}
                                       <span className="font-medium">
-                                        {getUserName(transaction.user, transaction.metadata, null)}
+                                        {transaction.partner?.partnerName 
+                                          ? transaction.partner.partnerName
+                                          : transaction.metadata?.apiPartnerName
+                                          ? transaction.metadata.apiPartnerName
+                                          : getUserName(transaction.user, transaction.metadata, null)
+                                        }
                                       </span>
                                       <span className="text-xs text-gray-500">
                                         📱 {getContactInfo(transaction.user, transaction.metadata, null)}
@@ -1392,6 +1398,12 @@ const TransactionsPage = () => {
                                         </span>
                                       )}
                                     </>
+                                  )}
+                                  {/* ✅ Show API Partner badge if applicable */}
+                                  {(transaction.partnerId || transaction.metadata?.isApiPartnerTransaction) && (
+                                    <span className="text-xs text-purple-600 font-medium">
+                                      🔑 API Partner
+                                    </span>
                                   )}
                                 </>
                               ) : (

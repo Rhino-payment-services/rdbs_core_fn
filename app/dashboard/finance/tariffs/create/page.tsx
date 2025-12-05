@@ -39,6 +39,7 @@ interface CreateTariffForm {
   rukapayFee?: number
   telecomBankCharge?: number
   governmentTax?: number
+  metadata?: Record<string, any>
 }
 
 interface Partner {
@@ -176,6 +177,8 @@ function CreateTariffPage() {
         : undefined,
       // Keep government tax as percentage value (no conversion needed)
       governmentTax: form.governmentTax || undefined,
+      // Include metadata (RTIS metadata for custom transaction modes)
+      metadata: form.metadata || undefined,
       // Remove undefined values and UI-only fields
       description: form.description || undefined,
       minAmount: form.minAmount || undefined,
@@ -312,9 +315,23 @@ function CreateTariffPage() {
                           // Auto-set transaction type based on selected mode if available
                           const selectedMode = transactionModes?.find(m => m.id === value)
                           if (selectedMode && selectedMode.code) {
-                            // For custom transaction modes, use CUSTOM type
+                            // For custom transaction modes, use CUSTOM type and include RTIS metadata
                             if (!selectedMode.isSystem) {
                               handleInputChange('transactionType', 'CUSTOM' as any)
+                              
+                              // Check if transaction mode has RTIS metadata or enable RTIS by default for custom modes
+                              const modeMetadata = selectedMode.metadata as Record<string, any> | null
+                              const rtisMetadata = modeMetadata?.rtis || {
+                                enabled: true,
+                                settlementMode: 'instant'
+                              }
+                              
+                              // Set metadata with RTIS configuration for custom transaction modes
+                              handleInputChange('metadata', {
+                                rtis: rtisMetadata,
+                                transactionModeCode: selectedMode.code,
+                                transactionModeName: selectedMode.name
+                              } as any)
                             } else {
                               // For system modes, map transaction mode code to transaction type
                               const codeToType: Record<string, string> = {
@@ -327,6 +344,8 @@ function CreateTariffPage() {
                               }
                               const mappedType = codeToType[selectedMode.code] || form.transactionType
                               handleInputChange('transactionType', mappedType as any)
+                              // Clear metadata for system modes
+                              handleInputChange('metadata', undefined)
                             }
                           }
                         }}
