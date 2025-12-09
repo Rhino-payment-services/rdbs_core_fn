@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { RotateCcw, Loader2, AlertTriangle } from 'lucide-react'
-import { formatAmount, getStatusBadge } from '@/lib/utils/transactions'
+import { formatAmount, getStatusBadgeConfig } from '@/lib/utils/transactions'
+import { Badge } from '@/components/ui/badge'
 import toast from 'react-hot-toast'
 
 interface ReversalModalProps {
@@ -76,7 +77,10 @@ export const ReversalModal = ({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Status:</span>
-                {getStatusBadge(transaction.status)}
+                {(() => {
+                  const statusConfig = getStatusBadgeConfig(transaction.status)
+                  return <Badge className={`${statusConfig.color} border`}>{statusConfig.label}</Badge>
+                })()}
               </div>
             </div>
 

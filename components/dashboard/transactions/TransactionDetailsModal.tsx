@@ -16,7 +16,7 @@ import {
 import { 
   formatAmount, 
   formatDate, 
-  getStatusBadge, 
+  getStatusBadgeConfig, 
   getTypeDisplay, 
   getChannelDisplay,
   shortenTransactionId
@@ -97,7 +97,10 @@ export const TransactionDetailsModal = ({
                   }
                 </p>
               </div>
-              {getStatusBadge(transaction.status)}
+              {(() => {
+                const statusConfig = getStatusBadgeConfig(transaction.status)
+                return <Badge className={`${statusConfig.color} border`}>{statusConfig.label}</Badge>
+              })()}
             </div>
 
             {/* Failure Reason */}

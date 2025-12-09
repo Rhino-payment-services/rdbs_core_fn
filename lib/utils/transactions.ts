@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/badge'
 import { 
   Smartphone,
   Phone,
@@ -90,9 +89,9 @@ export const formatDate = (dateString: string) => {
 }
 
 /**
- * Get status badge component
+ * Get status badge config (returns config object, not JSX)
  */
-export const getStatusBadge = (status: string) => {
+export const getStatusBadgeConfig = (status: string) => {
   const statusConfig = {
     SUCCESS: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Completed' },
     COMPLETED: { color: 'bg-green-100 text-green-800 border-green-200', label: 'Completed' },
@@ -102,8 +101,7 @@ export const getStatusBadge = (status: string) => {
     CANCELLED: { color: 'bg-gray-100 text-gray-800 border-gray-200', label: 'Cancelled' },
     REVERSED: { color: 'bg-orange-100 text-orange-800 border-orange-200', label: 'Reversed' }
   }
-  const config = statusConfig[status as keyof typeof statusConfig] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: status || 'Unknown' }
-  return <Badge className={`${config.color} border`}>{config.label}</Badge>
+  return statusConfig[status as keyof typeof statusConfig] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: status || 'Unknown' }
 }
 
 /**

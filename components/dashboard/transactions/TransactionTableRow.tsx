@@ -8,7 +8,7 @@ import {
   shortenTransactionId, 
   formatAmount, 
   formatDate, 
-  getStatusBadge, 
+  getStatusBadgeConfig, 
   getTypeDisplay, 
   getChannelDisplay,
   getDisplayName,
@@ -634,7 +634,12 @@ export const TransactionTableRow = ({
       <TableCell className="font-medium text-green-600">
         {formatAmount(Number(transaction.netAmount))}
       </TableCell>
-      <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+      <TableCell>
+        {(() => {
+          const statusConfig = getStatusBadgeConfig(transaction.status)
+          return <Badge className={`${statusConfig.color} border`}>{statusConfig.label}</Badge>
+        })()}
+      </TableCell>
       <TableCell className="text-sm">{formatDate(transaction.createdAt)}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
