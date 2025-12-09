@@ -194,7 +194,22 @@ export const TransactionTableRow = ({
                 </>
               ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
                 <>
-                  {transaction.metadata?.mnoProvider ? (
+                  {/* QR Code Payment - customer is the sender (identified by customerPhone + merchantCode + CREDIT direction) */}
+                  {transaction.direction === 'CREDIT' && 
+                   transaction.metadata?.customerPhone && 
+                   (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                    <>
+                      <span className="font-medium">
+                        {transaction.metadata.customerName || 'Customer'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 {transaction.metadata.customerPhone}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 Mobile Money
+                      </span>
+                    </>
+                  ) : transaction.metadata?.mnoProvider ? (
                     <>
                       <span className="font-medium">
                         {transaction.metadata.mnoProvider} Mobile Money
@@ -516,7 +531,30 @@ export const TransactionTableRow = ({
             </>
           ) : (
             <>
-              {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+              {/* QR Code Payment - merchant is the receiver (identified by customerPhone + merchantCode + CREDIT direction) */}
+              {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) && 
+               transaction.direction === 'CREDIT' &&
+               transaction.metadata?.customerPhone &&
+               (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                <>
+                  <span className="font-medium">
+                    {transaction.metadata?.merchantName ||
+                     transaction.user?.merchant?.businessTradeName ||
+                     transaction.user?.profile?.merchantBusinessTradeName ||
+                     transaction.user?.profile?.businessTradeName ||
+                     transaction.user?.profile?.merchant_names ||
+                     (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                  </span>
+                  {transaction.metadata?.merchantCode && (
+                    <span className="text-xs text-gray-500">
+                      🏪 Code: {transaction.metadata.merchantCode}
+                    </span>
+                  )}
+                  <span className="text-xs text-blue-600 font-medium">
+                    🏦 Internal Account
+                  </span>
+                </>
+              ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                 <>
                   {(() => {
                     let displayName = '';
