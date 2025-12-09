@@ -1347,43 +1347,79 @@ const TransactionsPage = () => {
                               ) : transaction.direction === 'DEBIT' ? (
                                 <>
                                   {/* Outgoing transaction */}
-                                  {(() => {
-                                    const isMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName || transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                                    const displayName = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                                    
-                                    return (
-                                      <>
-                                        <span className="font-medium">
-                                          {displayName}
-                                        </span>
-                                        {isMerchant && transaction.metadata?.merchantCode && (
-                                          <span className="text-xs text-gray-500">
-                                            🏪 Code: {transaction.metadata.merchantCode}
-                                          </span>
-                                        )}
-                                        {!isMerchant && (
-                                          <span className="text-xs text-gray-500">
-                                            📱 {getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)}
-                                          </span>
-                                        )}
-                                        {isMerchant ? (
-                                          <span className="text-xs text-blue-600 font-medium">
-                                            🏦 Internal Account
-                                          </span>
-                                        ) : transaction.user?.userType === 'SUBSCRIBER' && (
-                                          <span className="text-xs text-blue-600 font-medium">
-                                            🏦 RukaPay Subscriber
-                                          </span>
-                                        )}
-                                        {/* Show API Partner badge if applicable */}
-                                        {(transaction.partnerId || transaction.metadata?.isApiPartnerTransaction) && (
-                                          <span className="text-xs text-purple-600 font-medium">
-                                            🔑 API Partner
-                                          </span>
-                                        )}
-                                      </>
-                                    )
-                                  })()}
+                                  {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                                    <>
+                                      {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
+                                      {(() => {
+                                        // For MERCHANT_TO_WALLET DEBIT, sender is always the merchant
+                                        // Extract merchant info from metadata (set by backend)
+                                        const merchantName = transaction.metadata?.merchantName || 
+                                                           transaction.user?.merchant?.businessTradeName ||
+                                                           transaction.user?.profile?.merchantBusinessTradeName ||
+                                                           transaction.user?.profile?.businessTradeName ||
+                                                           transaction.user?.profile?.merchant_names ||
+                                                           (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant');
+                                        const merchantCode = transaction.metadata?.merchantCode || transaction.user?.merchantCode;
+                                        
+                                        return (
+                                          <>
+                                            <span className="font-medium">
+                                              {merchantName}
+                                            </span>
+                                            {merchantCode && (
+                                              <span className="text-xs text-gray-500">
+                                                🏪 Code: {merchantCode}
+                                              </span>
+                                            )}
+                                            <span className="text-xs text-blue-600 font-medium">
+                                              🏦 Internal Account
+                                            </span>
+                                          </>
+                                        )
+                                      })()}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Other DEBIT transactions - sender is wallet owner */}
+                                      {(() => {
+                                        const isMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName || transaction.metadata?.merchantName || transaction.metadata?.merchantCode
+                                        const displayName = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
+                                        
+                                        return (
+                                          <>
+                                            <span className="font-medium">
+                                              {displayName}
+                                            </span>
+                                            {isMerchant && transaction.metadata?.merchantCode && (
+                                              <span className="text-xs text-gray-500">
+                                                🏪 Code: {transaction.metadata.merchantCode}
+                                              </span>
+                                            )}
+                                            {!isMerchant && (
+                                              <span className="text-xs text-gray-500">
+                                                📱 {getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)}
+                                              </span>
+                                            )}
+                                            {isMerchant ? (
+                                              <span className="text-xs text-blue-600 font-medium">
+                                                🏦 Internal Account
+                                              </span>
+                                            ) : transaction.user?.userType === 'SUBSCRIBER' && (
+                                              <span className="text-xs text-blue-600 font-medium">
+                                                🏦 RukaPay Subscriber
+                                              </span>
+                                            )}
+                                            {/* Show API Partner badge if applicable */}
+                                            {(transaction.partnerId || transaction.metadata?.isApiPartnerTransaction) && (
+                                              <span className="text-xs text-purple-600 font-medium">
+                                                🔑 API Partner
+                                              </span>
+                                            )}
+                                          </>
+                                        )
+                                      })()}
+                                    </>
+                                  )}
                                 </>
                               ) : (
                                 <>
