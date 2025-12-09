@@ -1566,20 +1566,36 @@ const TransactionsPage = () => {
                                     <>
                                       {/* Merchant to Wallet - receiver is the RukaPay user recipient (individual, not merchant) */}
                                       {(() => {
-                                        // Receiver is always an individual user for MERCHANT_TO_WALLET
-                                        const displayName = getDisplayName(
-                                          null, // No user for receiver in DEBIT, use counterpartyUser
-                                          transaction.metadata, 
-                                          transaction.counterpartyUser
-                                        )
-                                        const contact = getContactInfo(null, transaction.metadata, transaction.counterpartyUser)
+                                        // For MERCHANT_TO_WALLET DEBIT, receiver is always an individual user
+                                        // Extract recipient info directly, ignoring merchant info in metadata
+                                        let displayName = '';
+                                        let contact = '';
+                                        
+                                        // Prioritize counterpartyUser if available
+                                        if (transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName) {
+                                          displayName = `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`;
+                                          contact = transaction.counterpartyUser.phone || '';
+                                        } else if (transaction.metadata?.recipientName) {
+                                          // Use recipientName from metadata (set by backend)
+                                          displayName = transaction.metadata.recipientName;
+                                          contact = transaction.metadata?.recipientPhone || '';
+                                        } else if (transaction.counterpartyUser?.phone) {
+                                          displayName = transaction.counterpartyUser.phone;
+                                          contact = transaction.counterpartyUser.phone;
+                                        } else if (transaction.metadata?.recipientPhone) {
+                                          displayName = transaction.metadata.recipientPhone;
+                                          contact = transaction.metadata.recipientPhone;
+                                        } else {
+                                          displayName = 'RukaPay User';
+                                          contact = '';
+                                        }
                                         
                                         return (
                                           <>
                                             <span className="font-medium">
                                               {displayName}
                                             </span>
-                                            {contact !== 'N/A' && (
+                                            {contact && (
                                               <span className="text-xs text-gray-500">
                                                 📱 {contact}
                                               </span>
@@ -1751,22 +1767,51 @@ const TransactionsPage = () => {
                                   {/* Incoming transaction */}
                                   {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                                     <>
-                                      {/* MERCHANT_TO_WALLET - receiver is the RukaPay user (individual, not merchant) */}
+                                      {/* MERCHANT_TO_WALLET CREDIT - receiver is the RukaPay user (individual, not merchant) */}
                                       {(() => {
-                                        // Receiver is always an individual user for MERCHANT_TO_WALLET
-                                        const displayName = getDisplayName(
-                                          transaction.user, 
-                                          transaction.metadata, 
-                                          transaction.counterpartyUser
-                                        )
-                                        const contact = getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)
+                                        // For MERCHANT_TO_WALLET CREDIT, receiver is always an individual user
+                                        // transaction.user should be the recipient, but ensure we don't pick merchant info
+                                        let displayName = '';
+                                        let contact = '';
+                                        
+                                        // Check if transaction.user is actually a merchant (shouldn't be, but check)
+                                        const isUserMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName;
+                                        
+                                        if (!isUserMerchant) {
+                                          // User is individual - use their profile info
+                                          if (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName) {
+                                            displayName = `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`;
+                                            contact = transaction.user?.phone || transaction.user?.email || '';
+                                          } else if (transaction.user?.phone) {
+                                            displayName = transaction.user.phone;
+                                            contact = transaction.user.phone;
+                                          } else if (transaction.user?.email) {
+                                            displayName = transaction.user.email;
+                                            contact = transaction.user.email;
+                                          } else {
+                                            displayName = 'RukaPay User';
+                                            contact = '';
+                                          }
+                                        } else {
+                                          // Fallback: if somehow user is merchant, try metadata or counterpartyUser
+                                          if (transaction.metadata?.recipientName) {
+                                            displayName = transaction.metadata.recipientName;
+                                            contact = transaction.metadata?.recipientPhone || '';
+                                          } else if (transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName) {
+                                            displayName = `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`;
+                                            contact = transaction.counterpartyUser.phone || '';
+                                          } else {
+                                            displayName = 'RukaPay User';
+                                            contact = '';
+                                          }
+                                        }
                                         
                                         return (
                                           <>
                                             <span className="font-medium">
                                               {displayName}
                                             </span>
-                                            {contact !== 'N/A' && (
+                                            {contact && (
                                               <span className="text-xs text-gray-500">
                                                 📱 {contact}
                                               </span>
