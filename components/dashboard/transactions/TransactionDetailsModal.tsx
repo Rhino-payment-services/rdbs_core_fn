@@ -429,9 +429,28 @@ export const TransactionDetailsModal = ({
                         <Badge className="bg-blue-600 text-white">Internal Account</Badge>
                         <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
                       </>
-                    ) : transaction.type === 'MNO_TO_WALLET' ? (
+                    ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
                       <>
-                        {transaction.metadata?.mnoProvider ? (
+                        {/* QR Code Payment - customer is the sender (identified by customerPhone + merchantCode + CREDIT direction) */}
+                        {transaction.direction === 'CREDIT' && 
+                         transaction.metadata?.customerPhone && 
+                         (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                          <>
+                            <div>
+                              <span className="text-blue-600">Name:</span>
+                              <p className="font-medium text-blue-900">
+                                {transaction.metadata.customerName || 'Customer'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-blue-600">Phone Number:</span>
+                              <p className="font-medium text-blue-900">
+                                {transaction.metadata.customerPhone}
+                              </p>
+                            </div>
+                            <Badge className="bg-blue-600 text-white">Mobile Money</Badge>
+                          </>
+                        ) : transaction.metadata?.mnoProvider ? (
                           <>
                             <div>
                               <span className="text-blue-600">Source:</span>
@@ -450,6 +469,22 @@ export const TransactionDetailsModal = ({
                             <Badge className="bg-blue-600 text-white">
                               {transaction.metadata.mnoProvider} Network
                             </Badge>
+                          </>
+                        ) : transaction.metadata?.phoneNumber ? (
+                          <>
+                            <div>
+                              <span className="text-blue-600">Name:</span>
+                              <p className="font-medium text-blue-900">
+                                {transaction.metadata.userName || 'Mobile Money User'}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-blue-600">Phone Number:</span>
+                              <p className="font-medium text-blue-900">
+                                {transaction.metadata.phoneNumber}
+                              </p>
+                            </div>
+                            <Badge className="bg-blue-600 text-white">Mobile Money</Badge>
                           </>
                         ) : (
                           <div>

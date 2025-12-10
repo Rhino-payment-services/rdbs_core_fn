@@ -160,7 +160,41 @@ export const TransactionTableRow = ({
           ) : (
             <>
               {/* Incoming transaction - extract sender info */}
-              {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET') || transaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
+              {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
+              {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+               transaction.direction === 'CREDIT' &&
+               (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                <>
+                  {/* QR Code Payment - customer is the sender */}
+                  {transaction.metadata?.customerPhone ? (
+                    <>
+                      <span className="font-medium">
+                        {transaction.metadata.customerName || 'Customer'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 {transaction.metadata.customerPhone}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 Mobile Money
+                      </span>
+                    </>
+                  ) : transaction.metadata?.phoneNumber ? (
+                    <>
+                      <span className="font-medium">
+                        {transaction.metadata.userName || 'Mobile Money User'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 {transaction.metadata.phoneNumber}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📱 Mobile Money
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-gray-500">External</span>
+                  )}
+                </>
+              ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET') || transaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
                 <>
                   {(() => {
                     const isMerchant = transaction.metadata?.merchantName || transaction.metadata?.merchantCode
@@ -194,22 +228,8 @@ export const TransactionTableRow = ({
                 </>
               ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
                 <>
-                  {/* QR Code Payment - customer is the sender (identified by customerPhone + merchantCode + CREDIT direction) */}
-                  {transaction.direction === 'CREDIT' && 
-                   transaction.metadata?.customerPhone && 
-                   (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
-                    <>
-                      <span className="font-medium">
-                        {transaction.metadata.customerName || 'Customer'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 {transaction.metadata.customerPhone}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 Mobile Money
-                      </span>
-                    </>
-                  ) : transaction.metadata?.mnoProvider ? (
+                  {/* Regular MNO_TO_WALLET (not QR code payment) */}
+                  {transaction.metadata?.mnoProvider ? (
                     <>
                       <span className="font-medium">
                         {transaction.metadata.mnoProvider} Mobile Money
