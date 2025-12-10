@@ -626,7 +626,35 @@ export const TransactionDetailsModal = ({
                   </>
                 ) : (
                   <>
-                    {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+                    {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
+                    {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                     transaction.direction === 'CREDIT' &&
+                     (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                      <>
+                        {/* QR Code Payment - merchant is the receiver */}
+                        <div>
+                          <span className="text-green-600">Name:</span>
+                          <p className="font-medium text-green-900">
+                            {transaction.metadata?.merchantName ||
+                             transaction.user?.merchant?.businessTradeName ||
+                             transaction.user?.profile?.merchantBusinessTradeName ||
+                             transaction.user?.profile?.businessTradeName ||
+                             transaction.user?.profile?.merchant_names ||
+                             (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                          </p>
+                        </div>
+                        {transaction.metadata?.merchantCode && (
+                          <div>
+                            <span className="text-green-600">Merchant Code:</span>
+                            <p className="font-medium text-green-900">
+                              {transaction.metadata.merchantCode}
+                            </p>
+                          </div>
+                        )}
+                        <Badge className="bg-green-600 text-white">Merchant Account</Badge>
+                        <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
+                      </>
+                    ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                       <>
                         <div>
                           <span className="text-green-600">Name:</span>
