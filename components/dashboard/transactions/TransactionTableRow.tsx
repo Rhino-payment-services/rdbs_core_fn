@@ -689,7 +689,31 @@ export const TransactionTableRow = ({
         })()}
       </TableCell>
       <TableCell className="font-medium text-green-600">
-        {formatAmount(Number(transaction.netAmount))}
+        {(() => {
+          // Net Amount should show the total amount debited from sender (amount + fee)
+          // For DEBIT transactions: amount + fee (total debited)
+          // For CREDIT transactions: netAmount (amount received)
+          if (transaction.direction === 'DEBIT') {
+            const amount = Number(transaction.amount) || 0;
+            const fee = Number(transaction.fee) || 0;
+            const rukapayFee = Number(transaction.rukapayFee) || 0;
+            const totalFee = fee > 0 ? fee : (rukapayFee > 0 ? rukapayFee : 0);
+            
+            // If fee is 0 but there's a difference, calculate it
+            if (totalFee === 0 && amount > 0) {
+              const netAmount = Number(transaction.netAmount) || 0;
+              if (netAmount > 0 && amount !== netAmount) {
+                const calculatedFee = amount - netAmount;
+                return formatAmount(amount + calculatedFee);
+              }
+            }
+            
+            return formatAmount(amount + totalFee);
+          } else {
+            // For CREDIT transactions, show netAmount (amount received)
+            return formatAmount(Number(transaction.netAmount));
+          }
+        })()}
       </TableCell>
       <TableCell>
         {(() => {
