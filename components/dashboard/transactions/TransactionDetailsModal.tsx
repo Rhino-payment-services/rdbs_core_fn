@@ -177,7 +177,8 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">Direction:</span>
                   <span className="font-medium text-gray-900">
-                    {transaction.direction === 'DEBIT' ? '📤 Outgoing' : '📥 Incoming'}
+                    {/* Check both direction field and metadata.direction for QR code payments */}
+                    {(transaction.direction === 'DEBIT' && transaction.metadata?.direction !== 'CREDIT') ? '📤 Outgoing' : '📥 Incoming'}
                   </span>
                 </div>
               </div>
@@ -358,6 +359,24 @@ export const TransactionDetailsModal = ({
                     </div>
                     <Badge className="bg-purple-600 text-white">Admin Funding</Badge>
                   </>
+                ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                    (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                  <>
+                    {/* QR Code Payment - customer is the sender (check this FIRST before DEBIT check) */}
+                    <div>
+                      <span className="text-blue-600">Name:</span>
+                      <p className="font-medium text-blue-900">
+                        {transaction.metadata?.customerName || 'Customer'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-blue-600">Phone Number:</span>
+                      <p className="font-medium text-blue-900">
+                        {transaction.metadata?.customerPhone || transaction.metadata?.phoneNumber || 'N/A'}
+                      </p>
+                    </div>
+                    <Badge className="bg-blue-600 text-white">Mobile Money</Badge>
+                  </>
                 ) : transaction.direction === 'DEBIT' ? (
                   <>
                     {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
@@ -432,8 +451,9 @@ export const TransactionDetailsModal = ({
                     ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
                       <>
                         {/* QR Code Payment - customer is the sender (identified by customerPhone + merchantCode + CREDIT direction) */}
-                        {transaction.direction === 'CREDIT' && 
-                         transaction.metadata?.customerPhone && 
+                        {/* Also check metadata.direction as fallback for older transactions */}
+                        {(transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') && 
+                         (transaction.metadata?.customerPhone || transaction.metadata?.phoneNumber) && 
                          (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                           <>
                             <div>
@@ -445,7 +465,7 @@ export const TransactionDetailsModal = ({
                             <div>
                               <span className="text-blue-600">Phone Number:</span>
                               <p className="font-medium text-blue-900">
-                                {transaction.metadata.customerPhone}
+                                {transaction.metadata.customerPhone || transaction.metadata.phoneNumber}
                               </p>
                             </div>
                             <Badge className="bg-blue-600 text-white">Mobile Money</Badge>
@@ -558,6 +578,32 @@ export const TransactionDetailsModal = ({
                     </div>
                     <Badge className="bg-green-600 text-white">💰 Credited Back</Badge>
                   </>
+                ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                    (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                  <>
+                    {/* QR Code Payment - merchant is the receiver (check this FIRST before DEBIT check) */}
+                    <div>
+                      <span className="text-green-600">Name:</span>
+                      <p className="font-medium text-green-900">
+                        {transaction.metadata?.merchantName ||
+                         transaction.user?.merchant?.businessTradeName ||
+                         transaction.user?.profile?.merchantBusinessTradeName ||
+                         transaction.user?.profile?.businessTradeName ||
+                         transaction.user?.profile?.merchant_names ||
+                         (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                      </p>
+                    </div>
+                    {transaction.metadata?.merchantCode && (
+                      <div>
+                        <span className="text-green-600">Merchant Code:</span>
+                        <p className="font-medium text-green-900">
+                          {transaction.metadata.merchantCode}
+                        </p>
+                      </div>
+                    )}
+                    <Badge className="bg-green-600 text-white">Merchant Account</Badge>
+                    <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
+                  </>
                 ) : transaction.direction === 'DEBIT' ? (
                   <>
                     {transaction.type === 'MERCHANT_TO_WALLET' ? (
@@ -627,8 +673,9 @@ export const TransactionDetailsModal = ({
                 ) : (
                   <>
                     {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
+                    {/* Also check metadata.direction as fallback for older transactions */}
                     {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-                     transaction.direction === 'CREDIT' &&
+                     (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
                      (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                       <>
                         {/* QR Code Payment - merchant is the receiver */}
