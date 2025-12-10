@@ -83,6 +83,20 @@ export const TransactionTableRow = ({
                 👨‍💼 Admin Funding
               </span>
             </>
+          ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+              (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+            <>
+              {/* QR Code Payment - customer is the sender (check FIRST before DEBIT) */}
+              <span className="font-medium">
+                {transaction.metadata?.customerName || 'Customer'}
+              </span>
+              <span className="text-xs text-gray-500">
+                📱 {transaction.metadata?.customerPhone || transaction.metadata?.phoneNumber || 'Mobile Money'}
+              </span>
+              <span className="text-xs text-gray-500">
+                📱 Mobile Money
+              </span>
+            </>
           ) : transaction.direction === 'DEBIT' ? (
             <>
               {/* Outgoing transaction */}
@@ -161,8 +175,9 @@ export const TransactionTableRow = ({
             <>
               {/* Incoming transaction - extract sender info */}
               {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
+              {/* Also check metadata.direction as fallback for older transactions */}
               {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-               transaction.direction === 'CREDIT' &&
+               (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
                (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
                   {/* QR Code Payment - customer is the sender */}
@@ -360,6 +375,27 @@ export const TransactionTableRow = ({
                 💰 Wallet Credit
               </span>
             </>
+          ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+              (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+            <>
+              {/* QR Code Payment - merchant is the receiver (check FIRST before DEBIT) */}
+              <span className="font-medium">
+                {transaction.metadata?.merchantName ||
+                 transaction.user?.merchant?.businessTradeName ||
+                 transaction.user?.profile?.merchantBusinessTradeName ||
+                 transaction.user?.profile?.businessTradeName ||
+                 transaction.user?.profile?.merchant_names ||
+                 (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+              </span>
+              {transaction.metadata?.merchantCode && (
+                <span className="text-xs text-gray-500">
+                  🏪 Code: {transaction.metadata.merchantCode}
+                </span>
+              )}
+              <span className="text-xs text-blue-600 font-medium">
+                🏦 Merchant Account
+              </span>
+            </>
           ) : transaction.direction === 'DEBIT' ? (
             <>
               {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
@@ -551,12 +587,13 @@ export const TransactionTableRow = ({
             </>
           ) : (
             <>
-              {/* QR Code Payment - merchant is the receiver (identified by customerPhone + merchantCode + CREDIT direction) */}
+              {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
+              {/* Also check metadata.direction as fallback for older transactions */}
               {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) && 
-               transaction.direction === 'CREDIT' &&
-               transaction.metadata?.customerPhone &&
+               (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
                (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
+                  {/* QR Code Payment - merchant is the receiver */}
                   <span className="font-medium">
                     {transaction.metadata?.merchantName ||
                      transaction.user?.merchant?.businessTradeName ||
@@ -571,7 +608,7 @@ export const TransactionTableRow = ({
                     </span>
                   )}
                   <span className="text-xs text-blue-600 font-medium">
-                    🏦 Internal Account
+                    🏦 Merchant Account
                   </span>
                 </>
               ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (

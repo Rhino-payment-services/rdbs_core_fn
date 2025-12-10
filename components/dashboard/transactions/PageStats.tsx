@@ -1,14 +1,14 @@
 import { formatAmount } from '@/lib/utils/transactions'
 
 interface PageStats {
-  totalCount: number
-  totalVolume: number
-  rukapayFees: number
-  partnerFees: number
-  governmentTaxes: number
+    totalCount: number
+    totalVolume: number
+    rukapayFees: number
+    partnerFees: number
+    governmentTaxes: number
   totalFees: number
-  successfulCount: number
-}
+    successfulCount: number
+  }
 
 interface PageStatsProps {
   stats: PageStats
