@@ -196,7 +196,25 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-blue-600">RukaPay Fee:</span>
                   <span className="font-medium text-blue-600">
-                    {formatAmount(Number(transaction.rukapayFee) || 0)}
+                    {(() => {
+                      // Calculate the fee to display (same logic as table row)
+                      // Priority: 1) transaction.fee (total fee), 2) calculated fee (amount - netAmount), 3) rukapayFee
+                      const rukapayFee = Number(transaction.rukapayFee) || 0;
+                      const totalFee = Number(transaction.fee) || 0;
+                      const amount = Number(transaction.amount) || 0;
+                      const netAmount = Number(transaction.netAmount) || 0;
+                      
+                      // For RukaPay to RukaPay transactions, if rukapayFee is 0 but there's a difference
+                      // between amount and netAmount, calculate the actual fee charged
+                      if (rukapayFee === 0 && amount > 0 && netAmount > 0 && amount !== netAmount) {
+                        // Use totalFee if available, otherwise calculate from amount - netAmount
+                        const calculatedFee = amount - netAmount;
+                        return formatAmount(totalFee > 0 ? totalFee : calculatedFee);
+                      }
+                      
+                      // For other cases, prefer totalFee if available (includes all fees), otherwise use rukapayFee
+                      return formatAmount(totalFee > 0 ? totalFee : rukapayFee);
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -220,7 +238,31 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between border-t-2 pt-2 mt-2">
                   <span className="text-green-600 font-bold">Net Amount:</span>
                   <span className="font-bold text-green-600 text-lg">
-                    {formatAmount(Number(transaction.netAmount))}
+                    {(() => {
+                      // Net Amount should show the total amount debited from sender (amount + fee)
+                      // For DEBIT transactions: amount + fee (total debited)
+                      // For CREDIT transactions: netAmount (amount received)
+                      if (transaction.direction === 'DEBIT') {
+                        const amount = Number(transaction.amount) || 0;
+                        const fee = Number(transaction.fee) || 0;
+                        const rukapayFee = Number(transaction.rukapayFee) || 0;
+                        const totalFee = fee > 0 ? fee : (rukapayFee > 0 ? rukapayFee : 0);
+                        
+                        // If fee is 0 but there's a difference, calculate it
+                        if (totalFee === 0 && amount > 0) {
+                          const netAmount = Number(transaction.netAmount) || 0;
+                          if (netAmount > 0 && amount !== netAmount) {
+                            const calculatedFee = amount - netAmount;
+                            return formatAmount(amount + calculatedFee);
+                          }
+                        }
+                        
+                        return formatAmount(amount + totalFee);
+                      } else {
+                        // For CREDIT transactions, show netAmount (amount received)
+                        return formatAmount(Number(transaction.netAmount));
+                      }
+                    })()}
                   </span>
                 </div>
               </div>
