@@ -667,7 +667,26 @@ export const TransactionTableRow = ({
         {formatAmount(Number(transaction.amount))}
       </TableCell>
       <TableCell className="font-medium text-blue-600">
-        {formatAmount(Number(transaction.rukapayFee) || 0)}
+        {(() => {
+          // Calculate the fee to display
+          // Priority: 1) transaction.fee (total fee), 2) calculated fee (amount - netAmount), 3) rukapayFee
+          const rukapayFee = Number(transaction.rukapayFee) || 0;
+          const totalFee = Number(transaction.fee) || 0;
+          const amount = Number(transaction.amount) || 0;
+          const netAmount = Number(transaction.netAmount) || 0;
+          
+          // For RukaPay to RukaPay transactions, if rukapayFee is 0 but there's a difference
+          // between amount and netAmount, calculate the actual fee charged
+          if (rukapayFee === 0 && amount > 0 && netAmount > 0 && amount !== netAmount) {
+            // Use totalFee if available, otherwise calculate from amount - netAmount
+            const calculatedFee = amount - netAmount;
+            return formatAmount(totalFee > 0 ? totalFee : calculatedFee);
+          }
+          
+          // For other cases, prefer totalFee if available (includes all fees), otherwise use rukapayFee
+          // This ensures we show the actual fee charged on the sender
+          return formatAmount(totalFee > 0 ? totalFee : rukapayFee);
+        })()}
       </TableCell>
       <TableCell className="font-medium text-green-600">
         {formatAmount(Number(transaction.netAmount))}
