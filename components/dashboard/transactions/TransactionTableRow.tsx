@@ -759,18 +759,6 @@ export const TransactionTableRow = ({
           // For CREDIT transactions: netAmount (amount received)
           if (transaction.direction === 'DEBIT') {
             const amount = Number(transaction.amount) || 0;
-            const fee = Number(transaction.fee) || 0;
-            const rukapayFee = Number(transaction.rukapayFee) || 0;
-            const totalFee = fee > 0 ? fee : (rukapayFee > 0 ? rukapayFee : 0);
-            
-            // If fee is 0 but there's a difference, calculate it
-            if (totalFee === 0 && amount > 0) {
-              const netAmount = Number(transaction.netAmount) || 0;
-              if (netAmount > 0 && amount !== netAmount) {
-                const calculatedFee = amount - netAmount;
-                return formatAmount(amount + calculatedFee);
-              }
-            }
             
             // Calculate total fees by summing all individual fee components
             const rukapayFee = Number(transaction.rukapayFee) || 0;
@@ -783,8 +771,21 @@ export const TransactionTableRow = ({
             // Sum all fees
             const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
             
-            // Use calculated total fees if available, otherwise fall back to totalFee
-            const finalTotalFee = calculatedTotalFees > 0 ? calculatedTotalFees : totalFee;
+            // Use calculated total fees if available, otherwise fall back to transaction.fee or calculate from difference
+            let finalTotalFee = calculatedTotalFees;
+            
+            if (finalTotalFee === 0) {
+              const fee = Number(transaction.fee) || 0;
+              if (fee > 0) {
+                finalTotalFee = fee;
+              } else {
+                // If still 0, try to calculate from amount - netAmount
+                const netAmount = Number(transaction.netAmount) || 0;
+                if (netAmount > 0 && amount !== netAmount) {
+                  finalTotalFee = amount - netAmount;
+                }
+              }
+            }
             
             return formatAmount(amount + finalTotalFee);
           } else {
