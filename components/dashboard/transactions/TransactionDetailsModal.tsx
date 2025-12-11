@@ -298,7 +298,7 @@ export const TransactionDetailsModal = ({
                  (transaction.balanceAfter !== null && transaction.balanceAfter !== undefined) ? (
                   <>
                     <div className="flex justify-between border-t pt-2 mt-2">
-                      <span className="text-purple-600 font-semibold">Previous Balance:</span>
+                      <span className="text-purple-600 font-semibold">Balance Before:</span>
                       <span className="font-bold text-purple-600">
                         {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined
                           ? formatAmount(Number(transaction.balanceBefore))
@@ -306,12 +306,15 @@ export const TransactionDetailsModal = ({
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
-                      <span className="text-indigo-600 font-bold">Current Balance:</span>
+                      <span className="text-indigo-600 font-bold">Balance After:</span>
                       <span className="font-bold text-indigo-600 text-lg">
                         {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
                           ? formatAmount(Number(transaction.balanceAfter))
                           : 'N/A'}
                       </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 italic">
+                      * Balance at the time of this transaction
                     </div>
                   </>
                 ) : null}
