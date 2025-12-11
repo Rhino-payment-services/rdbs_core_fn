@@ -198,57 +198,84 @@ export const TransactionDetailsModal = ({
                   <span className="text-blue-600">RukaPay Fee:</span>
                   <span className="font-medium text-blue-600">
                     {(() => {
-                      // Calculate the fee to display (same logic as table row)
-                      // Priority: 1) transaction.fee (total fee), 2) calculated fee (amount - netAmount), 3) rukapayFee
-                      const rukapayFee = Number(transaction.rukapayFee) || 0;
-                      const totalFee = Number(transaction.fee) || 0;
-                      const amount = Number(transaction.amount) || 0;
-                      const netAmount = Number(transaction.netAmount) || 0;
+                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
+                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
+                      const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
+                      const rukapayFee = rukapayFeeFromBreakdown > 0 
+                        ? rukapayFeeFromBreakdown 
+                        : (Number(transaction.rukapayFee) || 0);
                       
-                      // For RukaPay to RukaPay transactions, if rukapayFee is 0 but there's a difference
-                      // between amount and netAmount, calculate the actual fee charged
-                      if (rukapayFee === 0 && amount > 0 && netAmount > 0 && amount !== netAmount) {
-                        // Use totalFee if available, otherwise calculate from amount - netAmount
-                        const calculatedFee = amount - netAmount;
-                        return formatAmount(totalFee > 0 ? totalFee : calculatedFee);
-                      }
-                      
-                      // For other cases, prefer totalFee if available (includes all fees), otherwise use rukapayFee
-                      return formatAmount(totalFee > 0 ? totalFee : rukapayFee);
+                      return formatAmount(rukapayFee);
                     })()}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-orange-600">Partner Fee:</span>
                   <span className="font-medium text-orange-600">
-                    {formatAmount(Number(transaction.thirdPartyFee) || 0)}
+                    {(() => {
+                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
+                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
+                      const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
+                      const partnerFee = partnerFeeFromBreakdown > 0 
+                        ? partnerFeeFromBreakdown 
+                        : (Number(transaction.thirdPartyFee) || 0);
+                      
+                      return formatAmount(partnerFee);
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-red-600">Government Tax:</span>
                   <span className="font-medium text-red-600">
-                    {formatAmount(Number(transaction.governmentTax) || 0)}
+                    {(() => {
+                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
+                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
+                      const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
+                      const govTax = govTaxFromBreakdown > 0 
+                        ? govTaxFromBreakdown 
+                        : (Number(transaction.governmentTax) || 0);
+                      
+                      return formatAmount(govTax);
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-yellow-600 font-semibold">Total Fees:</span>
                   <span className="font-bold text-yellow-600">
                     {(() => {
-                      // Calculate total fees by summing all individual fee components
-                      const rukapayFee = Number(transaction.rukapayFee) || 0;
-                      const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
-                      const governmentTax = Number(transaction.governmentTax) || 0;
-                      const processingFee = Number(transaction.processingFee) || 0;
-                      const networkFee = Number(transaction.networkFee) || 0;
-                      const complianceFee = Number(transaction.complianceFee) || 0;
+                      // Use feeBreakdown as source of truth if available
+                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
                       
-                      // Sum all fees
-                      const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+                      if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
+                        return formatAmount(Number(feeBreakdown.totalFee));
+                      }
                       
-                      // Use transaction.fee if it's greater (should be the same, but use it as fallback)
-                      const totalFees = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
+                      // Otherwise, calculate from displayed individual fees (must match what's shown above)
+                      const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
+                      const rukapayFee = rukapayFeeFromBreakdown > 0 
+                        ? rukapayFeeFromBreakdown 
+                        : (Number(transaction.rukapayFee) || 0);
                       
-                      return formatAmount(totalFees);
+                      const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
+                      const thirdPartyFee = partnerFeeFromBreakdown > 0 
+                        ? partnerFeeFromBreakdown 
+                        : (Number(transaction.thirdPartyFee) || 0);
+                      
+                      const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
+                      const governmentTax = govTaxFromBreakdown > 0 
+                        ? govTaxFromBreakdown 
+                        : (Number(transaction.governmentTax) || 0);
+                      
+                      const processingFee = feeBreakdown.processingFee || Number(transaction.processingFee) || 0;
+                      const networkFee = feeBreakdown.networkFee || Number(transaction.networkFee) || 0;
+                      const complianceFee = feeBreakdown.complianceFee || Number(transaction.complianceFee) || 0;
+                      const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
+                      
+                      // Sum all fees (including telecomBankCharge if present)
+                      const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee + telecomBankCharge;
+                      
+                      // Use calculated total if > 0, otherwise fall back to transaction.fee
+                      return formatAmount(calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0));
                     })()}
                   </span>
                 </div>
