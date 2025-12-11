@@ -289,16 +289,37 @@ export const TransactionDetailsModal = ({
                       if (transaction.direction === 'DEBIT') {
                         const amount = Number(transaction.amount) || 0;
                         
-                        // Calculate total fees by summing all individual fee components
-                        const rukapayFee = Number(transaction.rukapayFee) || 0;
-                        const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
-                        const governmentTax = Number(transaction.governmentTax) || 0;
-                        const processingFee = Number(transaction.processingFee) || 0;
-                        const networkFee = Number(transaction.networkFee) || 0;
-                        const complianceFee = Number(transaction.complianceFee) || 0;
+                        // Use feeBreakdown as source of truth if available
+                        const feeBreakdown = transaction.metadata?.feeBreakdown || {};
                         
-                        // Sum all fees
-                        const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+                        // Check for totalFee in feeBreakdown first
+                        if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
+                          return formatAmount(amount + Number(feeBreakdown.totalFee));
+                        }
+                        
+                        // Calculate total fees from feeBreakdown, falling back to transaction fields
+                        const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
+                        const rukapayFee = rukapayFeeFromBreakdown > 0 
+                          ? rukapayFeeFromBreakdown 
+                          : (Number(transaction.rukapayFee) || 0);
+                        
+                        const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
+                        const thirdPartyFee = partnerFeeFromBreakdown > 0 
+                          ? partnerFeeFromBreakdown 
+                          : (Number(transaction.thirdPartyFee) || 0);
+                        
+                        const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
+                        const governmentTax = govTaxFromBreakdown > 0 
+                          ? govTaxFromBreakdown 
+                          : (Number(transaction.governmentTax) || 0);
+                        
+                        const processingFee = feeBreakdown.processingFee || Number(transaction.processingFee) || 0;
+                        const networkFee = feeBreakdown.networkFee || Number(transaction.networkFee) || 0;
+                        const complianceFee = feeBreakdown.complianceFee || Number(transaction.complianceFee) || 0;
+                        const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
+                        
+                        // Sum all fees (including telecomBankCharge)
+                        const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee + telecomBankCharge;
                         
                         // Use calculated total fees if available, otherwise fall back to transaction.fee
                         const totalFee = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
