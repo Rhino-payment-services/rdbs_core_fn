@@ -725,24 +725,31 @@ export const TransactionTableRow = ({
       </TableCell>
       <TableCell className="font-medium text-blue-600">
         {(() => {
-          // Calculate the fee to display
-          // Priority: 1) transaction.fee (total fee), 2) calculated fee (amount - netAmount), 3) rukapayFee
+          // Calculate total fees by summing all individual fee components
           const rukapayFee = Number(transaction.rukapayFee) || 0;
-          const totalFee = Number(transaction.fee) || 0;
-          const amount = Number(transaction.amount) || 0;
-          const netAmount = Number(transaction.netAmount) || 0;
+          const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
+          const governmentTax = Number(transaction.governmentTax) || 0;
+          const processingFee = Number(transaction.processingFee) || 0;
+          const networkFee = Number(transaction.networkFee) || 0;
+          const complianceFee = Number(transaction.complianceFee) || 0;
           
-          // For RukaPay to RukaPay transactions, if rukapayFee is 0 but there's a difference
-          // between amount and netAmount, calculate the actual fee charged
-          if (rukapayFee === 0 && amount > 0 && netAmount > 0 && amount !== netAmount) {
-            // Use totalFee if available, otherwise calculate from amount - netAmount
-            const calculatedFee = amount - netAmount;
-            return formatAmount(totalFee > 0 ? totalFee : calculatedFee);
+          // Sum all fees
+          const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+          
+          // Use calculated total fees if available, otherwise fall back to transaction.fee
+          const totalFee = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
+          
+          // If still 0, try to calculate from amount - netAmount
+          if (totalFee === 0) {
+            const amount = Number(transaction.amount) || 0;
+            const netAmount = Number(transaction.netAmount) || 0;
+            if (amount > 0 && netAmount > 0 && amount !== netAmount) {
+              const calculatedFee = amount - netAmount;
+              return formatAmount(calculatedFee);
+            }
           }
           
-          // For other cases, prefer totalFee if available (includes all fees), otherwise use rukapayFee
-          // This ensures we show the actual fee charged on the sender
-          return formatAmount(totalFee > 0 ? totalFee : rukapayFee);
+          return formatAmount(totalFee);
         })()}
       </TableCell>
       <TableCell className="font-medium text-green-600">
@@ -765,7 +772,21 @@ export const TransactionTableRow = ({
               }
             }
             
-            return formatAmount(amount + totalFee);
+            // Calculate total fees by summing all individual fee components
+            const rukapayFee = Number(transaction.rukapayFee) || 0;
+            const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
+            const governmentTax = Number(transaction.governmentTax) || 0;
+            const processingFee = Number(transaction.processingFee) || 0;
+            const networkFee = Number(transaction.networkFee) || 0;
+            const complianceFee = Number(transaction.complianceFee) || 0;
+            
+            // Sum all fees
+            const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+            
+            // Use calculated total fees if available, otherwise fall back to totalFee
+            const finalTotalFee = calculatedTotalFees > 0 ? calculatedTotalFees : totalFee;
+            
+            return formatAmount(amount + finalTotalFee);
           } else {
             // For CREDIT transactions, show netAmount (amount received)
             return formatAmount(Number(transaction.netAmount));

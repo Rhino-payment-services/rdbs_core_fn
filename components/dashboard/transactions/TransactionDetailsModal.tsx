@@ -233,23 +233,50 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-yellow-600 font-semibold">Total Fees:</span>
                   <span className="font-bold text-yellow-600">
-                    {formatAmount(Number(transaction.fee) || 0)}
+                    {(() => {
+                      // Calculate total fees by summing all individual fee components
+                      const rukapayFee = Number(transaction.rukapayFee) || 0;
+                      const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
+                      const governmentTax = Number(transaction.governmentTax) || 0;
+                      const processingFee = Number(transaction.processingFee) || 0;
+                      const networkFee = Number(transaction.networkFee) || 0;
+                      const complianceFee = Number(transaction.complianceFee) || 0;
+                      
+                      // Sum all fees
+                      const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+                      
+                      // Use transaction.fee if it's greater (should be the same, but use it as fallback)
+                      const totalFees = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
+                      
+                      return formatAmount(totalFees);
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between border-t-2 pt-2 mt-2">
                   <span className="text-green-600 font-bold">Net Amount:</span>
                   <span className="font-bold text-green-600 text-lg">
                     {(() => {
-                      // Net Amount should show the total amount debited from sender (amount + fee)
-                      // For DEBIT transactions: amount + fee (total debited)
+                      // Net Amount should show the total amount debited from sender (amount + all fees)
+                      // For DEBIT transactions: amount + all fees (total debited)
                       // For CREDIT transactions: netAmount (amount received)
                       if (transaction.direction === 'DEBIT') {
                         const amount = Number(transaction.amount) || 0;
-                        const fee = Number(transaction.fee) || 0;
-                        const rukapayFee = Number(transaction.rukapayFee) || 0;
-                        const totalFee = fee > 0 ? fee : (rukapayFee > 0 ? rukapayFee : 0);
                         
-                        // If fee is 0 but there's a difference, calculate it
+                        // Calculate total fees by summing all individual fee components
+                        const rukapayFee = Number(transaction.rukapayFee) || 0;
+                        const thirdPartyFee = Number(transaction.thirdPartyFee) || 0;
+                        const governmentTax = Number(transaction.governmentTax) || 0;
+                        const processingFee = Number(transaction.processingFee) || 0;
+                        const networkFee = Number(transaction.networkFee) || 0;
+                        const complianceFee = Number(transaction.complianceFee) || 0;
+                        
+                        // Sum all fees
+                        const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee;
+                        
+                        // Use calculated total fees if available, otherwise fall back to transaction.fee
+                        const totalFee = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
+                        
+                        // If still 0 but there's a difference, calculate it
                         if (totalFee === 0 && amount > 0) {
                           const netAmount = Number(transaction.netAmount) || 0;
                           if (netAmount > 0 && amount !== netAmount) {
@@ -266,6 +293,28 @@ export const TransactionDetailsModal = ({
                     })()}
                   </span>
                 </div>
+                {/* Balance Information */}
+                {(transaction.balanceBefore !== null && transaction.balanceBefore !== undefined) || 
+                 (transaction.balanceAfter !== null && transaction.balanceAfter !== undefined) ? (
+                  <>
+                    <div className="flex justify-between border-t pt-2 mt-2">
+                      <span className="text-purple-600 font-semibold">Previous Balance:</span>
+                      <span className="font-bold text-purple-600">
+                        {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined
+                          ? formatAmount(Number(transaction.balanceBefore))
+                          : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-indigo-600 font-bold">Current Balance:</span>
+                      <span className="font-bold text-indigo-600 text-lg">
+                        {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
+                          ? formatAmount(Number(transaction.balanceAfter))
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
           </div>
