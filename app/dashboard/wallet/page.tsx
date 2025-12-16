@@ -109,7 +109,10 @@ const WalletPage = () => {
       }
     }
   } else {
-    console.log('No walletsData yet, isLoading:', isWalletsLoading, 'error:', walletsError)
+    // Only log in development, not during build
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      console.log('No walletsData yet, isLoading:', isWalletsLoading, 'error:', walletsError)
+    }
   }
 
   const getStatusBadge = (wallet: WalletType) => {
