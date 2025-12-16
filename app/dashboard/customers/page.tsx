@@ -315,9 +315,24 @@ const CustomersPage = () => {
     }
   }
 
-  const handleViewCustomer = (customer: User) => {
-    setSelectedCustomer(customer)
-    setShowCustomerModal(true)
+  const handleViewCustomer = (customer: User | any) => {
+    // Determine customer type for routing
+    let customerType = 'subscriber' // default
+    let customerId = customer.id
+    
+    // For merchants, use userId if available (merchants have userId field)
+    if (customer.merchantCode) {
+      customerType = 'merchant'
+      // Merchants might have userId field, use it if available, otherwise use id
+      customerId = (customer as any).userId || customer.id
+    } else if (customer.subscriberType === 'AGENT') {
+      customerType = 'partner'
+    } else if (customer.subscriberType === 'INDIVIDUAL') {
+      customerType = 'subscriber'
+    }
+    
+    // Navigate to customer detail page
+    router.push(`/dashboard/customers/${customerType}/${customerId}`)
   }
 
   const handleEditCustomer = (customer: User) => {
