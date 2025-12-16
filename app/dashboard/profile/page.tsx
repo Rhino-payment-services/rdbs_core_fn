@@ -86,6 +86,7 @@ const ProfilePage = () => {
 
 
   const [isLoadingAction, setIsLoadingAction] = useState(false)
+  const [isResettingPin, setIsResettingPin] = useState(false)
 
 
   const handleEdit = () => {
@@ -166,6 +167,31 @@ const ProfilePage = () => {
       toast.error(extractErrorMessage(error))
     } finally {
       setIsLoadingAction(false)
+    }
+  }
+
+  const handleResetPin = async () => {
+    try {
+      if (!user || !(user as any).phone) {
+        toast.error('Phone number not found for this user')
+        return
+      }
+
+      const phone = (user as any).phone as string
+      setIsResettingPin(true)
+
+      const response = await api.post('/auth/reset-pin-by-phone', { phone })
+      const data = response.data
+
+      if (data?.success) {
+        toast.success(data?.message || 'Temporary PIN has been sent via SMS. Please change it after login.')
+      } else {
+        toast.error(data?.message || 'Failed to reset PIN. Please try again.')
+      }
+    } catch (error) {
+      toast.error(extractErrorMessage(error))
+    } finally {
+      setIsResettingPin(false)
     }
   }
 
@@ -266,6 +292,45 @@ const ProfilePage = () => {
             })}
             isLoading={isLoadingAction}
           />
+
+          {/* PIN Reset Section */}
+          {user && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Key className="h-4 w-4 text-amber-600" />
+                    PIN Management
+                  </CardTitle>
+                  <CardDescription>
+                    View your account phone number and reset your login PIN.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium text-gray-800">Phone:</span>{' '}
+                    {(user as any).phone || 'N/A'}
+                  </p>
+                  <p className="text-xs text-gray-500 max-w-md">
+                    When you reset your PIN, a <span className="font-semibold">temporary 5-digit PIN</span> will be sent to this phone number via SMS.
+                    Use it to login, then change your PIN immediately for better security.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleResetPin}
+                    disabled={isResettingPin}
+                  >
+                    {isResettingPin ? 'Resetting PIN...' : 'Reset PIN & Send SMS'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
         </div>
         </div>

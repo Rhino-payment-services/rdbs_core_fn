@@ -465,6 +465,8 @@ const TransactionsPage = () => {
   }
 
   // Calculate enhanced fee statistics from current page
+  // Count fees from ALL transactions (fees are charged regardless of status)
+  // Only count volume from SUCCESS transactions
   const pageStats = transactions.reduce((acc: any, tx: any) => {
     // Fees are charged regardless of transaction status
     acc.totalFees += Number(tx.fee) || 0
