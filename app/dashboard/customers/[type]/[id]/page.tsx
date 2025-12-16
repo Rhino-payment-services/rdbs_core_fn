@@ -19,6 +19,7 @@ import CustomerActivity from '@/components/dashboard/customers/profile/CustomerA
 import CustomerSettings from '@/components/dashboard/customers/profile/CustomerSettings'
 import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs } from '@/lib/hooks/useApi'
 import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
+import api from '@/lib/axios'
 
 const CustomerProfilePage = () => {
   const params = useParams()
@@ -171,6 +172,32 @@ const CustomerProfilePage = () => {
     toast.success('Opening login history...')
   }
 
+  const handleResetPin = async () => {
+    const customerPhone = customer.profile?.phone || customer.phone
+    if (!customerPhone || customerPhone === 'N/A') {
+      toast.error('Customer phone number not found. Cannot reset PIN.')
+      return
+    }
+
+    try {
+      const response = await api.post('/auth/reset-pin-by-phone', { phone: customerPhone })
+      const data = response.data
+
+      if (data?.success) {
+        toast.success(data?.message || 'PIN has been reset successfully. A temporary PIN has been sent to the customer\'s phone number.')
+      } else {
+        throw new Error(data?.message || 'Failed to reset PIN')
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to reset PIN. Please try again.'
+      toast.error(errorMessage)
+    }
+  }
+
+  const handleGoToSettings = () => {
+    setActiveTab('settings')
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -183,7 +210,7 @@ const CustomerProfilePage = () => {
               name: `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
               type: type as string,
               email: customer.email || 'N/A',
-              phone: customer.profile?.phone || 'N/A',
+              phone: customer.profile?.phone || customer.phone || 'N/A',
               status: customer.status || 'unknown',
               joinDate: customer.createdAt || 'N/A',
               location: 'Kampala, Uganda',
@@ -201,7 +228,8 @@ const CustomerProfilePage = () => {
             onBack={() => router.back()}
             onExport={handleExport}
             onEdit={handleEdit}
-            onActions={handleActions}
+            onResetPin={handleResetPin}
+            onGoToSettings={handleGoToSettings}
           />
 
           {/* Stats Cards */}
@@ -298,6 +326,7 @@ const CustomerProfilePage = () => {
               <CustomerSettings
                 customerId={customer.id || id as string}
                 customerStatus={customer.status || 'unknown'}
+                customerPhone={customer.profile?.phone || customer.phone || ''}
                 walletBalance={wallet?.balance || 0}
                 currency={wallet?.currency || 'UGX'}
                 onActionComplete={() => {
