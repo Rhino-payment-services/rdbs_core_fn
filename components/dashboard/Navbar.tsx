@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Images } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -275,6 +275,21 @@ const Navbar = () => {
                   >
                     <Layers className="nav-icon" />
                     <span>Transaction Modes</span>
+                  </Link>
+                </PermissionGuard>
+                
+                {/* Carousel Menu */}
+                <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
+                  <Link 
+                    href="/dashboard/carousel" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/carousel')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <Images className="nav-icon" />
+                    <span>Carousel</span>
                   </Link>
                 </PermissionGuard>
                 
