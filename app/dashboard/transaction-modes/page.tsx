@@ -29,6 +29,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -101,7 +102,7 @@ const TRANSACTION_TYPES = [
 
 export default function TransactionModesPage() {
   const router = useRouter();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, userRole } = usePermissions();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -230,7 +231,7 @@ export default function TransactionModesPage() {
                           Create a new custom transaction mode with specific rules and configurations
                         </DialogDescription>
                       </DialogHeader>
-                      <TransactionModeForm onSubmit={handleCreate} isSubmitting={createMode.isPending} />
+                      <TransactionModeForm onSubmit={handleCreate} isSubmitting={createMode.isPending} userRole={userRole} />
                     </DialogContent>
                   </Dialog>
                 )}
@@ -463,6 +464,7 @@ export default function TransactionModesPage() {
                   initialData={selectedMode}
                   onSubmit={handleUpdate}
                   isSubmitting={updateMode.isPending}
+                  userRole={userRole}
                 />
               )}
             </DialogContent>
@@ -503,9 +505,10 @@ interface TransactionModeFormProps {
   initialData?: TransactionMode;
   onSubmit: (data: CreateTransactionModeDto) => void;
   isSubmitting: boolean;
+  userRole?: string;
 }
 
-function TransactionModeForm({ initialData, onSubmit, isSubmitting }: TransactionModeFormProps) {
+function TransactionModeForm({ initialData, onSubmit, isSubmitting, userRole }: TransactionModeFormProps) {
   const { data: systemModes = [] } = useSystemTransactionModes();
   
   // Extract transactionType from metadata if it exists
@@ -527,6 +530,7 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
     approvalThreshold: initialData?.approvalThreshold || undefined,
     metadata: initialData?.metadata || {},
     systemTransactionModeCode: systemTransactionModeCodeFromMetadata || undefined,
+    isSystem: initialData?.isSystem || false,
   });
 
   const [transactionType, setTransactionType] = useState<string>(initialTransactionType);
@@ -537,6 +541,7 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
     // Include transactionType in metadata if provided
     const submitData = {
       ...formData,
+      isSystem: formData.isSystem || false, // Ensure isSystem is included
       metadata: {
         ...formData.metadata,
         ...(transactionType && { transactionType }),
@@ -692,6 +697,33 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting }: Transactio
           Select a system transaction mode to reference. This will be stored in metadata as transactionType.
         </p>
       </div>
+
+      {userRole === 'SUPER_ADMIN' && !initialData && (
+        <div className="flex items-center space-x-2 p-4 border rounded-lg bg-blue-50">
+          <Checkbox
+            id="isSystem"
+            checked={formData.isSystem || false}
+            onCheckedChange={(checked) =>
+              setFormData({ ...formData, isSystem: checked === true })
+            }
+          />
+          <Label
+            htmlFor="isSystem"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+          >
+            Create as System Transaction Mode
+          </Label>
+        </div>
+      )}
+
+      {userRole === 'SUPER_ADMIN' && !initialData && formData.isSystem && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            System transaction modes cannot be edited or deleted after creation. They are permanent and protected.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex items-center justify-end gap-2 pt-4">
         <Button type="submit" disabled={isSubmitting}>

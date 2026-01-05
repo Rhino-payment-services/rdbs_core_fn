@@ -3,11 +3,20 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { 
   ArrowLeft,
   Download,
   Edit,
-  MoreHorizontal
+  MoreHorizontal,
+  Key,
+  Settings
 } from 'lucide-react'
 import { Wallet } from '@/lib/types/api'
 
@@ -35,7 +44,8 @@ interface CustomerProfileHeaderProps {
   onBack: () => void
   onExport: () => void
   onEdit: () => void
-  onActions: () => void
+  onResetPin?: () => void
+  onGoToSettings?: () => void
 }
 
 const CustomerProfileHeader = ({ 
@@ -43,7 +53,8 @@ const CustomerProfileHeader = ({
   onBack, 
   onExport, 
   onEdit, 
-  onActions 
+  onResetPin,
+  onGoToSettings
 }: CustomerProfileHeaderProps) => {
   const getCustomerTypeBadge = (type: string) => {
     switch (type) {
@@ -88,10 +99,31 @@ const CustomerProfileHeader = ({
           <Edit className="h-4 w-4" />
           Edit
         </Button>
-        <Button variant="outline" size="sm" onClick={onActions} className="flex items-center gap-2">
-          <MoreHorizontal className="h-4 w-4" />
-          Actions
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <MoreHorizontal className="h-4 w-4" />
+              Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            {onResetPin && customer.phone && customer.phone !== 'N/A' && (
+              <>
+                <DropdownMenuItem onClick={onResetPin} className="flex items-center gap-2 cursor-pointer">
+                  <Key className="h-4 w-4" />
+                  Reset PIN
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            {onGoToSettings && (
+              <DropdownMenuItem onClick={onGoToSettings} className="flex items-center gap-2 cursor-pointer">
+                <Settings className="h-4 w-4" />
+                Go to Settings
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )

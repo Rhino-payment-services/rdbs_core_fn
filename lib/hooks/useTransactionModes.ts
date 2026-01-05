@@ -57,6 +57,7 @@ export interface CreateTransactionModeDto {
   validationRules?: any;
   metadata?: any;
   systemTransactionModeCode?: string;
+  isSystem?: boolean;
 }
 
 export interface UpdateTransactionModeDto extends CreateTransactionModeDto {

@@ -18,13 +18,16 @@ import {
   CreditCard,
   UserX,
   UserCheck,
-  Wallet
+  Wallet,
+  Key
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import api from '@/lib/axios'
 
 interface CustomerSettingsProps {
   customerId: string
   customerStatus: string
+  customerPhone?: string
   walletBalance?: number
   currency?: string
   onActionComplete?: () => void
@@ -32,7 +35,8 @@ interface CustomerSettingsProps {
 
 const CustomerSettings = ({ 
   customerId, 
-  customerStatus, 
+  customerStatus,
+  customerPhone = '',
   walletBalance = 0, 
   currency = 'UGX',
   onActionComplete 
@@ -41,6 +45,8 @@ const CustomerSettings = ({
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
   const [unsuspendDialogOpen, setUnsuspendDialogOpen] = useState(false)
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
+  const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false)
+  const [isResettingPin, setIsResettingPin] = useState(false)
   
   // Suspend form state
   const [suspendForm, setSuspendForm] = useState({
@@ -154,6 +160,32 @@ const CustomerSettings = ({
       toast.error('Failed to create manual transaction')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResetPin = async () => {
+    if (!customerPhone) {
+      toast.error('Customer phone number not found. Cannot reset PIN.')
+      return
+    }
+
+    setIsResettingPin(true)
+    try {
+      const response = await api.post('/auth/reset-pin-by-phone', { phone: customerPhone })
+      const data = response.data
+
+      if (data?.success) {
+        toast.success(data?.message || 'PIN has been reset successfully. A temporary PIN has been sent to the customer\'s phone number.')
+        setResetPinDialogOpen(false)
+        onActionComplete?.()
+      } else {
+        throw new Error(data?.message || 'Failed to reset PIN')
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to reset PIN. Please try again.'
+      toast.error(errorMessage)
+    } finally {
+      setIsResettingPin(false)
     }
   }
 
@@ -378,6 +410,104 @@ const CustomerSettings = ({
                     </Button>
                     <Button onClick={handleManualTransaction} disabled={isLoading}>
                       {isLoading ? 'Creating...' : 'Create Transaction'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Security Actions
+          </CardTitle>
+          <CardDescription>
+            Security-related actions for this customer account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <Key className="h-4 w-4 text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium">Reset Customer PIN</div>
+                  <div className="text-sm text-gray-600">
+                    Reset the customer's PIN and send a temporary PIN via SMS
+                  </div>
+                  {customerPhone && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Phone: {customerPhone}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Dialog open={resetPinDialogOpen} onOpenChange={setResetPinDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-2"
+                    disabled={!customerPhone}
+                  >
+                    <Key className="h-4 w-4" />
+                    Reset PIN
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reset Customer PIN</DialogTitle>
+                    <DialogDescription>
+                      This will reset the customer's PIN and send a temporary 5-digit PIN to their phone number via SMS.
+                      The customer should change this PIN after logging in.
+                    </DialogDescription>
+                  </DialogHeader>
+                  {customerPhone ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="text-sm font-medium text-blue-900 mb-1">Customer Phone Number</div>
+                        <div className="text-sm text-blue-700">{customerPhone}</div>
+                      </div>
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="text-sm font-medium text-yellow-900 mb-1">⚠️ Important</div>
+                        <div className="text-sm text-yellow-700">
+                          A temporary 5-digit PIN will be sent to this phone number. The customer must change it after login.
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="text-sm font-medium text-red-900">Phone Number Not Found</div>
+                      <div className="text-sm text-red-700 mt-1">
+                        Cannot reset PIN without a phone number for this customer.
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setResetPinDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleResetPin} 
+                      disabled={isResettingPin || !customerPhone}
+                      className="flex items-center gap-2"
+                    >
+                      {isResettingPin ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Resetting PIN...
+                        </>
+                      ) : (
+                        <>
+                          <Key className="h-4 w-4" />
+                          Reset PIN & Send SMS
+                        </>
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
