@@ -50,9 +50,8 @@ export function MerchantQRCodeDialog({
     if (isOpen && merchantCode) {
       const generateQR = async () => {
         try {
-          // Use the merchant code to generate payment URL
-          // Adjust the URL based on your payment page structure
-          const qrData = `${window.location.origin}/receive_payment/${merchantCode}`;
+          // Use the same URL format as merchant dashboard
+          const qrData = `http://10.10.10.26:7220/receive_payment/${merchantCode}`;
           const qrUrl = await QRCode.toDataURL(qrData, {
             width: 200,
             margin: 2,
@@ -199,7 +198,8 @@ export function MerchantQRCodeDialog({
 
   const handleCopyToClipboard = async () => {
     try {
-      const merchantLink = `${window.location.origin}/receive_payment/${merchantCode}`;
+      // Use the same URL format as merchant dashboard
+      const merchantLink = `http://10.10.10.26:7220/receive_payment/${merchantCode}`;
       await navigator.clipboard.writeText(merchantLink);
       alert('Merchant link copied to clipboard!');
     } catch (error) {
@@ -208,19 +208,22 @@ export function MerchantQRCodeDialog({
   };
 
   const handleShareViaWhatsApp = () => {
-    const text = encodeURIComponent(`Scan this QR code to pay ${merchantName}: ${window.location.origin}/receive_payment/${merchantCode}`);
+    // Use the same URL format as merchant dashboard
+    const text = encodeURIComponent(`Scan this QR code to pay ${merchantName}: http://10.10.10.26:7220/receive_payment/?merchant_code=${merchantCode}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   const handleShareViaSMS = () => {
-    const text = encodeURIComponent(`Scan this QR code to pay ${merchantName}: ${window.location.origin}/receive_payment/${merchantCode}`);
+    // Use the same URL format as merchant dashboard
+    const text = encodeURIComponent(`Scan this QR code to pay ${merchantName}: http://10.10.10.26:7220/receive_payment/?merchant_code=${merchantCode}`);
     window.open(`sms:?body=${text}`, '_blank');
   };
 
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        const merchantLink = `${window.location.origin}/receive_payment/${merchantCode}`;
+        // Use the same URL format as merchant dashboard
+        const merchantLink = `http://10.10.10.26:7220/receive_payment/${merchantCode}`;
         await navigator.share({
           title: `${merchantName} - QR Code`,
           text: `Scan this QR code to pay ${merchantName}`,
