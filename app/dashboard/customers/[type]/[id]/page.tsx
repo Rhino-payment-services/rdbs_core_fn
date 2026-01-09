@@ -226,10 +226,19 @@ const CustomerProfilePage = () => {
           <CustomerProfileHeader
             customer={{
               id: customer?.id || id as string,
-              // For merchants, show business name; for others, show personal name
+              // For merchants, show business name; for others, show personal name with fallbacks
               name: type === 'merchant' && merchantData?.businessTradeName
                 ? merchantData.businessTradeName
-                : `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
+                : (
+                    // Try profile firstName/lastName first
+                    `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                    // Then try direct user firstName/lastName
+                    `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                    // Then fall back to email
+                    customer?.email ||
+                    // Finally show Unknown Customer
+                    'Unknown Customer'
+                  ),
               type: type as string,
               email: type === 'merchant' && merchantData?.businessEmail
                 ? merchantData.businessEmail
@@ -301,10 +310,19 @@ const CustomerProfilePage = () => {
             <TabsContent value="overview" className="space-y-6 mt-6">
               <CustomerOverview
                 customer={{
-                  // For merchants, show business name; for others, show personal name
+                  // For merchants, show business name; for others, show personal name with fallbacks
                   name: type === 'merchant' && merchantData?.businessTradeName
                     ? merchantData.businessTradeName
-                    : `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
+                    : (
+                        // Try profile firstName/lastName first
+                        `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                        // Then try direct user firstName/lastName
+                        `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                        // Then fall back to email
+                        customer?.email ||
+                        // Finally show Unknown Customer
+                        'Unknown Customer'
+                      ),
                   email: type === 'merchant' && merchantData?.businessEmail
                     ? merchantData.businessEmail
                     : customer?.email || 'N/A',
