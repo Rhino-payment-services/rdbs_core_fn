@@ -226,3 +226,64 @@ export const useUpdateDailyLimit = () => {
     },
   })
 }
+
+// System Fee Wallet hooks
+export interface CreateSystemFeeWalletRequest {
+  currency?: string
+  partnerId?: string
+  description?: string
+}
+
+export interface SystemFeeWalletResponse {
+  id: string
+  userId: string
+  partnerId?: string
+  balance: number
+  currency: string
+  walletType: string
+  description?: string
+  createdAt: Date
+}
+
+export interface WithdrawSystemFeeWalletRequest {
+  amount: number
+  destinationAccount: string
+  destinationBank?: string
+  narration?: string
+}
+
+export const useCreateSystemFeeWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<SystemFeeWalletResponse, Error, CreateSystemFeeWalletRequest>({
+    mutationFn: (data) => apiFetch('/admin/system-wallets', {
+      method: 'POST',
+      data,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export const useWithdrawSystemFeeWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<any, Error, WithdrawSystemFeeWalletRequest>({
+    mutationFn: (data) => apiFetch('/wallet/system-fee/withdraw', {
+      method: 'POST',
+      data,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export const useSystemFeeWalletBalance = () => {
+  return useQuery({
+    queryKey: ['system-fee-wallet', 'balance'],
+    queryFn: () => apiFetch('/wallet/system-fee/balance'),
+    staleTime: 30 * 1000, // 30 seconds
+  })
+}
