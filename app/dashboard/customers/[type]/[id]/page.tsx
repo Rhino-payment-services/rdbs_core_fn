@@ -18,6 +18,7 @@ import CustomerTransactions from '@/components/dashboard/customers/profile/Custo
 import CustomerActivity from '@/components/dashboard/customers/profile/CustomerActivity'
 import CustomerSettings from '@/components/dashboard/customers/profile/CustomerSettings'
 import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs } from '@/lib/hooks/useApi'
+import { useMerchants } from '@/lib/hooks/useMerchants'
 import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
 import api from '@/lib/axios'
 
@@ -33,8 +34,15 @@ const CustomerProfilePage = () => {
 
   // Fetch customer data
   const { data: customerData, isLoading: customerLoading, error: customerError } = useUsers()
+  
+  // Fetch merchants data when type is 'merchant'
+  const { data: merchantsData, isLoading: merchantsLoading } = useMerchants({
+    page: 1,
+    pageSize: 1000  // Get all merchants to find by userId
+  })
 
   console.log("customerData====>", customerData)
+  console.log("merchantsData====>", merchantsData)
   
   // Fetch wallet transactions for this user with pagination
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
@@ -46,6 +54,15 @@ const CustomerProfilePage = () => {
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
   const customer = users.find((user: any) => user.id === id) || null;
+  
+  // Get merchant data if this is a merchant view
+  const merchants = merchantsData?.merchants || []
+  const merchantData = type === 'merchant' 
+    ? merchants.find((m: any) => m.userId === id || m.id === id) 
+    : null;
+  
+  console.log("merchantData====>", merchantData)
+  
   const wallets = customer?.wallets || [];
   const personalWallet = wallets.find((wallet: any) => wallet.walletType === 'PERSONAL');
   const businessWallet = wallets.find((wallet: any) => wallet.walletType === 'BUSINESS');
@@ -70,7 +87,9 @@ const CustomerProfilePage = () => {
   console.log("activityLogsError====>", activityLogsError)
 
   // Handle loading and error states
-  if (customerLoading) {
+  const isLoading = customerLoading || (type === 'merchant' && merchantsLoading)
+  
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -206,24 +225,44 @@ const CustomerProfilePage = () => {
           {/* Customer Profile Header */}
           <CustomerProfileHeader
             customer={{
-              id: customer.id || id as string,
-              name: `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
+              id: customer?.id || id as string,
+              // For merchants, show business name; for others, show personal name with fallbacks
+              name: type === 'merchant' && merchantData?.businessTradeName
+                ? merchantData.businessTradeName
+                : (
+                    // Try profile firstName/lastName first
+                    `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                    // Then try direct user firstName/lastName
+                    `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                    // Then fall back to email
+                    customer?.email ||
+                    // Finally show Unknown Customer
+                    'Unknown Customer'
+                  ),
               type: type as string,
-              email: customer.email || 'N/A',
-              phone: customer.profile?.phone || customer.phone || 'N/A',
-              status: customer.status || 'unknown',
-              joinDate: customer.createdAt || 'N/A',
+              email: type === 'merchant' && merchantData?.businessEmail
+                ? merchantData.businessEmail
+                : customer?.email || 'N/A',
+              phone: type === 'merchant' && merchantData?.registeredPhoneNumber
+                ? merchantData.registeredPhoneNumber
+                : customer?.profile?.phone || customer?.phone || 'N/A',
+              status: customer?.status || 'unknown',
+              joinDate: merchantData?.onboardedAt || customer?.createdAt || 'N/A',
               location: 'Kampala, Uganda',
               address: 'N/A',
               totalTransactions,
               currentBalance: currentBalance, // Replace with current balance
               avgTransactionValue,
               successRate,
-              kycStatus: customer.kycStatus || 'unknown',
+              kycStatus: customer?.kycStatus || 'unknown',
               riskLevel: 'low',
-              tags: customer.isVerified ? ['Verified'] : [],
+              tags: customer?.isVerified ? ['Verified'] : [],
               notes: 'Customer profile from database',
-              walletBalance: wallet as Wallet
+              walletBalance: wallet as Wallet,
+              // Pass merchant-specific data for merchants
+              merchantCode: merchantData?.merchantCode || customer?.merchantCode,
+              businessTradeName: merchantData?.businessTradeName,
+              ownerName: merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined
             }}
             onBack={() => router.back()}
             onExport={handleExport}
@@ -271,19 +310,44 @@ const CustomerProfilePage = () => {
             <TabsContent value="overview" className="space-y-6 mt-6">
               <CustomerOverview
                 customer={{
-                  name: `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() || 'Unknown Customer',
-                  email: customer?.email || 'N/A',
-                  phone: customer?.phone || 'N/A',
-                  status: customer.status || 'unknown',
-                  joinDate: customer.createdAt || 'N/A',
+                  // For merchants, show business name; for others, show personal name with fallbacks
+                  name: type === 'merchant' && merchantData?.businessTradeName
+                    ? merchantData.businessTradeName
+                    : (
+                        // Try profile firstName/lastName first
+                        `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                        // Then try direct user firstName/lastName
+                        `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                        // Then fall back to email
+                        customer?.email ||
+                        // Finally show Unknown Customer
+                        'Unknown Customer'
+                      ),
+                  email: type === 'merchant' && merchantData?.businessEmail
+                    ? merchantData.businessEmail
+                    : customer?.email || 'N/A',
+                  phone: type === 'merchant' && merchantData?.registeredPhoneNumber
+                    ? merchantData.registeredPhoneNumber
+                    : customer?.phone || 'N/A',
+                  status: customer?.status || 'unknown',
+                  joinDate: merchantData?.onboardedAt || customer?.createdAt || 'N/A',
                   location: 'Kampala, Uganda',
                   address: 'N/A',
                   walletBalance: wallet?.balance || 0
                 }}
                 type={type as string}
                 profileDetails={{
-                  // You can add more detailed profile information here
-                  // based on the customer type and available data
+                  // Merchant-specific profile details
+                  merchants: merchantData ? {
+                    businessName: merchantData.businessTradeName || 'N/A',
+                    businessType: merchantData.businessType || 'N/A',
+                    registrationNumber: merchantData.merchantCode || 'N/A',
+                    taxNumber: 'N/A',
+                    businessAddress: 'N/A',
+                    contactPerson: `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() || 'N/A',
+                    contactPhone: merchantData.registeredPhoneNumber || 'N/A',
+                    annualRevenue: 0
+                  } : undefined
                 }}
               
               />

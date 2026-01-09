@@ -29,6 +29,33 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Environment Variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```env
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Cloudinary Configuration (for Carousel Image Uploads)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
+```
+
+### Cloudinary Setup
+
+To enable carousel image uploads, you need to configure Cloudinary:
+
+1. Sign up for a free account at [Cloudinary](https://cloudinary.com/)
+2. Get your `cloud_name` from the Cloudinary dashboard
+3. Create an unsigned upload preset:
+   - Go to Settings > Upload
+   - Scroll to "Upload presets"
+   - Click "Add upload preset"
+   - Set signing mode to "Unsigned"
+   - Save the preset name
+4. Add the credentials to your `.env.local` file
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.

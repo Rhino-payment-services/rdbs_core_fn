@@ -19,6 +19,7 @@ import {
   Settings
 } from 'lucide-react'
 import { Wallet } from '@/lib/types/api'
+import { MerchantQRCodeDialog } from '../MerchantQRCodeDialog'
 
 interface CustomerProfileHeaderProps {
   customer: {
@@ -39,7 +40,11 @@ interface CustomerProfileHeaderProps {
     riskLevel: string,
     tags: string[],
     notes: string,
-    walletBalance: Wallet
+    walletBalance: Wallet,
+    // Merchant-specific fields
+    merchantCode?: string,
+    businessTradeName?: string,
+    ownerName?: string
   }
   onBack: () => void
   onExport: () => void
@@ -75,6 +80,8 @@ const CustomerProfileHeader = ({
     }
   }
 
+  const isMerchant = customer.type === 'merchant' || customer.type === 'merchants'
+
   return (
     <div className="flex items-center justify-between mb-8">
       <div className="flex items-center gap-4">
@@ -84,13 +91,35 @@ const CustomerProfileHeader = ({
         </Button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{customer.name}</h1>
+          {/* Show owner name for merchants */}
+          {isMerchant && customer.ownerName && (
+            <p className="text-sm text-gray-600 mb-1">Owner: {customer.ownerName}</p>
+          )}
           <div className="flex items-center gap-3">
             <span className="text-gray-600">ID: {customer.id}</span>
             {getCustomerTypeBadge(customer.type)}
+            {/* Show merchant code for merchants */}
+            {isMerchant && customer.merchantCode && (
+              <Badge variant="outline" className="font-mono text-xs">
+                Code: {customer.merchantCode}
+              </Badge>
+            )}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {/* QR Code button for merchants */}
+        {isMerchant && customer.merchantCode && (
+          <MerchantQRCodeDialog
+            merchantCode={customer.merchantCode}
+            merchantName={customer.name}
+            trigger={
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                View QR Code
+              </Button>
+            }
+          />
+        )}
         <Button variant="outline" size="sm" onClick={onExport} className="flex items-center gap-2">
           <Download className="h-4 w-4" />
           Export

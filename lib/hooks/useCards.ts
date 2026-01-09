@@ -55,6 +55,7 @@ export interface CreateSystemCardRequest {
 export interface LinkCardToUserRequest {
   serialNumber: string
   userId: string
+  walletId: string
 }
 
 export interface ActivateCardRequest {

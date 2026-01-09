@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Link, Save, X, UserSearch, Search, CheckCircle } from 'lucide-react'
+import { Link, Save, X, UserSearch, Search, CheckCircle, Wallet } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,10 +22,12 @@ function LinkCardContent() {
   const [formData, setFormData] = useState({
     serialNumber: '',
     userId: '',
+    walletId: '',
   })
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedWallet, setSelectedWallet] = useState<any>(null)
 
   // Get serial number from URL query parameter
   useEffect(() => {
@@ -88,13 +90,29 @@ function LinkCardContent() {
     setSelectedUser(user)
     handleInputChange('userId', user.id)
     setSearchTerm('') // Clear search
+    // Reset wallet selection when user changes
+    setSelectedWallet(null)
+    handleInputChange('walletId', '')
   }
+
+  const handleWalletSelect = (wallet: any) => {
+    setSelectedWallet(wallet)
+    handleInputChange('walletId', wallet.id)
+  }
+
+  // Get wallets from selected user
+  const userWallets = selectedUser?.wallets || []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.userId) {
       toast.error('Please select a user')
+      return
+    }
+
+    if (!formData.walletId) {
+      toast.error('Please select a wallet')
       return
     }
     
@@ -247,7 +265,9 @@ function LinkCardContent() {
                       size="sm"
                       onClick={() => {
                         setSelectedUser(null)
+                        setSelectedWallet(null)
                         handleInputChange('userId', '')
+                        handleInputChange('walletId', '')
                       }}
                     >
                       <X className="h-4 w-4" />
@@ -256,11 +276,73 @@ function LinkCardContent() {
                 </div>
               )}
 
+              {/* Wallet Selection */}
+              {selectedUser && userWallets.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="walletSelect">Select Wallet *</Label>
+                  <div className="border border-gray-200 rounded-lg">
+                    <div className="p-2">
+                      <div className="px-2 py-1 text-xs text-gray-500 font-medium">
+                        {userWallets.length} {userWallets.length === 1 ? 'wallet' : 'wallets'} available
+                      </div>
+                      {userWallets.map((wallet: any) => (
+                        <div
+                          key={wallet.id}
+                          onClick={() => handleWalletSelect(wallet)}
+                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                            selectedWallet?.id === wallet.id
+                              ? 'bg-[#08163d] text-white'
+                              : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium flex items-center gap-2">
+                                <Wallet className="h-4 w-4" />
+                                {wallet.walletType || 'PERSONAL'} Wallet
+                              </div>
+                              <div className={`text-sm ${selectedWallet?.id === wallet.id ? 'text-gray-200' : 'text-gray-500'}`}>
+                                Balance: {wallet.balance?.toLocaleString() || '0'} {wallet.currency || 'UGX'}
+                              </div>
+                              {wallet.id && (
+                                <div className={`text-xs ${selectedWallet?.id === wallet.id ? 'text-gray-300' : 'text-gray-400'} mt-1`}>
+                                  ID: {wallet.id.slice(0, 8)}...
+                                </div>
+                              )}
+                            </div>
+                            {selectedWallet?.id === wallet.id && (
+                              <CheckCircle className="h-5 w-5" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {!formData.walletId && (
+                    <p className="text-sm text-red-600">Please select a wallet to link this card</p>
+                  )}
+                </div>
+              )}
+
+              {selectedUser && userWallets.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Wallet className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-yellow-900 mb-1">No Wallets Found</p>
+                      <p className="text-sm text-yellow-700">
+                        This user doesn't have any wallets. Please create a wallet for this user before linking a card.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-4 pt-4">
                 <Button
                   type="submit"
-                  disabled={linkCard.isPending || !selectedUser}
+                  disabled={linkCard.isPending || !selectedUser || !formData.walletId}
                   className="flex-1"
                 >
                   {linkCard.isPending ? (

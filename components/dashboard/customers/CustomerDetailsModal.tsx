@@ -300,12 +300,17 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   }
 
   const getCustomerName = () => {
-    if (customer.profile?.firstName && customer.profile?.lastName) {
-      return `${customer.profile.firstName} ${customer.profile.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile.lastName}`.trim()
+    // Try profile firstName/lastName first (with or without both)
+    const profileName = `${customer.profile?.firstName || ''} ${customer.profile?.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile?.lastName || ''}`.trim()
+    if (profileName) {
+      return profileName
     }
-    if (customer.firstName && customer.lastName) {
-      return `${customer.firstName} ${customer.lastName}`.trim()
+    // Then try direct user firstName/lastName
+    const userName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim()
+    if (userName) {
+      return userName
     }
+    // Fall back to email
     return customer.email || 'Unknown Customer'
   }
 
