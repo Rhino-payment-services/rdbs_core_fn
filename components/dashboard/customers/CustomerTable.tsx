@@ -24,6 +24,7 @@ import {
   Building2
 } from 'lucide-react'
 import type { User } from '@/lib/types/api'
+import { MerchantQRCodeDialog } from './MerchantQRCodeDialog'
 
 interface CustomerTableProps {
   customers: User[] | any[]  // Can be User[] or Merchant[]
@@ -184,23 +185,24 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                   </TableCell>
                   <TableCell>
                     {isMerchantTab ? (
-                      // Merchant display: Show business name
+                      // Merchant display: Show business name prominently
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
                           <Building2 className="h-5 w-5" />
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div 
-                            className="font-medium text-sm cursor-pointer hover:text-blue-600 transition-colors"
+                            className="font-semibold text-base text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
                             onClick={() => onViewCustomer(customer)}
+                            title={customer.businessTradeName || 'Unknown Business'}
                           >
                             {customer.businessTradeName || 'Unknown Business'}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Owner: {customer.ownerFirstName} {customer.ownerLastName}
+                          <div className="text-sm text-gray-600 mt-1">
+                            Owner: {customer.ownerFirstName || ''} {customer.ownerLastName || ''}
                           </div>
-                          <div className="text-xs text-gray-400">
-                            Code: {customer.merchantCode}
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            Code: {customer.merchantCode || 'N/A'}
                           </div>
                         </div>
                       </div>
@@ -326,6 +328,12 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {isMerchantTab && customer.merchantCode && (
+                        <MerchantQRCodeDialog
+                          merchantCode={customer.merchantCode}
+                          merchantName={customer.businessTradeName || 'Unknown Business'}
+                        />
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
