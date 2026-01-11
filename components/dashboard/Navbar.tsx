@@ -15,12 +15,16 @@ const Navbar = () => {
   const pathname = usePathname()
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isFinanceDropdownOpen, setIsFinanceDropdownOpen] = useState(false)
+  const [isSecurityDropdownOpen, setIsSecurityDropdownOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [financeMenuPosition, setFinanceMenuPosition] = useState({ left: 0, top: 0 })
+  const [securityMenuPosition, setSecurityMenuPosition] = useState({ left: 0, top: 0 })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const financeMenuRef = useRef<HTMLDivElement>(null)
+  const securityMenuRef = useRef<HTMLDivElement>(null)
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const securityDropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { user, logout } = useAuth()
   const { canViewSystemLogs, hasPermission, userRole } = usePermissions()
 
@@ -62,6 +66,20 @@ const Navbar = () => {
     }, 150) // 150ms delay before closing
   }
 
+  // Handle Security dropdown hover with delay
+  const handleSecurityMouseEnter = () => {
+    if (securityDropdownTimeoutRef.current) {
+      clearTimeout(securityDropdownTimeoutRef.current)
+    }
+    setIsSecurityDropdownOpen(true)
+  }
+
+  const handleSecurityMouseLeave = () => {
+    securityDropdownTimeoutRef.current = setTimeout(() => {
+      setIsSecurityDropdownOpen(false)
+    }, 150) // 150ms delay before closing
+  }
+
   // Update Finance menu position when dropdown opens
   useEffect(() => {
     if (isFinanceDropdownOpen && financeMenuRef.current) {
@@ -73,11 +91,25 @@ const Navbar = () => {
     }
   }, [isFinanceDropdownOpen])
 
+  // Update Security menu position when dropdown opens
+  useEffect(() => {
+    if (isSecurityDropdownOpen && securityMenuRef.current) {
+      const rect = securityMenuRef.current.getBoundingClientRect()
+      setSecurityMenuPosition({
+        left: rect.left,
+        top: rect.bottom
+      })
+    }
+  }, [isSecurityDropdownOpen])
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (dropdownTimeoutRef.current) {
         clearTimeout(dropdownTimeoutRef.current)
+      }
+      if (securityDropdownTimeoutRef.current) {
+        clearTimeout(securityDropdownTimeoutRef.current)
       }
     }
   }, [])
@@ -208,25 +240,11 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                {/* Ledgers Menu - Only show if user has transaction permissions */}
-                <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
-                  <Link 
-                    href="/dashboard/transactions" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/transactions')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <CreditCard className="nav-icon" />
-                    <span>Ledgers</span>
-                  </Link>
-                </PermissionGuard>
-                
                 {/* Finance Menu - Show if user has tariff OR transaction management permissions */}
                 <PermissionGuard permissions={[
                   PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE, PERMISSIONS.TARIFF_DELETE, PERMISSIONS.TARIFF_APPROVE, PERMISSIONS.TARIFF_REJECT,
-                  PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE
+                  PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE,
+                  PERMISSIONS.TRANSACTION_MODES_VIEW
                 ]}>
                   <div 
                     ref={financeMenuRef}
@@ -237,7 +255,7 @@ const Navbar = () => {
                     <Link 
                       href="/dashboard/finance/tariffs" 
                       className={`nav-slider-item ${
-                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping')) && !isActive('/dashboard/gateway-partners')
+                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
                           ? 'active'
                           : ''
                       }`}
@@ -248,8 +266,8 @@ const Navbar = () => {
                   </div>
                 </PermissionGuard>
                 
-                {/* Products Menu */}
-                <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
+                {/* Products Menu - Commented out for now */}
+                {/* <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
                   <Link 
                     href="/dashboard/products" 
                     className={`nav-slider-item ${
@@ -261,22 +279,7 @@ const Navbar = () => {
                     <Package className="nav-icon" />
                     <span>Products</span>
                   </Link>
-                </PermissionGuard>
-                
-                {/* Transaction Modes Menu */}
-                <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>
-                  <Link 
-                    href="/dashboard/transaction-modes" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/transaction-modes')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Layers className="nav-icon" />
-                    <span>Transaction Modes</span>
-                  </Link>
-                </PermissionGuard>
+                </PermissionGuard> */}
                 
                 {/* Carousel Menu */}
                 <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
@@ -379,47 +382,26 @@ const Navbar = () => {
                   </Link>
                 </PermissionGuard>
                 
-                
-                <PermissionGuard permission={PERMISSIONS.KYC_VIEW}>
-                  <Link 
-                    href="/dashboard/kyc" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/kyc')
-                        ? 'active'
-                        : ''
-                    }`}
+                {/* Security Menu with Dropdown */}
+                <PermissionGuard permissions={[PERMISSIONS.SYSTEM_CONFIGURE, PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.KYC_VIEW]} requireAll={false}>
+                  <div
+                    ref={securityMenuRef}
+                    className="relative"
+                    onMouseEnter={handleSecurityMouseEnter}
+                    onMouseLeave={handleSecurityMouseLeave}
                   >
-                    <Shield className="nav-icon" />
-                    <span>KYC</span>
-                  </Link>
-                </PermissionGuard>
-                
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
-                  <Link 
-                    href="/dashboard/reports" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/reports')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <FileText className="nav-icon" />
-                    <span>Reports</span>
-                  </Link>
-                </PermissionGuard>
-                
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
-                  <Link 
-                    href="/dashboard/security" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/security')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Shield className="nav-icon" />
-                    <span>Security</span>
-                  </Link>
+                    <Link 
+                      href="/dashboard/security" 
+                      className={`nav-slider-item ${
+                        (isActive('/dashboard/security') || isActive('/dashboard/activity') || isActive('/dashboard/kyc') || isActive('/dashboard/system-logs'))
+                          ? 'active'
+                          : ''
+                      }`}
+                    >
+                      <Shield className="nav-icon" />
+                      <span>Security</span>
+                    </Link>
+                  </div>
                 </PermissionGuard>
                 
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
@@ -450,20 +432,6 @@ const Navbar = () => {
                     <span>API Logs</span>
                   </Link>
                 )} */}
-                
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
-                  <Link 
-                    href="/dashboard/system-logs" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/system-logs')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <AlertCircle className="nav-icon" />
-                    <span>System Logs</span>
-                  </Link>
-                </PermissionGuard>
                 
                 <Link 
                   href="/dashboard/profile" 
@@ -540,6 +508,58 @@ const Navbar = () => {
                   >
                     Tariffs
                   </Link>
+                  <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
+                    <Link 
+                      href="/dashboard/transactions" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/transactions')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Ledgers
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
+                    <Link 
+                      href="/dashboard/reports" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/reports')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Reports
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                    <Link 
+                      href="/dashboard/wallet" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/wallet')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Wallets
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>
+                    <Link 
+                      href="/dashboard/transaction-modes" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/transaction-modes')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Transaction Modes
+                    </Link>
+                  </PermissionGuard>
                   <Link 
                     href="/dashboard/finance/partners" 
                     className={`block px-4 py-2 text-sm transition-colors ${
@@ -562,6 +582,75 @@ const Navbar = () => {
                       onClick={() => setIsFinanceDropdownOpen(false)}
                     >
                       Transaction Mapping
+                    </Link>
+                  </PermissionGuard>
+                </div>
+              </div>
+            )}
+
+            {/* Security Dropdown */}
+            {isSecurityDropdownOpen && (
+              <div 
+                className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[100]"
+                style={{ 
+                  left: `${securityMenuPosition.left}px`, 
+                  top: `${securityMenuPosition.top - 2}px`
+                }}
+                onMouseEnter={handleSecurityMouseEnter}
+                onMouseLeave={handleSecurityMouseLeave}
+              >
+                {/* Bridge element to prevent dropdown from closing */}
+                <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent"></div>
+                
+                <div className="py-2">
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
+                    <Link 
+                      href="/dashboard/security" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/security') && !isActive('/dashboard/activity') && !isActive('/dashboard/kyc') && !isActive('/dashboard/system-logs')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSecurityDropdownOpen(false)}
+                    >
+                      Security Settings
+                    </Link>
+                  </PermissionGuard>
+                  <Link 
+                    href="/dashboard/activity" 
+                    className={`block px-4 py-2 text-sm transition-colors ${
+                      isActive('/dashboard/activity')
+                        ? 'text-[#08163d] bg-[#08163d]/10'
+                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                    }`}
+                    onClick={() => setIsSecurityDropdownOpen(false)}
+                  >
+                    Activity Logs
+                  </Link>
+                  <PermissionGuard permission={PERMISSIONS.KYC_VIEW}>
+                    <Link 
+                      href="/dashboard/kyc" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/kyc')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSecurityDropdownOpen(false)}
+                    >
+                      KYC
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
+                    <Link 
+                      href="/dashboard/system-logs" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/system-logs')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSecurityDropdownOpen(false)}
+                    >
+                      System Logs
                     </Link>
                   </PermissionGuard>
                 </div>

@@ -135,7 +135,7 @@ const EditTariffPage = () => {
   }, [tariff, form.name])
 
   const updateTariffMutation = useMutation({
-    mutationFn: (data: TariffForm) => {
+    mutationFn: async (data: TariffForm) => {
       // Transform form data to match backend DTO
       const updateData = {
         name: data.name,
@@ -151,6 +151,7 @@ const EditTariffPage = () => {
         subscriberType: data.profileTypes.length > 0 ? data.profileTypes[0] : undefined, // Backend expects single value
         partnerId: data.partnerId || undefined,
       }
+      console.log('Updating tariff with data:', updateData)
       return api.put(`/finance/tariffs/${tariffId}`, updateData)
     },
     onSuccess: () => {
@@ -161,7 +162,9 @@ const EditTariffPage = () => {
     },
     onError: (error: any) => {
       console.error('Failed to update tariff:', error)
-      toast.error(error.response?.data?.message || 'Failed to update tariff.')
+      // Error comes from axios interceptor as { message, status, data }
+      const errorMessage = error?.message || error?.data?.message || error?.response?.data?.message || 'Failed to update tariff.'
+      toast.error(errorMessage)
     },
     onSettled: () => {
       setIsSubmitting(false)
@@ -179,7 +182,9 @@ const EditTariffPage = () => {
     },
     onError: (error: any) => {
       console.error('Failed to process approval:', error)
-      toast.error(error.response?.data?.message || 'Failed to process approval.')
+      // Error comes from axios interceptor as { message, status, data }
+      const errorMessage = error?.message || error?.data?.message || error?.response?.data?.message || 'Failed to process approval.'
+      toast.error(errorMessage)
     },
     onSettled: () => {
       setIsSubmitting(false)
@@ -265,11 +270,12 @@ const EditTariffPage = () => {
     'DEPOSIT',
     'WITHDRAWAL',
     'BILL_PAYMENT',
-    'WALLET_CREATION',
+    'SCHOOL_FEES',
     'WALLET_INIT',
     'WALLET_TO_INTERNAL_MERCHANT',
     'WALLET_TO_EXTERNAL_MERCHANT',
     'MERCHANT_WITHDRAWAL',
+    'MERCHANT_TO_WALLET',
     'WALLET_TO_WALLET',
     'WALLET_TO_MNO',
     'WALLET_TO_UTILITY',
@@ -277,8 +283,10 @@ const EditTariffPage = () => {
     'WALLET_TO_MERCHANT',
     'WALLET_TO_BANK',
     'BANK_TO_WALLET',
+    'CARD_TO_WALLET',
     'REVERSAL',
-    'FEE_CHARGE'
+    'FEE_CHARGE',
+    'CUSTOM'
   ]
   
   // Ensure current transaction type is in the list if tariff is loaded

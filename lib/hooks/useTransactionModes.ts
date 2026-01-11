@@ -50,14 +50,13 @@ export interface CreateTransactionModeDto {
   supportedCurrencies: string[];
   requiresApproval?: boolean;
   approvalThreshold?: number;
-  defaultTariffId?: string;
+  defaultTariffId?: string | null;
   customFeePercentage?: number;
   customFeeAmount?: number;
   requiredFields: string[];
   validationRules?: any;
   metadata?: any;
   systemTransactionModeCode?: string;
-  isSystem?: boolean;
 }
 
 export interface UpdateTransactionModeDto extends CreateTransactionModeDto {

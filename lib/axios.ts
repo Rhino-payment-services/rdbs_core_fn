@@ -187,6 +187,20 @@ api.interceptors.response.use(
             console.error('Resource not found:', url)
           }
           break
+        case 400:
+          // Don't log 400 errors for endpoints that might have permission/validation issues
+          const url400 = originalRequest?.url || ''
+          const silent400Endpoints = [
+            '/activity-logs', // Activity logs endpoints may require admin permissions
+            '/transactions?status=', // Transaction status filters may have validation issues
+            '/users?status=', // User status filters may have validation issues
+          ]
+          const shouldLog400 = !silent400Endpoints.some(endpoint => url400.includes(endpoint))
+          
+          if (shouldLog400) {
+            console.error(`API Error: ${status}`)
+          }
+          break
         case 500:
           console.error('Server error')
           break
@@ -214,7 +228,18 @@ api.interceptors.response.use(
       }
       
       // Only log in development to avoid console spam
-      if (process.env.NODE_ENV === 'development') {
+      // Skip logging for endpoints that may have permission issues or are used for optional data
+      const networkErrorUrl = originalRequest?.url || ''
+      const silentNetworkErrorEndpoints = [
+        '/activity-logs', // Activity logs endpoints may require admin permissions
+        '/transactions', // Transaction endpoints used in security dashboard
+        '/users', // User endpoints used in security dashboard
+        '/analytics', // Analytics endpoints
+        '/roles', // Roles endpoints used for permission checks
+      ]
+      const shouldLogNetworkError = !silentNetworkErrorEndpoints.some(endpoint => networkErrorUrl.includes(endpoint))
+      
+      if (process.env.NODE_ENV === 'development' && shouldLogNetworkError) {
         const errorDetails: Record<string, any> = {}
         
         if (error.message) {

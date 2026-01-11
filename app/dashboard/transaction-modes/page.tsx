@@ -17,6 +17,7 @@ import {
   type TransactionMode,
   type CreateTransactionModeDto,
 } from '@/lib/hooks/useTransactionModes';
+// Tariffs hook no longer needed - using tariffTransactionType for automatic tier-based lookup
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,7 +30,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -100,9 +100,25 @@ const TRANSACTION_TYPES = [
   { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
 ];
 
+// Tariff transaction types - used for automatic tier-based tariff lookup
+const TARIFF_TRANSACTION_TYPES = [
+  { value: 'WALLET_TO_MNO', label: 'Wallet to MNO (tiered)' },
+  { value: 'WALLET_TO_BANK', label: 'Wallet to Bank (tiered)' },
+  { value: 'BILL_PAYMENT', label: 'Bill Payment' },
+  { value: 'SCHOOL_FEES', label: 'School Fees' },
+  { value: 'MNO_TO_WALLET', label: 'MNO to Wallet' },
+  { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet (tiered)' },
+  { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
+  { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
+  { value: 'DEPOSIT', label: 'Deposit' },
+  { value: 'WITHDRAWAL', label: 'Withdrawal' },
+  { value: 'CARD_TO_WALLET', label: 'Card to Wallet' },
+  { value: 'CUSTOM', label: 'Custom' },
+];
+
 export default function TransactionModesPage() {
   const router = useRouter();
-  const { hasPermission, userRole } = usePermissions();
+  const { hasPermission } = usePermissions();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -231,7 +247,7 @@ export default function TransactionModesPage() {
                           Create a new custom transaction mode with specific rules and configurations
                         </DialogDescription>
                       </DialogHeader>
-                      <TransactionModeForm onSubmit={handleCreate} isSubmitting={createMode.isPending} userRole={userRole} />
+                      <TransactionModeForm onSubmit={handleCreate} isSubmitting={createMode.isPending} />
                     </DialogContent>
                   </Dialog>
                 )}
@@ -333,9 +349,9 @@ export default function TransactionModesPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Transaction Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Tariff Type</TableHead>
                       <TableHead>Limits</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -349,8 +365,9 @@ export default function TransactionModesPage() {
                       </TableRow>
                     ) : (
                       modes?.map((mode) => {
-                        const transactionType = (mode.metadata as any)?.transactionType;
-                        const transactionTypeLabel = TRANSACTION_TYPES.find(t => t.value === transactionType)?.label || transactionType || 'Not set';
+                        // Get tariffTransactionType from metadata
+                        const tariffType = (mode.metadata as any)?.tariffTransactionType;
+                        const tariffTypeLabel = TARIFF_TRANSACTION_TYPES.find(t => t.value === tariffType)?.label || tariffType;
                         
                         return (
                         <TableRow key={mode.id}>
@@ -367,15 +384,6 @@ export default function TransactionModesPage() {
                             <Badge variant="outline">{mode.category}</Badge>
                           </TableCell>
                           <TableCell>
-                            {transactionType ? (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                {transactionTypeLabel}
-                              </Badge>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">Not set</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
                             <Badge variant={mode.isActive ? 'default' : 'secondary'}>
                               {mode.isActive ? 'Active' : 'Inactive'}
                             </Badge>
@@ -384,6 +392,15 @@ export default function TransactionModesPage() {
                             <Badge variant={mode.isSystem ? 'secondary' : 'default'}>
                               {mode.isSystem ? 'System' : 'Custom'}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {tariffType ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                {tariffTypeLabel}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground italic text-xs">No tariff</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">
                             {mode.minAmount || mode.maxAmount ? (
@@ -397,33 +414,32 @@ export default function TransactionModesPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
-                              {!mode.isSystem && (
-                                <>
-                                  {hasPermission(PERMISSIONS.TRANSACTION_MODES_UPDATE) && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedMode(mode);
-                                        setIsEditModalOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                  {hasPermission(PERMISSIONS.TRANSACTION_MODES_DELETE) && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedMode(mode);
-                                        setIsDeleteModalOpen(true);
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </>
+                              {/* Edit button - available for all modes (system modes can only edit tariff) */}
+                              {hasPermission(PERMISSIONS.TRANSACTION_MODES_UPDATE) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedMode(mode);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  title={mode.isSystem ? "Edit tariff (system mode)" : "Edit"}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {/* Delete button - only for custom modes */}
+                              {!mode.isSystem && hasPermission(PERMISSIONS.TRANSACTION_MODES_DELETE) && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedMode(mode);
+                                    setIsDeleteModalOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               )}
                               {hasPermission(PERMISSIONS.TRANSACTION_MODES_UPDATE) && (
                                 <Button
@@ -464,7 +480,6 @@ export default function TransactionModesPage() {
                   initialData={selectedMode}
                   onSubmit={handleUpdate}
                   isSubmitting={updateMode.isPending}
-                  userRole={userRole}
                 />
               )}
             </DialogContent>
@@ -505,14 +520,19 @@ interface TransactionModeFormProps {
   initialData?: TransactionMode;
   onSubmit: (data: CreateTransactionModeDto) => void;
   isSubmitting: boolean;
-  userRole?: string;
 }
 
-function TransactionModeForm({ initialData, onSubmit, isSubmitting, userRole }: TransactionModeFormProps) {
+function TransactionModeForm({ initialData, onSubmit, isSubmitting }: TransactionModeFormProps) {
   const { data: systemModes = [] } = useSystemTransactionModes();
+  
+  // Check if editing a system mode
+  const isSystemMode = initialData?.isSystem || false;
   
   // Extract transactionType from metadata if it exists
   const initialTransactionType = initialData?.metadata?.transactionType || '';
+  
+  // Extract tariffTransactionType from metadata (for automatic tier-based tariff lookup)
+  const initialTariffTransactionType = initialData?.metadata?.tariffTransactionType || '';
   
   // Extract systemTransactionModeCode from metadata if editing
   const systemTransactionModeCodeFromMetadata = initialData?.metadata?.transactionType;
@@ -530,26 +550,96 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting, userRole }: 
     approvalThreshold: initialData?.approvalThreshold || undefined,
     metadata: initialData?.metadata || {},
     systemTransactionModeCode: systemTransactionModeCodeFromMetadata || undefined,
-    isSystem: initialData?.isSystem || false,
   });
 
   const [transactionType, setTransactionType] = useState<string>(initialTransactionType);
+  const [tariffTransactionType, setTariffTransactionType] = useState<string>(initialTariffTransactionType);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Include transactionType in metadata if provided
-    const submitData = {
+    // Build submit data with transactionType and tariffTransactionType in metadata
+    const submitData: CreateTransactionModeDto = {
       ...formData,
-      isSystem: formData.isSystem || false, // Ensure isSystem is included
       metadata: {
         ...formData.metadata,
         ...(transactionType && { transactionType }),
+        ...(tariffTransactionType ? { tariffTransactionType } : { tariffTransactionType: null }),
       },
     };
     
     onSubmit(submitData);
   };
+
+  // For system modes, show a simplified form with only tariff transaction type selection
+  if (isSystemMode) {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>System Mode:</strong> Only the tariff transaction type can be modified for system transaction modes.
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Code</Label>
+            <Input value={formData.code} disabled className="bg-gray-100" />
+          </div>
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Input value={formData.category} disabled className="bg-gray-100" />
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Name</Label>
+          <Input value={formData.name} disabled className="bg-gray-100" />
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Display Name</Label>
+          <Input value={formData.displayName} disabled className="bg-gray-100" />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="tariffTransactionType">Tariff Transaction Type</Label>
+          <Select
+            value={tariffTransactionType || '__none__'}
+            onValueChange={(value) => setTariffTransactionType(value === '__none__' ? '' : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select tariff type for fee calculation" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">None (No tariff)</SelectItem>
+              {TARIFF_TRANSACTION_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Select the transaction type for tariff lookup. The system will automatically find the correct tariff tier based on the transaction amount.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-4">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              'Update Tariff Type'
+            )}
+          </Button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -642,6 +732,29 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting, userRole }: 
         </p>
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="tariffTransactionType">Tariff Transaction Type</Label>
+        <Select
+          value={tariffTransactionType || '__none__'}
+          onValueChange={(value) => setTariffTransactionType(value === '__none__' ? '' : value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select tariff type for fee calculation" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">None (No tariff)</SelectItem>
+            {TARIFF_TRANSACTION_TYPES.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Select the transaction type for tariff lookup. The system will automatically find the correct tariff tier based on the transaction amount (e.g., G1, G2, G3).
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="minAmount">Minimum Amount</Label>
@@ -697,33 +810,6 @@ function TransactionModeForm({ initialData, onSubmit, isSubmitting, userRole }: 
           Select a system transaction mode to reference. This will be stored in metadata as transactionType.
         </p>
       </div>
-
-      {userRole === 'SUPER_ADMIN' && !initialData && (
-        <div className="flex items-center space-x-2 p-4 border rounded-lg bg-blue-50">
-          <Checkbox
-            id="isSystem"
-            checked={formData.isSystem || false}
-            onCheckedChange={(checked) =>
-              setFormData({ ...formData, isSystem: checked === true })
-            }
-          />
-          <Label
-            htmlFor="isSystem"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-          >
-            Create as System Transaction Mode
-          </Label>
-        </div>
-      )}
-
-      {userRole === 'SUPER_ADMIN' && !initialData && formData.isSystem && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            System transaction modes cannot be edited or deleted after creation. They are permanent and protected.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <div className="flex items-center justify-end gap-2 pt-4">
         <Button type="submit" disabled={isSubmitting}>

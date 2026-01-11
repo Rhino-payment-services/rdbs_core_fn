@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,390 +10,165 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Search, 
-  Filter, 
   Download, 
   RefreshCw,
   AlertTriangle,
   CheckCircle,
   Info,
-  Clock,
   User,
   Shield,
   Database,
   CreditCard,
   Settings,
   Activity,
-  Eye,
-  EyeOff,
-  Calendar,
-  MapPin,
-  Smartphone,
-  Globe,
-  Server,
-  Lock,
-  Unlock,
-  UserPlus,
-  UserMinus,
-  FileText,
   BarChart3,
   DollarSign,
   AlertCircle,
   ShieldCheck,
-  AlertOctagon,
-  CheckSquare,
-  XCircle,
-  Clock as ClockIcon,
-  TrendingUp,
-  TrendingDown,
   ChevronDown,
   ChevronRight,
   Users,
-  Building2
+  Building2,
+  FileText,
+  Server,
+  Loader2
 } from 'lucide-react'
+import { useActivityLogs, useActivityStats, type ActivityLog } from '@/lib/hooks/useActivityLogs'
+import toast from 'react-hot-toast'
 
 const ActivityLogPage = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevel, setSelectedLevel] = useState("all")
   const [selectedModule, setSelectedModule] = useState("all")
   const [timeRange, setTimeRange] = useState("24h")
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
-  const [activeTab, setActiveTab] = useState("customer")
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [activeTab, setActiveTab] = useState("all")
+  const [page, setPage] = useState(1)
+  const limit = 50
 
-  // Customer activity data (external users)
-  const customerActivityLogs = [
-    {
-      id: 1,
-      timestamp: "2024-01-15 14:30:25",
-      level: "info",
-      module: "authentication",
-      user: "john.doe@rukapay.com",
-      action: "User login successful",
-      description: "User logged in from IP 192.168.1.100 using Chrome browser",
-      ip: "192.168.1.100",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      location: "Kampala, Uganda",
-      sessionId: "sess_abc123def456",
-      metadata: {
-        browser: "Chrome",
-        os: "Windows 10",
-        device: "Desktop"
-      }
-    },
-    {
-      id: 2,
-      timestamp: "2024-01-15 14:20:33",
-      level: "info",
-      module: "security",
-      user: "security_monitor",
-      action: "Failed login attempt",
-      description: "Multiple failed login attempts detected from IP 203.0.113.45",
-      ip: "203.0.113.45",
-      userAgent: "Unknown",
-      location: "Unknown",
-      sessionId: "failed_login_001",
-      metadata: {
-        attempts: 5,
-        timeWindow: "10 minutes",
-        action: "IP blocked for 30 minutes"
-      }
-    },
-    {
-      id: 3,
-      timestamp: "2024-01-15 14:18:55",
-      level: "success",
-      module: "transactions",
-      user: "mike.wilson@rukapay.com",
-      action: "Large transaction processed",
-      description: "Transaction of UGX 5,000,000 processed successfully",
-      ip: "192.168.1.75",
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
-      location: "Jinja, Uganda",
-      sessionId: "sess_mike456",
-      metadata: {
-        amount: "UGX 5,000,000",
-        recipient: "john.smith@email.com",
-        fee: "UGX 25,000"
-      }
-    },
-    {
-      id: 4,
-      timestamp: "2024-01-15 14:15:42",
-      level: "error",
-      module: "payment_processing",
-      user: "customer_123@email.com",
-      action: "Payment failed",
-      description: "Payment of UGX 150,000 failed due to insufficient funds",
-      ip: "192.168.1.200",
-      userAgent: "Mozilla/5.0 (Android; Mobile; rv:68.0)",
-      location: "Mbarara, Uganda",
-      sessionId: "sess_customer_123",
-      metadata: {
-        amount: "UGX 150,000",
-        reason: "Insufficient funds",
-        retryCount: 2
-      }
-    },
-    {
-      id: 5,
-      timestamp: "2024-01-15 14:12:18",
-      level: "success",
-      module: "transactions",
-      user: "sarah.johnson@email.com",
-      action: "Money transfer completed",
-      description: "Transfer of UGX 250,000 to family member completed",
-      ip: "192.168.1.150",
-      userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)",
-      location: "Gulu, Uganda",
-      sessionId: "sess_sarah_789",
-      metadata: {
-        amount: "UGX 250,000",
-        recipient: "family.member@email.com",
-        transferType: "Family Transfer"
-      }
-    },
-    {
-      id: 6,
-      timestamp: "2024-01-15 14:10:25",
-      level: "info",
-      module: "authentication",
-      user: "merchant_shop@business.com",
-      action: "Merchant login",
-      description: "Merchant logged in to process payments",
-      ip: "192.168.1.300",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      location: "Kampala, Uganda",
-      sessionId: "sess_merchant_001",
-      metadata: {
-        merchantId: "MERCH_12345",
-        businessType: "Retail",
-        loginType: "Merchant Portal"
+  // Calculate date range based on timeRange
+  const getDateRange = () => {
+    const now = new Date()
+    const endDate = now.toISOString()
+    let startDate: string
+    
+    switch (timeRange) {
+      case '1h':
+        startDate = new Date(now.getTime() - 60 * 60 * 1000).toISOString()
+        break
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+        break
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        break
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        break
+      default:
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+    }
+    
+    return { startDate, endDate }
+  }
+
+  const dateRange = getDateRange()
+
+  // Map frontend status to backend status
+  const getBackendStatus = (level: string) => {
+    switch (level) {
+      case 'error': return 'FAILED'
+      case 'success': return 'SUCCESS'
+      case 'warning': return 'PENDING'
+      case 'info': return undefined
+      default: return undefined
+    }
+  }
+
+  // Fetch activity logs
+  const { data: logsData, isLoading, refetch } = useActivityLogs({
+    page,
+    limit,
+    category: selectedModule !== 'all' ? selectedModule.toUpperCase() : undefined,
+    status: selectedLevel !== 'all' ? getBackendStatus(selectedLevel) : undefined,
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  })
+
+  // Fetch activity stats
+  const { data: statsData } = useActivityStats(dateRange.startDate, dateRange.endDate)
+
+  // Filter logs client-side for search
+  const filteredLogs = useMemo(() => {
+    if (!logsData?.logs) return []
+    
+    let logs = logsData.logs
+    
+    // Filter by search term
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase()
+      logs = logs.filter(log => 
+        log.action.toLowerCase().includes(lowerSearch) ||
+        log.description.toLowerCase().includes(lowerSearch) ||
+        (log.userEmail && log.userEmail.toLowerCase().includes(lowerSearch)) ||
+        (log.userPhone && log.userPhone.includes(lowerSearch))
+      )
+    }
+    
+    // Filter by tab (internal vs external)
+    if (activeTab === 'customer') {
+      logs = logs.filter(log => 
+        !log.userEmail?.endsWith('@rukapay.com') && 
+        !log.userEmail?.endsWith('@system') &&
+        log.channel !== 'SYSTEM'
+      )
+    } else if (activeTab === 'internal') {
+      logs = logs.filter(log => 
+        log.userEmail?.endsWith('@rukapay.com') || 
+        log.userEmail?.endsWith('@system') ||
+        log.channel === 'SYSTEM' ||
+        log.category === 'ADMIN' ||
+        log.category === 'SYSTEM'
+      )
+    }
+    
+    return logs
+  }, [logsData?.logs, searchTerm, activeTab])
+
+  // Calculate stats from filtered logs
+  const currentStats = useMemo(() => {
+    if (statsData) {
+      return {
+        total: statsData.totalActions,
+        errors: statsData.failedCount,
+        warnings: statsData.pendingCount,
+        success: statsData.successCount,
+        info: Math.max(0, statsData.totalActions - statsData.failedCount - statsData.pendingCount - statsData.successCount)
       }
     }
-  ]
-
-  // Internal activity data (dashboard/system operations)
-  const internalActivityLogs = [
-    {
-      id: 101,
-      timestamp: "2024-01-15 14:28:15",
-      level: "warning",
-      module: "transactions",
-      user: "system",
-      action: "High transaction volume detected",
-      description: "Transaction volume exceeded normal threshold for the last 5 minutes",
-      ip: "system",
-      userAgent: "System Monitor",
-      location: "System",
-      sessionId: "system_monitor",
-      metadata: {
-        threshold: "1000 transactions/min",
-        current: "1247 transactions/min",
-        duration: "5 minutes"
-      }
-    },
-    {
-      id: 102,
-      timestamp: "2024-01-15 14:25:42",
-      level: "error",
-      module: "payment_processing",
-      user: "payment_gateway",
-      action: "Payment gateway timeout",
-      description: "Payment gateway response timeout after 30 seconds",
-      ip: "10.0.0.50",
-      userAgent: "Payment Gateway Service",
-      location: "Data Center",
-      sessionId: "pg_service_001",
-      metadata: {
-        timeout: "30 seconds",
-        retryCount: 3,
-        gateway: "Visa/Mastercard"
-      }
-    },
-    {
-      id: 103,
-      timestamp: "2024-01-15 14:22:18",
-      level: "success",
-      module: "user_management",
-      user: "admin@rukapay.com",
-      action: "New user created",
-      description: "User account created for sarah.johnson@rukapay.com",
-      ip: "192.168.1.50",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      location: "Kampala, Uganda",
-      sessionId: "sess_admin789",
-      metadata: {
-        newUser: "sarah.johnson@rukapay.com",
-        role: "Analyst",
-        department: "Analytics"
-      }
-    },
-    {
-      id: 104,
-      timestamp: "2024-01-15 14:20:15",
-      level: "success",
-      module: "user_management",
-      user: "manager@rukapay.com",
-      action: "User permissions updated",
-      description: "Updated permissions for mike.wilson@rukapay.com",
-      ip: "192.168.1.60",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      location: "Kampala, Uganda",
-      sessionId: "sess_manager_001",
-      metadata: {
-        targetUser: "mike.wilson@rukapay.com",
-        oldRole: "Support",
-        newRole: "Manager",
-        permissions: ["dashboard", "transactions", "users", "reports"]
-      }
-    },
-    {
-      id: 105,
-      timestamp: "2024-01-15 14:18:30",
-      level: "success",
-      module: "reports",
-      user: "analyst@rukapay.com",
-      action: "Report exported",
-      description: "Monthly transaction report exported to PDF",
-      ip: "192.168.1.70",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      location: "Kampala, Uganda",
-      sessionId: "sess_analyst_001",
-      metadata: {
-        reportType: "Monthly Transaction Report",
-        format: "PDF",
-        records: "15,432",
-        fileSize: "2.5 MB"
-      }
-    },
-    {
-      id: 106,
-      timestamp: "2024-01-15 14:15:20",
-      level: "info",
-      module: "database",
-      user: "db_service",
-      action: "Database backup completed",
-      description: "Daily database backup completed successfully",
-      ip: "10.0.0.10",
-      userAgent: "Database Service",
-      location: "Data Center",
-      sessionId: "db_backup_001",
-      metadata: {
-        size: "2.5 GB",
-        duration: "15 minutes",
-        type: "Full backup"
-      }
-    },
-    {
-      id: 107,
-      timestamp: "2024-01-15 14:12:08",
-      level: "warning",
-      module: "system",
-      user: "system_monitor",
-      action: "High CPU usage detected",
-      description: "CPU usage reached 85% on server db-01",
-      ip: "10.0.0.20",
-      userAgent: "System Monitor",
-      location: "Data Center",
-      sessionId: "sys_monitor_001",
-      metadata: {
-        cpuUsage: "85%",
-        server: "db-01",
-        threshold: "80%"
-      }
-    },
-    {
-      id: 108,
-      timestamp: "2024-01-15 14:10:45",
-      level: "error",
-      module: "transactions",
-      user: "transaction_service",
-      action: "Transaction processing failed",
-      description: "Failed to process transaction due to insufficient funds",
-      ip: "10.0.0.30",
-      userAgent: "Transaction Service",
-      location: "Data Center",
-      sessionId: "txn_service_001",
-      metadata: {
-        transactionId: "TXN_123456789",
-        amount: "UGX 150,000",
-        reason: "Insufficient funds"
-      }
-    },
-    {
-      id: 109,
-      timestamp: "2024-01-15 14:08:22",
-      level: "success",
-      module: "security",
-      user: "admin@rukapay.com",
-      action: "Security policy updated",
-      description: "Password policy updated to require 12 characters minimum",
-      ip: "192.168.1.50",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      location: "Kampala, Uganda",
-      sessionId: "sess_admin789",
-      metadata: {
-        policy: "Password Policy",
-        oldValue: "8 characters",
-        newValue: "12 characters"
-      }
-    },
-    {
-      id: 110,
-      timestamp: "2024-01-15 14:05:15",
-      level: "info",
-      module: "analytics",
-      user: "analytics_service",
-      action: "Daily report generated",
-      description: "Daily transaction analytics report generated successfully",
-      ip: "10.0.0.40",
-      userAgent: "Analytics Service",
-      location: "Data Center",
-      sessionId: "analytics_service_001",
-      metadata: {
-        reportType: "Daily Analytics",
-        records: "15,432",
-        duration: "2 minutes"
-      }
-    },
-    {
-      id: 111,
-      timestamp: "2024-01-15 14:02:33",
-      level: "warning",
-      module: "user_management",
-      user: "system",
-      action: "User account locked",
-      description: "User account locked due to multiple failed login attempts",
-      ip: "192.168.1.100",
-      userAgent: "Security System",
-      location: "Kampala, Uganda",
-      sessionId: "security_system_001",
-      metadata: {
-        user: "jane.smith@rukapay.com",
-        failedAttempts: 10,
-        lockDuration: "30 minutes"
-      }
-    },
-    {
-      id: 112,
-      timestamp: "2024-01-15 14:00:15",
-      level: "success",
-      module: "settings",
-      user: "admin@rukapay.com",
-      action: "System configuration updated",
-      description: "Updated system configuration for transaction limits",
-      ip: "192.168.1.50",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      location: "Kampala, Uganda",
-      sessionId: "sess_admin789",
-      metadata: {
-        configType: "Transaction Limits",
-        oldLimit: "UGX 1,000,000",
-        newLimit: "UGX 2,000,000"
-      }
+    
+    // Fallback to calculating from logs
+    const logs = filteredLogs
+    return {
+      total: logs.length,
+      errors: logs.filter(log => log.status === 'FAILED').length,
+      warnings: logs.filter(log => log.status === 'PENDING').length,
+      success: logs.filter(log => log.status === 'SUCCESS').length,
+      info: logs.filter(log => !['FAILED', 'PENDING', 'SUCCESS'].includes(log.status)).length
     }
-  ]
+  }, [statsData, filteredLogs])
 
-  const getLevelBadge = (level: string) => {
+  const mapStatusToLevel = (status: string): string => {
+    switch (status) {
+      case 'FAILED': return 'error'
+      case 'SUCCESS': return 'success'
+      case 'PENDING': return 'warning'
+      default: return 'info'
+    }
+  }
+
+  const getLevelBadge = (status: string) => {
+    const level = mapStatusToLevel(status)
     switch (level) {
       case 'error':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Error</Badge>
@@ -404,11 +179,12 @@ const ActivityLogPage = () => {
       case 'info':
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Info</Badge>
       default:
-        return <Badge variant="secondary">{level}</Badge>
+        return <Badge variant="secondary">{status}</Badge>
     }
   }
 
-  const getLevelIcon = (level: string) => {
+  const getLevelIcon = (status: string) => {
+    const level = mapStatusToLevel(status)
     switch (level) {
       case 'error':
         return <AlertCircle className="h-4 w-4 text-red-600" />
@@ -423,15 +199,20 @@ const ActivityLogPage = () => {
     }
   }
 
-  const getModuleIcon = (module: string) => {
-    switch (module) {
+  const getModuleIcon = (category: string) => {
+    const cat = category?.toLowerCase() || ''
+    switch (cat) {
       case 'authentication':
+      case 'auth':
         return <Shield className="h-4 w-4" />
       case 'transactions':
+      case 'transaction':
         return <CreditCard className="h-4 w-4" />
       case 'payment_processing':
+      case 'payment':
         return <DollarSign className="h-4 w-4" />
       case 'user_management':
+      case 'user':
         return <User className="h-4 w-4" />
       case 'security':
         return <ShieldCheck className="h-4 w-4" />
@@ -444,6 +225,7 @@ const ActivityLogPage = () => {
       case 'reports':
         return <FileText className="h-4 w-4" />
       case 'settings':
+      case 'admin':
         return <Settings className="h-4 w-4" />
       default:
         return <Activity className="h-4 w-4" />
@@ -472,7 +254,7 @@ const ActivityLogPage = () => {
     return `${Math.floor(diffInMinutes / 1440)}d ago`
   }
 
-  const toggleRowExpansion = (id: number) => {
+  const toggleRowExpansion = (id: string) => {
     const newExpandedRows = new Set(expandedRows)
     if (newExpandedRows.has(id)) {
       newExpandedRows.delete(id)
@@ -482,32 +264,165 @@ const ActivityLogPage = () => {
     setExpandedRows(newExpandedRows)
   }
 
-  const getCurrentLogs = () => {
-    const logs = activeTab === "customer" ? customerActivityLogs : internalActivityLogs
-    return logs.filter(log => {
-      const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           log.user.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesLevel = selectedLevel === "all" || log.level === selectedLevel
-      const matchesModule = selectedModule === "all" || log.module === selectedModule
-      
-      return matchesSearch && matchesLevel && matchesModule
-    })
+  const handleRefresh = () => {
+    refetch()
+    toast.success('Refreshing activity logs...')
   }
 
-  const getCurrentStats = () => {
-    const logs = activeTab === "customer" ? customerActivityLogs : internalActivityLogs
-    return {
-      total: logs.length,
-      errors: logs.filter(log => log.level === 'error').length,
-      warnings: logs.filter(log => log.level === 'warning').length,
-      success: logs.filter(log => log.level === 'success').length,
-      info: logs.filter(log => log.level === 'info').length
-    }
+  const handleExport = () => {
+    toast.success('Export functionality coming soon')
   }
 
-  const currentStats = getCurrentStats()
-  const filteredLogs = getCurrentLogs()
+  const renderActivityTable = (logs: ActivityLog[], isInternal: boolean = false) => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-gray-50">
+            <TableHead className="w-12"></TableHead>
+            <TableHead className="w-20">Status</TableHead>
+            <TableHead className="w-40">Time</TableHead>
+            <TableHead className="w-40">Category</TableHead>
+            <TableHead className="w-48">{isInternal ? 'Staff Member' : 'User'}</TableHead>
+            <TableHead className="w-48">Action</TableHead>
+            <TableHead className="w-64">Description</TableHead>
+            <TableHead className="w-32">IP Address</TableHead>
+            <TableHead className="w-32">Channel</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {logs.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                {isLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading activity logs...
+                  </div>
+                ) : (
+                  'No activity logs found for the selected filters'
+                )}
+              </TableCell>
+            </TableRow>
+          ) : (
+            logs.map((log) => (
+              <React.Fragment key={log._id}>
+                <TableRow className="hover:bg-gray-50">
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleRowExpansion(log._id)}
+                      className="h-6 w-6 p-0"
+                    >
+                      {expandedRows.has(log._id) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getLevelIcon(log.status)}
+                      {getLevelBadge(log.status)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium">{formatTimestamp(log.createdAt)}</div>
+                      <div className="text-xs text-gray-500">{getRelativeTime(log.createdAt)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getModuleIcon(log.category)}
+                      <span className="text-sm capitalize">{log.category?.toLowerCase().replace(/_/g, ' ') || 'General'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium truncate max-w-40">
+                        {log.userDetails?.fullName || log.userEmail || log.userPhone || log.userId || 'System'}
+                      </div>
+                      {log.userDetails?.email && log.userDetails?.email !== log.userEmail && (
+                        <div className="text-xs text-gray-500 truncate">{log.userDetails.email}</div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{log.action?.replace(/_/g, ' ') || 'Action'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-gray-600 max-w-56 truncate" title={log.description}>
+                      {log.description}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-gray-600 font-mono">{log.ipAddress || 'N/A'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {log.channel || 'WEB'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+                {expandedRows.has(log._id) && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="bg-gray-50 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-3">Technical Details</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">User Agent:</span>
+                              <span className="font-mono text-xs max-w-64 truncate">{log.userAgent || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Request ID:</span>
+                              <span className="font-mono text-xs">{log.requestId || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">IP Address:</span>
+                              <span className="font-mono text-xs">{log.ipAddress || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Channel:</span>
+                              <span className="text-xs">{log.channel || 'WEB'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">User ID:</span>
+                              <span className="font-mono text-xs">{log.userId || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-3">Metadata</h4>
+                          <div className="space-y-2 text-sm">
+                            {log.metadata && Object.keys(log.metadata).length > 0 ? (
+                              Object.entries(log.metadata).slice(0, 8).map(([key, value]) => (
+                                <div key={key} className="flex justify-between">
+                                  <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                                  <span className="text-xs max-w-48 truncate">
+                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-400 italic">No additional metadata</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -522,11 +437,11 @@ const ActivityLogPage = () => {
                 <p className="text-gray-600">Monitor system activities, user actions, and security events</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleRefresh}>
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
                   <Download className="h-4 w-4" />
                   Export
                 </Button>
@@ -536,7 +451,11 @@ const ActivityLogPage = () => {
 
           {/* Activity Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                All Activity
+              </TabsTrigger>
               <TabsTrigger value="customer" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Customer Activity
@@ -556,9 +475,9 @@ const ActivityLogPage = () => {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currentStats.total}</div>
+                <div className="text-2xl font-bold">{currentStats.total.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">
-                  Last 24 hours
+                  {timeRange === '1h' ? 'Last 1 hour' : timeRange === '24h' ? 'Last 24 hours' : timeRange === '7d' ? 'Last 7 days' : 'Last 30 days'}
                 </div>
               </CardContent>
             </Card>
@@ -569,7 +488,7 @@ const ActivityLogPage = () => {
                 <AlertCircle className="h-4 w-4 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">{currentStats.errors}</div>
+                <div className="text-2xl font-bold text-red-600">{currentStats.errors.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">
                   {currentStats.errors > 0 ? 'Requires attention' : 'All clear'}
                 </div>
@@ -582,7 +501,7 @@ const ActivityLogPage = () => {
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{currentStats.warnings}</div>
+                <div className="text-2xl font-bold text-yellow-600">{currentStats.warnings.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">
                   Monitor closely
                 </div>
@@ -595,7 +514,7 @@ const ActivityLogPage = () => {
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{currentStats.success}</div>
+                <div className="text-2xl font-bold text-green-600">{currentStats.success.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">
                   Operations completed
                 </div>
@@ -608,7 +527,7 @@ const ActivityLogPage = () => {
                 <Info className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{currentStats.info}</div>
+                <div className="text-2xl font-bold text-blue-600">{currentStats.info.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground">
                   Informational events
                 </div>
@@ -617,382 +536,109 @@ const ActivityLogPage = () => {
           </div>
 
           {/* Activity Content */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="customer" className="space-y-6">
-              {/* Customer Activity Content */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Customer Activity</CardTitle>
-                  <CardDescription>
-                    External user activities and transactions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* Filters and Search */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Search customer activities..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Levels</SelectItem>
-                        <SelectItem value="error">Error</SelectItem>
-                        <SelectItem value="warning">Warning</SelectItem>
-                        <SelectItem value="success">Success</SelectItem>
-                        <SelectItem value="info">Info</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={selectedModule} onValueChange={setSelectedModule}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Modules</SelectItem>
-                        <SelectItem value="authentication">Authentication</SelectItem>
-                        <SelectItem value="transactions">Transactions</SelectItem>
-                        <SelectItem value="payment_processing">Payment Processing</SelectItem>
-                        <SelectItem value="security">Security</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={timeRange} onValueChange={setTimeRange}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1h">Last 1 hour</SelectItem>
-                        <SelectItem value="24h">Last 24 hours</SelectItem>
-                        <SelectItem value="7d">Last 7 days</SelectItem>
-                        <SelectItem value="30d">Last 30 days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {activeTab === 'all' ? 'All Activity' : activeTab === 'customer' ? 'Customer Activity' : 'Internal Activity'}
+              </CardTitle>
+              <CardDescription>
+                {activeTab === 'all' 
+                  ? 'All system activities and user actions'
+                  : activeTab === 'customer' 
+                    ? 'External user activities and transactions'
+                    : 'Dashboard operations and system management activities'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Filters and Search */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search activities..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="error">Failed</SelectItem>
+                    <SelectItem value="warning">Pending</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={selectedModule} onValueChange={setSelectedModule}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="USER_MANAGEMENT">User Management</SelectItem>
+                    <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+                    <SelectItem value="TRANSACTION">Transactions</SelectItem>
+                    <SelectItem value="SECURITY">Security</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="SYSTEM">System</SelectItem>
+                    <SelectItem value="WALLET">Wallet</SelectItem>
+                    <SelectItem value="KYC">KYC</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1h">Last 1 hour</SelectItem>
+                    <SelectItem value="24h">Last 24 hours</SelectItem>
+                    <SelectItem value="7d">Last 7 days</SelectItem>
+                    <SelectItem value="30d">Last 30 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  {/* Customer Activity Table */}
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead className="w-20">Level</TableHead>
-                          <TableHead className="w-32">Time</TableHead>
-                          <TableHead className="w-40">Module</TableHead>
-                          <TableHead className="w-48">Customer</TableHead>
-                          <TableHead className="w-48">Action</TableHead>
-                          <TableHead className="w-64">Description</TableHead>
-                          <TableHead className="w-32">IP Address</TableHead>
-                          <TableHead className="w-40">Location</TableHead>
-                          <TableHead className="w-32">Session ID</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredLogs.map((log) => (
-                          <React.Fragment key={log.id}>
-                            <TableRow className="hover:bg-gray-50">
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => toggleRowExpansion(log.id)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  {expandedRows.has(log.id) ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {getLevelIcon(log.level)}
-                                  {getLevelBadge(log.level)}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium">{formatTimestamp(log.timestamp)}</div>
-                                  <div className="text-xs text-gray-500">{getRelativeTime(log.timestamp)}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {getModuleIcon(log.module)}
-                                  <span className="text-sm capitalize">{log.module.replace('_', ' ')}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium truncate max-w-32">{log.user}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm font-medium">{log.action}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600 max-w-56 truncate" title={log.description}>
-                                  {log.description}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600">{log.ip}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600">{log.location}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600 font-mono text-xs">{log.sessionId}</div>
-                              </TableCell>
-                            </TableRow>
-                            {expandedRows.has(log.id) && (
-                              <TableRow>
-                                <TableCell colSpan={10} className="bg-gray-50 p-4">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                      <h4 className="font-medium text-gray-700 mb-3">Technical Details</h4>
-                                      <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">User Agent:</span>
-                                          <span className="font-mono text-xs">{log.userAgent}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">Session ID:</span>
-                                          <span className="font-mono text-xs">{log.sessionId}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">IP Address:</span>
-                                          <span className="font-mono text-xs">{log.ip}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">Location:</span>
-                                          <span className="text-xs">{log.location}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium text-gray-700 mb-3">Metadata</h4>
-                                      <div className="space-y-2 text-sm">
-                                        {log.metadata && Object.entries(log.metadata).map(([key, value]) => (
-                                          <div key={key} className="flex justify-between">
-                                            <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                            <span className="text-xs">{String(value)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+              {/* Activity Table */}
+              {renderActivityTable(filteredLogs, activeTab === 'internal')}
 
-            <TabsContent value="internal" className="space-y-6">
-              {/* Internal Activity Content */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Internal Activity</CardTitle>
-                  <CardDescription>
-                    Dashboard operations and system management activities
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* Filters and Search */}
-                  <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Search internal activities..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                      <SelectTrigger className="w-40">
-                        <SelectValue placeholder="Level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Levels</SelectItem>
-                        <SelectItem value="error">Error</SelectItem>
-                        <SelectItem value="warning">Warning</SelectItem>
-                        <SelectItem value="success">Success</SelectItem>
-                        <SelectItem value="info">Info</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={selectedModule} onValueChange={setSelectedModule}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Modules</SelectItem>
-                        <SelectItem value="user_management">User Management</SelectItem>
-                        <SelectItem value="transactions">Transactions</SelectItem>
-                        <SelectItem value="payment_processing">Payment Processing</SelectItem>
-                        <SelectItem value="security">Security</SelectItem>
-                        <SelectItem value="database">Database</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                        <SelectItem value="analytics">Analytics</SelectItem>
-                        <SelectItem value="reports">Reports</SelectItem>
-                        <SelectItem value="settings">Settings</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={timeRange} onValueChange={setTimeRange}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1h">Last 1 hour</SelectItem>
-                        <SelectItem value="24h">Last 24 hours</SelectItem>
-                        <SelectItem value="7d">Last 7 days</SelectItem>
-                        <SelectItem value="30d">Last 30 days</SelectItem>
-                      </SelectContent>
-                    </Select>
+              {/* Pagination */}
+              {logsData && logsData.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-gray-500">
+                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, logsData.total)} of {logsData.total} entries
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                      Page {page} of {logsData.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(logsData.totalPages, p + 1))}
+                      disabled={page >= logsData.totalPages}
+                    >
+                      Next
+                    </Button>
                   </div>
-
-                  {/* Internal Activity Table */}
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-50">
-                          <TableHead className="w-12"></TableHead>
-                          <TableHead className="w-20">Level</TableHead>
-                          <TableHead className="w-32">Time</TableHead>
-                          <TableHead className="w-40">Module</TableHead>
-                          <TableHead className="w-48">Staff Member</TableHead>
-                          <TableHead className="w-48">Action</TableHead>
-                          <TableHead className="w-64">Description</TableHead>
-                          <TableHead className="w-32">IP Address</TableHead>
-                          <TableHead className="w-40">Location</TableHead>
-                          <TableHead className="w-32">Session ID</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredLogs.map((log) => (
-                          <React.Fragment key={log.id}>
-                            <TableRow className="hover:bg-gray-50">
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => toggleRowExpansion(log.id)}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  {expandedRows.has(log.id) ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {getLevelIcon(log.level)}
-                                  {getLevelBadge(log.level)}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium">{formatTimestamp(log.timestamp)}</div>
-                                  <div className="text-xs text-gray-500">{getRelativeTime(log.timestamp)}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {getModuleIcon(log.module)}
-                                  <span className="text-sm capitalize">{log.module.replace('_', ' ')}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium truncate max-w-32">{log.user}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm font-medium">{log.action}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600 max-w-56 truncate" title={log.description}>
-                                  {log.description}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600">{log.ip}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600">{log.location}</div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm text-gray-600 font-mono text-xs">{log.sessionId}</div>
-                              </TableCell>
-                            </TableRow>
-                            {expandedRows.has(log.id) && (
-                              <TableRow>
-                                <TableCell colSpan={10} className="bg-gray-50 p-4">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                      <h4 className="font-medium text-gray-700 mb-3">Technical Details</h4>
-                                      <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">User Agent:</span>
-                                          <span className="font-mono text-xs">{log.userAgent}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">Session ID:</span>
-                                          <span className="font-mono text-xs">{log.sessionId}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">IP Address:</span>
-                                          <span className="font-mono text-xs">{log.ip}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-gray-500">Location:</span>
-                                          <span className="text-xs">{log.location}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium text-gray-700 mb-3">Metadata</h4>
-                                      <div className="space-y-2 text-sm">
-                                        {log.metadata && Object.entries(log.metadata).map(([key, value]) => (
-                                          <div key={key} className="flex justify-between">
-                                            <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                            <span className="text-xs">{String(value)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
   )
 }
 
-export default ActivityLogPage 
+export default ActivityLogPage
