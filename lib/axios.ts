@@ -172,6 +172,7 @@ api.interceptors.response.use(
           const silent404Endpoints = [
             '/merchants', 
             '/kyc/stats', 
+            '/admin/kyc', // KYC endpoints may not be implemented yet
             '/transactions/system/stats', 
             '/analytics', 
             '/admin/external-payment-partners/mappings', 
@@ -198,6 +199,7 @@ api.interceptors.response.use(
             '/activity-logs', // Activity logs endpoints may require admin permissions
             '/transactions?status=', // Transaction status filters may have validation issues
             '/users?status=', // User status filters may have validation issues
+            '/admin/kyc', // KYC endpoints may require admin permissions
           ]
           const shouldLog400 = !silent400Endpoints.some(endpoint => url400.includes(endpoint))
           
@@ -275,6 +277,7 @@ api.interceptors.response.use(
         '/users', // User endpoints used in security dashboard
         '/analytics', // Analytics endpoints
         '/roles', // Roles endpoints used for permission checks
+        '/admin/kyc', // KYC endpoints may require admin permissions or may not be implemented
       ]
       const shouldLogNetworkError = !silentNetworkErrorEndpoints.some(endpoint => networkErrorUrl.includes(endpoint))
       

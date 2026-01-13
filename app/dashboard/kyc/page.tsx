@@ -223,10 +223,35 @@ const KycPage = () => {
   } = useQuery<PendingKycUser[]>({
     queryKey: ['admin', 'kyc', 'pending'],
     queryFn: async () => {
-      const response = await api.get('/admin/kyc/pending')
-      return response.data
+      try {
+        const response = await api.get('/admin/kyc/pending')
+        return response.data || []
+      } catch (err: any) {
+        // Handle permission errors (403) gracefully
+        if (err?.status === 403 || err?.response?.status === 403) {
+          console.warn('KYC endpoint requires admin permissions')
+          return []
+        }
+        // Handle not found errors (404) gracefully
+        if (err?.status === 404 || err?.response?.status === 404) {
+          console.warn('KYC endpoint not found - may not be implemented yet')
+          return []
+        }
+        // Re-throw other errors
+        throw err
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: (failureCount, error: any) => {
+      // Don't retry on permission errors (403) or not found (404)
+      if (error?.status === 403 || error?.status === 404 || 
+          error?.response?.status === 403 || error?.response?.status === 404) {
+        return false
+      }
+      // Retry up to 2 times for other errors
+      return failureCount < 2
+    },
+    retryDelay: 1000,
   })
 
   // Approve/Reject KYC mutation
@@ -399,7 +424,13 @@ const KycPage = () => {
     )
   }
 
-  if (error) {
+  // Handle errors - but allow empty data to show empty state instead of error
+  const errorStatus = (error as any)?.status || (error as any)?.response?.status
+  const isPermissionError = errorStatus === 403
+  const isNotFoundError = errorStatus === 404
+  
+  // Only show error screen for non-permission/not-found errors
+  if (error && !isPermissionError && !isNotFoundError) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -407,7 +438,9 @@ const KycPage = () => {
           <div className="text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Error Loading KYC Data</h1>
-            <p className="text-gray-600 mb-4">Failed to load KYC requests. Please try again.</p>
+            <p className="text-gray-600 mb-4">
+              {(error as any)?.message || (error as any)?.data?.message || 'Failed to load KYC requests. Please try again.'}
+            </p>
             <Button onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
@@ -571,6 +604,24 @@ const KycPage = () => {
                     <div className="flex items-center justify-center py-12">
                       <RefreshCw className="h-6 w-6 animate-spin mr-2" />
                       <span>Loading KYC requests...</span>
+                    </div>
+                  ) : paginatedKycRequests.length === 0 && !isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <FileText className="h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-gray-600 mb-2">
+                        {isPermissionError 
+                          ? 'You don\'t have permission to view KYC requests. Please contact an administrator.'
+                          : isNotFoundError
+                          ? 'KYC endpoint is not available. This feature may not be implemented yet.'
+                          : 'No pending KYC requests found.'
+                        }
+                      </p>
+                      {!isPermissionError && !isNotFoundError && (
+                        <Button variant="outline" onClick={() => refetch()} className="mt-4">
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <>
