@@ -255,7 +255,7 @@ const Navbar = () => {
                     <Link 
                       href="/dashboard/finance/tariffs" 
                       className={`nav-slider-item ${
-                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
                           ? 'active'
                           : ''
                       }`}
@@ -310,49 +310,6 @@ const Navbar = () => {
                     <span>Gateway Partners</span>
                   </Link>
                 </PermissionGuard>
-                
-                {/* Wallet Menu */}
-                <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
-                  <Link 
-                    href="/dashboard/wallet" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/wallet')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Wallet className="nav-icon" />
-                    <span>Wallets</span>
-                  </Link>
-                </PermissionGuard>
-                
-                {/* System Wallets Menu */}
-                <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
-                  <Link 
-                    href="/dashboard/system-wallets" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/system-wallets')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Building2 className="nav-icon" />
-                    <span>System Wallets</span>
-                  </Link>
-                </PermissionGuard>
-                
-                {/* Activity Menu */}
-                <Link 
-                  href="/dashboard/activity" 
-                  className={`nav-slider-item ${
-                    isActive('/dashboard/activity')
-                      ? 'active'
-                      : ''
-                  }`}
-                >
-                  <Activity className="nav-icon" />
-                  <span>Activity</span>
-                </Link>
                 
                 <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                   <Link 
@@ -545,6 +502,19 @@ const Navbar = () => {
                       onClick={() => setIsFinanceDropdownOpen(false)}
                     >
                       Wallets
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                    <Link 
+                      href="/dashboard/system-wallets" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/system-wallets')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      System Wallets
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>
