@@ -1,5 +1,6 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ import {
   ChevronRight,
   Store,
   ArrowDownLeft,
+  ArrowLeftRight,
   Undo2,
   Settings,
   CheckCircle,
@@ -114,9 +116,15 @@ interface Partner {
 
 const TariffsPage = () => {
   const router = useRouter()
-  const [activeMainTab, setActiveMainTab] = useState('external')
-  const [activeInternalTab, setActiveInternalTab] = useState('')
-  const [activeExternalTab, setActiveExternalTab] = useState('')
+  const searchParams = useSearchParams()
+  
+  // Get tab from URL params if present
+  const tabFromUrl = searchParams?.get('tab')
+  const subTabFromUrl = searchParams?.get('subTab')
+  
+  const [activeMainTab, setActiveMainTab] = useState(tabFromUrl || 'external')
+  const [activeInternalTab, setActiveInternalTab] = useState(subTabFromUrl && tabFromUrl === 'internal' ? subTabFromUrl : '')
+  const [activeExternalTab, setActiveExternalTab] = useState(subTabFromUrl && tabFromUrl === 'external' ? subTabFromUrl : '')
   const [selectedPartner, setSelectedPartner] = useState("ABC") // Default to ABC
   const [isLoading, setIsLoading] = useState(false)
   
@@ -129,6 +137,11 @@ const TariffsPage = () => {
   // View modal state
   const [viewModalOpen, setViewModalOpen] = useState(false)
   const [viewTariff, setViewTariff] = useState<Tariff | null>(null)
+  
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deletingTariff, setDeletingTariff] = useState<Tariff | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   
   const { hasPermission, userRole } = usePermissions()
   const { user } = useAuth()
@@ -161,7 +174,6 @@ const TariffsPage = () => {
       // Internal types
       'WALLET_TO_INTERNAL_MERCHANT': 'Wallet to Internal Merchant',
       'WALLET_TO_WALLET': 'Wallet to Wallet',
-      'WALLET_CREATION': 'Wallet Creation',
       'WALLET_INIT': 'Wallet Initialization',
       'FEE_CHARGE': 'Fee Charge',
       'REVERSAL': 'Reversal',
@@ -176,8 +188,11 @@ const TariffsPage = () => {
       'WALLET_TO_UTILITY': 'Wallet to Utility',
       'WALLET_TO_MERCHANT': 'Wallet to Merchant',
       'BILL_PAYMENT': 'Bill Payment',
+      'SCHOOL_FEES': 'School Fees',
       'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal',
-      'CUSTOM': 'Custom (Partner)',
+      'MERCHANT_TO_WALLET': 'Merchant to Wallet',
+      'CARD_TO_WALLET': 'Card to Wallet',
+      'CUSTOM': 'Custom',
     }
     return typeLabels[type] || type
   }
@@ -198,18 +213,11 @@ const TariffsPage = () => {
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
     },
-    'WALLET_CREATION': {
-      name: 'Wallet Creation',
-      description: 'Fee for creating new wallets',
-      icon: Plus,
-      color: 'bg-emerald-600',
-      tabId: 'wallet-creation'
-    },
     'WALLET_INIT': {
       name: 'Wallet Initialization',
       description: 'Fee for initializing wallets',
-      icon: Settings,
-      color: 'bg-cyan-600',
+      icon: Plus,
+      color: 'bg-emerald-600',
       tabId: 'wallet-init'
     },
     'FEE_CHARGE': {
@@ -225,6 +233,13 @@ const TariffsPage = () => {
       icon: Undo2,
       color: 'bg-red-600',
       tabId: 'reversal'
+    },
+    'CUSTOM': {
+      name: 'Custom',
+      description: 'Custom transaction types',
+      icon: Settings,
+      color: 'bg-gray-600',
+      tabId: 'custom-internal'
     }
   }
 
@@ -288,10 +303,17 @@ const TariffsPage = () => {
     },
     'BILL_PAYMENT': {
       name: 'Bill Payment',
-      description: 'School fees, bills via partners',
+      description: 'Utility bills via partners',
       icon: Zap,
       color: 'bg-purple-600',
       tabId: 'bill-payment'
+    },
+    'SCHOOL_FEES': {
+      name: 'School Fees',
+      description: 'School fees payments',
+      icon: Zap,
+      color: 'bg-blue-600',
+      tabId: 'school-fees'
     },
     'MERCHANT_WITHDRAWAL': {
       name: 'Merchant Withdrawal',
@@ -300,9 +322,23 @@ const TariffsPage = () => {
       color: 'bg-amber-600',
       tabId: 'merchant-withdrawal'
     },
+    'MERCHANT_TO_WALLET': {
+      name: 'Merchant to Wallet',
+      description: 'Merchants sending to RukaPay wallets',
+      icon: ArrowLeftRight,
+      color: 'bg-teal-600',
+      tabId: 'merchant-to-wallet'
+    },
+    'CARD_TO_WALLET': {
+      name: 'Card to Wallet',
+      description: 'Card payments to RukaPay wallet',
+      icon: CreditCard,
+      color: 'bg-cyan-600',
+      tabId: 'card-to-wallet'
+    },
     'CUSTOM': {
-      name: 'Custom (Partner)',
-      description: 'Custom transaction modes for partners',
+      name: 'Custom',
+      description: 'Custom transaction types (e.g., School Fees)',
       icon: Settings,
       color: 'bg-indigo-600',
       tabId: 'custom'
@@ -310,10 +346,11 @@ const TariffsPage = () => {
   }
 
   // Get tariffs from API response
-  console.log('Tariffs API Response:', tariffsData)
-  console.log('Tariffs Error:', tariffsError)
-  const allTariffs = tariffsData?.tariffs || []
-  console.log('All Tariffs:', allTariffs)
+  // Handle different possible response structures
+  const allTariffs = tariffsData?.tariffs || 
+                     tariffsData?.data?.tariffs || 
+                     tariffsData?.data?.data || 
+                     []
   
   // Separate internal and external tariffs
   const internalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'INTERNAL')
@@ -323,10 +360,10 @@ const TariffsPage = () => {
   const internalGroupedTariffs = {
     'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET'),
     'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
-    'WALLET_CREATION': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_CREATION'),
-    'WALLET_INIT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_INIT'),
+    'WALLET_INIT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_INIT' || t.transactionType === 'WALLET_CREATION'),
     'FEE_CHARGE': internalTariffs.filter((t: Tariff) => t.transactionType === 'FEE_CHARGE'),
     'REVERSAL': internalTariffs.filter((t: Tariff) => t.transactionType === 'REVERSAL'),
+    'CUSTOM': internalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
   
   // Group external tariffs by transaction type
@@ -340,7 +377,10 @@ const TariffsPage = () => {
     'WALLET_TO_BANK': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_BANK'),
     'WALLET_TO_UTILITY': externalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_UTILITY'),
     'BILL_PAYMENT': externalTariffs.filter((t: Tariff) => t.transactionType === 'BILL_PAYMENT'),
+    'SCHOOL_FEES': externalTariffs.filter((t: Tariff) => t.transactionType === 'SCHOOL_FEES'),
     'MERCHANT_WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_WITHDRAWAL'),
+    'MERCHANT_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_TO_WALLET'),
+    'CARD_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'CARD_TO_WALLET'),
     'CUSTOM': externalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
 
@@ -358,8 +398,19 @@ const TariffsPage = () => {
     refetch()
   }, [refetch])
 
-  // Set initial active tabs when data loads
+  // Set initial active tabs when data loads or URL params change
   useEffect(() => {
+    // If URL params specify tabs, use those
+    if (tabFromUrl === 'internal' && subTabFromUrl && !activeInternalTab) {
+      setActiveInternalTab(subTabFromUrl)
+      return
+    }
+    if (tabFromUrl === 'external' && subTabFromUrl && !activeExternalTab) {
+      setActiveExternalTab(subTabFromUrl)
+      return
+    }
+    
+    // Otherwise, set defaults based on available data
     if (availableInternalTypes.length > 0 && !activeInternalTab) {
       const firstInternalType = internalTransactionTypes[availableInternalTypes[0] as keyof typeof internalTransactionTypes]
       if (firstInternalType) {
@@ -372,32 +423,28 @@ const TariffsPage = () => {
         setActiveExternalTab(firstExternalType.tabId)
       }
     }
-  }, [availableInternalTypes, availableExternalTypes, activeInternalTab, activeExternalTab])
+  }, [availableInternalTypes, availableExternalTypes, activeInternalTab, activeExternalTab, tabFromUrl, subTabFromUrl])
 
-  const handleDeleteTariff = async (tariffId: string) => {
-    if (!window.confirm('Are you sure you want to delete this tariff?')) {
-      return
-    }
+  const openDeleteModal = (tariff: Tariff) => {
+    setDeletingTariff(tariff)
+    setDeleteModalOpen(true)
+  }
 
-    setIsLoading(true)
+  const handleDeleteTariff = async () => {
+    if (!deletingTariff) return
+
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/finance/tariffs/${tariffId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (response.ok) {
-        toast.success('Tariff deleted successfully')
-        refetch() // Refresh the data
-      } else {
-        throw new Error('Failed to delete tariff')
-      }
-    } catch (error) {
-      toast.error('Failed to delete tariff')
+      await api.delete(`/finance/tariffs/${deletingTariff.id}`)
+      toast.success('Tariff deleted successfully')
+      setDeleteModalOpen(false)
+      setDeletingTariff(null)
+      refetch() // Refresh the data
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.data?.message || 'Failed to delete tariff'
+      toast.error(errorMessage)
     } finally {
-      setIsLoading(false)
+      setIsDeleting(false)
     }
   }
 
@@ -773,7 +820,7 @@ const TariffsPage = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteTariff(tariff.id)}
+                              onClick={() => openDeleteModal(tariff)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -1419,8 +1466,69 @@ const TariffsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={deleteModalOpen} onOpenChange={(open) => {
+        if (!isDeleting) {
+          setDeleteModalOpen(open)
+          if (!open) setDeletingTariff(null)
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Tariff
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the tariff <span className="font-semibold">"{deletingTariff?.name}"</span>? 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteModalOpen(false)
+                setDeletingTariff(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTariff}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-export default TariffsPage 
+// Wrapper component with Suspense boundary for useSearchParams
+export default function TariffsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading tariffs...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <TariffsPage />
+    </Suspense>
+  )
+} 

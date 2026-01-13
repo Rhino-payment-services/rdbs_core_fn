@@ -257,7 +257,6 @@ export const TRANSACTION_TYPES = [
   // Internal types
   { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet' },
   { value: 'WALLET_TO_INTERNAL_MERCHANT', label: 'Wallet to Internal Merchant' },
-  { value: 'WALLET_CREATION', label: 'Wallet Creation' },
   { value: 'WALLET_INIT', label: 'Wallet Initialization' },
   { value: 'FEE_CHARGE', label: 'Fee Charge' },
   { value: 'REVERSAL', label: 'Reversal' },
@@ -266,13 +265,18 @@ export const TRANSACTION_TYPES = [
   { value: 'WITHDRAWAL', label: 'Withdrawal' },
   { value: 'WALLET_TO_MNO', label: 'Wallet to MNO' },
   { value: 'BILL_PAYMENT', label: 'Bill Payment' },
+  { value: 'SCHOOL_FEES', label: 'School Fees' },
   { value: 'WALLET_TO_EXTERNAL_MERCHANT', label: 'Wallet to External Merchant' },
   { value: 'MERCHANT_WITHDRAWAL', label: 'Merchant Withdrawal' },
+  { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
   { value: 'WALLET_TO_UTILITY', label: 'Wallet to Utility' },
   { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
   { value: 'WALLET_TO_BANK', label: 'Wallet to Bank' },
   { value: 'BANK_TO_WALLET', label: 'Bank to Wallet' },
   { value: 'MNO_TO_WALLET', label: 'MNO to Wallet' },
+  { value: 'CARD_TO_WALLET', label: 'Card to Wallet' },
+  // Custom type for flexible use cases
+  { value: 'CUSTOM', label: 'Custom' },
 ]
 
 export const FEE_TYPES = [

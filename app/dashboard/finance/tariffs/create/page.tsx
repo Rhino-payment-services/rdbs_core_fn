@@ -21,7 +21,7 @@ interface CreateTariffForm {
   name: string
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
-  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'WALLET_CREATION' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM'
+  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'SCHOOL_FEES' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'MERCHANT_TO_WALLET' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'CARD_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM'
   transactionModeId?: string
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
@@ -100,13 +100,91 @@ function CreateTariffPage() {
 
   const createTariffMutation = useMutation({
     mutationFn: (data: CreateTariffForm) => api.post('/finance/tariffs', data),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
+      // Invalidate and refetch tariffs query
       queryClient.invalidateQueries({ queryKey: ['tariffs'] })
+      queryClient.refetchQueries({ queryKey: ['tariffs'] })
+      
+      // Determine which tab to show based on tariff type
+      const createdTariff = response?.data?.data || response?.data
+      const tariffType = createdTariff?.tariffType || form.tariffType
+      const transactionType = createdTariff?.transactionType || form.transactionType
+      
       toast.success('Tariff created successfully')
-      router.push('/dashboard/finance/tariffs')
+      
+      // Navigate to tariffs page with query params to show the correct tab
+      // For INTERNAL CUSTOM tariffs, show internal tab with custom-internal tab
+      // For EXTERNAL CUSTOM tariffs, show external tab with custom tab
+      const tabParam = tariffType === 'INTERNAL' ? 'internal' : 'external'
+      const subTabParam = transactionType === 'CUSTOM' 
+        ? (tariffType === 'INTERNAL' ? 'custom-internal' : 'custom')
+        : undefined
+      
+      const queryParams = new URLSearchParams()
+      queryParams.set('tab', tabParam)
+      if (subTabParam) {
+        queryParams.set('subTab', subTabParam)
+      }
+      
+      // Small delay to ensure query refetch completes before navigation
+      setTimeout(() => {
+        router.push(`/dashboard/finance/tariffs?${queryParams.toString()}`)
+      }, 100)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create tariff')
+      // Extract error message from various possible locations
+      // Handle case where message might be an array
+      let errorMessage: string
+      const rawMessage = error.response?.data?.message
+      
+      if (Array.isArray(rawMessage)) {
+        // If message is an array, join it
+        errorMessage = rawMessage.join('; ')
+      } else {
+        errorMessage = rawMessage || 
+                      error.response?.data?.error?.message || 
+                      error.response?.data?.error ||
+                      error.message ||
+                      'Failed to create tariff'
+      }
+      
+      // Extract validation errors if present
+      const validationErrors = error.response?.data?.errors || 
+                              error.response?.data?.error?.errors ||
+                              error.response?.data?.validationErrors
+      
+      // Build detailed error message
+      let fullErrorMessage = errorMessage
+      
+      if (validationErrors) {
+        // Format validation errors as a readable string
+        if (typeof validationErrors === 'object' && !Array.isArray(validationErrors)) {
+          const errorDetails = Object.entries(validationErrors)
+            .map(([field, messages]: [string, any]) => {
+              const fieldMessages = Array.isArray(messages) ? messages.join(', ') : messages
+              return `${field}: ${fieldMessages}`
+            })
+            .join('; ')
+          fullErrorMessage = `${errorMessage}${errorDetails ? ` (${errorDetails})` : ''}`
+        } else if (Array.isArray(validationErrors)) {
+          fullErrorMessage = `${errorMessage}${validationErrors.length > 0 ? ` (${validationErrors.join(', ')})` : ''}`
+        }
+      }
+      
+      // Show toast with error message
+      toast.error(fullErrorMessage, {
+        duration: 6000, // Show for 6 seconds to allow reading longer messages
+      })
+      
+      // Also log full error details for debugging
+      console.error('Tariff creation error:', {
+        message: errorMessage,
+        rawMessage,
+        validationErrors,
+        fullError: error.response?.data,
+        status: error.response?.status,
+        requestData: error.config?.data // Log what was sent
+      })
     }
   })
 
@@ -163,9 +241,29 @@ function CreateTariffPage() {
       return
     }
 
+    // Validate transactionType is one of the allowed values
+    const allowedTransactionTypes = [
+      'DEPOSIT', 'WITHDRAWAL', 'BILL_PAYMENT', 'WALLET_CREATION', 'WALLET_INIT',
+      'WALLET_TO_INTERNAL_MERCHANT', 'WALLET_TO_EXTERNAL_MERCHANT', 'MERCHANT_WITHDRAWAL',
+      'MERCHANT_TO_WALLET', 'WALLET_TO_WALLET', 'WALLET_TO_MNO', 'WALLET_TO_UTILITY',
+      'MNO_TO_WALLET', 'WALLET_TO_MERCHANT', 'WALLET_TO_BANK', 'BANK_TO_WALLET',
+      'CARD_TO_WALLET', 'REVERSAL', 'FEE_CHARGE', 'CUSTOM'
+    ]
+    
+    // If transactionType is not in allowed list, default to CUSTOM
+    const validTransactionType = allowedTransactionTypes.includes(form.transactionType) 
+      ? form.transactionType 
+      : 'CUSTOM'
+    
+    if (form.transactionType !== validTransactionType) {
+      console.warn(`Invalid transactionType "${form.transactionType}" replaced with "CUSTOM"`)
+    }
+
     // Clean up the data before sending
     const submitData = {
       ...form,
+      // Ensure transactionType is valid
+      transactionType: validTransactionType,
       // Set feeAmount to the calculated total for external tariffs
       feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
       // Convert feePercentage based on partner type
@@ -388,28 +486,28 @@ function CreateTariffPage() {
                             <>
                               <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
-                              <SelectItem value="WALLET_CREATION">Wallet Creation</SelectItem>
                               <SelectItem value="WALLET_INIT">Wallet Initialization</SelectItem>
+                              <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
                               <SelectItem value="FEE_CHARGE">Fee Charge</SelectItem>
                               <SelectItem value="REVERSAL">Reversal</SelectItem>
+                              <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>
                           ) : (
                             <>
                               <SelectItem value="DEPOSIT">Deposit</SelectItem>
                               <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
                               <SelectItem value="BILL_PAYMENT">Bill Payment</SelectItem>
+                              <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
                               <SelectItem value="WALLET_TO_EXTERNAL_MERCHANT">Wallet to External Merchant</SelectItem>
                               <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
+                              <SelectItem value="MERCHANT_TO_WALLET">Merchant to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_MNO">Wallet to MNO</SelectItem>
                               <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
                               <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>
                               <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
                               <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>
-                              <SelectItem value="GATEWAY_TO_MTN">Gateway to MTN</SelectItem>
-                              <SelectItem value="GATEWAY_TO_AIRTEL">Gateway to Airtel</SelectItem>
-                              <SelectItem value="GATEWAY_TO_BANK">Gateway to Bank</SelectItem>
-                              <SelectItem value="GATEWAY_TO_WALLET">Gateway to Wallet</SelectItem>
-                              <SelectItem value="GATEWAY_TRANSFER">Gateway Transfer</SelectItem>
+                              <SelectItem value="CARD_TO_WALLET">Card to Wallet</SelectItem>
+                              <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>
                           )}
                         </SelectContent>
