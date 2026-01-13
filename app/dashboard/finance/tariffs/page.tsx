@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -151,12 +151,7 @@ const TariffsPage = () => {
   // Fetch tariffs from API (with high limit to show all tariffs)
   const { data: tariffsData, isLoading: tariffsLoading, error: tariffsError, refetch } = useQuery({
     queryKey: ['tariffs'],
-    queryFn: async () => {
-      const response = await api.get('/finance/tariffs', { params: { limit: 1000 } })
-      console.log('Raw API response:', response)
-      console.log('Response data:', response.data)
-      return response.data
-    },
+    queryFn: () => api.get('/finance/tariffs', { params: { limit: 1000 } }).then(res => res.data),
     staleTime: 0, // Always consider data stale to ensure fresh data on mount
     refetchOnMount: 'always', // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
@@ -357,33 +352,9 @@ const TariffsPage = () => {
                      tariffsData?.data?.data || 
                      []
   
-  console.log('=== TARIFF DEBUG INFO ===')
-  console.log('Tariffs API Response:', tariffsData)
-  console.log('Tariffs Error:', tariffsError)
-  console.log('All Tariffs (raw):', allTariffs)
-  console.log('Tariff count:', allTariffs.length)
-  
-  // Log each tariff's details
-  allTariffs.forEach((t: Tariff, index: number) => {
-    console.log(`Tariff ${index + 1}:`, {
-      id: t.id,
-      name: t.name,
-      transactionType: t.transactionType,
-      tariffType: t.tariffType,
-      status: t.status,
-      isActive: t.isActive,
-      transactionModeCode: t.transactionModeCode
-    })
-  })
-  
   // Separate internal and external tariffs
   const internalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'INTERNAL')
   const externalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'EXTERNAL')
-  
-  console.log('Internal tariffs count:', internalTariffs.length)
-  console.log('Internal tariffs:', internalTariffs.map(t => ({ name: t.name, type: t.transactionType, tariffType: t.tariffType, modeCode: t.transactionModeCode })))
-  console.log('External tariffs count:', externalTariffs.length)
-  console.log('External tariffs:', externalTariffs.map(t => ({ name: t.name, type: t.transactionType, tariffType: t.tariffType, modeCode: t.transactionModeCode })))
   
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
@@ -394,12 +365,6 @@ const TariffsPage = () => {
     'REVERSAL': internalTariffs.filter((t: Tariff) => t.transactionType === 'REVERSAL'),
     'CUSTOM': internalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
-  
-  console.log('Internal CUSTOM tariffs:', internalGroupedTariffs.CUSTOM.length, internalGroupedTariffs.CUSTOM.map(t => ({ name: t.name, id: t.id, modeCode: t.transactionModeCode })))
-  console.log('External CUSTOM tariffs:', externalGroupedTariffs.CUSTOM.length, externalGroupedTariffs.CUSTOM.map(t => ({ name: t.name, id: t.id, modeCode: t.transactionModeCode })))
-  console.log('Available Internal Types:', availableInternalTypes)
-  console.log('Available External Types:', availableExternalTypes)
-  console.log('=== END TARIFF DEBUG ===')
   
   // Group external tariffs by transaction type
   const externalGroupedTariffs = {
@@ -962,31 +927,6 @@ const TariffsPage = () => {
               </div>
             </div>
           </div>
-
-          {/* Debug Info - Remove after fixing */}
-          {process.env.NODE_ENV === 'development' && allTariffs.length > 0 && (
-            <Card className="mb-6 bg-yellow-50 border-yellow-200">
-              <CardHeader>
-                <CardTitle className="text-sm">Debug Info (Development Only)</CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs">
-                <p>Total Tariffs: {allTariffs.length}</p>
-                <p>Internal: {internalTariffs.length} | External: {externalTariffs.length}</p>
-                <p>Internal CUSTOM: {internalGroupedTariffs.CUSTOM.length}</p>
-                <p>External CUSTOM: {externalGroupedTariffs.CUSTOM.length}</p>
-                <details className="mt-2">
-                  <summary className="cursor-pointer font-semibold">All Tariffs List</summary>
-                  <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                    {allTariffs.map((t: Tariff) => (
-                      <li key={t.id} className="text-xs">
-                        {t.name} - {t.transactionType} ({t.tariffType}) {t.transactionModeCode ? `[Mode: ${t.transactionModeCode}]` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -1570,4 +1510,25 @@ const TariffsPage = () => {
   )
 }
 
-export default TariffsPage 
+// Wrapper component with Suspense boundary for useSearchParams
+export default function TariffsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading tariffs...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <TariffsPage />
+    </Suspense>
+  )
+} 
