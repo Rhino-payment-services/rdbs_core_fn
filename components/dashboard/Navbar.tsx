@@ -16,15 +16,19 @@ const Navbar = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isFinanceDropdownOpen, setIsFinanceDropdownOpen] = useState(false)
   const [isSecurityDropdownOpen, setIsSecurityDropdownOpen] = useState(false)
+  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [financeMenuPosition, setFinanceMenuPosition] = useState({ left: 0, top: 0 })
   const [securityMenuPosition, setSecurityMenuPosition] = useState({ left: 0, top: 0 })
+  const [settingsMenuPosition, setSettingsMenuPosition] = useState({ left: 0, top: 0 })
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const financeMenuRef = useRef<HTMLDivElement>(null)
   const securityMenuRef = useRef<HTMLDivElement>(null)
+  const settingsMenuRef = useRef<HTMLDivElement>(null)
   const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const securityDropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const settingsDropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { user, logout } = useAuth()
   const { canViewSystemLogs, hasPermission, userRole } = usePermissions()
 
@@ -80,6 +84,20 @@ const Navbar = () => {
     }, 150) // 150ms delay before closing
   }
 
+  // Handle Settings dropdown hover with delay
+  const handleSettingsMouseEnter = () => {
+    if (settingsDropdownTimeoutRef.current) {
+      clearTimeout(settingsDropdownTimeoutRef.current)
+    }
+    setIsSettingsDropdownOpen(true)
+  }
+
+  const handleSettingsMouseLeave = () => {
+    settingsDropdownTimeoutRef.current = setTimeout(() => {
+      setIsSettingsDropdownOpen(false)
+    }, 150) // 150ms delay before closing
+  }
+
   // Update Finance menu position when dropdown opens
   useEffect(() => {
     if (isFinanceDropdownOpen && financeMenuRef.current) {
@@ -102,6 +120,17 @@ const Navbar = () => {
     }
   }, [isSecurityDropdownOpen])
 
+  // Update Settings menu position when dropdown opens
+  useEffect(() => {
+    if (isSettingsDropdownOpen && settingsMenuRef.current) {
+      const rect = settingsMenuRef.current.getBoundingClientRect()
+      setSettingsMenuPosition({
+        left: rect.left,
+        top: rect.bottom
+      })
+    }
+  }, [isSettingsDropdownOpen])
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
@@ -110,6 +139,9 @@ const Navbar = () => {
       }
       if (securityDropdownTimeoutRef.current) {
         clearTimeout(securityDropdownTimeoutRef.current)
+      }
+      if (settingsDropdownTimeoutRef.current) {
+        clearTimeout(settingsDropdownTimeoutRef.current)
       }
     }
   }, [])
@@ -213,14 +245,14 @@ const Navbar = () => {
               onScroll={checkScrollPosition}
             >
               <div className="nav-slider-content">
-                <Link 
-                  href="/dashboard" 
-                  className={`nav-slider-item ${
-                    isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/gateway-partners')
-                      ? 'active'
-                      : ''
-                  }`}
-                >
+                  <Link 
+                    href="/dashboard" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
                   <Home className="nav-icon" />
                   <span>Dashboard</span>
                 </Link>
@@ -280,21 +312,6 @@ const Navbar = () => {
                     <span>Products</span>
                   </Link>
                 </PermissionGuard> */}
-                
-                {/* Carousel Menu */}
-                <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
-                  <Link 
-                    href="/dashboard/carousel" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/carousel')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Images className="nav-icon" />
-                    <span>Carousel</span>
-                  </Link>
-                </PermissionGuard>
                 
                 {/* Gateway Partners Menu */}
                 <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
@@ -361,18 +378,26 @@ const Navbar = () => {
                   </div>
                 </PermissionGuard>
                 
+                {/* Settings Menu with Dropdown */}
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
-                  <Link 
-                    href="/dashboard/settings" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/settings')
-                        ? 'active'
-                        : ''
-                    }`}
+                  <div
+                    ref={settingsMenuRef}
+                    className="relative"
+                    onMouseEnter={handleSettingsMouseEnter}
+                    onMouseLeave={handleSettingsMouseLeave}
                   >
-                    <Cog className="nav-icon" />
-                    <span>Settings</span>
-                  </Link>
+                    <Link 
+                      href="/dashboard/settings" 
+                      className={`nav-slider-item ${
+                        (isActive('/dashboard/settings') || isActive('/dashboard/carousel'))
+                          ? 'active'
+                          : ''
+                      }`}
+                    >
+                      <Cog className="nav-icon" />
+                      <span>Settings</span>
+                    </Link>
+                  </div>
                 </PermissionGuard>
                 
                 {/* Temporarily commented out API Logs tab */}
@@ -621,6 +646,51 @@ const Navbar = () => {
                       onClick={() => setIsSecurityDropdownOpen(false)}
                     >
                       System Logs
+                    </Link>
+                  </PermissionGuard>
+                </div>
+              </div>
+            )}
+
+            {/* Settings Dropdown */}
+            {isSettingsDropdownOpen && (
+              <div 
+                className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[100]"
+                style={{ 
+                  left: `${settingsMenuPosition.left}px`, 
+                  top: `${settingsMenuPosition.top - 2}px`
+                }}
+                onMouseEnter={handleSettingsMouseEnter}
+                onMouseLeave={handleSettingsMouseLeave}
+              >
+                {/* Bridge element to prevent dropdown from closing */}
+                <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent"></div>
+                
+                <div className="py-2">
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
+                    <Link 
+                      href="/dashboard/settings" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/settings') && !isActive('/dashboard/carousel')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      System Settings
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
+                    <Link 
+                      href="/dashboard/carousel" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/carousel')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      Carousel
                     </Link>
                   </PermissionGuard>
                 </div>
