@@ -190,6 +190,10 @@ api.interceptors.response.use(
         case 400:
           // Don't log 400 errors for endpoints that might have permission/validation issues
           const url400 = originalRequest?.url || ''
+          const method400 = originalRequest?.method || 'GET'
+          const baseURL400 = originalRequest?.baseURL || api.defaults.baseURL
+          const fullUrl400 = url400.startsWith('http') ? url400 : `${baseURL400}${url400}`
+          
           const silent400Endpoints = [
             '/activity-logs', // Activity logs endpoints may require admin permissions
             '/transactions?status=', // Transaction status filters may have validation issues
@@ -198,11 +202,46 @@ api.interceptors.response.use(
           const shouldLog400 = !silent400Endpoints.some(endpoint => url400.includes(endpoint))
           
           if (shouldLog400) {
-            console.error(`API Error: ${status}`)
+            // Extract error message from response
+            const errorMsg400 = data?.message || data?.error?.message || data?.error || error.message || 'Bad Request'
+            
+            // Extract validation errors if present
+            const validationErrors = data?.errors || data?.error?.errors || data?.validationErrors
+            
+            const errorDetails400 = [
+              `🟠 400 Bad Request: ${method400.toUpperCase()} ${fullUrl400}`,
+              `   Message: ${errorMsg400}`,
+              validationErrors ? `   Validation Errors: ${JSON.stringify(validationErrors)}` : null,
+              data && !validationErrors ? `   Response: ${JSON.stringify(data)}` : null,
+            ].filter(Boolean).join('\n')
+            
+            console.warn(errorDetails400)
           }
           break
         case 500:
-          console.error('Server error')
+          const url500 = originalRequest?.url || 'unknown'
+          const method500 = originalRequest?.method || 'GET'
+          const baseURL = originalRequest?.baseURL || api.defaults.baseURL
+          const fullUrl500 = url500.startsWith('http') ? url500 : `${baseURL}${url500}`
+          
+          // Extract error message
+          const errorMsg = data?.message || data?.error?.message || data?.error || error.message || 'Internal server error'
+          
+          // Use console.warn to avoid stack trace and reduce console noise
+          // Format as a single message to prevent multiple log entries
+          const errorDetails = [
+            `🔴 500 Server Error: ${method500.toUpperCase()} ${fullUrl500}`,
+            `   Message: ${errorMsg}`,
+            data ? `   Response: ${JSON.stringify(data)}` : null,
+            `   Status: ${error.response?.statusText || 'Internal Server Error'}`
+          ].filter(Boolean).join('\n')
+          
+          console.warn(errorDetails)
+          
+          // Only log full error object in development if response data is empty
+          if (process.env.NODE_ENV === 'development' && (!data || Object.keys(data).length === 0)) {
+            console.warn('Full error object:', error)
+          }
           break
         default:
           console.error(`API Error: ${status}`)
