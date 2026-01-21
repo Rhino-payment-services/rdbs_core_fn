@@ -227,11 +227,26 @@ const MerchantOnboardingPage = () => {
     } catch (error: any) {
       console.error('Submission error:', error)
       
-      // Handle specific conflict errors with descriptive messages
-      const errorMessage = error?.response?.data?.message || error?.message || ''
+      // Extract error message from response
+      const errorMessage = error?.response?.data?.message || 
+                          error?.response?.data?.data?.message ||
+                          error?.message || 
+                          'Failed to create merchant. Please try again.'
       const errorStatus = error?.response?.status
+      const errorData = error?.response?.data?.data || error?.response?.data
       
-      if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
+      // Handle validation errors (400)
+      if (errorStatus === 400) {
+        // Check if it's a validation error with field details
+        if (Array.isArray(errorData?.message)) {
+          const validationErrors = errorData.message.join(', ')
+          toast.error(`Validation Error: ${validationErrors}`)
+        } else {
+          toast.error(errorMessage)
+        }
+      }
+      // Handle specific conflict errors (409)
+      else if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
         // Parse the conflict error for specific field
         if (errorMessage.toLowerCase().includes('phone') || errorMessage.toLowerCase().includes('mobile')) {
           setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered with another merchant' }))
@@ -244,15 +259,23 @@ const MerchantOnboardingPage = () => {
           toast.error('National ID conflict: This National ID is already registered with another merchant.')
         } else if (errorMessage.toLowerCase().includes('business') || errorMessage.toLowerCase().includes('trade')) {
           setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
-          toast.error('Business name conflict: This business name is already registered.')
+          toast.error('Business conflict: This business is already registered.')
         } else {
-          toast.error(`Conflict: ${errorMessage}. Please check if this merchant already exists.`)
+          // Generic conflict error
+          toast.error(errorMessage || 'This merchant already exists. Please check the details and try again.')
         }
-      } else if (errorStatus === 400) {
-        // Validation error
-        toast.error(`Validation error: ${errorMessage}`)
-      } else {
-        toast.error(extractErrorMessage(error))
+      }
+      // Handle permission errors (403)
+      else if (errorStatus === 403) {
+        toast.error('Permission denied: You do not have permission to create merchants.')
+      }
+      // Handle server errors (500)
+      else if (errorStatus === 500) {
+        toast.error('Server error: Please try again later or contact support.')
+      }
+      // Handle all other errors - ALWAYS show toast
+      else {
+        toast.error(errorMessage || 'Failed to create merchant. Please check your input and try again.')
       }
     } finally {
       setIsSubmitting(false)
