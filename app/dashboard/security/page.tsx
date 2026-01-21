@@ -24,6 +24,8 @@ import {
 import toast from 'react-hot-toast'
 import { useSecurityStats, useFlaggedTransactions, useSecurityIncidents } from '@/lib/hooks/useSecurityData'
 import { useRecentActivity } from '@/lib/hooks/useActivityLogs'
+import { SuspiciousUsersTable } from '@/components/dashboard/security/SuspiciousUsersTable'
+import { useSuspiciousUsers } from '@/lib/hooks/useSuspiciousTransactions'
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
@@ -216,7 +218,7 @@ const SecurityPage = () => {
 
           {/* Security Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Overview
@@ -228,6 +230,10 @@ const SecurityPage = () => {
               <TabsTrigger value="incidents" className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 Incidents
+              </TabsTrigger>
+              <TabsTrigger value="suspicious" className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Suspicious Users
               </TabsTrigger>
               <TabsTrigger value="platforms" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
@@ -480,6 +486,21 @@ const SecurityPage = () => {
                       <p className="text-sm">All systems are operating normally</p>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Suspicious Users Tab */}
+            <TabsContent value="suspicious" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Suspicious Users</CardTitle>
+                  <CardDescription>
+                    Users detected with suspicious transaction patterns. Review and block users as needed.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SuspiciousUsersTable limit={50} />
                 </CardContent>
               </Card>
             </TabsContent>

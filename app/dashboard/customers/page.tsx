@@ -680,6 +680,7 @@ const CustomersPage = () => {
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={setItemsPerPage}
               totalItems={filteredUsers.length}
+              onRefresh={refetch}
             />
           </TabsContent>
 
@@ -700,6 +701,7 @@ const CustomersPage = () => {
               onItemsPerPageChange={setItemsPerPage}
               totalItems={merchantsTotal}
               isMerchantTab={true}  // Flag to render merchant-specific columns
+              onRefresh={refetchMerchants}
             />
           </TabsContent>
 
@@ -719,6 +721,7 @@ const CustomersPage = () => {
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={setItemsPerPage}
               totalItems={filteredUsers.length}
+              onRefresh={refetch}
             />
           </TabsContent>
         </Tabs>
