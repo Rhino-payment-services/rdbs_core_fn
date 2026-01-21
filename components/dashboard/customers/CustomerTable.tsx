@@ -1,11 +1,21 @@
 "use client"
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { 
   Eye, 
   Edit, 
@@ -18,13 +28,17 @@ import {
   DollarSign,
   Activity,
   Shield,
+  ShieldOff,
   UserCheck,
   UserX,
   Clock,
-  Building2
+  Building2,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import type { User } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from './MerchantQRCodeDialog'
+import { useBlockUser, useUnblockUser } from '@/lib/hooks/useUserBlocking'
 
 interface CustomerTableProps {
   customers: User[] | any[]  // Can be User[] or Merchant[]
@@ -42,6 +56,7 @@ interface CustomerTableProps {
   onItemsPerPageChange: (items: number) => void
   totalItems: number
   isMerchantTab?: boolean  // Flag to indicate merchants tab
+  onRefresh?: () => void  // Callback to refresh data after blocking/unblocking
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({
@@ -59,8 +74,15 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   itemsPerPage,
   onItemsPerPageChange,
   totalItems,
-  isMerchantTab = false
+  isMerchantTab = false,
+  onRefresh
 }) => {
+  const blockUserMutation = useBlockUser()
+  const unblockUserMutation = useUnblockUser()
+  const [selectedCustomer, setSelectedCustomer] = useState<User | any>(null)
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false)
+  const [unblockDialogOpen, setUnblockDialogOpen] = useState(false)
+  const [blockReason, setBlockReason] = useState('')
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -85,7 +107,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
         return <Badge className="bg-green-100 text-green-800"><UserCheck className="h-3 w-3 mr-1" />Active</Badge>
       case 'inactive':
         return <Badge className="bg-red-100 text-red-800"><UserX className="h-3 w-3 mr-1" />Inactive</Badge>
+      case 'suspended':
+      case 'blocked':
+        return <Badge className="bg-red-100 text-red-800 border-red-300"><ShieldOff className="h-3 w-3 mr-1" />Blocked</Badge>
       case 'pending':
+      case 'pending_verification':
         return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
       case 'verified':
         return <Badge className="bg-blue-100 text-blue-800"><Shield className="h-3 w-3 mr-1" />Verified</Badge>
@@ -325,6 +351,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         size="sm"
                         onClick={() => onViewCustomer(customer)}
                         className="h-8 w-8 p-0"
+                        title="View customer"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -339,14 +366,50 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         size="sm"
                         onClick={() => onEditCustomer(customer)}
                         className="h-8 w-8 p-0"
+                        title="Edit customer"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
+                      {/* Block/Unblock buttons - only show for non-merchant tabs or if user has userId */}
+                      {(!isMerchantTab || customer.userId) && (
+                        <>
+                          {customer.status === 'SUSPENDED' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCustomer(customer)
+                                setUnblockDialogOpen(true)
+                              }}
+                              className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                              disabled={unblockUserMutation.isPending}
+                              title="Unblock user"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedCustomer(customer)
+                                setBlockDialogOpen(true)
+                              }}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              disabled={blockUserMutation.isPending}
+                              title="Block user"
+                            >
+                              <ShieldOff className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onDeleteCustomer(customer)}
                         className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                        title="Delete customer"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -391,6 +454,188 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
           </div>
         )}
       </CardContent>
+
+      {/* Block User Dialog */}
+      <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Block User</DialogTitle>
+            <DialogDescription>
+              Block user {selectedCustomer?.email || selectedCustomer?.phone || 'this user'} from transacting and withdrawing money
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="block-reason">Reason for blocking</Label>
+              <Textarea
+                id="block-reason"
+                placeholder="Enter reason for blocking this user (e.g., suspicious transactions, fraud, policy violation)..."
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+            {selectedCustomer && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-yellow-900">Warning:</p>
+                    <p className="text-yellow-800 mt-1">
+                      Blocking this user will prevent them from:
+                    </p>
+                    <ul className="list-disc list-inside mt-1 text-yellow-800">
+                      <li>Initiating new transactions</li>
+                      <li>Withdrawing money from their wallet</li>
+                      <li>Making payments</li>
+                    </ul>
+                    <p className="text-yellow-800 mt-2">
+                      User: {selectedCustomer.email || selectedCustomer.phone || selectedCustomer.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBlockDialogOpen(false)
+                setBlockReason('')
+                setSelectedCustomer(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!selectedCustomer || !blockReason.trim()) return
+                const userId = selectedCustomer.userId || selectedCustomer.id
+                blockUserMutation.mutate(
+                  {
+                    userId,
+                    reason: blockReason,
+                    notifyUser: true
+                  },
+                  {
+                    onSuccess: () => {
+                      setBlockDialogOpen(false)
+                      setBlockReason('')
+                      setSelectedCustomer(null)
+                      // Refresh the data
+                      if (onRefresh) {
+                        onRefresh()
+                      } else {
+                        // Fallback to page reload if no refresh callback
+                        setTimeout(() => window.location.reload(), 500)
+                      }
+                    }
+                  }
+                )
+              }}
+              disabled={!blockReason.trim() || blockUserMutation.isPending}
+            >
+              {blockUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Blocking...
+                </>
+              ) : (
+                <>
+                  <ShieldOff className="h-4 w-4 mr-2" />
+                  Block User
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unblock User Dialog */}
+      <Dialog open={unblockDialogOpen} onOpenChange={setUnblockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unblock User</DialogTitle>
+            <DialogDescription>
+              Restore access for user {selectedCustomer?.email || selectedCustomer?.phone || 'this user'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {selectedCustomer && (
+              <div className="bg-green-50 border border-green-200 rounded p-3">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-green-900">Restore Access:</p>
+                    <p className="text-green-800 mt-1">
+                      Unblocking this user will restore their ability to:
+                    </p>
+                    <ul className="list-disc list-inside mt-1 text-green-800">
+                      <li>Initiate new transactions</li>
+                      <li>Withdraw money from their wallet</li>
+                      <li>Make payments</li>
+                    </ul>
+                    <p className="text-green-800 mt-2">
+                      User: {selectedCustomer.email || selectedCustomer.phone || selectedCustomer.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUnblockDialogOpen(false)
+                setSelectedCustomer(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!selectedCustomer) return
+                const userId = selectedCustomer.userId || selectedCustomer.id
+                unblockUserMutation.mutate(
+                  {
+                    userId,
+                    reason: 'Account restored by administrator'
+                  },
+                  {
+                    onSuccess: () => {
+                      setUnblockDialogOpen(false)
+                      setSelectedCustomer(null)
+                      // Refresh the data
+                      if (onRefresh) {
+                        onRefresh()
+                      } else {
+                        // Fallback to page reload if no refresh callback
+                        setTimeout(() => window.location.reload(), 500)
+                      }
+                    }
+                  }
+                )
+              }}
+              disabled={unblockUserMutation.isPending}
+            >
+              {unblockUserMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Unblocking...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Unblock User
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
