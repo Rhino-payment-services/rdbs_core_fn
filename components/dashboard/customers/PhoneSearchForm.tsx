@@ -34,8 +34,16 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
     setHasSearched(true)
     try {
       await refetch()
-    } catch (err) {
-      // Error is handled by the query
+    } catch (err: any) {
+      // Extract and show error message
+      const errorMessage = err?.response?.data?.message || 
+                          err?.response?.data?.data?.message ||
+                          err?.message || 
+                          'Failed to search for user. Please try again.'
+      
+      // Show toast error notification
+      toast.error(errorMessage || 'User not found. You can proceed to create a new merchant account.')
+      console.error('User search error:', err)
     }
   }
 

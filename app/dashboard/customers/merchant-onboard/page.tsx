@@ -210,7 +210,7 @@ const MerchantOnboardingPage = () => {
         referralCode: formData.referralCode || undefined,
         country: formData.country,
         onboardedBy: session.user.id,
-        existingUserId: existingUserId || undefined,
+        // Note: existingUserId removed - backend automatically finds existing user by phone/email
         // Skip KYC document requirement - merchant will upload later
         skipKycDocuments: true
       }
@@ -227,25 +227,51 @@ const MerchantOnboardingPage = () => {
     } catch (error: any) {
       console.error('Submission error:', error)
       
-      // Extract error message from response
-      const errorMessage = error?.response?.data?.message || 
-                          error?.response?.data?.data?.message ||
-                          error?.message || 
-                          'Failed to create merchant. Please try again.'
+      // Extract error message from response - handle multiple possible structures
+      let errorMessage = 'Failed to create merchant. Please try again.'
       const errorStatus = error?.response?.status
-      const errorData = error?.response?.data?.data || error?.response?.data
+      const errorResponse = error?.response?.data
+      const errorData = errorResponse?.data || errorResponse
       
-      // Handle validation errors (400)
-      if (errorStatus === 400) {
-        // Check if it's a validation error with field details
-        if (Array.isArray(errorData?.message)) {
-          const validationErrors = errorData.message.join(', ')
-          toast.error(`Validation Error: ${validationErrors}`)
-        } else {
-          toast.error(errorMessage)
-        }
+      // Try to extract error message from various possible locations
+      // Handle array of messages (validation errors)
+      if (Array.isArray(errorData?.message)) {
+        errorMessage = errorData.message.join('. ')
+      } 
+      // Handle array in top-level response.data.message
+      else if (Array.isArray(errorResponse?.message)) {
+        errorMessage = errorResponse.message.join('. ')
       }
-      // Handle specific conflict errors (409)
+      // Handle string message in errorData
+      else if (errorData?.message && typeof errorData.message === 'string') {
+        errorMessage = errorData.message
+      }
+      // Handle string message in top-level response
+      else if (errorResponse?.message && typeof errorResponse.message === 'string') {
+        errorMessage = errorResponse.message
+      }
+      // Handle error object message
+      else if (errorResponse?.error && typeof errorResponse.error === 'string') {
+        errorMessage = errorResponse.error
+      }
+      // Handle direct error message
+      else if (error?.message && typeof error.message === 'string') {
+        errorMessage = error.message
+      }
+      
+      // Log error details for debugging
+      console.error('Error details:', {
+        status: errorStatus,
+        errorMessage,
+        errorResponse,
+        errorData
+      })
+      
+      // Handle validation errors (400) - ALWAYS show toast
+      if (errorStatus === 400) {
+        toast.error(`Validation Error: ${errorMessage}`)
+      }
+      // Handle specific conflict errors (409) - ALWAYS show toast
       else if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
         // Parse the conflict error for specific field
         if (errorMessage.toLowerCase().includes('phone') || errorMessage.toLowerCase().includes('mobile')) {
@@ -261,19 +287,23 @@ const MerchantOnboardingPage = () => {
           setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
           toast.error('Business conflict: This business is already registered.')
         } else {
-          // Generic conflict error
+          // Generic conflict error - ALWAYS show toast
           toast.error(errorMessage || 'This merchant already exists. Please check the details and try again.')
         }
       }
-      // Handle permission errors (403)
+      // Handle permission errors (403) - ALWAYS show toast
       else if (errorStatus === 403) {
-        toast.error('Permission denied: You do not have permission to create merchants.')
+        toast.error(errorMessage || 'Permission denied: You do not have permission to create merchants.')
       }
-      // Handle server errors (500)
+      // Handle server errors (500) - ALWAYS show toast
       else if (errorStatus === 500) {
-        toast.error('Server error: Please try again later or contact support.')
+        toast.error(errorMessage || 'Server error: Please try again later or contact support.')
       }
-      // Handle all other errors - ALWAYS show toast
+      // Handle network/connection errors - ALWAYS show toast
+      else if (!errorStatus && (error?.code === 'ECONNREFUSED' || error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network'))) {
+        toast.error('Network error: Please check your internet connection and try again.')
+      }
+      // Handle all other errors - ALWAYS show toast (fallback)
       else {
         toast.error(errorMessage || 'Failed to create merchant. Please check your input and try again.')
       }
