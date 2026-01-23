@@ -210,7 +210,8 @@ const MerchantOnboardingPage = () => {
         referralCode: formData.referralCode || undefined,
         country: formData.country,
         onboardedBy: session.user.id,
-        // Note: existingUserId removed - backend automatically finds existing user by phone/email
+        // Include existingUserId if user was found via search
+        existingUserId: existingUserId || undefined,
         // Skip KYC document requirement - merchant will upload later
         skipKycDocuments: true
       }
@@ -234,27 +235,32 @@ const MerchantOnboardingPage = () => {
       const errorData = errorResponse?.data || errorResponse
       
       // Try to extract error message from various possible locations
-      // Handle array of messages (validation errors)
+      // Priority order for error extraction:
+      // 1. Array of messages (validation errors) in errorData.message
       if (Array.isArray(errorData?.message)) {
         errorMessage = errorData.message.join('. ')
       } 
-      // Handle array in top-level response.data.message
+      // 2. Array in top-level response.data.message
       else if (Array.isArray(errorResponse?.message)) {
         errorMessage = errorResponse.message.join('. ')
       }
-      // Handle string message in errorData
+      // 3. String message in errorData.message
       else if (errorData?.message && typeof errorData.message === 'string') {
         errorMessage = errorData.message
       }
-      // Handle string message in top-level response
+      // 4. String message in top-level response.message
       else if (errorResponse?.message && typeof errorResponse.message === 'string') {
         errorMessage = errorResponse.message
       }
-      // Handle error object message
-      else if (errorResponse?.error && typeof errorResponse.error === 'string') {
-        errorMessage = errorResponse.error
+      // 5. Error object message
+      else if (errorResponse?.error) {
+        if (typeof errorResponse.error === 'string') {
+          errorMessage = errorResponse.error
+        } else if (errorResponse.error?.message) {
+          errorMessage = errorResponse.error.message
+        }
       }
-      // Handle direct error message
+      // 6. Direct error message
       else if (error?.message && typeof error.message === 'string') {
         errorMessage = error.message
       }
@@ -264,42 +270,54 @@ const MerchantOnboardingPage = () => {
         status: errorStatus,
         errorMessage,
         errorResponse,
-        errorData
+        errorData,
+        fullError: error
       })
       
-      // Handle validation errors (400) - ALWAYS show toast
+      // ALWAYS show toast error for any error
+      // Handle validation errors (400)
       if (errorStatus === 400) {
-        toast.error(`Validation Error: ${errorMessage}`)
-      }
-      // Handle specific conflict errors (409) - ALWAYS show toast
-      else if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
-        // Parse the conflict error for specific field
-        if (errorMessage.toLowerCase().includes('phone') || errorMessage.toLowerCase().includes('mobile')) {
-          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered with another merchant' }))
-          toast.error('Phone number conflict: This phone number is already registered with another merchant. Please use a different phone number or search for the existing account.')
-        } else if (errorMessage.toLowerCase().includes('email')) {
-          setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered with another merchant' }))
-          toast.error('Email conflict: This email is already registered with another merchant. Please use a different email or search for the existing account.')
-        } else if (errorMessage.toLowerCase().includes('national') || errorMessage.toLowerCase().includes('nin')) {
-          setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered with another merchant' }))
-          toast.error('National ID conflict: This National ID is already registered with another merchant.')
-        } else if (errorMessage.toLowerCase().includes('business') || errorMessage.toLowerCase().includes('trade')) {
+        toast.error(errorMessage)
+        // Set form errors for specific validation issues
+        const lowerMessage = errorMessage.toLowerCase()
+        if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
+          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered' }))
+        } else if (lowerMessage.includes('email')) {
+          setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered' }))
+        } else if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
+          setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered' }))
+        } else if (lowerMessage.includes('business') || lowerMessage.includes('trade')) {
           setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
-          toast.error('Business conflict: This business is already registered.')
-        } else {
-          // Generic conflict error - ALWAYS show toast
-          toast.error(errorMessage || 'This merchant already exists. Please check the details and try again.')
         }
       }
-      // Handle permission errors (403) - ALWAYS show toast
+      // Handle specific conflict errors (409)
+      else if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
+        toast.error(errorMessage)
+        // Parse the conflict error for specific field
+        const lowerMessage = errorMessage.toLowerCase()
+        if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
+          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered with another merchant' }))
+        } else if (lowerMessage.includes('email')) {
+          setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered with another merchant' }))
+        } else if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
+          setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered with another merchant' }))
+        } else if (lowerMessage.includes('business') || lowerMessage.includes('trade')) {
+          setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
+        }
+      }
+      // Handle permission errors (403)
       else if (errorStatus === 403) {
         toast.error(errorMessage || 'Permission denied: You do not have permission to create merchants.')
       }
-      // Handle server errors (500) - ALWAYS show toast
+      // Handle not found errors (404)
+      else if (errorStatus === 404) {
+        toast.error(errorMessage || 'Resource not found. Please check your input and try again.')
+      }
+      // Handle server errors (500)
       else if (errorStatus === 500) {
         toast.error(errorMessage || 'Server error: Please try again later or contact support.')
       }
-      // Handle network/connection errors - ALWAYS show toast
+      // Handle network/connection errors
       else if (!errorStatus && (error?.code === 'ECONNREFUSED' || error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network'))) {
         toast.error('Network error: Please check your internet connection and try again.')
       }
