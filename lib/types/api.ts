@@ -14,7 +14,7 @@ export interface User {
   kycStatus: string
   verificationLevel: string
   canHaveWallet: boolean
-  merchantCode?: string | null  // Identifies if user is a merchant
+  merchantCode?: string | null  // ✅ Deprecated: Use merchants array instead
   lastLoginAt?: string | null
   createdAt: string
   updatedAt: string
@@ -43,7 +43,23 @@ export interface User {
     merchant_names?: string
     owner_name?: string
   }
-  // Merchant information (populated if userType is MERCHANT)
+  // ✅ Updated: Merchant information - now an array to support multiple merchant accounts per user
+  merchants?: Array<{
+    id: string
+    userId: string
+    merchantCode: string
+    businessTradeName: string
+    businessType: string
+    ownerFirstName: string
+    ownerLastName: string
+    registeredPhoneNumber: string
+    businessEmail: string
+    isVerified: boolean
+    isActive: boolean
+    createdAt: string
+    updatedAt: string
+  }>
+  // ✅ Deprecated: Use merchants array instead
   merchant?: {
     id: string
     businessTradeName: string

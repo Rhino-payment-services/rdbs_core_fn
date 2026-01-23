@@ -64,10 +64,23 @@ const CustomersPage = () => {
   React.useEffect(() => {
     if (usersData) {
       const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
-      const merchantUsers = users.filter(u => u.merchantCode)
-      console.log(`📊 Customers Page: Loaded ${users.length} users, ${merchantUsers.length} merchants`)
+      // ✅ Updated: Check for merchants array instead of merchantCode
+      const merchantUsers = users.filter(u => u.merchants && u.merchants.length > 0)
+      // ✅ Check for partners (AGENT subscriberType)
+      const partnerUsers = users.filter(u => {
+        if (u.subscriberType === 'AGENT') return true
+        if (!u.subscriberType && (u.userType === 'PARTNER' || u.userType === 'AGENT')) return true
+        return false
+      })
+      console.log(`📊 Customers Page: Loaded ${users.length} users`)
+      console.log(`  - ${merchantUsers.length} users with merchant accounts`)
+      console.log(`  - ${partnerUsers.length} partners (AGENT subscriberType)`)
       merchantUsers.forEach(u => {
-        console.log(`  - ${u.email || u.phone}: merchantCode=${u.merchantCode}, hasMerchant=${!!u.merchant}`)
+        const merchantCodes = u.merchants?.map(m => m.merchantCode).join(', ') || 'none'
+        console.log(`  - Merchant: ${u.email || u.phone}: merchants=[${merchantCodes}]`)
+      })
+      partnerUsers.forEach(u => {
+        console.log(`  - Partner: ${u.email || u.phone}: subscriberType=${u.subscriberType}, userType=${u.userType}`)
       })
     }
   }, [usersData])
@@ -294,8 +307,13 @@ const CustomersPage = () => {
   const handleSelectAll = () => {
     const currentPageCustomers = paginatedUsers.filter(user => {
       if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL' // All INDIVIDUAL users
-      if (activeTab === 'merchants') return !!user.merchantCode // Merchants have merchantCode
-      if (activeTab === 'partners') return user.subscriberType === 'AGENT' // Backend uses 'AGENT' for partners
+      if (activeTab === 'merchants') return !!(user.merchants && user.merchants.length > 0) // ✅ Updated: Check merchants array
+      if (activeTab === 'partners') {
+        // ✅ Partners: Check subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
+        if (user.subscriberType === 'AGENT') return true
+        if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
+        return false
+      }
       return true
     })
 
@@ -320,12 +338,13 @@ const CustomersPage = () => {
     let customerType = 'subscriber' // default
     let customerId = customer.id
     
-    // For merchants, use userId if available (merchants have userId field)
-    if (customer.merchantCode) {
+    // ✅ Updated: For merchants, check merchants array instead of merchantCode
+    if (customer.merchants && customer.merchants.length > 0) {
       customerType = 'merchant'
       // Merchants might have userId field, use it if available, otherwise use id
       customerId = (customer as any).userId || customer.id
-    } else if (customer.subscriberType === 'AGENT') {
+    } else if (customer.subscriberType === 'AGENT' || (!customer.subscriberType && (customer.userType === 'PARTNER' || customer.userType === 'AGENT'))) {
+      // ✅ Partners: subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
       customerType = 'partner'
     } else if (customer.subscriberType === 'INDIVIDUAL') {
       customerType = 'subscriber'
@@ -489,12 +508,18 @@ const CustomersPage = () => {
         user.subscriberType === 'INDIVIDUAL'
       )
     } else if (activeTab === 'merchants') {
-      // Merchants: Users WITH merchantCode (regardless of subscriberType)
+      // ✅ Updated: Merchants: Users WITH merchants array (regardless of subscriberType)
       // These users also appear in subscribers tab (dual account)
-      filtered = filtered.filter(user => user.merchantCode)
+      filtered = filtered.filter(user => user.merchants && user.merchants.length > 0)
     } else if (activeTab === 'partners') {
-      // Backend uses 'AGENT' for partners, not 'PARTNER'
-      filtered = filtered.filter(user => user.subscriberType === 'AGENT')
+      // ✅ Partners: Users with subscriberType === 'AGENT' (backend uses 'AGENT' for partners)
+      // Also include users with null/undefined subscriberType but userType === 'PARTNER' or 'AGENT' as fallback
+      filtered = filtered.filter(user => {
+        if (user.subscriberType === 'AGENT') return true
+        // Fallback: Check userType if subscriberType is not set
+        if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
+        return false
+      })
     }
 
     if (searchTerm) {
@@ -562,7 +587,13 @@ const CustomersPage = () => {
   // Note: Users can appear in both Subscribers and Merchants (dual account system)
   const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length // All INDIVIDUAL users
   const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
-  const partnersCount = nonStaffUsers.filter(user => user.subscriberType === 'AGENT').length // Backend uses 'AGENT' for partners
+  // ✅ Partners: Count users with subscriberType === 'AGENT', or userType === 'PARTNER'/'AGENT' if subscriberType is null
+  const partnersCount = nonStaffUsers.filter(user => {
+    if (user.subscriberType === 'AGENT') return true
+    // Fallback: Check userType if subscriberType is not set
+    if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
+    return false
+  }).length
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
