@@ -37,7 +37,7 @@ const CustomersPage = () => {
   
 
   // API hooks - add keepPreviousData to prevent loading flashes
-  const { data: usersData, isLoading: usersLoading, refetch } = useUsers()
+  const { data: usersData, isLoading: usersLoading, error: usersError, refetch } = useUsers()
   // Only fetch merchants when on merchants tab
   const { data: merchantsData, isLoading: merchantsLoading, refetch: refetchMerchants, error: merchantsError } = useMerchants({
     search: activeTab === 'merchants' ? searchTerm : '',  // Only search when on merchants tab
@@ -62,8 +62,29 @@ const CustomersPage = () => {
   
   // Log user data for debugging
   React.useEffect(() => {
+    console.log('🔍 Debug: usersData structure:', {
+      usersData,
+      isArray: Array.isArray(usersData),
+      hasData: !!(usersData as any)?.data,
+      rawType: typeof usersData
+    })
+    
     if (usersData) {
       const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
+      console.log(`📊 Customers Page: Loaded ${users.length} total users from API`)
+      
+      // Log first few users to see structure
+      if (users.length > 0) {
+        console.log('📋 Sample user structure:', {
+          firstUser: users[0],
+          userKeys: Object.keys(users[0]),
+          hasMerchants: !!(users[0] as any).merchants,
+          merchantsType: Array.isArray((users[0] as any).merchants),
+          subscriberType: (users[0] as any).subscriberType,
+          userType: (users[0] as any).userType
+        })
+      }
+      
       // ✅ Updated: Check for merchants array instead of merchantCode
       const merchantUsers = users.filter(u => u.merchants && u.merchants.length > 0)
       // ✅ Check for partners (AGENT subscriberType)
@@ -72,16 +93,42 @@ const CustomersPage = () => {
         if (!u.subscriberType && (u.userType === 'PARTNER' || u.userType === 'AGENT')) return true
         return false
       })
-      console.log(`📊 Customers Page: Loaded ${users.length} users`)
-      console.log(`  - ${merchantUsers.length} users with merchant accounts`)
-      console.log(`  - ${partnerUsers.length} partners (AGENT subscriberType)`)
+      
+      // Check subscribers (including users with merchants but no subscriberType)
+      const subscriberUsers = users.filter(u => 
+        u.subscriberType === 'INDIVIDUAL' || 
+        ((u.merchants && u.merchants.length > 0) && !u.subscriberType)
+      )
+      const usersWithMerchantsButNoType = users.filter(u => 
+        (u.merchants && u.merchants.length > 0) && !u.subscriberType
+      )
+      
+      console.log(`  - Total users: ${users.length}`)
+      console.log(`  - Subscribers (INDIVIDUAL or with merchants): ${subscriberUsers.length}`)
+      console.log(`  - Users with merchant accounts: ${merchantUsers.length}`)
+      console.log(`  - ⚠️ Users with merchants but NO subscriberType: ${usersWithMerchantsButNoType.length}`)
+      console.log(`  - Partners (AGENT): ${partnerUsers.length}`)
+      console.log(`  - STAFF users: ${users.filter(u => u.userType === 'STAFF').length}`)
+      
       merchantUsers.forEach(u => {
         const merchantCodes = u.merchants?.map(m => m.merchantCode).join(', ') || 'none'
-        console.log(`  - Merchant: ${u.email || u.phone}: merchants=[${merchantCodes}]`)
+        console.log(`  - Merchant: ${u.email || u.phone}: merchants=[${merchantCodes}], subscriberType=${u.subscriberType || 'null'}`)
       })
+      
+      if (usersWithMerchantsButNoType.length > 0) {
+        console.warn(`  ⚠️ These users have merchants but no subscriberType (should be fixed):`, 
+          usersWithMerchantsButNoType.map(u => ({ 
+            email: u.email, 
+            phone: u.phone, 
+            merchants: u.merchants?.length || 0 
+          }))
+        )
+      }
       partnerUsers.forEach(u => {
         console.log(`  - Partner: ${u.email || u.phone}: subscriberType=${u.subscriberType}, userType=${u.userType}`)
       })
+    } else {
+      console.log('⚠️ No usersData received from API')
     }
   }, [usersData])
   
@@ -89,6 +136,21 @@ const CustomersPage = () => {
   const users: User[] = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
   const merchants = merchantsData?.merchants || []
   const merchantsTotal = merchantsData?.total || merchantsData?.pagination?.total || 0
+  
+  // ✅ Debug: Log if there's an error or no data
+  React.useEffect(() => {
+    if (usersError) {
+      console.error('❌ Error fetching users:', usersError)
+    }
+    if (usersLoading === false && users.length === 0) {
+      console.warn('⚠️ No users returned from API. Check:', {
+        usersData,
+        usersError,
+        isArray: Array.isArray(usersData),
+        hasData: !!(usersData as any)?.data
+      })
+    }
+  }, [usersError, usersLoading, users.length, usersData])
 
 
 
@@ -497,29 +559,122 @@ const CustomersPage = () => {
 
   // Filter and sort users based on subscriberType (exclude STAFF users)
   const filteredUsers = useMemo(() => {
+    console.log(`🔍 Filtering users for tab: ${activeTab}, total users: ${users.length}`)
+    
+    if (users.length === 0) {
+      console.warn('⚠️ No users available to filter! Check API response.')
+      return []
+    }
+    
     // First, exclude all STAFF users from customers page
-    let filtered = users.filter(user => user.userType !== 'STAFF')
+    let filtered = users.filter(user => {
+      const isStaff = user.userType === 'STAFF'
+      if (isStaff) {
+        console.log(`  - Excluding STAFF user: ${user.email || user.phone}, userType=${user.userType}`)
+      }
+      return !isStaff
+    })
+    console.log(`  - After excluding STAFF: ${filtered.length} users (excluded ${users.length - filtered.length} STAFF users)`)
+    
+    // ✅ If no non-STAFF users, log all users for debugging
+    if (filtered.length === 0 && users.length > 0) {
+      console.warn('⚠️ All users are STAFF users! Showing all users for debugging:', users.map(u => ({
+        email: u.email,
+        phone: u.phone,
+        userType: u.userType,
+        subscriberType: u.subscriberType
+      })))
+      // Temporarily show all users if all are STAFF (for debugging)
+      filtered = users
+    }
 
     // Then filter by subscriberType based on active tab
     if (activeTab === 'subscribers') {
       // Subscribers: ALL INDIVIDUAL users (including those who also have merchant accounts)
       // A user can be BOTH a subscriber and a merchant (dual account system)
-      filtered = filtered.filter(user => 
-        user.subscriberType === 'INDIVIDUAL'
-      )
+      // ✅ Also include users with merchants but null subscriberType (they should be INDIVIDUAL)
+      const beforeCount = filtered.length
+      filtered = filtered.filter(user => {
+        // Include if subscriberType is 'INDIVIDUAL' OR if user has merchants but subscriberType is null/undefined
+        const isIndividual = user.subscriberType === 'INDIVIDUAL'
+        const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
+        
+        if (!isIndividual && !hasMerchantsButNoSubscriberType) {
+          console.log(`  - User ${user.email || user.phone} excluded from subscribers: subscriberType=${user.subscriberType}, hasMerchants=${!!(user.merchants && user.merchants.length > 0)}`)
+        }
+        
+        return isIndividual || hasMerchantsButNoSubscriberType
+      })
+      console.log(`  - After filtering INDIVIDUAL subscribers: ${filtered.length} users (excluded ${beforeCount - filtered.length})`)
+      
+      // ✅ Log users with merchants but no subscriberType (these should be fixed in backend)
+      const usersWithMerchantsButNoType = filtered.filter(u => !u.subscriberType && u.merchants && u.merchants.length > 0)
+      if (usersWithMerchantsButNoType.length > 0) {
+        console.warn(`⚠️ Found ${usersWithMerchantsButNoType.length} users with merchants but no subscriberType. These should be fixed:`, 
+          usersWithMerchantsButNoType.map(u => ({ email: u.email, phone: u.phone, merchants: u.merchants?.length }))
+        )
+      }
+      
+      // ✅ If no INDIVIDUAL users found, show warning
+      if (filtered.length === 0 && beforeCount > 0) {
+        const allSubscriberTypes = [...new Set(users.filter(u => u.userType !== 'STAFF').map(u => u.subscriberType).filter(Boolean))]
+        const usersWithMerchants = users.filter(u => u.userType !== 'STAFF' && u.merchants && u.merchants.length > 0)
+        console.warn('⚠️ No INDIVIDUAL subscribers found!', {
+          availableSubscriberTypes: allSubscriberTypes,
+          usersWithMerchants: usersWithMerchants.length,
+          sampleUser: usersWithMerchants[0] ? {
+            email: usersWithMerchants[0].email,
+            phone: usersWithMerchants[0].phone,
+            subscriberType: usersWithMerchants[0].subscriberType,
+            hasMerchants: !!(usersWithMerchants[0].merchants && usersWithMerchants[0].merchants.length > 0)
+          } : null
+        })
+      }
     } else if (activeTab === 'merchants') {
       // ✅ Updated: Merchants: Users WITH merchants array (regardless of subscriberType)
       // These users also appear in subscribers tab (dual account)
-      filtered = filtered.filter(user => user.merchants && user.merchants.length > 0)
+      const beforeCount = filtered.length
+      filtered = filtered.filter(user => {
+        const hasMerchants = user.merchants && user.merchants.length > 0
+        if (!hasMerchants) {
+          console.log(`  - User ${user.email || user.phone} excluded: no merchants array or empty`, {
+            hasMerchantsProp: !!user.merchants,
+            merchantsLength: user.merchants?.length || 0,
+            merchants: user.merchants
+          })
+        }
+        return hasMerchants
+      })
+      console.log(`  - After filtering merchants: ${filtered.length} users (excluded ${beforeCount - filtered.length})`)
+      
+      // ✅ If no merchants found, show warning
+      if (filtered.length === 0 && beforeCount > 0) {
+        console.warn('⚠️ No users with merchants found! Check if merchants are included in API response.')
+      }
     } else if (activeTab === 'partners') {
       // ✅ Partners: Users with subscriberType === 'AGENT' (backend uses 'AGENT' for partners)
       // Also include users with null/undefined subscriberType but userType === 'PARTNER' or 'AGENT' as fallback
+      const beforeCount = filtered.length
       filtered = filtered.filter(user => {
-        if (user.subscriberType === 'AGENT') return true
-        // Fallback: Check userType if subscriberType is not set
-        if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
-        return false
+        const isPartner = user.subscriberType === 'AGENT' || 
+                        (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT'))
+        if (!isPartner) {
+          console.log(`  - User ${user.email || user.phone} excluded from partners:`, {
+            subscriberType: user.subscriberType,
+            userType: user.userType
+          })
+        }
+        return isPartner
       })
+      console.log(`  - After filtering partners: ${filtered.length} users (excluded ${beforeCount - filtered.length})`)
+      
+      // ✅ If no partners found, show warning
+      if (filtered.length === 0 && beforeCount > 0) {
+        const allSubscriberTypes = [...new Set(users.filter(u => u.userType !== 'STAFF').map(u => u.subscriberType).filter(Boolean))]
+        const allUserTypes = [...new Set(users.filter(u => u.userType !== 'STAFF').map(u => u.userType))]
+        console.warn('⚠️ No partners found! Available subscriberTypes:', allSubscriberTypes,
+          'Available userTypes:', allUserTypes)
+      }
     }
 
     if (searchTerm) {
@@ -580,12 +735,35 @@ const CustomersPage = () => {
       return sortOrder === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1)
     })
 
+    console.log(`✅ Final filtered users count: ${filtered.length} for tab: ${activeTab}`)
+    
+    // ✅ If no users after filtering but we had users initially, log warning
+    if (filtered.length === 0 && users.length > 0) {
+      console.warn(`⚠️ All ${users.length} users were filtered out for tab "${activeTab}". This might indicate a filtering issue.`)
+      console.warn('Available user data:', {
+        userTypes: [...new Set(users.map(u => u.userType))],
+        subscriberTypes: [...new Set(users.map(u => u.subscriberType).filter(Boolean))],
+        usersWithMerchants: users.filter(u => u.merchants && u.merchants.length > 0).length,
+        sampleUser: users[0] ? {
+          email: users[0].email,
+          phone: users[0].phone,
+          userType: users[0].userType,
+          subscriberType: users[0].subscriberType,
+          hasMerchants: !!(users[0].merchants && users[0].merchants.length > 0)
+        } : null
+      })
+    }
+    
     return filtered
   }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
 
   // Tabs-specific user counts (exclude STAFF users)
   // Note: Users can appear in both Subscribers and Merchants (dual account system)
-  const subscribersCount = nonStaffUsers.filter(user => user.subscriberType === 'INDIVIDUAL').length // All INDIVIDUAL users
+  // ✅ Count subscribers: INDIVIDUAL users OR users with merchants but no subscriberType
+  const subscribersCount = nonStaffUsers.filter(user => 
+    user.subscriberType === 'INDIVIDUAL' || 
+    ((user.merchants && user.merchants.length > 0) && !user.subscriberType)
+  ).length
   const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
   // ✅ Partners: Count users with subscriberType === 'AGENT', or userType === 'PARTNER'/'AGENT' if subscriberType is null
   const partnersCount = nonStaffUsers.filter(user => {
@@ -612,6 +790,26 @@ const CustomersPage = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading customers...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  // ✅ Show error state if API call failed
+  if (usersError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Error loading customers</p>
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
           </div>
         </main>
       </div>

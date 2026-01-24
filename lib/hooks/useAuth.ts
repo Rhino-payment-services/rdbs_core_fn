@@ -47,13 +47,15 @@ export const useUsers = () => {
       const users = Array.isArray(result) ? result : (result?.data || [])
       console.log(`📊 Processed ${users.length} users`)
       
-      const merchantUser = users.find((u: any) => u.merchantCode)
+      // ✅ Updated: Check for merchants array instead of merchantCode
+      const merchantUser = users.find((u: any) => u.merchants && u.merchants.length > 0)
       if (merchantUser) {
         console.log('🏢 Merchant user found:', {
           email: merchantUser.email,
-          merchantCode: merchantUser.merchantCode,
+          merchants: merchantUser.merchants,
+          merchantCodes: merchantUser.merchants?.map((m: any) => m.merchantCode).join(', '),
           canHaveWallet: merchantUser.canHaveWallet,
-          hasMerchant: !!merchantUser.merchant,
+          hasMerchants: !!(merchantUser.merchants && merchantUser.merchants.length > 0),
           merchantKeys: merchantUser.merchant ? Object.keys(merchantUser.merchant) : []
         })
         if (merchantUser.merchant) {
