@@ -68,7 +68,11 @@ const AnalyticsPage = () => {
   // API hooks for different analytics sections
   const { data: transactionStats, isLoading: transactionLoading, error: transactionError, refetch: refetchTransactions } = useTransactionSystemStats()
   const { data: usersData, isLoading: usersLoading, error: usersError, refetch: refetchUsers } = useUsers()
-  const { data: merchantsData, isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useMerchants()
+  // Fetch ALL merchants for analytics (not paginated) - use large pageSize to get all merchants
+  const { data: merchantsData, isLoading: merchantsLoading, error: merchantsError, refetch: refetchMerchants } = useMerchants({
+    page: 1,
+    pageSize: 10000 // Large page size to get all merchants for accurate analytics
+  })
   const { data: kycStats, isLoading: kycLoading, error: kycError, refetch: refetchKyc } = useKycStats()
   const { data: systemStats, isLoading: systemLoading, error: systemError, refetch: refetchSystem } = useSystemStats()
   
@@ -744,6 +748,11 @@ const AnalyticsPage = () => {
                           </p>
                           <p className="text-xl font-bold text-gray-900 leading-tight">
                             {merchantsLoading ? '...' : (() => {
+                              // Use total from API metadata if available (more accurate), otherwise count array
+                              const totalFromApi = merchantsData?.total || merchantsData?.pagination?.total
+                              if (totalFromApi !== undefined && totalFromApi !== null) {
+                                return totalFromApi.toLocaleString()
+                              }
                               const merchants = merchantsData?.merchants || []
                               return merchants.length.toLocaleString()
                             })()}
@@ -1089,6 +1098,11 @@ const AnalyticsPage = () => {
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-blue-600">
                               {(() => {
+                                // Use total from API metadata if available (more accurate), otherwise count array
+                                const totalFromApi = merchantsData?.total || merchantsData?.pagination?.total
+                                if (totalFromApi !== undefined && totalFromApi !== null) {
+                                  return totalFromApi
+                                }
                                 const merchants = merchantsData?.merchants || []
                                 return merchants.length
                               })()}
