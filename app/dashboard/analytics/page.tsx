@@ -744,7 +744,7 @@ const AnalyticsPage = () => {
                           </p>
                           <p className="text-xl font-bold text-gray-900 leading-tight">
                             {merchantsLoading ? '...' : (() => {
-                              const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                              const merchants = merchantsData?.merchants || []
                               return merchants.length.toLocaleString()
                             })()}
                           </p>
@@ -756,8 +756,8 @@ const AnalyticsPage = () => {
                       <div className="mt-0">
                         <span className="text-sm text-purple-600 font-medium">
                           {(() => {
-                            const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
-                            return merchants.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0
+                            const merchants = merchantsData?.merchants || []
+                            return merchants.filter((merchant: any) => merchant.status === 'ACTIVE' || merchant.kycStatus === 'APPROVED').length || 0
                           })()}
                         </span>
                         <span className="text-sm ml-1 text-gray-500">
@@ -1089,7 +1089,7 @@ const AnalyticsPage = () => {
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-blue-600">
                               {(() => {
-                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
+                                const merchants = merchantsData?.merchants || []
                                 return merchants.length
                               })()}
                             </p>
@@ -1098,8 +1098,8 @@ const AnalyticsPage = () => {
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-green-600">
                               {(() => {
-                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
-                                return merchants.filter((merchant: any) => merchant.status === 'ACTIVE').length || 0
+                                const merchants = merchantsData?.merchants || []
+                                return merchants.filter((merchant: any) => merchant.status === 'ACTIVE' || merchant.kycStatus === 'APPROVED').length || 0
                               })()}
                             </p>
                             <p className="text-sm text-gray-600">Active Merchants</p>
@@ -1107,8 +1107,8 @@ const AnalyticsPage = () => {
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-purple-600">
                               {(() => {
-                                const merchants = Array.isArray(merchantsData) ? merchantsData : ((merchantsData as any)?.data || [])
-                                return merchants.filter((merchant: any) => merchant.status === 'PENDING').length || 0
+                                const merchants = merchantsData?.merchants || []
+                                return merchants.filter((merchant: any) => merchant.status === 'PENDING' || merchant.kycStatus === 'PENDING').length || 0
                               })()}
                             </p>
                             <p className="text-sm text-gray-600">Pending Approval</p>
