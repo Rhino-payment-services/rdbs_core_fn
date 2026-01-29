@@ -344,18 +344,18 @@ const CustomerProfilePage = () => {
   const partnerLogsArray = Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : []
   const partnerLogsKey = React.useMemo(() => {
     if (partnerLogsArray.length === 0) return ''
-    const firstId = partnerLogsArray[0]?.id || ''
-    const lastId = partnerLogsArray[partnerLogsArray.length - 1]?.id || ''
+    const firstId = partnerLogsArray[0]?._id || ''
+    const lastId = partnerLogsArray[partnerLogsArray.length - 1]?._id || ''
     return `${partnerLogsArray.length}:${firstId}:${lastId}`
-  }, [partnerLogsArray.length, partnerLogsArray[0]?.id, partnerLogsArray[partnerLogsArray.length - 1]?.id])
+  }, [partnerLogsArray.length, partnerLogsArray[0]?._id, partnerLogsArray[partnerLogsArray.length - 1]?._id])
   
   const userLogsArray = Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : []
   const userLogsKey = React.useMemo(() => {
     if (userLogsArray.length === 0) return ''
-    const firstId = userLogsArray[0]?.id || ''
-    const lastId = userLogsArray[userLogsArray.length - 1]?.id || ''
+    const firstId = userLogsArray[0]?._id || ''
+    const lastId = userLogsArray[userLogsArray.length - 1]?._id || ''
     return `${userLogsArray.length}:${firstId}:${lastId}`
-  }, [userLogsArray.length, userLogsArray[0]?.id, userLogsArray[userLogsArray.length - 1]?.id])
+  }, [userLogsArray.length, userLogsArray[0]?._id, userLogsArray[userLogsArray.length - 1]?._id])
   
   const filteredPartnerActivities = React.useMemo(() => {
     if (type !== 'partner' || partnerWalletIds.length === 0) {
