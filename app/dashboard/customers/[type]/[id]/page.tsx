@@ -19,6 +19,8 @@ import CustomerActivity from '@/components/dashboard/customers/profile/CustomerA
 import CustomerSettings from '@/components/dashboard/customers/profile/CustomerSettings'
 import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs, useApiPartner } from '@/lib/hooks/useApi'
 import { useMerchants } from '@/lib/hooks/useMerchants'
+import { useAllTransactions } from '@/lib/hooks/useTransactions'
+import { useActivityLogs } from '@/lib/hooks/useActivityLogs'
 import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
 import api from '@/lib/axios'
 
@@ -50,11 +52,61 @@ const CustomerProfilePage = () => {
   console.log("merchantsData====>", merchantsData)
   console.log("partnerData====>", partnerData)
   
+  // Fetch partner wallets if this is a partner view
+  const [partnerWallets, setPartnerWallets] = React.useState<Wallet[]>([])
+  const [partnerWalletIds, setPartnerWalletIds] = React.useState<string[]>([])
+  
+  React.useEffect(() => {
+    if (type === 'partner' && partner?.id) {
+      // Fetch partner wallets - try different endpoint formats
+      Promise.all([
+        api.get(`/finance/wallets/partner?partnerId=${partner.id}&limit=1000`).catch(() => null),
+        api.get(`/finance/wallets/partner?id=${partner.id}&limit=1000`).catch(() => null),
+        api.get(`/finance/wallets/partner?limit=1000`).catch(() => null),
+      ])
+        .then((responses) => {
+          // Find the first successful response
+          const response = responses.find(r => r !== null)
+          if (response) {
+            const wallets = response.data?.wallets || response.data?.data || []
+            // Filter wallets by partnerId if we got all wallets
+            const filteredWallets = wallets.filter((w: Wallet) => 
+              w.partnerId === partner.id || w.partnerId === partner.id
+            )
+            setPartnerWallets(filteredWallets)
+            setPartnerWalletIds(filteredWallets.map((w: Wallet) => w.id))
+            console.log('Partner wallets found:', filteredWallets.length, filteredWallets)
+          } else {
+            setPartnerWallets([])
+            setPartnerWalletIds([])
+          }
+        })
+        .catch((error) => {
+          console.error('Error fetching partner wallets:', error)
+          setPartnerWallets([])
+          setPartnerWalletIds([])
+        })
+    } else {
+      setPartnerWallets([])
+      setPartnerWalletIds([])
+    }
+  }, [type, partner?.id])
+
   // Fetch wallet transactions for this user with pagination (only for non-partners)
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
     type !== 'partner' ? (id as string) : '', 
     currentPage, 
     pageLimit
+  )
+
+  // Fetch transactions for partner wallets
+  const { data: partnerTransactionsData, isLoading: partnerTransactionsLoading } = useAllTransactions(
+    type === 'partner' && partnerWalletIds.length > 0
+      ? {
+          page: currentPage,
+          limit: pageLimit,
+        }
+      : undefined
   )
   
   // Get wallet data from user data (now included in user response)
@@ -85,6 +137,16 @@ const CustomerProfilePage = () => {
     type !== 'partner' ? (id as string) : '',
     currentPage,
     pageLimit
+  )
+
+  // Fetch activity logs for partners (will filter client-side by wallet IDs)
+  const { data: partnerActivityLogsData, isLoading: partnerActivityLogsLoading } = useActivityLogs(
+    type === 'partner'
+      ? {
+          page: currentPage,
+          limit: pageLimit * 2, // Fetch more to account for filtering
+        }
+      : {}
   )
 
   console.log("customer====>", customer)
@@ -171,18 +233,71 @@ const CustomerProfilePage = () => {
   }
 
   
-  // Update to match the new API response structure
-  const transactions = transactionsData?.transactions || []
-  const totalTransactions = transactionsData?.total || 0
-  const totalPages = Math.ceil(totalTransactions / (transactionsData?.limit || 10))
+  // Get transactions - for partners, filter by wallet IDs; for others, use user transactions
+  const allTransactions = type === 'partner' 
+    ? (partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions || [])
+    : (transactionsData?.transactions || [])
+  
+  // Filter partner transactions to only include those from partner wallets
+  const filteredPartnerTransactions = React.useMemo(() => {
+    if (type !== 'partner' || partnerWalletIds.length === 0) {
+      return []
+    }
+    return allTransactions.filter((tx: any) => {
+      // Check if transaction involves any partner wallet (as source or destination)
+      const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
+      const destWalletId = tx.destinationWalletId || tx.destinationWallet?.id || tx.toWalletId
+      const walletId = tx.walletId || tx.wallet?.id
+      
+      return partnerWalletIds.includes(sourceWalletId) || 
+             partnerWalletIds.includes(destWalletId) ||
+             partnerWalletIds.includes(walletId) ||
+             (tx.partnerId && tx.partnerId === partner?.id)
+    })
+  }, [type, allTransactions, partnerWalletIds, partner?.id])
+
+  // Paginate filtered partner transactions
+  const paginatedPartnerTransactions = React.useMemo(() => {
+    if (type !== 'partner') return []
+    const start = (currentPage - 1) * pageLimit
+    const end = start + pageLimit
+    return filteredPartnerTransactions.slice(start, end)
+  }, [type, filteredPartnerTransactions, currentPage, pageLimit])
+
+  // Use filtered transactions for partners, regular transactions for others
+  const transactions = type === 'partner' ? paginatedPartnerTransactions : allTransactions
+  
+  // Calculate totals and pagination
+  const totalTransactions = type === 'partner' 
+    ? filteredPartnerTransactions.length
+    : (transactionsData?.total || 0)
+  const totalPages = type === 'partner'
+    ? Math.ceil(filteredPartnerTransactions.length / pageLimit)
+    : Math.ceil(totalTransactions / (transactionsData?.limit || 10))
   const wallet = walletBalance
 
   console.log("activityLogsData====>", activityLogsData)
 
-  // Activity logs data with error handling
-  const activities = activityLogsData?.logs || []
-  const totalActivities = activityLogsData?.total || 0
-  const activityPages = Math.ceil(totalActivities / (activityLogsData?.limit || 10))
+  // Activity logs data with error handling - for partners, filter by wallet IDs
+  const filteredPartnerActivities = React.useMemo(() => {
+    if (type !== 'partner' || partnerWalletIds.length === 0) {
+      return []
+    }
+    const allLogs = partnerActivityLogsData?.logs || []
+    // Filter logs that mention partner wallet IDs in metadata or description
+    return allLogs.filter((log: any) => {
+      const logStr = JSON.stringify(log).toLowerCase()
+      return partnerWalletIds.some(walletId => logStr.includes(walletId.toLowerCase()))
+    })
+  }, [type, partnerActivityLogsData?.logs, partnerWalletIds])
+
+  const activities = type === 'partner' 
+    ? filteredPartnerActivities
+    : (activityLogsData?.logs || [])
+  const totalActivities = type === 'partner'
+    ? filteredPartnerActivities.length
+    : (activityLogsData?.total || 0)
+  const activityPages = Math.ceil(totalActivities / pageLimit)
 
   // Create wallet balance object for components
   const balance: WalletBalance = wallet ? {
@@ -197,12 +312,58 @@ const CustomerProfilePage = () => {
     lastUpdated: new Date().toISOString()
   }
 
-  // Calculate stats from real data
-  const currentBalance = wallet?.balance || 0
-  const avgTransactionValue = transactions.length > 0 ? 
-    transactions.reduce((sum: number, tx: any) => sum + (tx.amount || 0), 0) / transactions.length : 0
-  const successRate = transactions.length > 0 ? 
-    (transactions.filter((tx: any) => tx.status === 'SUCCESS').length / transactions.length) * 100 : 0
+  // Calculate stats from real data - use full filtered list for partners, paginated for display
+  const statsTransactions = type === 'partner' ? filteredPartnerTransactions : transactions
+  
+  // Find escrow/reserve wallets for partners
+  const escrowWallets = React.useMemo(() => {
+    if (type !== 'partner') return []
+    return partnerWallets.filter((w: Wallet) => 
+      w.walletType?.toUpperCase().includes('ESCROW') || 
+      w.walletType?.toUpperCase().includes('RESERVE') ||
+      w.walletType?.toUpperCase().includes('SUSPENSION')
+    )
+  }, [type, partnerWallets])
+  
+  // Calculate suspension fund (escrow balance)
+  const suspensionFund = React.useMemo(() => {
+    if (type === 'partner') {
+      // For partners: Use escrow wallet balance if available (most accurate)
+      if (escrowWallets.length > 0) {
+        return escrowWallets.reduce((sum, w) => sum + (parseFloat(w.balance?.toString() || '0') || 0), 0)
+      }
+      // Otherwise, calculate from fees of completed transactions (fees held in escrow before disbursement)
+      // Only count fees from successful/completed transactions that haven't been disbursed
+      const escrowFees = filteredPartnerTransactions
+        .filter((tx: any) => tx.status === 'SUCCESS' || tx.status === 'COMPLETED')
+        .reduce((sum: number, tx: any) => {
+          // Get fee amount - prefer main fee field, fallback to fee breakdown
+          const fee = parseFloat(tx.fee?.toString() || '0') || 0
+          const rukapayFee = parseFloat(tx.rukapayFee?.toString() || '0') || 0
+          const thirdPartyFee = parseFloat(tx.thirdPartyFee?.toString() || '0') || 0
+          const processingFee = parseFloat(tx.processingFee?.toString() || '0') || 0
+          // Use main fee if available, otherwise sum fee breakdown
+          return sum + (fee > 0 ? fee : (rukapayFee + thirdPartyFee + processingFee))
+        }, 0)
+      return escrowFees
+    } else {
+      // For regular users: Use escrow wallet if available, otherwise 0
+      const userEscrowWallet = wallets.find((w: any) => 
+        w.walletType?.toUpperCase().includes('ESCROW') || 
+        w.walletType?.toUpperCase().includes('RESERVE') ||
+        w.walletType?.toUpperCase().includes('SUSPENSION')
+      )
+      return userEscrowWallet ? (parseFloat(userEscrowWallet.balance?.toString() || '0') || 0) : 0
+    }
+  }, [type, escrowWallets, filteredPartnerTransactions, wallets])
+  
+  const currentBalance = type === 'partner'
+    ? (partnerWallets.reduce((sum, w) => sum + (parseFloat(w.balance?.toString() || '0') || 0), 0))
+    : (wallet?.balance || 0)
+  const avgTransactionValue = statsTransactions.length > 0 ? 
+    statsTransactions.reduce((sum: number, tx: any) => sum + (parseFloat(tx.amount?.toString() || '0') || 0), 0) / statsTransactions.length : 0
+  const successRate = statsTransactions.length > 0 ? 
+    (statsTransactions.filter((tx: any) => tx.status === 'SUCCESS').length / statsTransactions.length) * 100 : 0
 
   // Event handlers
   const handleExport = () => {
@@ -303,10 +464,10 @@ const CustomerProfilePage = () => {
               joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
               location: partner?.country || 'Kampala, Uganda',
               address: 'N/A',
-              totalTransactions: type === 'partner' ? 0 : totalTransactions,
-              currentBalance: type === 'partner' ? 0 : currentBalance,
-              avgTransactionValue: type === 'partner' ? 0 : avgTransactionValue,
-              successRate: type === 'partner' ? 0 : successRate,
+              totalTransactions: totalTransactions,
+              currentBalance: currentBalance,
+              avgTransactionValue: avgTransactionValue,
+              successRate: successRate,
               kycStatus: type === 'partner' ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
               riskLevel: 'low',
               tags: type === 'partner' 
@@ -329,10 +490,10 @@ const CustomerProfilePage = () => {
           {/* Stats Cards */}
           <CustomerStatsCards
             stats={{
-              totalTransactions: type === 'partner' ? 0 : totalTransactions,
-              currentBalance: type === 'partner' ? 0 : currentBalance,
-              suspensionFund: type === 'partner' ? 0 : avgTransactionValue,
-              successRate: type === 'partner' ? 0 : successRate,
+              totalTransactions: totalTransactions,
+              currentBalance: currentBalance,
+              suspensionFund: suspensionFund,
+              successRate: successRate,
               status: type === 'partner' 
                 ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
                 : type === 'merchant' && merchantData
@@ -432,38 +593,28 @@ const CustomerProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6 mt-6">
-              {type === 'partner' ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-600">Transaction history is not available for partners.</p>
-                </div>
-              ) : (
-                <CustomerTransactions
-                  transactions={transactions}
-                  onExport={handleExport}
-                  onFilter={() => toast.success('Opening transaction filters...')}
-                  isLoading={transactionsLoading}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
-              )}
+              <CustomerTransactions
+                transactions={transactions}
+                onExport={handleExport}
+                onFilter={() => toast.success('Opening transaction filters...')}
+                isLoading={type === 'partner' ? partnerTransactionsLoading : transactionsLoading}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6 mt-6">
-              {type === 'partner' ? (
+              {(type === 'partner' ? partnerActivityLogsLoading : activityLogsLoading) ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-600">Activity logs are not available for partners.</p>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading activity logs...</p>
                 </div>
-              ) : activityLogsError ? (
+              ) : activityLogsError && type !== 'partner' ? (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
                   <p className="text-gray-500">Unable to retrieve activity logs for this user.</p>
-                </div>
-              ) : activityLogsLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading activity logs...</p>
                 </div>
               ) : (
                 <CustomerActivity
