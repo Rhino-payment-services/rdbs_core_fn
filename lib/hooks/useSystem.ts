@@ -88,12 +88,16 @@ export const useActivityLogs = () => {
   })
 }
 
-export const useUserActivityLogs = (userId: string, page: number = 1, limit: number = 10) => {
+export const useUserActivityLogs = (userId: string | undefined, page: number = 1, limit: number = 10) => {
   const queryParams = new URLSearchParams({
-    userId,
     page: page.toString(),
     limit: limit.toString()
   })
+  
+  // Add userId to query params only if it exists
+  if (userId) {
+    queryParams.set('userId', userId)
+  }
   
   return useQuery<{
     logs: any[]
@@ -101,9 +105,15 @@ export const useUserActivityLogs = (userId: string, page: number = 1, limit: num
     page: number
     limit: number
   }>({
-    queryKey: ['activity-logs', userId, page, limit],
-    queryFn: () => apiFetch(`/activity-logs/user/${userId}?${queryParams}`),
-    enabled: !!userId,
+    queryKey: ['activity-logs', userId || 'none', page, limit],
+    queryFn: () => {
+      if (!userId || userId.trim() === '') {
+        throw new Error('User ID is required for activity logs')
+      }
+      return apiFetch(`/activity-logs/user/${userId}?${queryParams}`)
+    },
+    enabled: !!userId && userId.trim() !== '',
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry on invalid userId
   })
 }

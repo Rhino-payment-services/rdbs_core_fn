@@ -68,18 +68,28 @@ export const useCreateWallet = () => {
   })
 }
 
-export const useWalletTransactions = (userId: string, page: number = 1, limit: number = 10) => {
+export const useWalletTransactions = (userId: string | undefined, page: number = 1, limit: number = 10) => {
   const queryParams = new URLSearchParams({
-    userId,
     page: page.toString(),
     limit: limit.toString()
   })
   
+  // Add userId to query params only if it exists
+  if (userId) {
+    queryParams.set('userId', userId)
+  }
+  
   return useQuery({
-    queryKey: ['wallet', userId, 'transactions', page, limit],
-    queryFn: () => apiFetch(`/wallet/${userId}/transactions?${queryParams}`),
-    enabled: !!userId,
+    queryKey: ['wallet', userId || 'none', 'transactions', page, limit],
+    queryFn: () => {
+      if (!userId || userId.trim() === '') {
+        throw new Error('User ID is required for wallet transactions')
+      }
+      return apiFetch(`/wallet/${userId}/transactions?${queryParams}`)
+    },
+    enabled: !!userId && userId.trim() !== '',
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry on invalid userId
   })
 }
 

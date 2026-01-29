@@ -166,10 +166,10 @@ const CustomerProfilePage = () => {
     if (type !== 'partner') {
       return id as string
     }
-    return ''
+    return undefined // Use undefined instead of empty string to prevent hook execution
   }, [type, merchantData, regularPartner, id])
   
-  const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
+  const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
     transactionUserId, 
     currentPage, 
     pageLimit
@@ -282,7 +282,7 @@ const CustomerProfilePage = () => {
     if (type !== 'partner') {
       return id as string
     }
-    return ''
+    return undefined // Use undefined instead of empty string to prevent hook execution
   }, [type, merchantData, regularPartner, id])
   
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
@@ -292,13 +292,13 @@ const CustomerProfilePage = () => {
   )
 
   // Fetch activity logs for gateway partners (will filter client-side by wallet IDs)
-  const { data: partnerActivityLogsData, isLoading: partnerActivityLogsLoading } = useActivityLogs(
+  const { data: partnerActivityLogsData, isLoading: partnerActivityLogsLoading, error: partnerActivityLogsError } = useActivityLogs(
     isGatewayPartner
       ? {
           page: currentPage,
           limit: pageLimit * 2, // Fetch more to account for filtering
         }
-      : {}
+      : undefined
   )
 
   console.log("customer====>", customer)
@@ -307,8 +307,14 @@ const CustomerProfilePage = () => {
   console.log("businessWallet====>", businessWallet)
   console.log("walletBalance====>", walletBalance)
   console.log("transactionsData====>", transactionsData)
+  console.log("transactionsError====>", transactionsError)
   console.log("activityLogsData====>", activityLogsData)
   console.log("activityLogsError====>", activityLogsError)
+  
+  // Handle API errors gracefully
+  if (transactionsError && type !== 'partner') {
+    console.error('Error fetching transactions:', transactionsError)
+  }
 
   // Handle loading and error states
   // For partners, check both gateway partner loading and customer loading (for regular partners)
@@ -972,15 +978,29 @@ const CustomerProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6 mt-6">
-              <CustomerTransactions
-                transactions={transactions}
-                onExport={handleExport}
-                onFilter={() => toast.success('Opening transaction filters...')}
-                isLoading={type === 'partner' ? partnerTransactionsLoading : transactionsLoading}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+              {transactionsError && type !== 'partner' ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Transactions</h3>
+                  <p className="text-gray-500 mb-4">Unable to retrieve transactions for this user.</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <CustomerTransactions
+                  transactions={transactions}
+                  onExport={handleExport}
+                  onFilter={() => toast.success('Opening transaction filters...')}
+                  isLoading={type === 'partner' ? partnerTransactionsLoading : transactionsLoading}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6 mt-6">
