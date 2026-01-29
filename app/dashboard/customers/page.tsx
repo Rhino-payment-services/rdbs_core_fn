@@ -430,12 +430,11 @@ const CustomersPage = () => {
     let customerType = 'subscriber' // default
     let customerId = customer.id
     
-    // ✅ Check if this is a Gateway Partner (API Partner - has partnerName field)
-    // Gateway partners should route to /dashboard/gateway-partners/[id]
+    // All partners (gateway and regular) open on the same customer profile page
     if (customer.partnerName) {
-      // This is a gateway partner (API partner), route to gateway-partners page
-      router.push(`/dashboard/gateway-partners/${customer.id}`)
-      return
+      // Gateway partner from Partners tab - show on customer profile page (no redirect)
+      customerType = 'partner'
+      customerId = customer.id
     } else if (customer.businessTradeName) {
       // ✅ This is a merchant object from the merchants tab (has businessTradeName)
       // Use the merchant's ID directly, not the userId
