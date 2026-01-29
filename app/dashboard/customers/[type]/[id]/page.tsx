@@ -156,18 +156,22 @@ const CustomerProfilePage = () => {
   }, [type, partner?.id])
 
   // For merchants, use userId instead of merchant ID for transactions
+  // Use stable values to prevent hook violations
+  const merchantUserId = React.useMemo(() => merchantData?.userId || null, [merchantData?.userId])
+  const regularPartnerId = React.useMemo(() => regularPartner?.id || null, [regularPartner?.id])
+  
   const transactionUserId = React.useMemo(() => {
-    if (type === 'merchant' && merchantData?.userId) {
-      return merchantData.userId
+    if (type === 'merchant' && merchantUserId) {
+      return merchantUserId
     }
-    if (type === 'partner' && regularPartner) {
-      return regularPartner.id
+    if (type === 'partner' && regularPartnerId) {
+      return regularPartnerId
     }
-    if (type !== 'partner') {
+    if (type !== 'partner' && id) {
       return id as string
     }
-    return ''
-  }, [type, merchantData?.userId, regularPartner?.id, id])
+    return '' // Return empty string for disabled hooks
+  }, [type, merchantUserId, regularPartnerId, id])
   
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
     transactionUserId, 
@@ -240,23 +244,31 @@ const CustomerProfilePage = () => {
   const wallets = React.useMemo(() => {
     // For regular partners, they are users so they should have wallets
     if (type === 'partner' && regularPartner) {
-      return regularPartner?.wallets || EMPTY_ARRAY
+      const partnerWallets = regularPartner?.wallets || EMPTY_ARRAY
+      // Filter out empty objects and ensure valid wallet structure
+      return Array.isArray(partnerWallets) ? partnerWallets.filter((w: any) => w && typeof w === 'object' && Object.keys(w).length > 0) : EMPTY_ARRAY
     }
     // For merchants, find the associated user to get wallets
     if (type === 'merchant' && merchantData?.userId) {
       const merchantUser = users.find((u: any) => u.id === merchantData.userId)
-      return merchantUser?.wallets || EMPTY_ARRAY
+      const merchantWallets = merchantUser?.wallets || EMPTY_ARRAY
+      // Filter out empty objects and ensure valid wallet structure
+      return Array.isArray(merchantWallets) ? merchantWallets.filter((w: any) => w && typeof w === 'object' && Object.keys(w).length > 0) : EMPTY_ARRAY
     }
     // For subscribers and other users, use customer wallets
-    return customer?.wallets || EMPTY_ARRAY
+    const customerWallets = customer?.wallets || EMPTY_ARRAY
+    // Filter out empty objects and ensure valid wallet structure
+    return Array.isArray(customerWallets) ? customerWallets.filter((w: any) => w && typeof w === 'object' && Object.keys(w).length > 0) : EMPTY_ARRAY
   }, [customer, type, regularPartner, merchantData?.userId, users])
   
   const personalWallet = React.useMemo(() => {
-    return wallets.find((wallet: any) => wallet.walletType === 'PERSONAL')
+    if (!Array.isArray(wallets) || wallets.length === 0) return null
+    return wallets.find((wallet: any) => wallet && wallet.walletType === 'PERSONAL') || null
   }, [wallets])
   
   const businessWallet = React.useMemo(() => {
-    return wallets.find((wallet: any) => wallet.walletType === 'BUSINESS')
+    if (!Array.isArray(wallets) || wallets.length === 0) return null
+    return wallets.find((wallet: any) => wallet && wallet.walletType === 'BUSINESS') || null
   }, [wallets])
   
   // Use personal wallet for display (or business wallet if no personal wallet)
@@ -265,17 +277,17 @@ const CustomerProfilePage = () => {
   // Fetch user activity logs (for regular users, regular partners, and merchants)
   // For merchants, use userId; for regular partners, use their ID; for others, use the id param
   const activityLogUserId = React.useMemo(() => {
-    if (type === 'merchant' && merchantData?.userId) {
-      return merchantData.userId
+    if (type === 'merchant' && merchantUserId) {
+      return merchantUserId
     }
-    if (type === 'partner' && regularPartner) {
-      return regularPartner.id
+    if (type === 'partner' && regularPartnerId) {
+      return regularPartnerId
     }
-    if (type !== 'partner') {
+    if (type !== 'partner' && id) {
       return id as string
     }
-    return ''
-  }, [type, merchantData?.userId, regularPartner?.id, id])
+    return '' // Return empty string for disabled hooks
+  }, [type, merchantUserId, regularPartnerId, id])
   
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
     activityLogUserId,
@@ -639,7 +651,7 @@ const CustomerProfilePage = () => {
       }
       return 0
     }
-  }, [type, escrowWallets.length, partnerWalletIdsStr, partnerId, partnerTransactionsData, customer?.wallets?.length])
+  }, [type, escrowWallets.length, partnerWalletIdsStr, partnerId, partnerTransactionsData, wallets.length])
   
   const currentBalance = React.useMemo(() => {
     if (type === 'partner') {
@@ -737,6 +749,33 @@ const CustomerProfilePage = () => {
 
   const handleGoToSettings = () => {
     setActiveTab('settings')
+  }
+
+  // Safety check: Ensure we have valid data before rendering
+  // This prevents React errors from undefined/null access
+  if (type === 'merchant' && !merchantData && merchantsLoading === false) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="text-center">
+                <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Merchant Not Found</h1>
+                <p className="text-gray-600 mb-4">The merchant you're looking for doesn't exist or you don't have permission to view it.</p>
+                <button 
+                  onClick={() => router.back()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
