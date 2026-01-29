@@ -113,16 +113,20 @@ const CustomerProfilePage = () => {
   )
   
   // Get transactions - for partners, filter by wallet IDs; for others, use user transactions
-  // Extract stable references to prevent infinite loops
-  const partnerTxData = partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions
-  const userTxData = transactionsData?.transactions
-  
+  // Use query response objects directly (React Query maintains stable references)
   const allTransactions = React.useMemo(() => {
     if (type === 'partner') {
-      return Array.isArray(partnerTxData) ? partnerTxData : []
+      const data = partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions
+      return Array.isArray(data) ? data : []
     }
-    return Array.isArray(userTxData) ? userTxData : []
-  }, [type, partnerTxData, userTxData])
+    const data = transactionsData?.transactions
+    return Array.isArray(data) ? data : []
+  }, [
+    type,
+    // Use the query response objects directly - React Query keeps these stable
+    partnerTransactionsData,
+    transactionsData
+  ])
   
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
@@ -246,17 +250,26 @@ const CustomerProfilePage = () => {
 
   
   // Filter partner transactions to only include those from partner wallets
-  // Use stable walletIds string to prevent infinite loops
+  // Use stable walletIds string and transaction data directly from queries to prevent infinite loops
   const partnerWalletIdsStr = partnerWalletIds.join(',')
-  const partnerId = partner?.id
+  const partnerId = partner?.id || ''
   
   const filteredPartnerTransactions = React.useMemo(() => {
-    if (type !== 'partner' || partnerWalletIds.length === 0 || !Array.isArray(allTransactions) || allTransactions.length === 0) {
+    if (type !== 'partner' || partnerWalletIds.length === 0) {
       return []
     }
+    
+    // Get transactions directly from query data to avoid dependency issues
+    const txData = partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions
+    const transactions = Array.isArray(txData) ? txData : []
+    
+    if (transactions.length === 0) {
+      return []
+    }
+    
     // Create a Set for faster lookups
     const walletIdSet = new Set(partnerWalletIds)
-    return allTransactions.filter((tx: any) => {
+    return transactions.filter((tx: any) => {
       if (!tx) return false
       // Check if transaction involves any partner wallet (as source or destination)
       const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
@@ -268,7 +281,7 @@ const CustomerProfilePage = () => {
              walletIdSet.has(walletId) ||
              (tx.partnerId && partnerId && tx.partnerId === partnerId)
     })
-  }, [type, allTransactions, partnerWalletIdsStr, partnerId])
+  }, [type, partnerWalletIdsStr, partnerId, partnerTransactionsData])
 
   // Paginate filtered partner transactions
   const paginatedPartnerTransactions = React.useMemo(() => {
@@ -301,24 +314,31 @@ const CustomerProfilePage = () => {
   console.log("activityLogsData====>", activityLogsData)
 
   // Activity logs data with error handling - for partners, filter by wallet IDs
+  // Use query response directly to ensure stable references
   const filteredPartnerActivities = React.useMemo(() => {
     if (type !== 'partner' || partnerWalletIds.length === 0) {
       return []
     }
+    // Get logs directly from query response
     const allLogs = partnerActivityLogsData?.logs || []
+    if (!Array.isArray(allLogs) || allLogs.length === 0) {
+      return []
+    }
     // Filter logs that mention partner wallet IDs in metadata or description
     return allLogs.filter((log: any) => {
       if (!log) return false
       const logStr = JSON.stringify(log).toLowerCase()
       return partnerWalletIds.some(walletId => logStr.includes(walletId.toLowerCase()))
     })
-  }, [type, partnerActivityLogsData?.logs, partnerWalletIds])
+  }, [type, partnerWalletIdsStr, partnerActivityLogsData])
 
   const activities = React.useMemo(() => {
-    return type === 'partner' 
-      ? filteredPartnerActivities
-      : (activityLogsData?.logs || [])
-  }, [type, filteredPartnerActivities, activityLogsData?.logs])
+    if (type === 'partner') {
+      return filteredPartnerActivities
+    }
+    // For non-partners, get logs directly from query response
+    return Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : []
+  }, [type, filteredPartnerActivities, activityLogsData])
   
   const totalActivities = React.useMemo(() => {
     return type === 'partner'
@@ -349,25 +369,28 @@ const CustomerProfilePage = () => {
   }, [wallet])
 
   // Calculate stats from real data - use full filtered list for partners, paginated for display
+  // Use stable query responses as dependencies
   const statsTransactions = React.useMemo(() => {
     if (type === 'partner') {
       return Array.isArray(filteredPartnerTransactions) ? filteredPartnerTransactions : []
     }
-    // For non-partners, use allTransactions directly (not paginated) for accurate stats
-    return Array.isArray(allTransactions) ? allTransactions : []
-  }, [type, filteredPartnerTransactions, allTransactions])
+    // For non-partners, get transactions directly from query
+    const txData = transactionsData?.transactions
+    return Array.isArray(txData) ? txData : []
+  }, [type, filteredPartnerTransactions, transactionsData])
   
   // Find escrow/reserve wallets for partners
   const escrowWallets = React.useMemo(() => {
-    if (type !== 'partner' || !Array.isArray(partnerWallets)) return []
+    if (type !== 'partner' || !Array.isArray(partnerWallets) || partnerWallets.length === 0) return []
     return partnerWallets.filter((w: Wallet) => 
       w?.walletType?.toUpperCase().includes('ESCROW') || 
       w?.walletType?.toUpperCase().includes('RESERVE') ||
       w?.walletType?.toUpperCase().includes('SUSPENSION')
     )
-  }, [type, partnerWallets.length])
+  }, [type, partnerWallets])
   
   // Calculate suspension fund (escrow balance)
+  // Access data directly from stable query/state sources
   const suspensionFund = React.useMemo(() => {
     if (type === 'partner') {
       // For partners: Use escrow wallet balance if available (most accurate)
@@ -377,19 +400,30 @@ const CustomerProfilePage = () => {
           return sum + (isNaN(balance) ? 0 : balance)
         }, 0)
       }
-      // Otherwise, calculate from fees of completed transactions (fees held in escrow before disbursement)
-      // Only count fees from successful/completed transactions that haven't been disbursed
-      if (Array.isArray(filteredPartnerTransactions) && filteredPartnerTransactions.length > 0) {
-        const escrowFees = filteredPartnerTransactions
-          .filter((tx: any) => tx && (tx.status === 'SUCCESS' || tx.status === 'COMPLETED'))
+      // Otherwise, calculate from fees of completed transactions
+      // Get transactions directly from query to avoid dependency on filteredPartnerTransactions
+      const txData = partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions
+      const transactions = Array.isArray(txData) ? txData : []
+      if (transactions.length > 0 && partnerWalletIds.length > 0) {
+        const walletIdSet = new Set(partnerWalletIds)
+        const escrowFees = transactions
+          .filter((tx: any) => {
+            if (!tx) return false
+            const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
+            const destWalletId = tx.destinationWalletId || tx.destinationWallet?.id || tx.toWalletId
+            const walletId = tx.walletId || tx.wallet?.id
+            const isPartnerTx = walletIdSet.has(sourceWalletId) || 
+                                 walletIdSet.has(destWalletId) ||
+                                 walletIdSet.has(walletId) ||
+                                 (tx.partnerId && partnerId && tx.partnerId === partnerId)
+            return isPartnerTx && (tx.status === 'SUCCESS' || tx.status === 'COMPLETED')
+          })
           .reduce((sum: number, tx: any) => {
             if (!tx) return sum
-            // Get fee amount - prefer main fee field, fallback to fee breakdown
             const fee = parseFloat(tx.fee?.toString() || '0') || 0
             const rukapayFee = parseFloat(tx.rukapayFee?.toString() || '0') || 0
             const thirdPartyFee = parseFloat(tx.thirdPartyFee?.toString() || '0') || 0
             const processingFee = parseFloat(tx.processingFee?.toString() || '0') || 0
-            // Use main fee if available, otherwise sum fee breakdown
             return sum + (fee > 0 ? fee : (rukapayFee + thirdPartyFee + processingFee))
           }, 0)
         return escrowFees
@@ -397,8 +431,9 @@ const CustomerProfilePage = () => {
       return 0
     } else {
       // For regular users: Use escrow wallet if available, otherwise 0
-      if (Array.isArray(wallets) && wallets.length > 0) {
-        const userEscrowWallet = wallets.find((w: any) => 
+      const userWallets = customer?.wallets || []
+      if (Array.isArray(userWallets) && userWallets.length > 0) {
+        const userEscrowWallet = userWallets.find((w: any) => 
           w?.walletType?.toUpperCase().includes('ESCROW') || 
           w?.walletType?.toUpperCase().includes('RESERVE') ||
           w?.walletType?.toUpperCase().includes('SUSPENSION')
@@ -410,7 +445,7 @@ const CustomerProfilePage = () => {
       }
       return 0
     }
-  }, [type, escrowWallets, filteredPartnerTransactions, wallets])
+  }, [type, escrowWallets.length, partnerWalletIdsStr, partnerId, partnerTransactionsData, customer?.wallets?.length])
   
   const currentBalance = React.useMemo(() => {
     if (type === 'partner') {
