@@ -40,7 +40,7 @@ interface CustomerProfileHeaderProps {
     riskLevel: string,
     tags: string[],
     notes: string,
-    walletBalance: Wallet,
+    walletBalance: Wallet | null,
     // Merchant-specific fields
     merchantCode?: string,
     businessTradeName?: string,
