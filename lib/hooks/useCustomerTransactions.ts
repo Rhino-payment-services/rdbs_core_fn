@@ -33,29 +33,33 @@ export const useCustomerTransactions = ({
     return []
   }, [userTxData])
 
-  // Filter partner transactions
+  // Filter partner transactions: by partnerId (so we show all tx for this partner) and/or by partner wallet IDs
   const filteredTransactionsResult = useMemo(() => {
-    if (type !== 'partner' || partnerWalletIds.length === 0) {
+    if (type !== 'partner') {
       return { transactions: EMPTY_ARRAY, length: 0 }
     }
-    
     if (partnerTxArray.length === 0) {
       return { transactions: EMPTY_ARRAY, length: 0 }
     }
-    
+
+    const hasWalletIds = partnerWalletIds.length > 0
     const walletIdSet = new Set(partnerWalletIds)
+
     const filtered = partnerTxArray.filter((tx: any) => {
       if (!tx) return false
+      // Include if transaction is for this partner (same wallet source as backend assigns partnerId)
+      if (partnerId && (tx.partnerId === partnerId || tx.apiPartnerId === partnerId)) return true
+      if (!hasWalletIds) return false
       const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
       const destWalletId = tx.destinationWalletId || tx.destinationWallet?.id || tx.toWalletId
       const walletId = tx.walletId || tx.wallet?.id
-      
-      return walletIdSet.has(sourceWalletId) || 
-             walletIdSet.has(destWalletId) ||
-             walletIdSet.has(walletId) ||
-             (tx.partnerId && partnerId && tx.partnerId === partnerId)
+      return (
+        walletIdSet.has(sourceWalletId) ||
+        walletIdSet.has(destWalletId) ||
+        walletIdSet.has(walletId)
+      )
     })
-    
+
     return { transactions: filtered, length: filtered.length }
   }, [type, partnerWalletIds, partnerId, partnerTxArray])
 
@@ -67,13 +71,11 @@ export const useCustomerTransactions = ({
     return filteredTransactionsResult.transactions.slice(start, end)
   }, [type, filteredTransactionsResult, currentPage, pageLimit])
 
-  // Final transactions array: for partners, prefer wallet-based (userTxArray) when available
-  // so the same account shows the same transaction log whether viewed as partner or subscriber
+  // Final transactions array: for partners use same wallet source when we have linked-user wallet tx;
+  // otherwise use system transactions filtered by this partner (partnerId or partner wallets)
   const transactions = useMemo(() => {
-    if (type === 'partner' && userTxArray.length > 0) {
-      return userTxArray
-    }
     if (type === 'partner') {
+      if (userTxArray.length > 0) return userTxArray
       return paginatedPartnerTransactions
     }
     return userTxArray

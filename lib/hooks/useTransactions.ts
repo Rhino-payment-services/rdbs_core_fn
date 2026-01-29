@@ -100,6 +100,7 @@ export const useAllTransactions = (params?: {
   status?: string;
   startDate?: string;
   endDate?: string;
+  partnerId?: string; // Filter by API partner (same wallet/source as partner view)
 }) => {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append('page', params.page.toString());
@@ -108,6 +109,7 @@ export const useAllTransactions = (params?: {
   if (params?.status) queryParams.append('status', params.status);
   if (params?.startDate) queryParams.append('startDate', params.startDate);
   if (params?.endDate) queryParams.append('endDate', params.endDate);
+  if (params?.partnerId) queryParams.append('partnerId', params.partnerId);
 
   return useQuery({
     queryKey: [...transactionQueryKeys.list, params],

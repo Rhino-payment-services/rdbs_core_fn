@@ -146,11 +146,12 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     pageLimit
   )
 
-  // Partner-wallet-filtered system transactions: only when no linked user (so we don't show duplicate/different set)
-  const usePartnerSystemTransactions = isGatewayPartner && partnerWalletIds.length > 0 && !linkedUserByEmail?.id
+  // For gateway partners: always fetch system transactions so we can filter by partnerId (and/or partner wallets).
+  // Same wallet source: when linked user exists we prefer their wallet tx; otherwise we use system tx filtered by this partner.
+  const usePartnerSystemTransactions = isGatewayPartner && !!partner?.id
   const { data: partnerTransactionsData, isLoading: partnerTransactionsLoading } = useAllTransactions(
     usePartnerSystemTransactions
-      ? { page: currentPage, limit: pageLimit }
+      ? { page: currentPage, limit: pageLimit, partnerId: partner?.id }
       : undefined
   )
 
