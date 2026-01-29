@@ -83,6 +83,18 @@ const CustomerProfilePage = () => {
     return null
   }, [type, users, id, partner])
   
+  // Fetch wallet transactions for this user with pagination
+  // For regular partners (users), fetch their transactions like regular users
+  // For gateway partners, skip this and use partner transactions instead
+  const isGatewayPartner = type === 'partner' && partner !== null
+  
+  // Redirect gateway partners to their dedicated page (must be at top level, not conditional)
+  React.useEffect(() => {
+    if (type === 'partner' && isGatewayPartner && partner?.id) {
+      router.replace(`/dashboard/gateway-partners/${partner.id}`)
+    }
+  }, [type, isGatewayPartner, partner?.id, router])
+  
   React.useEffect(() => {
     if (type === 'partner' && partner?.id) {
       // Fetch partner wallets - try different endpoint formats
@@ -119,10 +131,6 @@ const CustomerProfilePage = () => {
     }
   }, [type, partner?.id])
 
-  // Fetch wallet transactions for this user with pagination
-  // For regular partners (users), fetch their transactions like regular users
-  // For gateway partners, skip this and use partner transactions instead
-  const isGatewayPartner = type === 'partner' && partner !== null
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
     type !== 'partner' || regularPartner ? (id as string) : '', 
     currentPage, 
@@ -211,8 +219,14 @@ const CustomerProfilePage = () => {
   console.log("partner====>", partner)
   
   const wallets = React.useMemo(() => {
+    // For regular partners, they are users so they should have wallets
+    // For gateway partners, we redirect them, so this shouldn't be reached
+    // For merchants and subscribers, use customer wallets
+    if (type === 'partner' && regularPartner) {
+      return regularPartner?.wallets || EMPTY_ARRAY
+    }
     return customer?.wallets || EMPTY_ARRAY
-  }, [customer])
+  }, [customer, type, regularPartner])
   
   const personalWallet = React.useMemo(() => {
     return wallets.find((wallet: any) => wallet.walletType === 'PERSONAL')
@@ -275,13 +289,28 @@ const CustomerProfilePage = () => {
 
   // Handle error states
   if (type === 'partner') {
-    // Check if this is a gateway partner (API partner) or regular partner (user)
-    // Gateway partners use partnerData, regular partners use regularPartner (from users)
-    const isGatewayPartner = partner !== null
-    const isRegularPartner = regularPartner !== null
+    // Show loading while redirecting gateway partners
+    if (isGatewayPartner && partner?.id) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Redirecting to gateway partner page...</p>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      )
+    }
     
     // Only show error if neither gateway partner nor regular partner found
-    if (!isGatewayPartner && !isRegularPartner && partnerLoading === false && customerLoading === false) {
+    const isRegularPartnerCheck = regularPartner !== null
+    if (!isGatewayPartner && !isRegularPartnerCheck && partnerLoading === false && customerLoading === false) {
       return (
         <div className="min-h-screen bg-gray-50">
           <Navbar />
