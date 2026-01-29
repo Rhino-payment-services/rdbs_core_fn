@@ -430,10 +430,12 @@ const CustomersPage = () => {
     let customerType = 'subscriber' // default
     let customerId = customer.id
     
-    // ✅ Check if this is an API partner (has partnerName field)
+    // ✅ Check if this is a Gateway Partner (API Partner - has partnerName field)
+    // Gateway partners should route to /dashboard/gateway-partners/[id]
     if (customer.partnerName) {
-      customerType = 'partner'
-      customerId = customer.id
+      // This is a gateway partner (API partner), route to gateway-partners page
+      router.push(`/dashboard/gateway-partners/${customer.id}`)
+      return
     } else if (customer.businessTradeName) {
       // ✅ This is a merchant object from the merchants tab (has businessTradeName)
       // Use the merchant's ID directly, not the userId
@@ -446,7 +448,7 @@ const CustomersPage = () => {
       const firstMerchant = customer.merchants[0]
       customerId = firstMerchant.id || (customer as any).userId || customer.id
     } else if (customer.subscriberType === 'AGENT' || (!customer.subscriberType && (customer.userType === 'PARTNER' || customer.userType === 'AGENT'))) {
-      // ✅ Partners: subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
+      // ✅ Regular partners: subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
       customerType = 'partner'
     } else if (customer.subscriberType === 'INDIVIDUAL') {
       customerType = 'subscriber'

@@ -60,7 +60,21 @@ const CustomerProfilePage = () => {
   const [partnerWalletIds, setPartnerWalletIds] = React.useState<string[]>([])
   
   // Get partner data
+  // Check if this is a gateway partner (API partner) or regular partner (user)
   const partner = type === 'partner' ? (partnerData?.data || null) : null;
+  
+  // For regular partners (users with AGENT subscriberType), find them in users array
+  // If partnerData is null/error, it might be a regular partner (user), not an API partner
+  const regularPartner = React.useMemo(() => {
+    if (type === 'partner' && !partner) {
+      // Try to find as regular user partner
+      return users.find((user: any) => 
+        user.id === id && 
+        (user.subscriberType === 'AGENT' || user.userType === 'PARTNER' || user.userType === 'AGENT')
+      ) || null
+    }
+    return null
+  }, [type, users, id, partner])
   
   React.useEffect(() => {
     if (type === 'partner' && partner?.id) {
@@ -98,16 +112,19 @@ const CustomerProfilePage = () => {
     }
   }, [type, partner?.id])
 
-  // Fetch wallet transactions for this user with pagination (only for non-partners)
+  // Fetch wallet transactions for this user with pagination
+  // For regular partners (users), fetch their transactions like regular users
+  // For gateway partners, skip this and use partner transactions instead
+  const isGatewayPartner = type === 'partner' && partner !== null
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
-    type !== 'partner' ? (id as string) : '', 
+    type !== 'partner' || regularPartner ? (id as string) : '', 
     currentPage, 
     pageLimit
   )
 
-  // Fetch transactions for partner wallets
+  // Fetch transactions for gateway partner wallets (not regular partners)
   const { data: partnerTransactionsData, isLoading: partnerTransactionsLoading } = useAllTransactions(
-    type === 'partner' && partnerWalletIds.length > 0
+    isGatewayPartner && partnerWalletIds.length > 0
       ? {
           page: currentPage,
           limit: pageLimit,
@@ -143,11 +160,12 @@ const CustomerProfilePage = () => {
   }, [userTxArray])
   
   const allTransactions = React.useMemo(() => {
-    if (type === 'partner') {
+    // Gateway partners use partner transactions, regular partners use user transactions
+    if (type === 'partner' && isGatewayPartner) {
       return partnerTxArray
     }
     return userTxArray
-  }, [type, partnerTxArray, userTxArray])
+  }, [type, partnerTxArray, userTxArray, isGatewayPartner])
   
   // Get wallet data from user data (now included in user response)
   // Use stable references to prevent infinite re-renders
@@ -156,8 +174,13 @@ const CustomerProfilePage = () => {
   }, [customerData])
   
   const customer = React.useMemo(() => {
+    // For regular partners (users), include them in customer lookup
+    // Gateway partners are handled separately via partner variable
+    if (type === 'partner' && regularPartner) {
+      return regularPartner
+    }
     return type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null
-  }, [type, users, id])
+  }, [type, users, id, regularPartner])
   
   // Get merchant data if this is a merchant view
   const merchants = React.useMemo(() => {
@@ -165,9 +188,22 @@ const CustomerProfilePage = () => {
   }, [merchantsData])
   
   const merchantData = React.useMemo(() => {
-    return type === 'merchant' 
-      ? merchants.find((m: any) => m.id === id || m.userId === id) // Prioritize merchant ID match first
-      : null
+    if (type !== 'merchant') return null
+    
+    // Try to find merchant by ID first (most common case)
+    let merchant = merchants.find((m: any) => m.id === id)
+    
+    // If not found by ID, try userId
+    if (!merchant) {
+      merchant = merchants.find((m: any) => m.userId === id)
+    }
+    
+    // If still not found, try merchantCode as fallback
+    if (!merchant) {
+      merchant = merchants.find((m: any) => m.merchantCode === id)
+    }
+    
+    return merchant || null
   }, [type, merchants, id])
   
   console.log("merchantData====>", merchantData)
@@ -188,16 +224,16 @@ const CustomerProfilePage = () => {
   // Use personal wallet for display (or business wallet if no personal wallet)
   const walletBalance = personalWallet || businessWallet || null;
 
-  // Fetch user activity logs (only for non-partners)
+  // Fetch user activity logs (for regular users and regular partners)
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
-    type !== 'partner' ? (id as string) : '',
+    type !== 'partner' || regularPartner ? (id as string) : '',
     currentPage,
     pageLimit
   )
 
-  // Fetch activity logs for partners (will filter client-side by wallet IDs)
+  // Fetch activity logs for gateway partners (will filter client-side by wallet IDs)
   const { data: partnerActivityLogsData, isLoading: partnerActivityLogsLoading } = useActivityLogs(
-    type === 'partner'
+    isGatewayPartner
       ? {
           page: currentPage,
           limit: pageLimit * 2, // Fetch more to account for filtering
@@ -215,7 +251,8 @@ const CustomerProfilePage = () => {
   console.log("activityLogsError====>", activityLogsError)
 
   // Handle loading and error states
-  const isLoading = (type === 'partner' ? partnerLoading : customerLoading) || (type === 'merchant' && merchantsLoading)
+  // For partners, check both gateway partner loading and customer loading (for regular partners)
+  const isLoading = (type === 'partner' ? (partnerLoading || customerLoading) : customerLoading) || (type === 'merchant' && merchantsLoading)
   
   if (isLoading) {
     return (
@@ -237,7 +274,13 @@ const CustomerProfilePage = () => {
 
   // Handle error states
   if (type === 'partner') {
-    if (partnerError || !partner) {
+    // Check if this is a gateway partner (API partner) or regular partner (user)
+    // Gateway partners use partnerData, regular partners use regularPartner (from users)
+    const isGatewayPartner = partner !== null
+    const isRegularPartner = regularPartner !== null
+    
+    // Only show error if neither gateway partner nor regular partner found
+    if (!isGatewayPartner && !isRegularPartner && partnerLoading === false && customerLoading === false) {
       return (
         <div className="min-h-screen bg-gray-50">
           <Navbar />
@@ -248,6 +291,32 @@ const CustomerProfilePage = () => {
                   <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">Partner Not Found</h1>
                   <p className="text-gray-600 mb-4">The partner you're looking for doesn't exist or you don't have permission to view it.</p>
+                  <button 
+                    onClick={() => router.back()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      )
+    }
+  } else if (type === 'merchant') {
+    // Handle merchant not found error
+    if (merchantsLoading === false && !merchantData) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Merchant Not Found</h1>
+                  <p className="text-gray-600 mb-4">The merchant you're looking for doesn't exist or you don't have permission to view it.</p>
                   <button 
                     onClick={() => router.back()}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -535,10 +604,16 @@ const CustomerProfilePage = () => {
   // Memoize tags array to prevent re-renders
   const profileTags = React.useMemo(() => {
     if (type === 'partner') {
-      return partner?.isActive ? ['Active'] : EMPTY_ARRAY
+      // Gateway partners use partner.isActive, regular partners use customer status
+      if (isGatewayPartner) {
+        return partner?.isActive ? ['Active'] : EMPTY_ARRAY
+      } else if (regularPartner) {
+        return regularPartner?.isVerified ? ['Verified'] : EMPTY_ARRAY
+      }
+      return EMPTY_ARRAY
     }
     return customer?.isVerified ? ['Verified'] : EMPTY_ARRAY
-  }, [type, partner?.isActive, customer?.isVerified])
+  }, [type, partner?.isActive, customer?.isVerified, isGatewayPartner, regularPartner])
 
   // Event handlers
   const handleExport = () => {
@@ -606,8 +681,16 @@ const CustomerProfilePage = () => {
             customer={{
               id: partner?.id || customer?.id || id as string,
               // For partners, show partner name; for merchants, show business name; for others, show personal name with fallbacks
-              name: type === 'partner' && partner?.partnerName
+              name: type === 'partner' && isGatewayPartner && partner?.partnerName
                 ? partner.partnerName
+                : type === 'partner' && regularPartner
+                  ? (
+                      // Regular partner - use customer name
+                      `${regularPartner?.profile?.firstName || ''} ${regularPartner?.profile?.lastName || ''}`.trim() ||
+                      `${regularPartner?.firstName || ''} ${regularPartner?.lastName || ''}`.trim() ||
+                      regularPartner?.email ||
+                      'Unknown Partner'
+                    )
                 : type === 'merchant' && merchantData?.businessTradeName
                   ? merchantData.businessTradeName
                   : (
@@ -621,32 +704,38 @@ const CustomerProfilePage = () => {
                       'Unknown Customer'
                     ),
               type: type as string,
-              email: type === 'partner' && partner?.contactEmail
+              email: type === 'partner' && isGatewayPartner && partner?.contactEmail
                 ? partner.contactEmail
+                : type === 'partner' && regularPartner
+                  ? regularPartner?.email || 'N/A'
                 : type === 'merchant' && merchantData?.businessEmail
                   ? merchantData.businessEmail
                   : customer?.email || 'N/A',
-              phone: type === 'partner' && partner?.contactPhone
+              phone: type === 'partner' && isGatewayPartner && partner?.contactPhone
                 ? partner.contactPhone
+                : type === 'partner' && regularPartner
+                  ? regularPartner?.profile?.phone || regularPartner?.phone || 'N/A'
                 : type === 'merchant' && merchantData?.registeredPhoneNumber
                   ? merchantData.registeredPhoneNumber
                   : customer?.profile?.phone || customer?.phone || 'N/A',
-              status: type === 'partner' 
+              status: type === 'partner' && isGatewayPartner
                 ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                : type === 'partner' && regularPartner
+                  ? (regularPartner?.status || 'unknown')
                 : type === 'merchant' && merchantData
                   ? (merchantData.isActive && !merchantData.isSuspended ? 'ACTIVE' : merchantData.isSuspended ? 'SUSPENDED' : 'INACTIVE')
                   : customer?.status || 'unknown',
-              joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
-              location: partner?.country || 'Kampala, Uganda',
+              joinDate: (isGatewayPartner && partner?.createdAt) || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
+              location: (isGatewayPartner && partner?.country) || customer?.profile?.country || 'Kampala, Uganda',
               address: 'N/A',
               totalTransactions: totalTransactions,
               currentBalance: currentBalance,
               avgTransactionValue: avgTransactionValue,
               successRate: successRate,
-              kycStatus: type === 'partner' ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
+              kycStatus: type === 'partner' && isGatewayPartner ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
               riskLevel: 'low',
               tags: profileTags,
-              notes: type === 'partner' ? `Partner Type: ${partner?.partnerType || 'N/A'}, Tier: ${partner?.tier || 'N/A'}` : 'Customer profile from database',
+              notes: type === 'partner' && isGatewayPartner ? `Partner Type: ${partner?.partnerType || 'N/A'}, Tier: ${partner?.tier || 'N/A'}` : 'Customer profile from database',
               walletBalance: type === 'partner' ? null : (wallet as Wallet),
               // Pass merchant-specific data for merchants
               merchantCode: merchantData?.merchantCode || customer?.merchantCode,
@@ -704,8 +793,16 @@ const CustomerProfilePage = () => {
               <CustomerOverview
                 customer={{
                   // For partners, show partner name; for merchants, show business name; for others, show personal name with fallbacks
-                  name: type === 'partner' && partner?.partnerName
+                  name: type === 'partner' && isGatewayPartner && partner?.partnerName
                     ? partner.partnerName
+                    : type === 'partner' && regularPartner
+                      ? (
+                          // Regular partner - use customer name
+                          `${regularPartner?.profile?.firstName || ''} ${regularPartner?.profile?.lastName || ''}`.trim() ||
+                          `${regularPartner?.firstName || ''} ${regularPartner?.lastName || ''}`.trim() ||
+                          regularPartner?.email ||
+                          'Unknown Partner'
+                        )
                     : type === 'merchant' && merchantData?.businessTradeName
                       ? merchantData.businessTradeName
                       : (
@@ -718,30 +815,36 @@ const CustomerProfilePage = () => {
                           // Finally show Unknown Customer
                           'Unknown Customer'
                         ),
-                  email: type === 'partner' && partner?.contactEmail
+                  email: type === 'partner' && isGatewayPartner && partner?.contactEmail
                     ? partner.contactEmail
+                    : type === 'partner' && regularPartner
+                      ? regularPartner?.email || 'N/A'
                     : type === 'merchant' && merchantData?.businessEmail
                       ? merchantData.businessEmail
                       : customer?.email || 'N/A',
-                  phone: type === 'partner' && partner?.contactPhone
+                  phone: type === 'partner' && isGatewayPartner && partner?.contactPhone
                     ? partner.contactPhone
+                    : type === 'partner' && regularPartner
+                      ? regularPartner?.profile?.phone || regularPartner?.phone || 'N/A'
                     : type === 'merchant' && merchantData?.registeredPhoneNumber
                       ? merchantData.registeredPhoneNumber
                       : customer?.phone || 'N/A',
-                  status: type === 'partner' 
+                  status: type === 'partner' && isGatewayPartner
                     ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                    : type === 'partner' && regularPartner
+                      ? (regularPartner?.status || 'unknown')
                     : type === 'merchant' && merchantData
                       ? (merchantData.isActive && !merchantData.isSuspended ? 'ACTIVE' : merchantData.isSuspended ? 'SUSPENDED' : 'INACTIVE')
                       : (customer?.status || 'unknown'),
-                  joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
-                  location: partner?.country || 'Kampala, Uganda',
+                  joinDate: (isGatewayPartner && partner?.createdAt) || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
+                  location: (isGatewayPartner && partner?.country) || customer?.profile?.country || 'Kampala, Uganda',
                   address: 'N/A',
-                  walletBalance: type === 'partner' ? 0 : (wallet?.balance || 0)
+                  walletBalance: type === 'partner' && isGatewayPartner ? 0 : (wallet?.balance || 0)
                 }}
                 type={type as string}
                 profileDetails={{
-                  // Partner-specific profile details
-                  ...(type === 'partner' && partner ? {
+                  // Gateway partner-specific profile details (not for regular partners)
+                  ...(type === 'partner' && isGatewayPartner && partner ? {
                     partnerName: partner.partnerName,
                     partnerType: partner.partnerType,
                     tier: partner.tier,
