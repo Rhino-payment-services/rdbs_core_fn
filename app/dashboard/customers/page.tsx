@@ -184,7 +184,11 @@ const CustomersPage = () => {
           await exportMerchantsToCSV()
         } else {
           // Export subscribers/partners to CSV
-          exportUsersToCSV(filteredUsers, activeTab)
+          // For partners tab, use transformedPartners; otherwise use filteredUsers
+          const dataToExport: (User | any)[] = activeTab === 'partners' && transformedPartners.length > 0
+            ? transformedPartners
+            : filteredUsers
+          exportUsersToCSV(dataToExport, activeTab)
         }
         toast.success(`Customer data exported as ${format.toUpperCase()}`)
       } else {
@@ -299,7 +303,7 @@ const CustomersPage = () => {
   }
 
   // Export users (subscribers/partners) to CSV
-  const exportUsersToCSV = (usersData: User[], tab: string) => {
+  const exportUsersToCSV = (usersData: User[] | any[], tab: string) => {
     if (!usersData || usersData.length === 0) {
       toast.error(`No ${tab} to export`)
       return
@@ -309,14 +313,17 @@ const CustomersPage = () => {
     const headers = ['Name', 'Email', 'Phone', 'Status', 'Type', 'Joined', 'Location']
     
     // Convert users data to CSV rows
-    const csvRows = usersData.map(user => {
-      const name = user.profile 
-        ? `${user.profile.firstName || ''} ${user.profile.middleName ? user.profile.middleName + ' ' : ''}${user.profile.lastName || ''}`.trim()
-        : `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown'
+    const csvRows = usersData.map((user: User | any) => {
+      // Check if this is a partner (has partnerName)
+      const name = (user as any).partnerName 
+        ? (user as any).partnerName
+        : user.profile 
+          ? `${user.profile.firstName || ''} ${user.profile.middleName ? user.profile.middleName + ' ' : ''}${user.profile.lastName || ''}`.trim()
+          : `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown'
       const email = user.email || 'N/A'
       const phone = user.phone || 'N/A'
       const status = user.status || 'N/A'
-      const type = user.userType || user.subscriberType || 'N/A'
+      const type = (user as any).partnerType || user.userType || user.subscriberType || 'N/A'
       const joined = user.createdAt 
         ? new Date(user.createdAt).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -324,7 +331,7 @@ const CustomersPage = () => {
             day: 'numeric'
           })
         : 'N/A'
-      const location = (user as any)?.country || (user as any)?.profile?.country || 'N/A'
+      const location = (user as any)?.country || user.profile?.country || 'N/A'
       
       // Escape commas and quotes in CSV values
       const escapeCSV = (value: string) => {
@@ -598,21 +605,26 @@ const CustomersPage = () => {
       lastName: partner.partnerName.split(' ').slice(1).join(' ') || '',
       status: partner.isActive && !partner.isSuspended ? 'ACTIVE' : partner.isSuspended ? 'SUSPENDED' : 'INACTIVE',
       userType: 'PARTNER', // Set to PARTNER for proper badge display
-      subscriberType: 'AGENT' as const,
+      subscriberType: 'AGENT',
+      role: 'USER', // Required User property
+      isVerified: partner.isActive, // Required User property
+      kycStatus: 'APPROVED', // Required User property
+      verificationLevel: 'ENHANCED', // Required User property
+      canHaveWallet: true, // Required User property
       createdAt: partner.createdAt,
       updatedAt: partner.updatedAt,
-      // Add partner-specific fields
+      // Add partner-specific fields (extended properties)
       partnerName: partner.partnerName,
       partnerType: partner.partnerType,
       tier: partner.tier,
       country: partner.country,
       isActive: partner.isActive,
       isSuspended: partner.isSuspended,
-    }))
+    } as User & { partnerName?: string; partnerType?: string; tier?: string; country?: string; isActive?: boolean; isSuspended?: boolean }))
   }, [activeTab, partnersData])
 
   // Filter and sort users based on subscriberType (exclude STAFF users)
-  const filteredUsers = useMemo(() => {
+  const filteredUsers = useMemo((): (User | any)[] => {
     // If partners tab, use transformed partners data instead of filtering users
     if (activeTab === 'partners') {
       console.log(`🤝 Partners tab: Using API partners data, count: ${transformedPartners.length}`)
@@ -671,7 +683,7 @@ const CustomersPage = () => {
         return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
       })
       
-      return filtered
+      return filtered as (User | any)[]
     }
     
     console.log(`🔍 Filtering users for tab: ${activeTab}, total users: ${users.length}`)
@@ -889,8 +901,8 @@ const CustomersPage = () => {
       })
     }
     
-    return filtered
-  }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder])
+    return filtered as (User | any)[]
+  }, [users, activeTab, searchTerm, statusFilter, typeFilter, sortBy, sortOrder, transformedPartners])
 
   // Tabs-specific user counts (exclude STAFF users)
   // Note: Users can appear in both Subscribers and Merchants (dual account system)
