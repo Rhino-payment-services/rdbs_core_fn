@@ -322,6 +322,8 @@ export interface Wallet {
   dailyLimit?: number
   dailyUsed?: number
   lastResetDate?: string
+  partnerId?: string | null  // API Partner ID (from api_partners table)
+  merchantId?: string | null  // Merchant ID
 }
 
 export interface WalletBalance {

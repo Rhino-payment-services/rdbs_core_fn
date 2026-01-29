@@ -56,6 +56,9 @@ const CustomerProfilePage = () => {
   const [partnerWallets, setPartnerWallets] = React.useState<Wallet[]>([])
   const [partnerWalletIds, setPartnerWalletIds] = React.useState<string[]>([])
   
+  // Get partner data
+  const partner = type === 'partner' ? (partnerData?.data || null) : null;
+  
   React.useEffect(() => {
     if (type === 'partner' && partner?.id) {
       // Fetch partner wallets - try different endpoint formats
@@ -71,7 +74,7 @@ const CustomerProfilePage = () => {
             const wallets = response.data?.wallets || response.data?.data || []
             // Filter wallets by partnerId if we got all wallets
             const filteredWallets = wallets.filter((w: Wallet) => 
-              w.partnerId === partner.id || w.partnerId === partner.id
+              w.partnerId === partner.id
             )
             setPartnerWallets(filteredWallets)
             setPartnerWalletIds(filteredWallets.map((w: Wallet) => w.id))
@@ -112,9 +115,6 @@ const CustomerProfilePage = () => {
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
   const customer = type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null;
-  
-  // Get partner data
-  const partner = type === 'partner' ? (partnerData?.data || null) : null;
   
   // Get merchant data if this is a merchant view
   const merchants = merchantsData?.merchants || []
