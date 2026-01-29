@@ -49,12 +49,12 @@ const CustomerProfilePage = () => {
     customerError
   } = profileData
 
-  // Process transactions
+  // Process transactions (pass full transactionsData so hook can read total/limit for pagination)
   const { transactions, totalTransactions, totalPages } = useCustomerTransactions({
     type: type as string,
     isGatewayPartner: !!isGatewayPartner,
     partnerTxData: partnerTransactionsData,
-    userTxData: transactionsData?.transactions,
+    userTxData: transactionsData ?? { transactions: [], total: 0, limit: pageLimit },
     partnerWalletIds,
     partnerId: partner?.id || '',
     currentPage,

@@ -112,7 +112,16 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     }
   }, [type, partner?.id])
 
-  // Determine transaction user ID
+  // For gateway partners: find linked user by same email so we show the same wallet transactions
+  // (unifies "one account" - partner view and subscriber view show same transaction log)
+  const linkedUserByEmail = useMemo(() => {
+    if (type !== 'partner' || !partner?.contactEmail || !users?.length) return null
+    const email = (partner.contactEmail as string).trim().toLowerCase()
+    if (!email) return null
+    return users.find((u: any) => (u.email || '').trim().toLowerCase() === email) || null
+  }, [type, partner?.contactEmail, users])
+
+  // Determine transaction user ID: prefer wallet-based (same source as subscriber) when we have a linked user
   const transactionUserId = useMemo(() => {
     if (type === 'merchant' && merchantData?.userId) {
       return merchantData.userId
@@ -120,21 +129,27 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     if (type === 'partner' && regularPartner?.id) {
       return regularPartner.id
     }
+    // Gateway partner with linked user (same email) -> use that user's wallet transactions for consistent logs
+    if (type === 'partner' && isGatewayPartner && linkedUserByEmail?.id) {
+      return linkedUserByEmail.id
+    }
     if (type !== 'partner') {
       return id as string
     }
     return undefined
-  }, [type, merchantData, regularPartner, id])
+  }, [type, merchantData, regularPartner, id, isGatewayPartner, linkedUserByEmail])
 
-  // Fetch transactions
+  // Fetch transactions (wallet-based: same API as subscriber view when linked user exists)
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
     transactionUserId, 
     currentPage, 
     pageLimit
   )
 
+  // Partner-wallet-filtered system transactions: only when no linked user (so we don't show duplicate/different set)
+  const usePartnerSystemTransactions = isGatewayPartner && partnerWalletIds.length > 0 && !linkedUserByEmail?.id
   const { data: partnerTransactionsData, isLoading: partnerTransactionsLoading } = useAllTransactions(
-    isGatewayPartner && partnerWalletIds.length > 0
+    usePartnerSystemTransactions
       ? { page: currentPage, limit: pageLimit }
       : undefined
   )

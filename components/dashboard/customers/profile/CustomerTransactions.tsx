@@ -85,9 +85,31 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
       'WALLET_TO_WALLET': 'Wallet Transfer',
       'WALLET_TO_EXTERNAL_MERCHANT': 'Merchant Payment',
       'BILL_PAYMENT': 'Bill Payment',
-      'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal'
+      'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal',
+      'MNO_TO_WALLET': 'Mobile Money to Wallet',
+      'WALLET_TO_MNO': 'Wallet to Mobile Money',
+      'WALLET_TO_BANK': 'Wallet to Bank',
+      'BANK_TO_WALLET': 'Bank to Wallet',
+      'MERCHANT_TO_WALLET': 'Merchant to Wallet',
+      'MERCHANT_TO_INTERNAL_WALLET': 'Merchant to Wallet',
+      'WALLET_TO_MERCHANT': 'Wallet to Merchant',
+      'WALLET_TO_INTERNAL_MERCHANT': 'Wallet to Merchant',
+      'REVERSAL': 'Reversal'
     }
-    return typeLabels[type] || type
+    if (type && typeLabels[type]) return typeLabels[type]
+    if (type?.includes('MNO_TO_WALLET')) return 'Mobile Money to Wallet'
+    if (type?.includes('WALLET_TO_MNO')) return 'Wallet to Mobile Money'
+    if (type?.includes('WALLET_TO_BANK')) return 'Wallet to Bank'
+    if (type?.includes('WALLET_TO_MERCHANT') || type?.includes('MERCHANT')) return type.includes('TO_WALLET') ? 'Merchant to Wallet' : 'Wallet to Merchant'
+    return type || 'Transaction'
+  }
+
+  const getDisplayNetAmount = (transaction: Transaction) => {
+    const amount = Number(transaction.amount) || 0
+    const fee = Number(transaction.fee) || 0
+    const net = Number(transaction.netAmount)
+    if (Number.isFinite(net) && (fee === 0 || net !== amount)) return net
+    return Math.max(0, amount - fee)
   }
 
   const formatDate = (dateString: string) => {
@@ -191,7 +213,7 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
                       {transaction.fee > 0 ? formatCurrency(transaction.fee) : '-'}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(transaction.netAmount)}
+                      {formatCurrency(getDisplayNetAmount(transaction))}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(transaction.status)}

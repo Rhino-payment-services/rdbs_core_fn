@@ -28,7 +28,9 @@ export const useCustomerTransactions = ({
   }, [partnerTxData])
 
   const userTxArray = useMemo(() => {
-    return Array.isArray(userTxData) ? userTxData : []
+    if (Array.isArray(userTxData)) return userTxData
+    if (userTxData?.transactions) return Array.isArray(userTxData.transactions) ? userTxData.transactions : []
+    return []
   }, [userTxData])
 
   // Filter partner transactions
@@ -65,32 +67,53 @@ export const useCustomerTransactions = ({
     return filteredTransactionsResult.transactions.slice(start, end)
   }, [type, filteredTransactionsResult, currentPage, pageLimit])
 
-  // Final transactions array
+  // Final transactions array: for partners, prefer wallet-based (userTxArray) when available
+  // so the same account shows the same transaction log whether viewed as partner or subscriber
   const transactions = useMemo(() => {
-    return type === 'partner' ? paginatedPartnerTransactions : userTxArray
+    if (type === 'partner' && userTxArray.length > 0) {
+      return userTxArray
+    }
+    if (type === 'partner') {
+      return paginatedPartnerTransactions
+    }
+    return userTxArray
   }, [type, paginatedPartnerTransactions, userTxArray])
+
+  const userTxTotal = useMemo(() => {
+    if (typeof userTxData === 'object' && userTxData !== null && 'total' in userTxData) {
+      return (userTxData as any).total ?? 0
+    }
+    return Array.isArray(userTxData) ? userTxData.length : 0
+  }, [userTxData])
 
   // Calculate totals
   const totalTransactions = useMemo(() => {
+    if (type === 'partner' && userTxArray.length > 0) {
+      return userTxTotal > 0 ? userTxTotal : userTxArray.length
+    }
     if (type === 'partner') {
       return filteredTransactionsResult.length
     }
-    // userTxData might be an array or an object with total property
-    if (typeof userTxData === 'object' && userTxData !== null && 'total' in userTxData) {
-      return (userTxData as any).total || 0
+    return userTxTotal
+  }, [type, filteredTransactionsResult.length, userTxArray.length, userTxTotal])
+
+  const userTxLimit = useMemo(() => {
+    if (typeof userTxData === 'object' && userTxData !== null && 'limit' in userTxData) {
+      return (userTxData as any).limit ?? 10
     }
-    return Array.isArray(userTxData) ? userTxData.length : 0
-  }, [type, filteredTransactionsResult.length, userTxData])
+    return 10
+  }, [userTxData])
 
   const totalPages = useMemo(() => {
+    if (type === 'partner' && userTxArray.length > 0) {
+      const total = userTxTotal > 0 ? userTxTotal : userTxArray.length
+      return Math.ceil(total / userTxLimit)
+    }
     if (type === 'partner') {
       return Math.ceil(filteredTransactionsResult.length / pageLimit)
     }
-    const limit = (typeof userTxData === 'object' && userTxData !== null && 'limit' in userTxData) 
-      ? (userTxData as any).limit 
-      : 10
-    return Math.ceil(totalTransactions / limit)
-  }, [type, filteredTransactionsResult.length, pageLimit, totalTransactions, userTxData])
+    return Math.ceil(totalTransactions / userTxLimit)
+  }, [type, filteredTransactionsResult.length, pageLimit, totalTransactions, userTxArray.length, userTxTotal, userTxLimit])
 
   return {
     transactions,
