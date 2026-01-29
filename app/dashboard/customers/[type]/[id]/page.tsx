@@ -59,6 +59,13 @@ const CustomerProfilePage = () => {
   const [partnerWallets, setPartnerWallets] = React.useState<Wallet[]>([])
   const [partnerWalletIds, setPartnerWalletIds] = React.useState<string[]>([])
   
+  // Get wallet data from user data (now included in user response)
+  // Use stable references to prevent infinite re-renders
+  // Declare users early so it can be used in regularPartner useMemo
+  const users = React.useMemo(() => {
+    return Array.isArray(customerData) ? customerData : ((customerData as any)?.data || EMPTY_ARRAY)
+  }, [customerData])
+  
   // Get partner data
   // Check if this is a gateway partner (API partner) or regular partner (user)
   const partner = type === 'partner' ? (partnerData?.data || null) : null;
@@ -166,12 +173,6 @@ const CustomerProfilePage = () => {
     }
     return userTxArray
   }, [type, partnerTxArray, userTxArray, isGatewayPartner])
-  
-  // Get wallet data from user data (now included in user response)
-  // Use stable references to prevent infinite re-renders
-  const users = React.useMemo(() => {
-    return Array.isArray(customerData) ? customerData : ((customerData as any)?.data || EMPTY_ARRAY)
-  }, [customerData])
   
   const customer = React.useMemo(() => {
     // For regular partners (users), include them in customer lookup
