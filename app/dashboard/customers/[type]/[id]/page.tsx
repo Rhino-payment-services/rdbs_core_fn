@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,6 +23,9 @@ import { useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useActivityLogs } from '@/lib/hooks/useActivityLogs'
 import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
 import api from '@/lib/axios'
+
+// Stable empty array to prevent re-renders - never create [] inline in component
+const EMPTY_ARRAY: any[] = []
 
 const CustomerProfilePage = () => {
   const params = useParams()
@@ -147,21 +150,40 @@ const CustomerProfilePage = () => {
   }, [type, partnerTxArray, userTxArray])
   
   // Get wallet data from user data (now included in user response)
-  const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
-  const customer = type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null;
+  // Use stable references to prevent infinite re-renders
+  const users = React.useMemo(() => {
+    return Array.isArray(customerData) ? customerData : ((customerData as any)?.data || EMPTY_ARRAY)
+  }, [customerData])
+  
+  const customer = React.useMemo(() => {
+    return type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null
+  }, [type, users, id])
   
   // Get merchant data if this is a merchant view
-  const merchants = merchantsData?.merchants || []
-  const merchantData = type === 'merchant' 
-    ? merchants.find((m: any) => m.id === id || m.userId === id) // Prioritize merchant ID match first
-    : null;
+  const merchants = React.useMemo(() => {
+    return merchantsData?.merchants || EMPTY_ARRAY
+  }, [merchantsData])
+  
+  const merchantData = React.useMemo(() => {
+    return type === 'merchant' 
+      ? merchants.find((m: any) => m.id === id || m.userId === id) // Prioritize merchant ID match first
+      : null
+  }, [type, merchants, id])
   
   console.log("merchantData====>", merchantData)
   console.log("partner====>", partner)
   
-  const wallets = customer?.wallets || [];
-  const personalWallet = wallets.find((wallet: any) => wallet.walletType === 'PERSONAL');
-  const businessWallet = wallets.find((wallet: any) => wallet.walletType === 'BUSINESS');
+  const wallets = React.useMemo(() => {
+    return customer?.wallets || EMPTY_ARRAY
+  }, [customer])
+  
+  const personalWallet = React.useMemo(() => {
+    return wallets.find((wallet: any) => wallet.walletType === 'PERSONAL')
+  }, [wallets])
+  
+  const businessWallet = React.useMemo(() => {
+    return wallets.find((wallet: any) => wallet.walletType === 'BUSINESS')
+  }, [wallets])
   
   // Use personal wallet for display (or business wallet if no personal wallet)
   const walletBalance = personalWallet || businessWallet || null;
@@ -268,26 +290,24 @@ const CustomerProfilePage = () => {
 
   
   // Filter partner transactions to only include those from partner wallets
-  // Use stable keys to prevent infinite loops
-  const partnerWalletIdsStr = partnerWalletIds.join(',')
+  // Use stable memoized values to prevent infinite loops
+  const partnerWalletIdsStr = React.useMemo(() => partnerWalletIds.join(','), [partnerWalletIds])
   const partnerId = partner?.id || ''
   
   // Compute filtered transactions with stable metadata in one useMemo
   const filteredTransactionsResult = React.useMemo(() => {
     if (type !== 'partner' || partnerWalletIds.length === 0) {
-      return { transactions: [], length: 0, key: '' }
+      return { transactions: EMPTY_ARRAY, length: 0, key: '' }
     }
     
     // Use the already-extracted partnerTxArray
-    const transactions = partnerTxArray
-    
-    if (transactions.length === 0) {
-      return { transactions: [], length: 0, key: '' }
+    if (partnerTxArray.length === 0) {
+      return { transactions: EMPTY_ARRAY, length: 0, key: '' }
     }
     
     // Create a Set for faster lookups
     const walletIdSet = new Set(partnerWalletIds)
-    const filtered = transactions.filter((tx: any) => {
+    const filtered = partnerTxArray.filter((tx: any) => {
       if (!tx) return false
       // Check if transaction involves any partner wallet (as source or destination)
       const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
@@ -307,26 +327,25 @@ const CustomerProfilePage = () => {
     const key = length > 0 ? `${length}:${firstId}:${lastId}` : ''
     
     return { transactions: filtered, length, key }
-  }, [type, partnerWalletIdsStr, partnerId, partnerTxKey])
+  }, [type, partnerWalletIds, partnerId, partnerTxArray])
   
   const filteredPartnerTransactions = filteredTransactionsResult.transactions
   const filteredTxLength = filteredTransactionsResult.length
   const filteredTxKey = filteredTransactionsResult.key
 
   // Paginate filtered partner transactions
-  // Use filteredTxKey to ensure we only recalculate when content actually changes
   const paginatedPartnerTransactions = React.useMemo(() => {
-    if (type !== 'partner' || filteredTxLength === 0) return []
+    if (type !== 'partner' || filteredTxLength === 0) return EMPTY_ARRAY
     const start = (currentPage - 1) * pageLimit
     const end = start + pageLimit
-    // Access transactions from the memoized result - stable due to filteredTxKey
-    return filteredTransactionsResult.transactions.slice(start, end)
-  }, [type, filteredTxKey, currentPage, pageLimit, filteredTxLength])
+    return filteredPartnerTransactions.slice(start, end)
+  }, [type, filteredPartnerTransactions, currentPage, pageLimit, filteredTxLength])
 
+  // Use filtered transactions for partners, regular transactions for others
   // Use filtered transactions for partners, regular transactions for others
   const transactions = React.useMemo(() => {
     return type === 'partner' ? paginatedPartnerTransactions : allTransactions
-  }, [type, filteredTxKey, partnerTxKey, userTxKey, currentPage, pageLimit])
+  }, [type, paginatedPartnerTransactions, allTransactions])
   
   // Calculate totals and pagination
   const totalTransactions = React.useMemo(() => {
@@ -346,35 +365,21 @@ const CustomerProfilePage = () => {
   console.log("activityLogsData====>", activityLogsData)
 
   // Activity logs data with error handling - for partners, filter by wallet IDs
-  // Create stable keys for activity logs
+  // Create stable arrays for activity logs
   const partnerLogsArray = React.useMemo(() => {
-    return Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : []
+    return Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : EMPTY_ARRAY
   }, [partnerActivityLogsData])
   
-  const partnerLogsKey = React.useMemo(() => {
-    if (partnerLogsArray.length === 0) return ''
-    const firstId = partnerLogsArray[0]?._id || ''
-    const lastId = partnerLogsArray[partnerLogsArray.length - 1]?._id || ''
-    return `${partnerLogsArray.length}:${firstId}:${lastId}`
-  }, [partnerLogsArray])
-  
   const userLogsArray = React.useMemo(() => {
-    return Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : []
+    return Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : EMPTY_ARRAY
   }, [activityLogsData])
-  
-  const userLogsKey = React.useMemo(() => {
-    if (userLogsArray.length === 0) return ''
-    const firstId = userLogsArray[0]?._id || ''
-    const lastId = userLogsArray[userLogsArray.length - 1]?._id || ''
-    return `${userLogsArray.length}:${firstId}:${lastId}`
-  }, [userLogsArray])
   
   const filteredPartnerActivities = React.useMemo(() => {
     if (type !== 'partner' || partnerWalletIds.length === 0) {
-      return []
+      return EMPTY_ARRAY
     }
     if (partnerLogsArray.length === 0) {
-      return []
+      return EMPTY_ARRAY
     }
     // Filter logs that mention partner wallet IDs in metadata or description
     return partnerLogsArray.filter((log: any) => {
@@ -382,7 +387,7 @@ const CustomerProfilePage = () => {
       const logStr = JSON.stringify(log).toLowerCase()
       return partnerWalletIds.some(walletId => logStr.includes(walletId.toLowerCase()))
     })
-  }, [type, partnerWalletIdsStr, partnerLogsArray])
+  }, [type, partnerWalletIds, partnerLogsArray])
   
   const filteredActivitiesLength = filteredPartnerActivities.length
   const activities = React.useMemo(() => {
@@ -424,16 +429,16 @@ const CustomerProfilePage = () => {
   // Use stable query responses as dependencies
   const statsTransactions = React.useMemo(() => {
     if (type === 'partner') {
-      return Array.isArray(filteredPartnerTransactions) ? filteredPartnerTransactions : []
+      return Array.isArray(filteredPartnerTransactions) ? filteredPartnerTransactions : EMPTY_ARRAY
     }
     // For non-partners, get transactions directly from query
     const txData = transactionsData?.transactions
-    return Array.isArray(txData) ? txData : []
+    return Array.isArray(txData) ? txData : EMPTY_ARRAY
   }, [type, filteredPartnerTransactions, transactionsData])
   
   // Find escrow/reserve wallets for partners
   const escrowWallets = React.useMemo(() => {
-    if (type !== 'partner' || !Array.isArray(partnerWallets) || partnerWallets.length === 0) return []
+    if (type !== 'partner' || !Array.isArray(partnerWallets) || partnerWallets.length === 0) return EMPTY_ARRAY
     return partnerWallets.filter((w: Wallet) => 
       w?.walletType?.toUpperCase().includes('ESCROW') || 
       w?.walletType?.toUpperCase().includes('RESERVE') ||
@@ -526,6 +531,14 @@ const CustomerProfilePage = () => {
     const successful = statsTransactions.filter((tx: any) => tx && tx.status === 'SUCCESS').length
     return (successful / statsTransactions.length) * 100
   }, [statsTransactions])
+  
+  // Memoize tags array to prevent re-renders
+  const profileTags = React.useMemo(() => {
+    if (type === 'partner') {
+      return partner?.isActive ? ['Active'] : EMPTY_ARRAY
+    }
+    return customer?.isVerified ? ['Verified'] : EMPTY_ARRAY
+  }, [type, partner?.isActive, customer?.isVerified])
 
   // Event handlers
   const handleExport = () => {
@@ -632,9 +645,7 @@ const CustomerProfilePage = () => {
               successRate: successRate,
               kycStatus: type === 'partner' ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
               riskLevel: 'low',
-              tags: type === 'partner' 
-                ? (partner?.isActive ? ['Active'] : [])
-                : (customer?.isVerified ? ['Verified'] : []),
+              tags: profileTags,
               notes: type === 'partner' ? `Partner Type: ${partner?.partnerType || 'N/A'}, Tier: ${partner?.tier || 'N/A'}` : 'Customer profile from database',
               walletBalance: type === 'partner' ? null : (wallet as Wallet),
               // Pass merchant-specific data for merchants
