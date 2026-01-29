@@ -71,6 +71,12 @@ export {
   useActivateMerchant
 } from './useMerchants'
 
+// Partner hooks
+export {
+  useApiPartners
+} from './usePartners'
+export type { ApiPartner } from './usePartners'
+
 // KYC hooks
 export {
   useKycStatus,

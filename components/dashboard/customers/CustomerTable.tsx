@@ -233,7 +233,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                         </div>
                       </div>
                     ) : (
-                      // Regular user display
+                      // Regular user or partner display
                       <div className="flex items-center gap-3">
                         <div>
                           <div 
@@ -241,6 +241,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                             onClick={() => onViewCustomer(customer)}
                           >
                             {(() => {
+                              // Check if this is a partner (has partnerName)
+                              if (customer.partnerName) {
+                                return customer.partnerName;
+                              }
+                              
                               // Try profile first, then fallback to direct user fields
                               if (customer.profile?.firstName && customer.profile?.lastName) {
                                 return `${customer.profile.firstName} ${customer.profile.middleName ? customer.profile.middleName + ' ' : ''}${customer.profile.lastName}`.trim();
@@ -257,6 +262,9 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                           </div>
                           <div className="text-sm text-gray-500">
                             ID: {customer.id.slice(-8)}
+                            {customer.partnerType && (
+                              <span className="ml-2 text-xs">({customer.partnerType})</span>
+                            )}
                           </div>
                         </div>
                       </div>

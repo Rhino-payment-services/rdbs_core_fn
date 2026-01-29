@@ -73,6 +73,21 @@ export interface User {
   }
 }
 
+// API Partner types
+export interface ApiPartner {
+  id: string
+  partnerName: string
+  partnerType: string
+  contactEmail: string
+  contactPhone: string
+  country?: string
+  tier: string
+  isActive: boolean
+  isSuspended: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface CreateUserRequest {
   firstName: string
   lastName: string

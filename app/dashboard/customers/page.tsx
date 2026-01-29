@@ -8,10 +8,11 @@ import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilter
 import { CustomerTable } from '@/components/dashboard/customers/CustomerTable'
 import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBulkActions'
 import { CustomerDetailsModal } from '@/components/dashboard/customers/CustomerDetailsModal'
-import { useUsers } from '@/lib/hooks/useApi'
+import { useUsers, useApiPartners } from '@/lib/hooks/useApi'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import type { User } from '@/lib/types/api'
+import type { ApiPartner } from '@/lib/hooks/usePartners'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { Users, Building2, Handshake, Plus } from 'lucide-react'
@@ -44,6 +45,11 @@ const CustomersPage = () => {
     page: currentPage,
     pageSize: itemsPerPage
   })
+  // Fetch API partners when on partners tab
+  const { data: partnersData, isLoading: partnersLoading, error: partnersError, refetch: refetchPartners } = useApiPartners({
+    page: currentPage,
+    limit: itemsPerPage
+  })
   const { data: transactionStatsData, isLoading: statsLoading } = useTransactionSystemStats()
   
   
@@ -60,6 +66,19 @@ const CustomersPage = () => {
     }
   }, [activeTab, merchantsData, merchantsLoading, merchantsError])
   
+  // Log partners data for debugging
+  React.useEffect(() => {
+    if (activeTab === 'partners' && partnersData) {
+      console.log('🤝 Partners Tab - Data:', {
+        partnersData,
+        partnersCount: partnersData?.data?.length || 0,
+        total: partnersData?.pagination?.total || 0,
+        isLoading: partnersLoading,
+        error: partnersError
+      })
+    }
+  }, [activeTab, partnersData, partnersLoading, partnersError])
+
   // Log user data for debugging
   React.useEffect(() => {
     console.log('🔍 Debug: usersData structure:', {
@@ -367,17 +386,21 @@ const CustomersPage = () => {
   }
 
   const handleSelectAll = () => {
-    const currentPageCustomers = paginatedUsers.filter(user => {
-      if (activeTab === 'subscribers') return user.subscriberType === 'INDIVIDUAL' // All INDIVIDUAL users
-      if (activeTab === 'merchants') return !!(user.merchants && user.merchants.length > 0) // ✅ Updated: Check merchants array
-      if (activeTab === 'partners') {
-        // ✅ Partners: Check subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
-        if (user.subscriberType === 'AGENT') return true
-        if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
-        return false
-      }
-      return true
-    })
+    // For partners tab, all paginatedUsers are partners (already filtered)
+    const currentPageCustomers = activeTab === 'partners' 
+      ? paginatedUsers // All are partners when on partners tab
+      : paginatedUsers.filter(user => {
+          if (activeTab === 'subscribers') {
+            // ✅ Include INDIVIDUAL, ALL MERCHANT users, users with merchants but no subscriberType, or users with no subscriberType
+            const isIndividual = user.subscriberType === 'INDIVIDUAL'
+            const isMerchantType = user.subscriberType === 'MERCHANT' // All MERCHANT users are subscribers
+            const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
+            const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
+            return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+          }
+          if (activeTab === 'merchants') return !!(user.merchants && user.merchants.length > 0) // ✅ Updated: Check merchants array
+          return true
+        })
 
     const allSelected = currentPageCustomers.every(customer =>
       selectedCustomers.includes(customer.id)
@@ -400,8 +423,12 @@ const CustomersPage = () => {
     let customerType = 'subscriber' // default
     let customerId = customer.id
     
-    // ✅ Updated: For merchants, check merchants array instead of merchantCode
-    if (customer.merchants && customer.merchants.length > 0) {
+    // ✅ Check if this is an API partner (has partnerName field)
+    if (customer.partnerName) {
+      customerType = 'partner'
+      customerId = customer.id
+    } else if (customer.merchants && customer.merchants.length > 0) {
+      // ✅ Updated: For merchants, check merchants array instead of merchantCode
       customerType = 'merchant'
       // Merchants might have userId field, use it if available, otherwise use id
       customerId = (customer as any).userId || customer.id
@@ -557,8 +584,96 @@ const CustomersPage = () => {
     churnRate
   }
 
+  // Transform API partners to User-like format for display
+  const transformedPartners = useMemo(() => {
+    if (activeTab !== 'partners' || !partnersData?.data) {
+      return []
+    }
+    
+    return partnersData.data.map((partner: ApiPartner) => ({
+      id: partner.id,
+      email: partner.contactEmail,
+      phone: partner.contactPhone,
+      firstName: partner.partnerName.split(' ')[0] || '',
+      lastName: partner.partnerName.split(' ').slice(1).join(' ') || '',
+      status: partner.isActive && !partner.isSuspended ? 'ACTIVE' : partner.isSuspended ? 'SUSPENDED' : 'INACTIVE',
+      userType: 'PARTNER', // Set to PARTNER for proper badge display
+      subscriberType: 'AGENT' as const,
+      createdAt: partner.createdAt,
+      updatedAt: partner.updatedAt,
+      // Add partner-specific fields
+      partnerName: partner.partnerName,
+      partnerType: partner.partnerType,
+      tier: partner.tier,
+      country: partner.country,
+      isActive: partner.isActive,
+      isSuspended: partner.isSuspended,
+    }))
+  }, [activeTab, partnersData])
+
   // Filter and sort users based on subscriberType (exclude STAFF users)
   const filteredUsers = useMemo(() => {
+    // If partners tab, use transformed partners data instead of filtering users
+    if (activeTab === 'partners') {
+      console.log(`🤝 Partners tab: Using API partners data, count: ${transformedPartners.length}`)
+      let filtered = [...transformedPartners]
+      
+      // Apply search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase()
+        filtered = filtered.filter((partner: any) => {
+          return (
+            partner.partnerName?.toLowerCase().includes(searchLower) ||
+            partner.email?.toLowerCase().includes(searchLower) ||
+            partner.phone?.toLowerCase().includes(searchLower) ||
+            partner.partnerType?.toLowerCase().includes(searchLower)
+          )
+        })
+      }
+      
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter((partner: any) => 
+          partner.status.toLowerCase() === statusFilter.toLowerCase()
+        )
+      }
+      
+      // Sort
+      filtered.sort((a: any, b: any) => {
+        let aValue: any, bValue: any
+        switch (sortBy) {
+          case 'name':
+            aValue = a.partnerName || a.email || ''
+            bValue = b.partnerName || b.email || ''
+            break
+          case 'email':
+            aValue = a.email || ''
+            bValue = b.email || ''
+            break
+          case 'status':
+            aValue = a.status || ''
+            bValue = b.status || ''
+            break
+          case 'joined':
+            aValue = new Date(a.createdAt).getTime()
+            bValue = new Date(b.createdAt).getTime()
+            break
+          default:
+            aValue = a.partnerName || ''
+            bValue = b.partnerName || ''
+        }
+        
+        if (typeof aValue === 'string') {
+          return sortOrder === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue)
+        }
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
+      })
+      
+      return filtered
+    }
+    
     console.log(`🔍 Filtering users for tab: ${activeTab}, total users: ${users.length}`)
     
     if (users.length === 0) {
@@ -592,18 +707,27 @@ const CustomersPage = () => {
     if (activeTab === 'subscribers') {
       // Subscribers: ALL INDIVIDUAL users (including those who also have merchant accounts)
       // A user can be BOTH a subscriber and a merchant (dual account system)
-      // ✅ Also include users with merchants but null subscriberType (they should be INDIVIDUAL)
+      // ✅ Include users with subscriberType 'INDIVIDUAL', 'MERCHANT' (all MERCHANT users are individuals),
+      //    or users with merchants but null subscriberType, or users with no subscriberType (default to INDIVIDUAL)
       const beforeCount = filtered.length
       filtered = filtered.filter(user => {
-        // Include if subscriberType is 'INDIVIDUAL' OR if user has merchants but subscriberType is null/undefined
+        // Include if subscriberType is 'INDIVIDUAL'
         const isIndividual = user.subscriberType === 'INDIVIDUAL'
+        // ✅ Include ALL users with 'MERCHANT' subscriberType (they are individuals who registered as merchants)
+        //    Whether they have merchant accounts or not, they should appear as subscribers
+        const isMerchantType = user.subscriberType === 'MERCHANT'
+        // Include users with merchants but null subscriberType (they should be INDIVIDUAL)
         const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
+        // ✅ Include users with no subscriberType and no merchants (default to INDIVIDUAL subscribers)
+        const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
         
-        if (!isIndividual && !hasMerchantsButNoSubscriberType) {
+        const shouldInclude = isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+        
+        if (!shouldInclude) {
           console.log(`  - User ${user.email || user.phone} excluded from subscribers: subscriberType=${user.subscriberType}, hasMerchants=${!!(user.merchants && user.merchants.length > 0)}`)
         }
         
-        return isIndividual || hasMerchantsButNoSubscriberType
+        return shouldInclude
       })
       console.log(`  - After filtering INDIVIDUAL subscribers: ${filtered.length} users (excluded ${beforeCount - filtered.length})`)
       
@@ -651,31 +775,8 @@ const CustomersPage = () => {
       if (filtered.length === 0 && beforeCount > 0) {
         console.warn('⚠️ No users with merchants found! Check if merchants are included in API response.')
       }
-    } else if (activeTab === 'partners') {
-      // ✅ Partners: Users with subscriberType === 'AGENT' (backend uses 'AGENT' for partners)
-      // Also include users with null/undefined subscriberType but userType === 'PARTNER' or 'AGENT' as fallback
-      const beforeCount = filtered.length
-      filtered = filtered.filter(user => {
-        const isPartner = user.subscriberType === 'AGENT' || 
-                        (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT'))
-        if (!isPartner) {
-          console.log(`  - User ${user.email || user.phone} excluded from partners:`, {
-            subscriberType: user.subscriberType,
-            userType: user.userType
-          })
-        }
-        return isPartner
-      })
-      console.log(`  - After filtering partners: ${filtered.length} users (excluded ${beforeCount - filtered.length})`)
-      
-      // ✅ If no partners found, show warning
-      if (filtered.length === 0 && beforeCount > 0) {
-        const allSubscriberTypes = [...new Set(users.filter(u => u.userType !== 'STAFF').map(u => u.subscriberType).filter(Boolean))]
-        const allUserTypes = [...new Set(users.filter(u => u.userType !== 'STAFF').map(u => u.userType))]
-        console.warn('⚠️ No partners found! Available subscriberTypes:', allSubscriberTypes,
-          'Available userTypes:', allUserTypes)
-      }
     }
+    // Partners tab is handled above with transformedPartners
 
     if (searchTerm) {
       filtered = filtered.filter(user => {
@@ -737,6 +838,40 @@ const CustomersPage = () => {
 
     console.log(`✅ Final filtered users count: ${filtered.length} for tab: ${activeTab}`)
     
+    // ✅ Debug: Log users that don't match any category (after STAFF exclusion)
+    const nonStaffUsersForDebug = users.filter(u => u.userType !== 'STAFF')
+    const usersInSubscribers = nonStaffUsersForDebug.filter(u => {
+      const isIndividual = u.subscriberType === 'INDIVIDUAL'
+      const isMerchantType = u.subscriberType === 'MERCHANT'
+      const hasMerchantsButNoSubscriberType = (u.merchants && u.merchants.length > 0) && !u.subscriberType
+      const hasNoSubscriberType = !u.subscriberType && (!u.merchants || u.merchants.length === 0)
+      return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+    })
+    const usersInMerchants = nonStaffUsersForDebug.filter(u => u.merchants && u.merchants.length > 0)
+    const usersInPartners = nonStaffUsersForDebug.filter(u => {
+      return u.subscriberType === 'AGENT' || (!u.subscriberType && (u.userType === 'PARTNER' || u.userType === 'AGENT'))
+    })
+    const usersInAnyCategory = new Set([
+      ...usersInSubscribers.map(u => u.id),
+      ...usersInMerchants.map(u => u.id),
+      ...usersInPartners.map(u => u.id)
+    ])
+    const usersNotInAnyCategory = nonStaffUsersForDebug.filter(u => !usersInAnyCategory.has(u.id))
+    
+    if (usersNotInAnyCategory.length > 0) {
+      console.warn(`⚠️ Found ${usersNotInAnyCategory.length} users that don't match any category:`, 
+        usersNotInAnyCategory.map(u => ({
+          id: u.id,
+          email: u.email,
+          phone: u.phone,
+          userType: u.userType,
+          subscriberType: u.subscriberType,
+          hasMerchants: !!(u.merchants && u.merchants.length > 0),
+          status: u.status
+        }))
+      )
+    }
+    
     // ✅ If no users after filtering but we had users initially, log warning
     if (filtered.length === 0 && users.length > 0) {
       console.warn(`⚠️ All ${users.length} users were filtered out for tab "${activeTab}". This might indicate a filtering issue.`)
@@ -759,26 +894,33 @@ const CustomersPage = () => {
 
   // Tabs-specific user counts (exclude STAFF users)
   // Note: Users can appear in both Subscribers and Merchants (dual account system)
-  // ✅ Count subscribers: INDIVIDUAL users OR users with merchants but no subscriberType
-  const subscribersCount = nonStaffUsers.filter(user => 
-    user.subscriberType === 'INDIVIDUAL' || 
-    ((user.merchants && user.merchants.length > 0) && !user.subscriberType)
-  ).length
-  const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
-  // ✅ Partners: Count users with subscriberType === 'AGENT', or userType === 'PARTNER'/'AGENT' if subscriberType is null
-  const partnersCount = nonStaffUsers.filter(user => {
-    if (user.subscriberType === 'AGENT') return true
-    // Fallback: Check userType if subscriberType is not set
-    if (!user.subscriberType && (user.userType === 'PARTNER' || user.userType === 'AGENT')) return true
-    return false
+  // ✅ Count subscribers: INDIVIDUAL users, ALL MERCHANT users, users with merchants but no subscriberType, or users with no subscriberType
+  const subscribersCount = nonStaffUsers.filter(user => {
+    const isIndividual = user.subscriberType === 'INDIVIDUAL'
+    const isMerchantType = user.subscriberType === 'MERCHANT' // All MERCHANT users are subscribers
+    const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
+    const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
+    return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
   }).length
+  const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
+  // ✅ Partners: Use API partners count from partnersData
+  const partnersCount = partnersData?.pagination?.total || partnersData?.data?.length || 0
 
   // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+  // Calculate pagination - use partnersData pagination for partners tab
+  const totalPages = activeTab === 'partners' && partnersData?.pagination
+    ? partnersData.pagination.totalPages
+    : Math.ceil(filteredUsers.length / itemsPerPage)
+  
+  const paginatedUsers = activeTab === 'partners' && partnersData?.data
+    ? transformedPartners.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
+    : filteredUsers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+      )
 
 
   // Show loading state to prevent "Access Restricted" flash
@@ -797,7 +939,7 @@ const CustomersPage = () => {
   }
   
   // ✅ Show error state if API call failed
-  if (usersError) {
+  if (usersError && activeTab !== 'partners') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
@@ -806,6 +948,26 @@ const CustomersPage = () => {
             <p className="text-red-600 mb-4">Error loading customers</p>
             <button
               onClick={() => refetch()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  // Show error state for partners if API call failed
+  if (partnersError && activeTab === 'partners') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Error loading partners</p>
+            <button
+              onClick={() => refetchPartners()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Retry
@@ -943,14 +1105,14 @@ const CustomersPage = () => {
               onViewCustomer={handleViewCustomer}
               onEditCustomer={handleEditCustomer}
               onDeleteCustomer={handleDeleteCustomer}
-              isLoading={usersLoading}
+              isLoading={partnersLoading}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
               onItemsPerPageChange={setItemsPerPage}
-              totalItems={filteredUsers.length}
-              onRefresh={refetch}
+              totalItems={partnersData?.pagination?.total || transformedPartners.length}
+              onRefresh={refetchPartners}
             />
           </TabsContent>
         </Tabs>
