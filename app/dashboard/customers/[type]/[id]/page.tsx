@@ -106,7 +106,7 @@ const CustomerProfilePage = () => {
     
     return merchant || null
   }, [type, merchants, id])
-
+  
   // Fetch wallet transactions for this user with pagination
   // For regular partners (users), fetch their transactions like regular users
   // For gateway partners, skip this and use partner transactions instead
@@ -156,22 +156,18 @@ const CustomerProfilePage = () => {
   }, [type, partner?.id])
 
   // For merchants, use userId instead of merchant ID for transactions
-  // Use stable values to prevent hook violations
-  const merchantUserId = React.useMemo(() => merchantData?.userId || null, [merchantData?.userId])
-  const regularPartnerId = React.useMemo(() => regularPartner?.id || null, [regularPartner?.id])
-  
   const transactionUserId = React.useMemo(() => {
-    if (type === 'merchant' && merchantUserId) {
-      return merchantUserId
+    if (type === 'merchant' && merchantData?.userId) {
+      return merchantData.userId
     }
-    if (type === 'partner' && regularPartnerId) {
-      return regularPartnerId
+    if (type === 'partner' && regularPartner?.id) {
+      return regularPartner.id
     }
-    if (type !== 'partner' && id) {
+    if (type !== 'partner') {
       return id as string
     }
-    return '' // Return empty string for disabled hooks
-  }, [type, merchantUserId, regularPartnerId, id])
+    return ''
+  }, [type, merchantData, regularPartner, id])
   
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
     transactionUserId, 
@@ -236,7 +232,7 @@ const CustomerProfilePage = () => {
     }
     // For subscribers and other users, find by id
     return type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null
-  }, [type, users, id, regularPartner, merchantData?.userId])
+  }, [type, users, id, regularPartner, merchantData])
   
   console.log("merchantData====>", merchantData)
   console.log("partner====>", partner)
@@ -259,7 +255,7 @@ const CustomerProfilePage = () => {
     const customerWallets = customer?.wallets || EMPTY_ARRAY
     // Filter out empty objects and ensure valid wallet structure
     return Array.isArray(customerWallets) ? customerWallets.filter((w: any) => w && typeof w === 'object' && Object.keys(w).length > 0) : EMPTY_ARRAY
-  }, [customer, type, regularPartner, merchantData?.userId, users])
+  }, [customer, type, regularPartner, merchantData, users])
   
   const personalWallet = React.useMemo(() => {
     if (!Array.isArray(wallets) || wallets.length === 0) return null
@@ -277,17 +273,17 @@ const CustomerProfilePage = () => {
   // Fetch user activity logs (for regular users, regular partners, and merchants)
   // For merchants, use userId; for regular partners, use their ID; for others, use the id param
   const activityLogUserId = React.useMemo(() => {
-    if (type === 'merchant' && merchantUserId) {
-      return merchantUserId
+    if (type === 'merchant' && merchantData?.userId) {
+      return merchantData.userId
     }
-    if (type === 'partner' && regularPartnerId) {
-      return regularPartnerId
+    if (type === 'partner' && regularPartner?.id) {
+      return regularPartner.id
     }
-    if (type !== 'partner' && id) {
+    if (type !== 'partner') {
       return id as string
     }
-    return '' // Return empty string for disabled hooks
-  }, [type, merchantUserId, regularPartnerId, id])
+    return ''
+  }, [type, merchantData, regularPartner, id])
   
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
     activityLogUserId,
