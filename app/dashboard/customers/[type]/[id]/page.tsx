@@ -83,6 +83,30 @@ const CustomerProfilePage = () => {
     return null
   }, [type, users, id, partner])
   
+  // Get merchant data if this is a merchant view (declare early so it can be used in other memos)
+  const merchants = React.useMemo(() => {
+    return merchantsData?.merchants || EMPTY_ARRAY
+  }, [merchantsData])
+  
+  const merchantData = React.useMemo(() => {
+    if (type !== 'merchant') return null
+    
+    // Try to find merchant by ID first (most common case)
+    let merchant = merchants.find((m: any) => m.id === id)
+    
+    // If not found by ID, try userId
+    if (!merchant) {
+      merchant = merchants.find((m: any) => m.userId === id)
+    }
+    
+    // If still not found, try merchantCode as fallback
+    if (!merchant) {
+      merchant = merchants.find((m: any) => m.merchantCode === id)
+    }
+    
+    return merchant || null
+  }, [type, merchants, id])
+
   // Fetch wallet transactions for this user with pagination
   // For regular partners (users), fetch their transactions like regular users
   // For gateway partners, skip this and use partner transactions instead
@@ -131,8 +155,22 @@ const CustomerProfilePage = () => {
     }
   }, [type, partner?.id])
 
+  // For merchants, use userId instead of merchant ID for transactions
+  const transactionUserId = React.useMemo(() => {
+    if (type === 'merchant' && merchantData?.userId) {
+      return merchantData.userId
+    }
+    if (type === 'partner' && regularPartner) {
+      return regularPartner.id
+    }
+    if (type !== 'partner') {
+      return id as string
+    }
+    return ''
+  }, [type, merchantData?.userId, regularPartner?.id, id])
+  
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
-    type !== 'partner' || regularPartner ? (id as string) : '', 
+    transactionUserId, 
     currentPage, 
     pageLimit
   )
@@ -188,45 +226,30 @@ const CustomerProfilePage = () => {
     if (type === 'partner' && regularPartner) {
       return regularPartner
     }
+    // For merchants, find the associated user via userId
+    if (type === 'merchant' && merchantData?.userId) {
+      return users.find((user: any) => user.id === merchantData.userId) || null
+    }
+    // For subscribers and other users, find by id
     return type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null
-  }, [type, users, id, regularPartner])
-  
-  // Get merchant data if this is a merchant view
-  const merchants = React.useMemo(() => {
-    return merchantsData?.merchants || EMPTY_ARRAY
-  }, [merchantsData])
-  
-  const merchantData = React.useMemo(() => {
-    if (type !== 'merchant') return null
-    
-    // Try to find merchant by ID first (most common case)
-    let merchant = merchants.find((m: any) => m.id === id)
-    
-    // If not found by ID, try userId
-    if (!merchant) {
-      merchant = merchants.find((m: any) => m.userId === id)
-    }
-    
-    // If still not found, try merchantCode as fallback
-    if (!merchant) {
-      merchant = merchants.find((m: any) => m.merchantCode === id)
-    }
-    
-    return merchant || null
-  }, [type, merchants, id])
+  }, [type, users, id, regularPartner, merchantData?.userId])
   
   console.log("merchantData====>", merchantData)
   console.log("partner====>", partner)
   
   const wallets = React.useMemo(() => {
     // For regular partners, they are users so they should have wallets
-    // For gateway partners, we redirect them, so this shouldn't be reached
-    // For merchants and subscribers, use customer wallets
     if (type === 'partner' && regularPartner) {
       return regularPartner?.wallets || EMPTY_ARRAY
     }
+    // For merchants, find the associated user to get wallets
+    if (type === 'merchant' && merchantData?.userId) {
+      const merchantUser = users.find((u: any) => u.id === merchantData.userId)
+      return merchantUser?.wallets || EMPTY_ARRAY
+    }
+    // For subscribers and other users, use customer wallets
     return customer?.wallets || EMPTY_ARRAY
-  }, [customer, type, regularPartner])
+  }, [customer, type, regularPartner, merchantData?.userId, users])
   
   const personalWallet = React.useMemo(() => {
     return wallets.find((wallet: any) => wallet.walletType === 'PERSONAL')
@@ -239,9 +262,23 @@ const CustomerProfilePage = () => {
   // Use personal wallet for display (or business wallet if no personal wallet)
   const walletBalance = personalWallet || businessWallet || null;
 
-  // Fetch user activity logs (for regular users and regular partners)
+  // Fetch user activity logs (for regular users, regular partners, and merchants)
+  // For merchants, use userId; for regular partners, use their ID; for others, use the id param
+  const activityLogUserId = React.useMemo(() => {
+    if (type === 'merchant' && merchantData?.userId) {
+      return merchantData.userId
+    }
+    if (type === 'partner' && regularPartner) {
+      return regularPartner.id
+    }
+    if (type !== 'partner') {
+      return id as string
+    }
+    return ''
+  }, [type, merchantData?.userId, regularPartner?.id, id])
+  
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
-    type !== 'partner' || regularPartner ? (id as string) : '',
+    activityLogUserId,
     currentPage,
     pageLimit
   )
@@ -587,7 +624,8 @@ const CustomerProfilePage = () => {
       return 0
     } else {
       // For regular users: Use escrow wallet if available, otherwise 0
-      const userWallets = customer?.wallets || []
+      // Use wallets from the wallets memoized value (handles merchants, partners, and regular users)
+      const userWallets = wallets || []
       if (Array.isArray(userWallets) && userWallets.length > 0) {
         const userEscrowWallet = userWallets.find((w: any) => 
           w?.walletType?.toUpperCase().includes('ESCROW') || 
@@ -709,7 +747,7 @@ const CustomerProfilePage = () => {
           {/* Customer Profile Header */}
           <CustomerProfileHeader
             customer={{
-              id: partner?.id || customer?.id || id as string,
+              id: partner?.id || merchantData?.id || customer?.id || id as string,
               // For partners, show partner name; for merchants, show business name; for others, show personal name with fallbacks
               name: type === 'partner' && isGatewayPartner && partner?.partnerName
                 ? partner.partnerName
@@ -766,7 +804,7 @@ const CustomerProfilePage = () => {
               riskLevel: 'low',
               tags: profileTags,
               notes: type === 'partner' && isGatewayPartner ? `Partner Type: ${partner?.partnerType || 'N/A'}, Tier: ${partner?.tier || 'N/A'}` : 'Customer profile from database',
-              walletBalance: type === 'partner' ? null : (wallet as Wallet),
+              walletBalance: type === 'partner' ? null : (wallet || null),
               // Pass merchant-specific data for merchants
               merchantCode: merchantData?.merchantCode || customer?.merchantCode,
               businessTradeName: merchantData?.businessTradeName,
@@ -869,7 +907,7 @@ const CustomerProfilePage = () => {
                   joinDate: (isGatewayPartner && partner?.createdAt) || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
                   location: (isGatewayPartner && partner?.country) || customer?.profile?.country || 'Kampala, Uganda',
                   address: 'N/A',
-                  walletBalance: type === 'partner' && isGatewayPartner ? 0 : (wallet?.balance || 0)
+                  walletBalance: type === 'partner' && isGatewayPartner ? 0 : (wallet?.balance ?? 0)
                 }}
                 type={type as string}
                 profileDetails={{
