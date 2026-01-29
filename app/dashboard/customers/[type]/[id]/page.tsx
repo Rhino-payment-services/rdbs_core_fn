@@ -115,30 +115,36 @@ const CustomerProfilePage = () => {
   // Get transactions - for partners, filter by wallet IDs; for others, use user transactions
   // Create stable content-based keys to prevent infinite loops
   const partnerTxData = partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions
-  const partnerTxArray = Array.isArray(partnerTxData) ? partnerTxData : []
+  const partnerTxArray = React.useMemo(() => {
+    return Array.isArray(partnerTxData) ? partnerTxData : []
+  }, [partnerTransactionsData])
+  
   const partnerTxKey = React.useMemo(() => {
     if (partnerTxArray.length === 0) return ''
     // Create stable key from length + first + last transaction IDs
     const firstId = partnerTxArray[0]?.id || ''
     const lastId = partnerTxArray[partnerTxArray.length - 1]?.id || ''
     return `${partnerTxArray.length}:${firstId}:${lastId}`
-  }, [partnerTxArray.length, partnerTxArray[0]?.id, partnerTxArray[partnerTxArray.length - 1]?.id])
+  }, [partnerTxArray])
   
   const userTxData = transactionsData?.transactions
-  const userTxArray = Array.isArray(userTxData) ? userTxData : []
+  const userTxArray = React.useMemo(() => {
+    return Array.isArray(userTxData) ? userTxData : []
+  }, [transactionsData])
+  
   const userTxKey = React.useMemo(() => {
     if (userTxArray.length === 0) return ''
     const firstId = userTxArray[0]?.id || ''
     const lastId = userTxArray[userTxArray.length - 1]?.id || ''
     return `${userTxArray.length}:${firstId}:${lastId}`
-  }, [userTxArray.length, userTxArray[0]?.id, userTxArray[userTxArray.length - 1]?.id])
+  }, [userTxArray])
   
   const allTransactions = React.useMemo(() => {
     if (type === 'partner') {
       return partnerTxArray
     }
     return userTxArray
-  }, [type, partnerTxKey, userTxKey])
+  }, [type, partnerTxArray, userTxArray])
   
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
@@ -341,21 +347,27 @@ const CustomerProfilePage = () => {
 
   // Activity logs data with error handling - for partners, filter by wallet IDs
   // Create stable keys for activity logs
-  const partnerLogsArray = Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : []
+  const partnerLogsArray = React.useMemo(() => {
+    return Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : []
+  }, [partnerActivityLogsData])
+  
   const partnerLogsKey = React.useMemo(() => {
     if (partnerLogsArray.length === 0) return ''
     const firstId = partnerLogsArray[0]?._id || ''
     const lastId = partnerLogsArray[partnerLogsArray.length - 1]?._id || ''
     return `${partnerLogsArray.length}:${firstId}:${lastId}`
-  }, [partnerLogsArray.length, partnerLogsArray[0]?._id, partnerLogsArray[partnerLogsArray.length - 1]?._id])
+  }, [partnerLogsArray])
   
-  const userLogsArray = Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : []
+  const userLogsArray = React.useMemo(() => {
+    return Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : []
+  }, [activityLogsData])
+  
   const userLogsKey = React.useMemo(() => {
     if (userLogsArray.length === 0) return ''
     const firstId = userLogsArray[0]?._id || ''
     const lastId = userLogsArray[userLogsArray.length - 1]?._id || ''
     return `${userLogsArray.length}:${firstId}:${lastId}`
-  }, [userLogsArray.length, userLogsArray[0]?._id, userLogsArray[userLogsArray.length - 1]?._id])
+  }, [userLogsArray])
   
   const filteredPartnerActivities = React.useMemo(() => {
     if (type !== 'partner' || partnerWalletIds.length === 0) {
@@ -370,7 +382,7 @@ const CustomerProfilePage = () => {
       const logStr = JSON.stringify(log).toLowerCase()
       return partnerWalletIds.some(walletId => logStr.includes(walletId.toLowerCase()))
     })
-  }, [type, partnerWalletIdsStr, partnerLogsKey])
+  }, [type, partnerWalletIdsStr, partnerLogsArray])
   
   const filteredActivitiesLength = filteredPartnerActivities.length
   const activities = React.useMemo(() => {
@@ -378,7 +390,7 @@ const CustomerProfilePage = () => {
       return filteredPartnerActivities
     }
     return userLogsArray
-  }, [type, filteredActivitiesLength, partnerLogsKey, userLogsKey])
+  }, [type, filteredPartnerActivities, userLogsArray])
   
   const totalActivities = React.useMemo(() => {
     return type === 'partner'
