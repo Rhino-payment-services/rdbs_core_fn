@@ -434,11 +434,17 @@ const CustomersPage = () => {
     if (customer.partnerName) {
       customerType = 'partner'
       customerId = customer.id
-    } else if (customer.merchants && customer.merchants.length > 0) {
-      // ✅ Updated: For merchants, check merchants array instead of merchantCode
+    } else if (customer.businessTradeName) {
+      // ✅ This is a merchant object from the merchants tab (has businessTradeName)
+      // Use the merchant's ID directly, not the userId
       customerType = 'merchant'
-      // Merchants might have userId field, use it if available, otherwise use id
-      customerId = (customer as any).userId || customer.id
+      customerId = customer.id // Use merchant ID, not userId
+    } else if (customer.merchants && customer.merchants.length > 0) {
+      // ✅ This is a user object with merchants array (from subscribers tab)
+      customerType = 'merchant'
+      // For users with merchants, use the first merchant's ID or userId
+      const firstMerchant = customer.merchants[0]
+      customerId = firstMerchant.id || (customer as any).userId || customer.id
     } else if (customer.subscriberType === 'AGENT' || (!customer.subscriberType && (customer.userType === 'PARTNER' || customer.userType === 'AGENT'))) {
       // ✅ Partners: subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
       customerType = 'partner'

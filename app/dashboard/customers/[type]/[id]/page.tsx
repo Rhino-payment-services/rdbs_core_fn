@@ -17,7 +17,7 @@ import CustomerOverview from '@/components/dashboard/customers/profile/CustomerO
 import CustomerTransactions from '@/components/dashboard/customers/profile/CustomerTransactions'
 import CustomerActivity from '@/components/dashboard/customers/profile/CustomerActivity'
 import CustomerSettings from '@/components/dashboard/customers/profile/CustomerSettings'
-import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs } from '@/lib/hooks/useApi'
+import { useUser,useUsers ,useWalletTransactions, useWalletBalance, useUserActivityLogs, useApiPartner } from '@/lib/hooks/useApi'
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import type { TransactionFilters, Wallet, WalletBalance } from '@/lib/types/api'
 import api from '@/lib/axios'
@@ -32,7 +32,12 @@ const CustomerProfilePage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageLimit] = useState(10) // You can make this configurable
 
-  // Fetch customer data
+  // Fetch partner data when type is 'partner'
+  const { data: partnerData, isLoading: partnerLoading, error: partnerError } = useApiPartner(
+    type === 'partner' ? (id as string) : undefined
+  )
+  
+  // Fetch customer data (only if not a partner)
   const { data: customerData, isLoading: customerLoading, error: customerError } = useUsers()
   
   // Fetch merchants data when type is 'merchant'
@@ -43,25 +48,30 @@ const CustomerProfilePage = () => {
 
   console.log("customerData====>", customerData)
   console.log("merchantsData====>", merchantsData)
+  console.log("partnerData====>", partnerData)
   
-  // Fetch wallet transactions for this user with pagination
+  // Fetch wallet transactions for this user with pagination (only for non-partners)
   const { data: transactionsData, isLoading: transactionsLoading } = useWalletTransactions(
-    id as string, 
+    type !== 'partner' ? (id as string) : '', 
     currentPage, 
     pageLimit
   )
   
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
-  const customer = users.find((user: any) => user.id === id) || null;
+  const customer = type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null;
+  
+  // Get partner data
+  const partner = type === 'partner' ? (partnerData?.data || null) : null;
   
   // Get merchant data if this is a merchant view
   const merchants = merchantsData?.merchants || []
   const merchantData = type === 'merchant' 
-    ? merchants.find((m: any) => m.userId === id || m.id === id) 
+    ? merchants.find((m: any) => m.id === id || m.userId === id) // Prioritize merchant ID match first
     : null;
   
   console.log("merchantData====>", merchantData)
+  console.log("partner====>", partner)
   
   const wallets = customer?.wallets || [];
   const personalWallet = wallets.find((wallet: any) => wallet.walletType === 'PERSONAL');
@@ -70,9 +80,9 @@ const CustomerProfilePage = () => {
   // Use personal wallet for display (or business wallet if no personal wallet)
   const walletBalance = personalWallet || businessWallet || null;
 
-  // Fetch user activity logs
+  // Fetch user activity logs (only for non-partners)
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
-    id as string,
+    type !== 'partner' ? (id as string) : '',
     currentPage,
     pageLimit
   )
@@ -87,7 +97,7 @@ const CustomerProfilePage = () => {
   console.log("activityLogsError====>", activityLogsError)
 
   // Handle loading and error states
-  const isLoading = customerLoading || (type === 'merchant' && merchantsLoading)
+  const isLoading = (type === 'partner' ? partnerLoading : customerLoading) || (type === 'merchant' && merchantsLoading)
   
   if (isLoading) {
     return (
@@ -107,29 +117,57 @@ const CustomerProfilePage = () => {
     )
   }
 
-  if (customerError || !customerData) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center">
-                <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Customer Not Found</h1>
-                <p className="text-gray-600 mb-4">The customer you're looking for doesn't exist or you don't have permission to view it.</p>
-                <button 
-                  onClick={() => router.back()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Go Back
-                </button>
+  // Handle error states
+  if (type === 'partner') {
+    if (partnerError || !partner) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Partner Not Found</h1>
+                  <p className="text-gray-600 mb-4">The partner you're looking for doesn't exist or you don't have permission to view it.</p>
+                  <button 
+                    onClick={() => router.back()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Go Back
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </main>
-      </div>
-    )
+          </main>
+        </div>
+      )
+    }
+  } else {
+    if (customerError || !customerData) {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Customer Not Found</h1>
+                  <p className="text-gray-600 mb-4">The customer you're looking for doesn't exist or you don't have permission to view it.</p>
+                  <button 
+                    onClick={() => router.back()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      )
+    }
   }
 
   
@@ -192,7 +230,12 @@ const CustomerProfilePage = () => {
   }
 
   const handleResetPin = async () => {
-    const customerPhone = customer.profile?.phone || customer.phone
+    if (type === 'partner') {
+      toast.error('PIN reset is not available for partners.')
+      return
+    }
+    
+    const customerPhone = customer?.profile?.phone || customer?.phone
     if (!customerPhone || customerPhone === 'N/A') {
       toast.error('Customer phone number not found. Cannot reset PIN.')
       return
@@ -225,40 +268,52 @@ const CustomerProfilePage = () => {
           {/* Customer Profile Header */}
           <CustomerProfileHeader
             customer={{
-              id: customer?.id || id as string,
-              // For merchants, show business name; for others, show personal name with fallbacks
-              name: type === 'merchant' && merchantData?.businessTradeName
-                ? merchantData.businessTradeName
-                : (
-                    // Try profile firstName/lastName first
-                    `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
-                    // Then try direct user firstName/lastName
-                    `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
-                    // Then fall back to email
-                    customer?.email ||
-                    // Finally show Unknown Customer
-                    'Unknown Customer'
-                  ),
+              id: partner?.id || customer?.id || id as string,
+              // For partners, show partner name; for merchants, show business name; for others, show personal name with fallbacks
+              name: type === 'partner' && partner?.partnerName
+                ? partner.partnerName
+                : type === 'merchant' && merchantData?.businessTradeName
+                  ? merchantData.businessTradeName
+                  : (
+                      // Try profile firstName/lastName first
+                      `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                      // Then try direct user firstName/lastName
+                      `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                      // Then fall back to email
+                      customer?.email ||
+                      // Finally show Unknown Customer
+                      'Unknown Customer'
+                    ),
               type: type as string,
-              email: type === 'merchant' && merchantData?.businessEmail
-                ? merchantData.businessEmail
-                : customer?.email || 'N/A',
-              phone: type === 'merchant' && merchantData?.registeredPhoneNumber
-                ? merchantData.registeredPhoneNumber
-                : customer?.profile?.phone || customer?.phone || 'N/A',
-              status: customer?.status || 'unknown',
-              joinDate: merchantData?.onboardedAt || customer?.createdAt || 'N/A',
-              location: 'Kampala, Uganda',
+              email: type === 'partner' && partner?.contactEmail
+                ? partner.contactEmail
+                : type === 'merchant' && merchantData?.businessEmail
+                  ? merchantData.businessEmail
+                  : customer?.email || 'N/A',
+              phone: type === 'partner' && partner?.contactPhone
+                ? partner.contactPhone
+                : type === 'merchant' && merchantData?.registeredPhoneNumber
+                  ? merchantData.registeredPhoneNumber
+                  : customer?.profile?.phone || customer?.phone || 'N/A',
+              status: type === 'partner' 
+                ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                : type === 'merchant' && merchantData
+                  ? (merchantData.isActive && !merchantData.isSuspended ? 'ACTIVE' : merchantData.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                  : customer?.status || 'unknown',
+              joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
+              location: partner?.country || 'Kampala, Uganda',
               address: 'N/A',
-              totalTransactions,
-              currentBalance: currentBalance, // Replace with current balance
-              avgTransactionValue,
-              successRate,
-              kycStatus: customer?.kycStatus || 'unknown',
+              totalTransactions: type === 'partner' ? 0 : totalTransactions,
+              currentBalance: type === 'partner' ? 0 : currentBalance,
+              avgTransactionValue: type === 'partner' ? 0 : avgTransactionValue,
+              successRate: type === 'partner' ? 0 : successRate,
+              kycStatus: type === 'partner' ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
               riskLevel: 'low',
-              tags: customer?.isVerified ? ['Verified'] : [],
-              notes: 'Customer profile from database',
-              walletBalance: wallet as Wallet,
+              tags: type === 'partner' 
+                ? (partner?.isActive ? ['Active'] : [])
+                : (customer?.isVerified ? ['Verified'] : []),
+              notes: type === 'partner' ? `Partner Type: ${partner?.partnerType || 'N/A'}, Tier: ${partner?.tier || 'N/A'}` : 'Customer profile from database',
+              walletBalance: type === 'partner' ? null : (wallet as Wallet),
               // Pass merchant-specific data for merchants
               merchantCode: merchantData?.merchantCode || customer?.merchantCode,
               businessTradeName: merchantData?.businessTradeName,
@@ -274,13 +329,17 @@ const CustomerProfilePage = () => {
           {/* Stats Cards */}
           <CustomerStatsCards
             stats={{
-              totalTransactions,
-              currentBalance: currentBalance, // Replace with current balance
-              suspensionFund: avgTransactionValue,
-              successRate,
-              status: customer.status || 'unknown',
-              joinDate: customer.createdAt || 'N/A',
-              kycStatus: customer.kycStatus || 'unknown',
+              totalTransactions: type === 'partner' ? 0 : totalTransactions,
+              currentBalance: type === 'partner' ? 0 : currentBalance,
+              suspensionFund: type === 'partner' ? 0 : avgTransactionValue,
+              successRate: type === 'partner' ? 0 : successRate,
+              status: type === 'partner' 
+                ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                : type === 'merchant' && merchantData
+                  ? (merchantData.isActive && !merchantData.isSuspended ? 'ACTIVE' : merchantData.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                  : (customer?.status || 'unknown'),
+              joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
+              kycStatus: type === 'partner' ? 'APPROVED' : (customer?.kycStatus || 'unknown'),
               riskLevel: 'low',
               currency: wallet?.currency || 'UGX'
             }}
@@ -310,33 +369,52 @@ const CustomerProfilePage = () => {
             <TabsContent value="overview" className="space-y-6 mt-6">
               <CustomerOverview
                 customer={{
-                  // For merchants, show business name; for others, show personal name with fallbacks
-                  name: type === 'merchant' && merchantData?.businessTradeName
-                    ? merchantData.businessTradeName
-                    : (
-                        // Try profile firstName/lastName first
-                        `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
-                        // Then try direct user firstName/lastName
-                        `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
-                        // Then fall back to email
-                        customer?.email ||
-                        // Finally show Unknown Customer
-                        'Unknown Customer'
-                      ),
-                  email: type === 'merchant' && merchantData?.businessEmail
-                    ? merchantData.businessEmail
-                    : customer?.email || 'N/A',
-                  phone: type === 'merchant' && merchantData?.registeredPhoneNumber
-                    ? merchantData.registeredPhoneNumber
-                    : customer?.phone || 'N/A',
-                  status: customer?.status || 'unknown',
-                  joinDate: merchantData?.onboardedAt || customer?.createdAt || 'N/A',
-                  location: 'Kampala, Uganda',
+                  // For partners, show partner name; for merchants, show business name; for others, show personal name with fallbacks
+                  name: type === 'partner' && partner?.partnerName
+                    ? partner.partnerName
+                    : type === 'merchant' && merchantData?.businessTradeName
+                      ? merchantData.businessTradeName
+                      : (
+                          // Try profile firstName/lastName first
+                          `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
+                          // Then try direct user firstName/lastName
+                          `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+                          // Then fall back to email
+                          customer?.email ||
+                          // Finally show Unknown Customer
+                          'Unknown Customer'
+                        ),
+                  email: type === 'partner' && partner?.contactEmail
+                    ? partner.contactEmail
+                    : type === 'merchant' && merchantData?.businessEmail
+                      ? merchantData.businessEmail
+                      : customer?.email || 'N/A',
+                  phone: type === 'partner' && partner?.contactPhone
+                    ? partner.contactPhone
+                    : type === 'merchant' && merchantData?.registeredPhoneNumber
+                      ? merchantData.registeredPhoneNumber
+                      : customer?.phone || 'N/A',
+                  status: type === 'partner' 
+                    ? (partner?.isActive && !partner?.isSuspended ? 'ACTIVE' : partner?.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                    : type === 'merchant' && merchantData
+                      ? (merchantData.isActive && !merchantData.isSuspended ? 'ACTIVE' : merchantData.isSuspended ? 'SUSPENDED' : 'INACTIVE')
+                      : (customer?.status || 'unknown'),
+                  joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',
+                  location: partner?.country || 'Kampala, Uganda',
                   address: 'N/A',
-                  walletBalance: wallet?.balance || 0
+                  walletBalance: type === 'partner' ? 0 : (wallet?.balance || 0)
                 }}
                 type={type as string}
                 profileDetails={{
+                  // Partner-specific profile details
+                  ...(type === 'partner' && partner ? {
+                    partnerName: partner.partnerName,
+                    partnerType: partner.partnerType,
+                    tier: partner.tier,
+                    country: partner.country,
+                    isActive: partner.isActive,
+                    isSuspended: partner.isSuspended
+                  } : {}),
                   // Merchant-specific profile details
                   merchants: merchantData ? {
                     businessName: merchantData.businessTradeName || 'N/A',
@@ -354,19 +432,29 @@ const CustomerProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="transactions" className="space-y-6 mt-6">
-              <CustomerTransactions
-                transactions={transactions}
-                onExport={handleExport}
-                onFilter={() => toast.success('Opening transaction filters...')}
-                isLoading={transactionsLoading}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
+              {type === 'partner' ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Transaction history is not available for partners.</p>
+                </div>
+              ) : (
+                <CustomerTransactions
+                  transactions={transactions}
+                  onExport={handleExport}
+                  onFilter={() => toast.success('Opening transaction filters...')}
+                  isLoading={transactionsLoading}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6 mt-6">
-              {activityLogsError ? (
+              {type === 'partner' ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Activity logs are not available for partners.</p>
+                </div>
+              ) : activityLogsError ? (
                 <div className="text-center py-8">
                   <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
@@ -387,17 +475,23 @@ const CustomerProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6 mt-6">
-              <CustomerSettings
-                customerId={customer.id || id as string}
-                customerStatus={customer.status || 'unknown'}
-                customerPhone={customer.profile?.phone || customer.phone || ''}
-                walletBalance={wallet?.balance || 0}
-                currency={wallet?.currency || 'UGX'}
-                onActionComplete={() => {
-                  // Refresh data after actions
-                  window.location.reload()
-                }}
-              />
+              {type === 'partner' ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">Settings are not available for partners.</p>
+                </div>
+              ) : (
+                <CustomerSettings
+                  customerId={customer?.id || id as string}
+                  customerStatus={customer?.status || 'unknown'}
+                  customerPhone={customer?.profile?.phone || customer?.phone || ''}
+                  walletBalance={wallet?.balance || 0}
+                  currency={wallet?.currency || 'UGX'}
+                  onActionComplete={() => {
+                    // Refresh data after actions
+                    window.location.reload()
+                  }}
+                />
+              )}
             </TabsContent>
           </Tabs>
         </div>

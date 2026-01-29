@@ -71,3 +71,30 @@ export const useApiPartners = (filters?: {
     enabled: true, // Always fetch (can be conditionally enabled if needed)
   })
 }
+
+// Custom hook to fetch a single partner by ID
+export const useApiPartner = (id: string | undefined) => {
+  return useQuery<ApiResponse<ApiPartner>>({
+    queryKey: partnerQueryKeys.partner(id || ''),
+    queryFn: async () => {
+      if (!id) {
+        throw new Error('Partner ID is required')
+      }
+      console.log('🤝 Fetching single partner from /api/v1/admin/gateway-partners with id:', id)
+      // First try to fetch all partners and find the one with matching ID
+      // (assuming there's no direct endpoint for single partner)
+      const result = await apiFetch(`/api/v1/admin/gateway-partners?page=1&limit=1000`)
+      const partner = result?.data?.find((p: ApiPartner) => p.id === id)
+      if (!partner) {
+        throw new Error('Partner not found')
+      }
+      return {
+        success: true,
+        data: partner
+      }
+    },
+    enabled: !!id,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  })
+}

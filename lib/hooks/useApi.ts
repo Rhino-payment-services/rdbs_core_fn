@@ -73,7 +73,8 @@ export {
 
 // Partner hooks
 export {
-  useApiPartners
+  useApiPartners,
+  useApiPartner
 } from './usePartners'
 export type { ApiPartner } from './usePartners'
 
