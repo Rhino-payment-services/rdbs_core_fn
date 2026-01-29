@@ -112,6 +112,7 @@ export const useAllTransactions = (params?: {
   return useQuery({
     queryKey: [...transactionQueryKeys.list, params],
     queryFn: () => apiFetch(`/transactions/all?${queryParams.toString()}`),
+    enabled: params !== undefined, // Only fetch when params are provided
     staleTime: 2 * 60 * 1000, // 2 minutes
     placeholderData: (previousData) => previousData, // Keep previous data while loading new page
   })

@@ -112,6 +112,14 @@ const CustomerProfilePage = () => {
       : undefined
   )
   
+  // Get transactions - for partners, filter by wallet IDs; for others, use user transactions
+  const allTransactions = React.useMemo(() => {
+    if (type === 'partner') {
+      return partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions || []
+    }
+    return transactionsData?.transactions || []
+  }, [type, partnerTransactionsData, transactionsData])
+  
   // Get wallet data from user data (now included in user response)
   const users = Array.isArray(customerData) ? customerData : ((customerData as any)?.data || [])
   const customer = type !== 'partner' ? (users.find((user: any) => user.id === id) || null) : null;
@@ -233,17 +241,13 @@ const CustomerProfilePage = () => {
   }
 
   
-  // Get transactions - for partners, filter by wallet IDs; for others, use user transactions
-  const allTransactions = type === 'partner' 
-    ? (partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions || [])
-    : (transactionsData?.transactions || [])
-  
   // Filter partner transactions to only include those from partner wallets
   const filteredPartnerTransactions = React.useMemo(() => {
-    if (type !== 'partner' || partnerWalletIds.length === 0) {
+    if (type !== 'partner' || partnerWalletIds.length === 0 || !Array.isArray(allTransactions)) {
       return []
     }
     return allTransactions.filter((tx: any) => {
+      if (!tx) return false
       // Check if transaction involves any partner wallet (as source or destination)
       const sourceWalletId = tx.sourceWalletId || tx.sourceWallet?.id || tx.fromWalletId
       const destWalletId = tx.destinationWalletId || tx.destinationWallet?.id || tx.toWalletId
@@ -313,15 +317,20 @@ const CustomerProfilePage = () => {
   }
 
   // Calculate stats from real data - use full filtered list for partners, paginated for display
-  const statsTransactions = type === 'partner' ? filteredPartnerTransactions : transactions
+  const statsTransactions = React.useMemo(() => {
+    if (type === 'partner') {
+      return Array.isArray(filteredPartnerTransactions) ? filteredPartnerTransactions : []
+    }
+    return Array.isArray(transactions) ? transactions : []
+  }, [type, filteredPartnerTransactions, transactions])
   
   // Find escrow/reserve wallets for partners
   const escrowWallets = React.useMemo(() => {
-    if (type !== 'partner') return []
+    if (type !== 'partner' || !Array.isArray(partnerWallets)) return []
     return partnerWallets.filter((w: Wallet) => 
-      w.walletType?.toUpperCase().includes('ESCROW') || 
-      w.walletType?.toUpperCase().includes('RESERVE') ||
-      w.walletType?.toUpperCase().includes('SUSPENSION')
+      w?.walletType?.toUpperCase().includes('ESCROW') || 
+      w?.walletType?.toUpperCase().includes('RESERVE') ||
+      w?.walletType?.toUpperCase().includes('SUSPENSION')
     )
   }, [type, partnerWallets])
   
@@ -329,41 +338,74 @@ const CustomerProfilePage = () => {
   const suspensionFund = React.useMemo(() => {
     if (type === 'partner') {
       // For partners: Use escrow wallet balance if available (most accurate)
-      if (escrowWallets.length > 0) {
-        return escrowWallets.reduce((sum, w) => sum + (parseFloat(w.balance?.toString() || '0') || 0), 0)
+      if (Array.isArray(escrowWallets) && escrowWallets.length > 0) {
+        return escrowWallets.reduce((sum, w) => {
+          const balance = w?.balance ? parseFloat(w.balance.toString()) : 0
+          return sum + (isNaN(balance) ? 0 : balance)
+        }, 0)
       }
       // Otherwise, calculate from fees of completed transactions (fees held in escrow before disbursement)
       // Only count fees from successful/completed transactions that haven't been disbursed
-      const escrowFees = filteredPartnerTransactions
-        .filter((tx: any) => tx.status === 'SUCCESS' || tx.status === 'COMPLETED')
-        .reduce((sum: number, tx: any) => {
-          // Get fee amount - prefer main fee field, fallback to fee breakdown
-          const fee = parseFloat(tx.fee?.toString() || '0') || 0
-          const rukapayFee = parseFloat(tx.rukapayFee?.toString() || '0') || 0
-          const thirdPartyFee = parseFloat(tx.thirdPartyFee?.toString() || '0') || 0
-          const processingFee = parseFloat(tx.processingFee?.toString() || '0') || 0
-          // Use main fee if available, otherwise sum fee breakdown
-          return sum + (fee > 0 ? fee : (rukapayFee + thirdPartyFee + processingFee))
-        }, 0)
-      return escrowFees
+      if (Array.isArray(filteredPartnerTransactions)) {
+        const escrowFees = filteredPartnerTransactions
+          .filter((tx: any) => tx && (tx.status === 'SUCCESS' || tx.status === 'COMPLETED'))
+          .reduce((sum: number, tx: any) => {
+            if (!tx) return sum
+            // Get fee amount - prefer main fee field, fallback to fee breakdown
+            const fee = parseFloat(tx.fee?.toString() || '0') || 0
+            const rukapayFee = parseFloat(tx.rukapayFee?.toString() || '0') || 0
+            const thirdPartyFee = parseFloat(tx.thirdPartyFee?.toString() || '0') || 0
+            const processingFee = parseFloat(tx.processingFee?.toString() || '0') || 0
+            // Use main fee if available, otherwise sum fee breakdown
+            return sum + (fee > 0 ? fee : (rukapayFee + thirdPartyFee + processingFee))
+          }, 0)
+        return escrowFees
+      }
+      return 0
     } else {
       // For regular users: Use escrow wallet if available, otherwise 0
-      const userEscrowWallet = wallets.find((w: any) => 
-        w.walletType?.toUpperCase().includes('ESCROW') || 
-        w.walletType?.toUpperCase().includes('RESERVE') ||
-        w.walletType?.toUpperCase().includes('SUSPENSION')
-      )
-      return userEscrowWallet ? (parseFloat(userEscrowWallet.balance?.toString() || '0') || 0) : 0
+      if (Array.isArray(wallets)) {
+        const userEscrowWallet = wallets.find((w: any) => 
+          w?.walletType?.toUpperCase().includes('ESCROW') || 
+          w?.walletType?.toUpperCase().includes('RESERVE') ||
+          w?.walletType?.toUpperCase().includes('SUSPENSION')
+        )
+        if (userEscrowWallet) {
+          const balance = parseFloat(userEscrowWallet.balance?.toString() || '0')
+          return isNaN(balance) ? 0 : balance
+        }
+      }
+      return 0
     }
   }, [type, escrowWallets, filteredPartnerTransactions, wallets])
   
-  const currentBalance = type === 'partner'
-    ? (partnerWallets.reduce((sum, w) => sum + (parseFloat(w.balance?.toString() || '0') || 0), 0))
-    : (wallet?.balance || 0)
-  const avgTransactionValue = statsTransactions.length > 0 ? 
-    statsTransactions.reduce((sum: number, tx: any) => sum + (parseFloat(tx.amount?.toString() || '0') || 0), 0) / statsTransactions.length : 0
-  const successRate = statsTransactions.length > 0 ? 
-    (statsTransactions.filter((tx: any) => tx.status === 'SUCCESS').length / statsTransactions.length) * 100 : 0
+  const currentBalance = React.useMemo(() => {
+    if (type === 'partner') {
+      if (!Array.isArray(partnerWallets) || partnerWallets.length === 0) return 0
+      return partnerWallets.reduce((sum, w) => {
+        const balance = w?.balance ? parseFloat(w.balance.toString()) : 0
+        return sum + (isNaN(balance) ? 0 : balance)
+      }, 0)
+    }
+    const balance = wallet?.balance ? parseFloat(wallet.balance.toString()) : 0
+    return isNaN(balance) ? 0 : balance
+  }, [type, partnerWallets, wallet])
+  
+  const avgTransactionValue = React.useMemo(() => {
+    if (!Array.isArray(statsTransactions) || statsTransactions.length === 0) return 0
+    const total = statsTransactions.reduce((sum: number, tx: any) => {
+      if (!tx) return sum
+      const amount = parseFloat(tx.amount?.toString() || '0')
+      return sum + (isNaN(amount) ? 0 : amount)
+    }, 0)
+    return total / statsTransactions.length
+  }, [statsTransactions])
+  
+  const successRate = React.useMemo(() => {
+    if (!Array.isArray(statsTransactions) || statsTransactions.length === 0) return 0
+    const successful = statsTransactions.filter((tx: any) => tx && tx.status === 'SUCCESS').length
+    return (successful / statsTransactions.length) * 100
+  }, [statsTransactions])
 
   // Event handlers
   const handleExport = () => {
