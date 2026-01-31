@@ -166,6 +166,9 @@ api.interceptors.response.use(
         case 403:
           // 403 errors are handled by individual mutation error handlers with user-friendly toasts
           break
+        case 409:
+          // 409 Conflict - handled by mutation error handlers (e.g. duplicate merchant, already exists)
+          break
         case 404:
           // Don't log 404 errors for endpoints that might not be implemented yet
           const url = originalRequest?.url || ''
@@ -180,7 +183,8 @@ api.interceptors.response.use(
             '/mapping/transaction-types',
             '/admin/wallets', // Admin wallets endpoint might not exist
             '/wallet/me/all', // User's wallets endpoint - may not exist for all users
-            '/wallet/admin/all' // Admin all wallets endpoint - may not be deployed yet
+            '/wallet/admin/all', // Admin all wallets endpoint - may not be deployed yet
+            '/users/search', // User not found is expected when searching by phone
           ]
           const shouldLog404 = !silent404Endpoints.some(endpoint => url.includes(endpoint))
           
@@ -246,7 +250,10 @@ api.interceptors.response.use(
           }
           break
         default:
-          console.error(`API Error: ${status}`)
+          // Only log unexpected errors; 4xx client errors are typically handled by callers
+          if (status >= 500) {
+            console.error(`API Error: ${status}`, data?.message || error.message)
+          }
       }
 
       return Promise.reject({

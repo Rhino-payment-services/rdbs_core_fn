@@ -3,6 +3,7 @@ import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import SessionProvider from "@/components/providers/SessionProvider";
 import { Toaster } from 'sonner';
+import { Toaster as HotToaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
   title: "RDBS - Database Management System",
@@ -54,6 +55,17 @@ export default function RootLayout({
                   padding: '16px 20px',
                   fontSize: '14px',
                   fontWeight: '500',
+                },
+              }}
+            />
+            <HotToaster
+              position="top-center"
+              toastOptions={{
+                duration: 5000,
+                style: {
+                  background: '#08163d',
+                  color: '#fff',
+                  borderRadius: '12px',
                 },
               }}
             />
