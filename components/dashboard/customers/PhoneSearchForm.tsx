@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Loader2, Search, User, CheckCircle, AlertCircle } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Loader2, Search, User, CheckCircle, Mail, Phone } from 'lucide-react'
 import { useUserSearch } from '@/lib/hooks/useUserSearch'
 import toast from 'react-hot-toast'
 
@@ -17,17 +18,27 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
   onUserFound,
   onProceedWithoutUser
 }) => {
+  const [searchType, setSearchType] = useState<'phone' | 'email'>('phone')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [email, setEmail] = useState('')
   const [hasSearched, setHasSearched] = useState(false)
 
+  const searchValue = searchType === 'phone' ? phoneNumber : email
+
   const { data: user, isLoading, error, refetch } = useUserSearch({
-    phone: phoneNumber,
+    phone: searchType === 'phone' ? searchValue : undefined,
+    email: searchType === 'email' ? searchValue : undefined,
     enabled: false // We'll trigger it manually
   })
 
   const handleSearch = async () => {
-    if (!phoneNumber.trim()) {
-      toast.error('Please enter a phone number')
+    if (!searchValue.trim()) {
+      toast.error(searchType === 'phone' ? 'Please enter a phone number' : 'Please enter an email address')
+      return
+    }
+
+    if (searchType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(searchValue)) {
+      toast.error('Please enter a valid email address')
       return
     }
 
@@ -35,15 +46,18 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
     try {
       await refetch()
     } catch (err: any) {
-      // Extract and show error message
-      const errorMessage = err?.response?.data?.message || 
-                          err?.response?.data?.data?.message ||
-                          err?.message || 
-                          'Failed to search for user. Please try again.'
-      
-      // Show toast error notification
-      toast.error(errorMessage || 'User not found. You can proceed to create a new merchant account.')
-      console.error('User search error:', err)
+      const status = err?.response?.status ?? err?.status
+      const isNotFound = status === 404
+
+      // 404 is expected when user doesn't exist - inline UI handles it, no toast needed
+      if (isNotFound) return
+
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.data?.message ||
+        err?.message ||
+        'Failed to search. Please check your connection and try again.'
+      toast.error(errorMessage)
     }
   }
 
@@ -65,33 +79,71 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
           Search Existing User
         </CardTitle>
         <CardDescription>
-          Search for an existing user by phone number to pre-fill their information
+          Search for an existing user by phone number or email to pre-fill their information
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="phoneSearch">Phone Number</Label>
-          <div className="flex gap-2">
-            <Input
-              id="phoneSearch"
-              placeholder="Enter phone number (e.g., +256700000000)"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button 
-              onClick={handleSearch} 
-              disabled={isLoading || !phoneNumber.trim()}
-              className="px-6"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
+        <Tabs value={searchType} onValueChange={(v) => setSearchType(v as 'phone' | 'email')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="phone" className="flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Phone
+            </TabsTrigger>
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email
+            </TabsTrigger>
+          </TabsList>
+          <div className="space-y-2 mt-4">
+            <TabsContent value="phone" className="mt-0">
+              <Label htmlFor="phoneSearch">Phone Number</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="phoneSearch"
+                  placeholder="e.g., +256700000000 or 0742600203"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button 
+                  onClick={handleSearch} 
+                  disabled={isLoading || !phoneNumber.trim()}
+                  className="px-6"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+            <TabsContent value="email" className="mt-0">
+              <Label htmlFor="emailSearch">Email Address</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="emailSearch"
+                  type="email"
+                  placeholder="e.g., user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button 
+                  onClick={handleSearch} 
+                  disabled={isLoading || !email.trim()}
+                  className="px-6"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
           </div>
-        </div>
+        </Tabs>
 
         {hasSearched && (
           <div className="space-y-4">
@@ -104,11 +156,11 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
 
             {error && (
               <div className="space-y-4">
-                <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-800">
-                    <AlertCircle className="h-4 w-4" />
+                <div className="p-4 border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                    <Search className="h-4 w-4 shrink-0 text-slate-500" />
                     <span className="text-sm">
-                      No user found with this phone number. You can proceed to create a new merchant account.
+                      No existing user found {searchType === 'phone' ? 'with this phone number' : 'with this email'}. Proceed to register them as a new merchant.
                     </span>
                   </div>
                 </div>

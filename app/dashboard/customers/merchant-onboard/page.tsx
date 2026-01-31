@@ -11,7 +11,6 @@ import { PhoneSearchForm } from '@/components/dashboard/customers/PhoneSearchFor
 import { ArrowLeft, User, Building2, CheckCircle, Search, Loader2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { extractErrorMessage } from '@/lib/utils'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { useSession } from 'next-auth/react'
@@ -45,6 +44,49 @@ interface MerchantFormData {
   // Additional
   referralCode: string
   country: string
+}
+
+/** Transforms technical validation messages into user-friendly text */
+function formatValidationMessage(msg: string): string {
+  const s = msg.trim()
+  // Field name → user-friendly label
+  const fieldLabels: Record<string, string> = {
+    gender: 'Gender',
+    businessType: 'Business type',
+    businessRegistrationDate: 'Registration date',
+    businessAddress: 'Business address',
+    businessTradeName: 'Business trade name',
+    registeredBusinessName: 'Registered business name',
+    businessCity: 'Business city',
+    registeredPhoneNumber: 'Phone number',
+    businessEmail: 'Email',
+    nationalId: 'National ID',
+    firstName: 'First name',
+    lastName: 'Last name',
+    dateOfBirth: 'Date of birth',
+    certificateOfIncorporation: 'Certificate of incorporation',
+    taxIdentificationNumber: 'Tax ID',
+  }
+  // Strip nested prefixes (businessInfo.gender → gender)
+  let field = s.replace(/^(businessInfo|contactInfo)\./i, '').replace(/:.*/, '').trim()
+  const label = fieldLabels[field] || field.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()).trim()
+
+  if (/must be one of the following values/i.test(s)) return `Please select a valid ${label}.`
+  if (/must be a valid ISO 8601 date/i.test(s) || /must be a valid date/i.test(s)) return `Please enter a valid ${label}.`
+  if (/must be longer than or equal to (\d+) character/i.test(s)) {
+    const n = s.match(/(\d+)/)?.[1] ?? '5'
+    return `${label} must be at least ${n} characters.`
+  }
+  if (/must be shorter than or equal to (\d+) character/i.test(s)) {
+    const n = s.match(/(\d+)/)?.[1] ?? '200'
+    return `${label} must be no more than ${n} characters.`
+  }
+  if (/is required|should not be empty/i.test(s)) return `${label} is required.`
+  if (/must be an email/i.test(s)) return `Please enter a valid email address.`
+  if (/already exists|duplicate/i.test(s)) return s.replace(/^[^:]+:\s*/i, '')
+
+  // Fallback: replace field name with label
+  return s.replace(new RegExp(`^([^:]+:\\s*)?${field}`, 'i'), label)
 }
 
 const MerchantOnboardingPage = () => {
@@ -226,59 +268,25 @@ const MerchantOnboardingPage = () => {
         toast.error(response.data.message || 'Failed to submit application')
       }
     } catch (error: any) {
-      console.error('Submission error:', error)
-      
-      // Extract error message from response - handle multiple possible structures
+      // Support both axios error (error.response) and our interceptor's reject object (error.status, error.data)
+      const errorStatus = error?.response?.status ?? error?.status
+      const errorResponse = error?.response?.data ?? error?.data
+      const errorData = errorResponse?.data ?? errorResponse
+
+      // Extract validation/error message - handle array, string, nested structures
+      const rawMessage = errorData?.message ?? errorResponse?.message ?? error?.message
       let errorMessage = 'Failed to create merchant. Please try again.'
-      const errorStatus = error?.response?.status
-      const errorResponse = error?.response?.data
-      const errorData = errorResponse?.data || errorResponse
-      
-      // Try to extract error message from various possible locations
-      // Priority order for error extraction:
-      // 1. Array of messages (validation errors) in errorData.message
-      if (Array.isArray(errorData?.message)) {
-        errorMessage = errorData.message.join('. ')
-      } 
-      // 2. Array in top-level response.data.message
-      else if (Array.isArray(errorResponse?.message)) {
-        errorMessage = errorResponse.message.join('. ')
+      if (Array.isArray(rawMessage)) {
+        errorMessage = rawMessage.map((m: string) => formatValidationMessage(m)).filter(Boolean).join(' • ')
+      } else if (typeof rawMessage === 'string') {
+        errorMessage = rawMessage
+      } else if (errorResponse?.error && typeof errorResponse.error === 'string') {
+        errorMessage = errorResponse.error
       }
-      // 3. String message in errorData.message
-      else if (errorData?.message && typeof errorData.message === 'string') {
-        errorMessage = errorData.message
-      }
-      // 4. String message in top-level response.message
-      else if (errorResponse?.message && typeof errorResponse.message === 'string') {
-        errorMessage = errorResponse.message
-      }
-      // 5. Error object message
-      else if (errorResponse?.error) {
-        if (typeof errorResponse.error === 'string') {
-          errorMessage = errorResponse.error
-        } else if (errorResponse.error?.message) {
-          errorMessage = errorResponse.error.message
-        }
-      }
-      // 6. Direct error message
-      else if (error?.message && typeof error.message === 'string') {
-        errorMessage = error.message
-      }
-      
-      // Log error details for debugging
-      console.error('Error details:', {
-        status: errorStatus,
-        errorMessage,
-        errorResponse,
-        errorData,
-        fullError: error
-      })
-      
-      // ALWAYS show toast error for any error
-      // Handle validation errors (400)
+
+      // Handle validation errors (400) - show descriptive message and map to form fields
       if (errorStatus === 400) {
         toast.error(errorMessage)
-        // Set form errors for specific validation issues
         const lowerMessage = errorMessage.toLowerCase()
         if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
           setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered' }))
@@ -286,8 +294,18 @@ const MerchantOnboardingPage = () => {
           setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered' }))
         } else if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
           setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered' }))
-        } else if (lowerMessage.includes('business') || lowerMessage.includes('trade')) {
+        } else if (lowerMessage.includes('business') && (lowerMessage.includes('trade') || lowerMessage.includes('name'))) {
           setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
+        } else if (lowerMessage.includes('businessaddress') || lowerMessage.includes('business address')) {
+          setFormErrors(prev => ({ ...prev, businessAddress: 'Business address must be at least 5 characters' }))
+        } else if (lowerMessage.includes('businesscity') || lowerMessage.includes('business city')) {
+          setFormErrors(prev => ({ ...prev, businessCity: 'Business city is required' }))
+        } else if (lowerMessage.includes('gender')) {
+          setFormErrors(prev => ({ ...prev, gender: 'Please select a valid gender' }))
+        } else if (lowerMessage.includes('business type')) {
+          setFormErrors(prev => ({ ...prev, businessType: 'Please select a valid business type' }))
+        } else if (lowerMessage.includes('registration date')) {
+          setFormErrors(prev => ({ ...prev, businessRegistrationDate: 'Please enter a valid date' }))
         }
       }
       // Handle specific conflict errors (409)
@@ -571,8 +589,8 @@ const MerchantOnboardingPage = () => {
                             <SelectContent>
                               <SelectItem value="SOLE_PROPRIETORSHIP">Sole Proprietorship</SelectItem>
                               <SelectItem value="PARTNERSHIP">Partnership</SelectItem>
-                              <SelectItem value="LIMITED_LIABILITY">Limited Liability Company</SelectItem>
-                              <SelectItem value="CORPORATION">Corporation</SelectItem>
+                              <SelectItem value="LIMITED_COMPANY">Limited Liability Company</SelectItem>
+                              <SelectItem value="PUBLIC_COMPANY">Public Company</SelectItem>
                               <SelectItem value="COOPERATIVE">Cooperative</SelectItem>
                               <SelectItem value="NGO">NGO</SelectItem>
                               <SelectItem value="OTHER">Other</SelectItem>

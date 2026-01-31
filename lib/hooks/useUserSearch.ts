@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
+import { normalizePhoneForSearch } from '@/lib/utils'
 
 interface User {
   id: string
@@ -25,18 +26,30 @@ interface User {
 }
 
 interface UseUserSearchProps {
-  phone: string
+  phone?: string
+  email?: string
   enabled?: boolean
 }
 
-export const useUserSearch = ({ phone, enabled = true }: UseUserSearchProps) => {
+export const useUserSearch = ({ phone, email, enabled = true }: UseUserSearchProps) => {
+  const searchByEmail = !!email?.trim()
+  const normalizedPhone = phone ? normalizePhoneForSearch(phone) : ''
+  const searchKey = searchByEmail ? `email:${email?.trim()}` : `phone:${normalizedPhone}`
+  const isValid = searchByEmail ? email!.trim().length > 0 : normalizedPhone.length > 0
+
   return useQuery({
-    queryKey: ['userSearch', phone],
+    queryKey: ['userSearch', searchKey],
     queryFn: async (): Promise<User> => {
-      const response = await api.get(`/users/search?phone=${encodeURIComponent(phone)}`)
+      const params = new URLSearchParams()
+      if (searchByEmail) {
+        params.set('email', email!.trim())
+      } else {
+        params.set('phone', normalizedPhone)
+      }
+      const response = await api.get(`/users/search?${params.toString()}`)
       return response.data
     },
-    enabled: enabled && phone.length > 0,
+    enabled: enabled && isValid,
     retry: false,
     staleTime: 30 * 1000, // Cache for 30 seconds
     refetchOnWindowFocus: false,
