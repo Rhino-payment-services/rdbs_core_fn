@@ -1,21 +1,29 @@
 "use client"
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Navbar from '@/components/dashboard/Navbar'
 import { CustomerProfileContent } from '@/components/dashboard/customers/profile/CustomerProfileContent'
 import { CustomerProfileError } from '@/components/dashboard/customers/profile/CustomerProfileError'
 import { CustomerProfileLoading } from '@/components/dashboard/customers/profile/CustomerProfileLoading'
+import { SuperMerchantConfirmModal } from '@/components/dashboard/customers/SuperMerchantConfirmModal'
 import { useCustomerProfile } from '@/lib/hooks/useCustomerProfile'
 import { useCustomerStats } from '@/lib/hooks/useCustomerStats'
 import { useCustomerTransactions } from '@/lib/hooks/useCustomerTransactions'
 import { useCustomerActivities } from '@/lib/hooks/useCustomerActivities'
+import { useAuth } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 
 const CustomerProfilePage = () => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(1)
   const [pageLimit] = useState(10)
+  const [grantModalOpen, setGrantModalOpen] = useState(false)
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false)
+  const { user } = useAuth()
+  const isSuperAdmin = (user as any)?.role === 'SUPER_ADMIN'
 
   // Use custom hook for all data fetching
   const profileData = useCustomerProfile(currentPage, pageLimit)
@@ -109,6 +117,58 @@ const CustomerProfilePage = () => {
     }
   }
 
+  // Super Merchant Management - open modals
+  const handleGrantSuperMerchant = () => {
+    if (!isSuperAdmin || type !== 'merchant') return
+    const merchantId = merchantData?.id
+    if (!merchantId) {
+      toast.error('Unable to identify merchant ID')
+      return
+    }
+    setGrantModalOpen(true)
+  }
+
+  const handleRevokeSuperMerchant = () => {
+    if (!isSuperAdmin || type !== 'merchant') return
+    const merchantId = merchantData?.id
+    if (!merchantId) {
+      toast.error('Unable to identify merchant ID')
+      return
+    }
+    setRevokeModalOpen(true)
+  }
+
+  // Super Merchant API calls (called from modal confirm)
+  // ✅ Now uses merchantId (merchant-level) instead of userId (user-level)
+  const handleConfirmGrant = async () => {
+    const merchantId = merchantData?.id
+    if (!merchantId) {
+      toast.error('Unable to identify merchant ID')
+      return
+    }
+    const response = await api.post('/super-merchant/grant', { merchantId })
+    toast.success(response.data.message || 'Successfully promoted to SUPER_MERCHANT')
+    await queryClient.invalidateQueries({ queryKey: ['merchants'] })
+    router.refresh()
+  }
+
+  const handleConfirmRevoke = async () => {
+    const merchantId = merchantData?.id
+    if (!merchantId) {
+      toast.error('Unable to identify merchant ID')
+      return
+    }
+    const response = await api.delete(`/super-merchant/revoke/${merchantId}`)
+    toast.success(response.data.message || 'Successfully revoked SUPER_MERCHANT status')
+    await queryClient.invalidateQueries({ queryKey: ['merchants'] })
+    router.refresh()
+  }
+
+  const handleManageChildMerchants = () => {
+    // Navigate to super merchants management page
+    router.push('/dashboard/customers/super-merchants')
+  }
+
   // Handle loading state
   if (isLoading) {
     return <CustomerProfileLoading />
@@ -159,11 +219,32 @@ const CustomerProfilePage = () => {
   const finalTransactionsLoading = type === 'partner' ? partnerTransactionsLoading : transactionsLoading
   const finalActivityLogsLoading = type === 'partner' ? partnerActivityLogsLoading : activityLogsLoading
 
+  const merchantName = merchantData?.businessTradeName || 'This merchant'
+  const ownerName = merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
+      <main className="px-4 py-6">
         <div className="max-w-7xl mx-auto">
+          {/* Super Merchant confirmation modals */}
+          <SuperMerchantConfirmModal
+            open={grantModalOpen}
+            onOpenChange={setGrantModalOpen}
+            action="promote"
+            merchantName={merchantName}
+            ownerName={ownerName || undefined}
+            onConfirm={handleConfirmGrant}
+          />
+          <SuperMerchantConfirmModal
+            open={revokeModalOpen}
+            onOpenChange={setRevokeModalOpen}
+            action="revoke"
+            merchantName={merchantName}
+            ownerName={ownerName || undefined}
+            onConfirm={handleConfirmRevoke}
+          />
+
           <CustomerProfileContent
             type={type as string}
             id={id as string}
@@ -189,6 +270,10 @@ const CustomerProfilePage = () => {
             activityLogsError={activityLogsError}
             onBack={() => router.back()}
             onResetPin={handleResetPin}
+            onGrantSuperMerchant={handleGrantSuperMerchant}
+            onRevokeSuperMerchant={handleRevokeSuperMerchant}
+            onManageChildMerchants={handleManageChildMerchants}
+            isSuperAdmin={isSuperAdmin}
           />
         </div>
       </main>

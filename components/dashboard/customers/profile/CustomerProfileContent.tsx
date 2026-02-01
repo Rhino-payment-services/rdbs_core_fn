@@ -37,6 +37,10 @@ interface CustomerProfileContentProps {
   activityLogsError: any
   onBack: () => void
   onResetPin: () => void
+  onGrantSuperMerchant?: () => void
+  onRevokeSuperMerchant?: () => void
+  onManageChildMerchants?: () => void
+  isSuperAdmin?: boolean
 }
 
 export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
@@ -63,7 +67,11 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   activityLogsLoading,
   activityLogsError,
   onBack,
-  onResetPin
+  onResetPin,
+  onGrantSuperMerchant,
+  onRevokeSuperMerchant,
+  onManageChildMerchants,
+  isSuperAdmin = false
 }) => {
   const [activeTab, setActiveTab] = React.useState("overview")
 
@@ -192,13 +200,20 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           walletBalance: type === 'partner' ? null : (walletBalance || null),
           merchantCode: merchantData?.merchantCode || customer?.merchantCode,
           businessTradeName: merchantData?.businessTradeName,
-          ownerName: merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined
+          ownerName: merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined,
+          userId: merchantData?.userId || customer?.id,
+          subscriberType: merchantData?.user?.subscriberType || customer?.subscriberType,
+          isSuperMerchant: merchantData?.isSuperMerchant || false  // ✅ Merchant-level super merchant status
         }}
         onBack={onBack}
         onExport={handleExport}
         onEdit={() => toast.success('Opening edit form...')}
         onResetPin={onResetPin}
         onGoToSettings={handleGoToSettings}
+        onGrantSuperMerchant={onGrantSuperMerchant}
+        onRevokeSuperMerchant={onRevokeSuperMerchant}
+        onManageChildMerchants={onManageChildMerchants}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <CustomerStatsCards
@@ -303,11 +318,21 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading activity logs...</p>
             </div>
-          ) : activityLogsError && type !== 'partner' ? (
+          ) : activityLogsError && type !== 'partner' && type !== 'merchant' ? (
             <div className="text-center py-8">
               <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
               <p className="text-gray-500">Unable to retrieve activity logs for this user.</p>
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="text-center py-12">
+              <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Found</h3>
+              <p className="text-gray-500">
+                {type === 'merchant' 
+                  ? 'No recent activity logs available for this merchant.' 
+                  : 'No recent activity logs available for this user.'}
+              </p>
             </div>
           ) : (
             <CustomerActivity

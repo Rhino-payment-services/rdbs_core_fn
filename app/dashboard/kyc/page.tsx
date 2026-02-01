@@ -140,6 +140,14 @@ interface PendingKycUser {
   displayName?: string
   businessName?: string
   ownerName?: string
+  // ✅ Key flag: If true, user's identity is already verified, only need business approval
+  userKycApproved?: boolean
+  // ✅ Count of pending businesses for this user (when > 1, others will appear in Business Approvals after KYC approved)
+  pendingBusinessCount?: number
+  otherPendingBusinesses?: Array<{
+    merchantId: string
+    businessName: string
+  }>
   merchantInfo?: {
     merchantId: string
     merchantCode: string
@@ -178,6 +186,7 @@ interface PendingKycUser {
 
 interface VerifyKycRequest {
   userId: string
+  merchantId?: string // For specific business approval when user has multiple merchants
   status: 'APPROVED' | 'REJECTED'
   rejectionReason?: string
   verificationLevel: 'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'
@@ -198,10 +207,15 @@ const KycPage = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [pendingApproval, setPendingApproval] = useState<{
     userId: string
+    merchantId?: string // For specific business approval
     action: 'approve' | 'reject'
+    isBusinessApprovalOnly?: boolean // For users whose KYC is already approved
+    otherPendingBusinesses?: Array<{ merchantId: string; businessName: string }> // Other businesses waiting
   } | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [verificationLevel, setVerificationLevel] = useState<'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'>('STANDARD')
+  // Tab state for KYC vs Business Approvals
+  const [activeTab, setActiveTab] = useState<'kyc' | 'business'>('kyc')
 
   const queryClient = useQueryClient()
 
@@ -311,13 +325,13 @@ const KycPage = () => {
     }
   }
 
-  const handleApproveKyc = (userId: string) => {
-    setPendingApproval({ userId, action: 'approve' })
+  const handleApproveKyc = (userId: string, isBusinessApprovalOnly: boolean = false, merchantId?: string, otherPendingBusinesses?: Array<{ merchantId: string; businessName: string }>) => {
+    setPendingApproval({ userId, merchantId, action: 'approve', isBusinessApprovalOnly, otherPendingBusinesses })
     setShowApprovalDialog(true)
   }
 
-  const handleRejectKyc = (userId: string) => {
-    setPendingApproval({ userId, action: 'reject' })
+  const handleRejectKyc = (userId: string, isBusinessApprovalOnly: boolean = false, merchantId?: string, otherPendingBusinesses?: Array<{ merchantId: string; businessName: string }>) => {
+    setPendingApproval({ userId, merchantId, action: 'reject', isBusinessApprovalOnly, otherPendingBusinesses })
     setShowApprovalDialog(true)
   }
 
@@ -326,8 +340,10 @@ const KycPage = () => {
 
     const verifyData: VerifyKycRequest = {
       userId: pendingApproval.userId,
+      merchantId: pendingApproval.merchantId, // Include merchantId for specific business approval
       status: pendingApproval.action === 'approve' ? 'APPROVED' : 'REJECTED',
-      verificationLevel: verificationLevel,
+      // For business-only approvals, use STANDARD by default (user already has a level)
+      verificationLevel: pendingApproval.isBusinessApprovalOnly ? 'STANDARD' : verificationLevel,
     }
 
     if (pendingApproval.action === 'reject' && rejectionReason.trim()) {
@@ -373,9 +389,20 @@ const KycPage = () => {
 
   const pendingKycRequests = pendingKycData || []
 
-  const filteredKycRequests = pendingKycRequests.filter(kyc => {
+  // Separate requests into KYC (new users) and Business Approvals (verified users adding new business)
+  const pendingKycOnly = pendingKycRequests.filter(kyc => !kyc.userKycApproved)
+  const pendingBusinessApprovals = pendingKycRequests.filter(kyc => kyc.userKycApproved)
+
+  // Get the active list based on tab
+  const activeList = activeTab === 'kyc' ? pendingKycOnly : pendingBusinessApprovals
+
+  const filteredKycRequests = activeList.filter(kyc => {
     const userName = `${kyc.profile?.firstName || ''} ${kyc.profile?.lastName || ''}`.trim()
+    const businessName = kyc.businessName || kyc.displayName || ''
+    const ownerName = kyc.ownerName || ''
     const matchesSearch = userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (kyc.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (kyc.phone || '').includes(searchTerm)
     
@@ -454,7 +481,7 @@ const KycPage = () => {
   return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
+        <main className="px-4 py-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">KYC Management</h1>
@@ -486,7 +513,7 @@ const KycPage = () => {
                     </div>
                   </div>
                   <p className="text-xl font-bold text-gray-900 leading-tight">
-                    {pendingKycRequests.filter(k => k.profile?.subscriberType === 'INDIVIDUAL').length}
+                    {pendingKycOnly.filter(k => !k.isMerchant).length}
                   </p>
                   <div className="mt-0">
                     <span className="text-sm text-gray-500">Individual users</span>
@@ -503,10 +530,10 @@ const KycPage = () => {
                     </div>
                   </div>
                   <p className="text-xl font-bold text-gray-900 leading-tight">
-                    {pendingKycRequests.filter(k => k.profile?.subscriberType === 'MERCHANT').length}
+                    {pendingKycOnly.filter(k => k.isMerchant).length}
                   </p>
                   <div className="mt-0">
-                    <span className="text-sm text-gray-500">Business accounts</span>
+                    <span className="text-sm text-gray-500">New business accounts</span>
                   </div>
                 </CardContent>
               </Card>
@@ -520,10 +547,10 @@ const KycPage = () => {
                     </div>
                   </div>
                   <p className="text-xl font-bold text-gray-900 leading-tight">
-                    {pendingKycRequests.filter(k => k.profile?.subscriberType === 'AGENT').length}
+                    {pendingBusinessApprovals.length}
                   </p>
                   <div className="mt-0">
-                    <span className="text-sm text-gray-500">Agent accounts</span>
+                    <span className="text-sm text-gray-500">Business approvals</span>
                   </div>
                 </CardContent>
               </Card>
@@ -533,9 +560,14 @@ const KycPage = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Pending KYC Requests</CardTitle>
+                    <CardTitle>
+                      {activeTab === 'kyc' ? 'Pending KYC Requests' : 'Pending Business Approvals'}
+                    </CardTitle>
                     <CardDescription>
-                      Review and approve customer verification submissions
+                      {activeTab === 'kyc' 
+                        ? 'Review and approve new user identity verification submissions'
+                        : 'Approve new businesses from users whose identity is already verified'
+                      }
                     </CardDescription>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -544,6 +576,35 @@ const KycPage = () => {
                       Refresh
                     </Button>
                   </div>
+                </div>
+                {/* Tab navigation */}
+                <div className="flex space-x-1 mt-4 border-b">
+                  <button
+                    onClick={() => { setActiveTab('kyc'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      activeTab === 'kyc'
+                        ? 'bg-white border border-b-0 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Fingerprint className="h-4 w-4" />
+                      New KYC ({pendingKycOnly.length})
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('business'); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      activeTab === 'business'
+                        ? 'bg-white border border-b-0 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Business Approvals ({pendingBusinessApprovals.length})
+                    </div>
+                  </button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -647,7 +708,7 @@ const KycPage = () => {
                           </TableHeader>
                           <TableBody>
                             {paginatedKycRequests.map((kyc) => (
-                              <TableRow key={kyc.userId}>
+                              <TableRow key={kyc.merchantInfo?.merchantId || kyc.userId}>
                                 <TableCell className="w-[40px]">
                                   <input
                                     type="checkbox"
@@ -658,9 +719,11 @@ const KycPage = () => {
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center">
-                                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                                        kyc.userKycApproved ? 'bg-green-100' : 'bg-gray-200'
+                                      }`}>
                                         {kyc.isMerchant ? (
-                                          <Building2 className="h-4 w-4 text-blue-600" />
+                                          <Building2 className={`h-4 w-4 ${kyc.userKycApproved ? 'text-green-600' : 'text-blue-600'}`} />
                                         ) : (
                                           <User className="h-4 w-4 text-gray-600" />
                                         )}
@@ -670,10 +733,30 @@ const KycPage = () => {
                                           {kyc.isMerchant ? (
                                             // For merchants: Show business name
                                             <div>
-                                              <div className="font-semibold">{kyc.displayName || kyc.businessName || 'N/A'}</div>
+                                              <div className="font-semibold flex items-center gap-2">
+                                                {kyc.displayName || kyc.businessName || 'N/A'}
+                                                {kyc.userKycApproved && (
+                                                  <Badge className="bg-green-100 text-green-700 text-xs">
+                                                    <ShieldCheck className="h-3 w-3 mr-1" />
+                                                    KYC Verified
+                                                  </Badge>
+                                                )}
+                                                {/* Show badge if user has multiple pending businesses */}
+                                                {(kyc.pendingBusinessCount ?? 0) > 1 && !kyc.userKycApproved && (
+                                                  <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                                    +{(kyc.pendingBusinessCount ?? 1) - 1} more
+                                                  </Badge>
+                                                )}
+                                              </div>
                                               <div className="text-xs text-gray-500 font-normal">
                                                 Owner: {kyc.ownerName || 'N/A'}
                                               </div>
+                                              {/* Show other pending businesses if any */}
+                                              {kyc.otherPendingBusinesses && kyc.otherPendingBusinesses.length > 0 && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                  Also: {kyc.otherPendingBusinesses.map(b => b.businessName).join(', ')}
+                                                </div>
+                                              )}
                                             </div>
                                           ) : (
                                             // For individuals: Show user name
@@ -726,7 +809,7 @@ const KycPage = () => {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => handleApproveKyc(kyc.userId)}
+                                          onClick={() => handleApproveKyc(kyc.userId, kyc.userKycApproved || false, kyc.merchantInfo?.merchantId, kyc.otherPendingBusinesses)}
                                           disabled={verifyKycMutation.isPending}
                                           className="text-green-600 hover:text-green-700 hover:bg-green-50"
                                         >
@@ -738,7 +821,7 @@ const KycPage = () => {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          onClick={() => handleRejectKyc(kyc.userId)}
+                                          onClick={() => handleRejectKyc(kyc.userId, kyc.userKycApproved || false, kyc.merchantInfo?.merchantId, kyc.otherPendingBusinesses)}
                                           disabled={verifyKycMutation.isPending}
                                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                         >
@@ -792,37 +875,81 @@ const KycPage = () => {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
-                {pendingApproval?.action === 'approve' ? 'Approve KYC Request' : 'Reject KYC Request'}
+                {pendingApproval?.isBusinessApprovalOnly 
+                  ? (pendingApproval?.action === 'approve' ? 'Approve Business' : 'Reject Business')
+                  : (pendingApproval?.action === 'approve' ? 'Approve KYC Request' : 'Reject KYC Request')
+                }
               </DialogTitle>
               <DialogDescription>
-                {pendingApproval?.action === 'approve' 
-                  ? 'Please select the verification level for this user.'
-                  : 'Please provide a reason for rejecting this KYC request.'
-                }
+                {pendingApproval?.isBusinessApprovalOnly ? (
+                  pendingApproval?.action === 'approve'
+                    ? 'This user\'s identity is already verified. Approve this new business to activate it.'
+                    : 'Please provide a reason for rejecting this business application.'
+                ) : (
+                  pendingApproval?.action === 'approve' 
+                    ? 'Please select the verification level for this user.'
+                    : 'Please provide a reason for rejecting this KYC request.'
+                )}
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
-              {pendingApproval?.action === 'approve' ? (
-                <div>
-                  <label className="text-sm font-medium">Verification Level</label>
-                  <Select value={verificationLevel} onValueChange={(value: any) => setVerificationLevel(value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BASIC">Basic</SelectItem>
-                      <SelectItem value="STANDARD">Standard</SelectItem>
-                      <SelectItem value="ENHANCED">Enhanced</SelectItem>
-                      <SelectItem value="PREMIUM">Premium</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {pendingApproval?.isBusinessApprovalOnly && pendingApproval?.action === 'approve' ? (
+                // Business-only approval: No verification level needed
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-green-800">
+                    <ShieldCheck className="h-5 w-5" />
+                    <span className="font-medium">User identity already verified</span>
+                  </div>
+                  <p className="text-sm text-green-700 mt-1">
+                    The user&apos;s KYC has been previously approved. This approval will only activate the new business.
+                  </p>
+                </div>
+              ) : pendingApproval?.action === 'approve' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Verification Level</label>
+                    <Select value={verificationLevel} onValueChange={(value: any) => setVerificationLevel(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BASIC">Basic</SelectItem>
+                        <SelectItem value="STANDARD">Standard</SelectItem>
+                        <SelectItem value="ENHANCED">Enhanced</SelectItem>
+                        <SelectItem value="PREMIUM">Premium</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Show info about other pending businesses */}
+                  {pendingApproval?.otherPendingBusinesses && pendingApproval.otherPendingBusinesses.length > 0 && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-blue-800 mb-2">
+                        <Building2 className="h-4 w-4" />
+                        <span className="font-medium text-sm">
+                          This user has {pendingApproval.otherPendingBusinesses.length} more pending business(es)
+                        </span>
+                      </div>
+                      <ul className="text-xs text-blue-700 ml-6 list-disc">
+                        {pendingApproval.otherPendingBusinesses.map(b => (
+                          <li key={b.merchantId}>{b.businessName}</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-blue-600 mt-2">
+                        After approving this KYC, the other businesses will appear in the &quot;Business Approvals&quot; tab for individual approval.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div>
                   <label className="text-sm font-medium">Rejection Reason</label>
                   <Textarea
-                    placeholder="Please explain why this KYC request is being rejected..."
+                    placeholder={pendingApproval?.isBusinessApprovalOnly 
+                      ? "Please explain why this business application is being rejected..."
+                      : "Please explain why this KYC request is being rejected..."
+                    }
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     className="mt-1"
@@ -860,7 +987,9 @@ const KycPage = () => {
                       Processing...
                     </>
                   ) : (
-                    pendingApproval?.action === 'approve' ? 'Approve' : 'Reject'
+                    pendingApproval?.action === 'approve' 
+                      ? (pendingApproval?.isBusinessApprovalOnly ? 'Approve Business' : 'Approve')
+                      : (pendingApproval?.isBusinessApprovalOnly ? 'Reject Business' : 'Reject')
                   )}
                 </Button>
               </div>

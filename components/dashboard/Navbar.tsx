@@ -235,7 +235,7 @@ const Navbar = () => {
       </nav>
 
       {/* Menu Bar */}
-      <div className="border-t border-gray-100 bg-gray-50">
+      <div className="border-t border-gray-100 bg-gray-50 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="relative">
             {/* Scrollable Menu Container */}
