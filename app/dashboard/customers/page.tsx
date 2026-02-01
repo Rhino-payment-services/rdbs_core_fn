@@ -455,12 +455,12 @@ const CustomersPage = () => {
       customerId = customer.id // merchant id
     } else if (sourceTab === 'partners') {
       // Partners tab
-      customerType = customer.partnerName ? 'partner' : 'partner'
-      customerId = customer.id
-    } else if (customer.partnerName) {
       customerType = 'partner'
       customerId = customer.id
-    } else if (customer.businessTradeName) {
+    } else if ((customer as any).partnerName) {
+      customerType = 'partner'
+      customerId = customer.id
+    } else if ((customer as any).businessTradeName) {
       customerType = 'merchant'
       customerId = customer.id
     } else if (customer.merchants && customer.merchants.length > 0) {
@@ -490,10 +490,10 @@ const CustomersPage = () => {
     } else if (sourceTab === 'partners') {
       customerType = 'partner'
       customerId = customer.id
-    } else if (customer.partnerName) {
+    } else if ((customer as any).partnerName) {
       customerType = 'partner'
       customerId = customer.id
-    } else if (customer.businessTradeName) {
+    } else if ((customer as any).businessTradeName) {
       customerType = 'merchant'
       customerId = customer.id
     } else if (customer.merchants && customer.merchants.length > 0) {

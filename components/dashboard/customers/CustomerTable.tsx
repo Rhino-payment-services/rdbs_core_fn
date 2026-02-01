@@ -38,7 +38,7 @@ import {
   Wallet,
   WalletCards,
   Crown,
-  User,
+  User as UserIcon,
   Users
 } from 'lucide-react'
 import type { User } from '@/lib/types/api'
@@ -164,7 +164,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     const typeConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
       'INDIVIDUAL': { 
         color: 'bg-gray-100 text-gray-700', 
-        icon: <User className="h-3 w-3 mr-1" />,
+        icon: <UserIcon className="h-3 w-3 mr-1" />,
         label: 'Individual'
       },
       'MERCHANT': { 
@@ -250,7 +250,8 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
       return (
         <div className="flex flex-col gap-1">
-          {Object.entries(grouped).map(([walletType, { count, hasInactive, hasActive }]) => {
+          {Object.entries(grouped).map(([walletType, entry]) => {
+            const { count, hasInactive, hasActive } = entry as { count: number; hasInactive: boolean; hasActive: boolean }
             const config = walletConfig[walletType] || { 
               color: 'bg-gray-100 text-gray-600',
               activeColor: 'bg-blue-100 text-blue-800',
