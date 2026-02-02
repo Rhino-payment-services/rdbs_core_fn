@@ -20,6 +20,17 @@ export interface User {
   updatedAt: string
   permissions?: Permission[]
   subscriberType: string
+  subscriberTypes?: string[]  // Array - Individual + Merchant when user has both wallet types
+  // Wallet information - indicates if user has created a personal wallet
+  wallets?: Array<{
+    id: string
+    balance: number
+    currency: string
+    walletType: string
+    isActive: boolean
+    isSuspended: boolean
+    updatedAt: string
+  }>
   profile?: {
     id: string
     userId: string

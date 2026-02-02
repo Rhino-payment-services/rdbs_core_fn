@@ -34,7 +34,12 @@ import {
   Clock,
   Building2,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Wallet,
+  WalletCards,
+  Crown,
+  User as UserIcon,
+  Users
 } from 'lucide-react'
 import type { User } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from './MerchantQRCodeDialog'
@@ -57,6 +62,10 @@ interface CustomerTableProps {
   totalItems: number
   isMerchantTab?: boolean  // Flag to indicate merchants tab
   onRefresh?: () => void  // Callback to refresh data after blocking/unblocking
+  isSuperAdmin?: boolean
+  onPromoteToSuperMerchant?: (subscriber: any) => void  // For Subscribers tab
+  onRevokeSuperMerchant?: (subscriber: any) => void  // For Subscribers tab - when user is already super merchant
+  isSubscribersTab?: boolean  // Show Promote button on Subscribers tab
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({
@@ -75,7 +84,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   onItemsPerPageChange,
   totalItems,
   isMerchantTab = false,
-  onRefresh
+  onRefresh,
+  isSuperAdmin = false,
+  onPromoteToSuperMerchant,
+  onRevokeSuperMerchant,
+  isSubscribersTab = false,
 }) => {
   const blockUserMutation = useBlockUser()
   const unblockUserMutation = useUnblockUser()
@@ -140,6 +153,143 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     )
   }
 
+  const getSubscriberTypeBadge = (customer: User | any) => {
+    // Use subscriberTypes array if available, otherwise fallback to subscriberType
+    const types = customer.subscriberTypes && customer.subscriberTypes.length > 0
+      ? customer.subscriberTypes
+      : customer.subscriberType ? [customer.subscriberType] : []
+    
+    if (types.length === 0) return <Badge variant="outline">Unknown</Badge>
+    
+    const typeConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+      'INDIVIDUAL': { 
+        color: 'bg-gray-100 text-gray-700', 
+        icon: <UserIcon className="h-3 w-3 mr-1" />,
+        label: 'Individual'
+      },
+      'MERCHANT': { 
+        color: 'bg-purple-100 text-purple-800', 
+        icon: <Building2 className="h-3 w-3 mr-1" />,
+        label: 'Merchant'
+      },
+      'SUPER_MERCHANT': { 
+        color: 'bg-yellow-100 text-yellow-800 border border-yellow-300', 
+        icon: <Crown className="h-3 w-3 mr-1" />,
+        label: 'Super Merchant'
+      },
+      'PARTNER': { 
+        color: 'bg-green-100 text-green-800', 
+        icon: <Building2 className="h-3 w-3 mr-1" />,
+        label: 'Partner'
+      },
+      'AGENT': { 
+        color: 'bg-orange-100 text-orange-800', 
+        icon: <Users className="h-3 w-3 mr-1" />,
+        label: 'Agent'
+      },
+      'SUPER_AGENT': { 
+        color: 'bg-red-100 text-red-800', 
+        icon: <Users className="h-3 w-3 mr-1" />,
+        label: 'Super Agent'
+      }
+    }
+    
+    return (
+      <div className="flex flex-col gap-1">
+        {types.map((t: string) => {
+          const config = typeConfig[t] || { 
+            color: 'bg-gray-100 text-gray-800', 
+            icon: null, 
+            label: t.replace('_', ' ') 
+          }
+          return (
+            <Badge key={t} className={`${config.color} flex items-center`}>
+              {config.icon}
+              {config.label}
+            </Badge>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const getWalletBadge = (customer: User | any) => {
+    // Check if user has wallet information
+    const wallets = customer.wallets || []
+    const canHaveWallet = customer.canHaveWallet
+    
+    // Wallet type configuration for display
+    const walletConfig: Record<string, { color: string; activeColor: string; label: string }> = {
+      'PERSONAL': { 
+        color: 'bg-gray-100 text-gray-600', 
+        activeColor: 'bg-green-100 text-green-800',
+        label: 'Personal' 
+      },
+      'BUSINESS': { 
+        color: 'bg-gray-100 text-gray-600', 
+        activeColor: 'bg-blue-100 text-blue-800',
+        label: 'Business' 
+      },
+      'ESCROW': { 
+        color: 'bg-gray-100 text-gray-600', 
+        activeColor: 'bg-purple-100 text-purple-800',
+        label: 'Escrow' 
+      }
+    }
+    
+    // If user has wallets, group by type and show counts (e.g. "2 Businesses" not "Business, Business")
+    if (wallets.length > 0) {
+      const grouped = wallets.reduce((acc: Record<string, { count: number; hasInactive: boolean; hasActive: boolean }>, w: any) => {
+        const type = w.walletType || 'OTHER'
+        if (!acc[type]) acc[type] = { count: 0, hasInactive: false, hasActive: false }
+        acc[type].count++
+        if (!w.isActive) acc[type].hasInactive = true
+        if (w.isActive) acc[type].hasActive = true
+        return acc
+      }, {})
+
+      return (
+        <div className="flex flex-col gap-1">
+          {Object.entries(grouped).map(([walletType, entry]) => {
+            const { count, hasInactive, hasActive } = entry as { count: number; hasInactive: boolean; hasActive: boolean }
+            const config = walletConfig[walletType] || { 
+              color: 'bg-gray-100 text-gray-600',
+              activeColor: 'bg-blue-100 text-blue-800',
+              label: walletType 
+            }
+            const colorClass = hasActive ? config.activeColor : config.color
+            const pluralLabel = config.label === 'Business' ? 'Businesses' : config.label === 'Personal' ? 'Personal' : `${config.label}s`
+            const label = count > 1 ? `${count} ${pluralLabel}` : config.label
+            return (
+              <Badge key={walletType} className={`${colorClass} flex items-center`}>
+                <Wallet className="h-3 w-3 mr-1" />
+                {label}
+                {hasInactive && <span className="ml-1 text-xs">(Inactive)</span>}
+              </Badge>
+            )
+          })}
+        </div>
+      )
+    }
+    
+    // No wallets yet
+    if (canHaveWallet) {
+      return (
+        <Badge className="bg-gray-100 text-gray-600 flex items-center">
+          <WalletCards className="h-3 w-3 mr-1" />
+          Not Created
+        </Badge>
+      )
+    }
+    
+    return (
+      <Badge variant="outline" className="text-gray-400 flex items-center">
+        <WalletCards className="h-3 w-3 mr-1" />
+        N/A
+      </Badge>
+    )
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -193,7 +343,9 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                 <TableHead>Customer</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Type</TableHead>
+                {!isMerchantTab && <TableHead>Subscriber Type</TableHead>}
                 <TableHead>Status</TableHead>
+                {!isMerchantTab && <TableHead>Wallet</TableHead>}
                 <TableHead>Location</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Activity</TableHead>
@@ -303,11 +455,24 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                   </TableCell>
                   <TableCell>
                     {isMerchantTab ? (
-                      <Badge className="bg-blue-100 text-blue-800">MERCHANT</Badge>
+                      <div className="flex flex-col gap-1">
+                        <Badge className="bg-blue-100 text-blue-800">MERCHANT</Badge>
+                        {customer.isSuperMerchant && (
+                          <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300 flex items-center">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Super Merchant
+                          </Badge>
+                        )}
+                      </div>
                     ) : (
                       getUserTypeBadge(customer)
                     )}
                   </TableCell>
+                  {!isMerchantTab && (
+                    <TableCell>
+                      {getSubscriberTypeBadge(customer)}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {isMerchantTab ? (
                       customer.isVerified ? (
@@ -319,6 +484,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                       getStatusBadge(customer.status)
                     )}
                   </TableCell>
+                  {!isMerchantTab && (
+                    <TableCell>
+                      {getWalletBadge(customer)}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {isMerchantTab ? (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -369,15 +539,50 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                           merchantName={customer.businessTradeName || 'Unknown Business'}
                         />
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditCustomer(customer)}
-                        className="h-8 w-8 p-0"
-                        title="Edit customer"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      {!isSubscribersTab && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEditCustomer(customer)}
+                          className="h-8 w-8 p-0"
+                          title="Edit customer"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {/* Promote/Revoke Super Merchant - Subscribers tab, SUPER_ADMIN only */}
+                      {isSubscribersTab && isSuperAdmin && (() => {
+                        const isSuperMerchantUser =
+                          (customer as any).subscriberType === 'SUPER_MERCHANT' ||
+                          ((customer as any).subscriberTypes || []).includes('SUPER_MERCHANT')
+                        if (isSuperMerchantUser && onRevokeSuperMerchant) {
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onRevokeSuperMerchant(customer)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              title="Revoke Super Merchant"
+                            >
+                              <Crown className="h-4 w-4" />
+                            </Button>
+                          )
+                        }
+                        if (!isSuperMerchantUser && onPromoteToSuperMerchant) {
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onPromoteToSuperMerchant(customer)}
+                              className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700"
+                              title="Promote to Super Merchant"
+                            >
+                              <Crown className="h-4 w-4" />
+                            </Button>
+                          )
+                        }
+                        return null
+                      })()}
                       {/* Block/Unblock buttons - only show for non-merchant tabs or if user has userId */}
                       {(!isMerchantTab || customer.userId) && (
                         <>

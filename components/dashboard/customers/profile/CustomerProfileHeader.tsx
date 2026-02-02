@@ -16,7 +16,9 @@ import {
   Edit,
   MoreHorizontal,
   Key,
-  Settings
+  Settings,
+  Crown,
+  Users
 } from 'lucide-react'
 import { Wallet } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from '../MerchantQRCodeDialog'
@@ -44,13 +46,20 @@ interface CustomerProfileHeaderProps {
     // Merchant-specific fields
     merchantCode?: string,
     businessTradeName?: string,
-    ownerName?: string
+    ownerName?: string,
+    userId?: string,
+    subscriberType?: string,
+    isSuperMerchant?: boolean  // ✅ Merchant-level super merchant status
   }
   onBack: () => void
   onExport: () => void
   onEdit: () => void
   onResetPin?: () => void
   onGoToSettings?: () => void
+  onGrantSuperMerchant?: () => void
+  onRevokeSuperMerchant?: () => void
+  onManageChildMerchants?: () => void
+  isSuperAdmin?: boolean
 }
 
 const CustomerProfileHeader = ({ 
@@ -59,7 +68,11 @@ const CustomerProfileHeader = ({
   onExport, 
   onEdit, 
   onResetPin,
-  onGoToSettings
+  onGoToSettings,
+  onGrantSuperMerchant,
+  onRevokeSuperMerchant,
+  onManageChildMerchants,
+  isSuperAdmin = false
 }: CustomerProfileHeaderProps) => {
   const getCustomerTypeBadge = (type: string) => {
     switch (type) {
@@ -81,6 +94,8 @@ const CustomerProfileHeader = ({
   }
 
   const isMerchant = customer.type === 'merchant' || customer.type === 'merchants'
+  // ✅ Check merchant-level isSuperMerchant, not user-level subscriberType
+  const isSuperMerchant = customer.isSuperMerchant === true
 
   return (
     <div className="flex items-center justify-between mb-8">
@@ -98,6 +113,13 @@ const CustomerProfileHeader = ({
           <div className="flex items-center gap-3">
             <span className="text-gray-600">ID: {customer.id}</span>
             {getCustomerTypeBadge(customer.type)}
+            {/* Super Merchant Badge */}
+            {isSuperMerchant && (
+              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 flex items-center gap-1">
+                <Crown className="h-3 w-3" />
+                Super Merchant
+              </Badge>
+            )}
             {/* Show merchant code for merchants */}
             {isMerchant && customer.merchantCode && (
               <Badge variant="outline" className="font-mono text-xs">
@@ -150,6 +172,29 @@ const CustomerProfileHeader = ({
                 <Settings className="h-4 w-4" />
                 Go to Settings
               </DropdownMenuItem>
+            )}
+            {/* Super Merchant Actions - Only for SUPER_ADMIN on merchant profiles */}
+            {isSuperAdmin && isMerchant && (
+              <>
+                <DropdownMenuSeparator />
+                {isSuperMerchant ? (
+                  <>
+                    <DropdownMenuItem onClick={onManageChildMerchants} className="flex items-center gap-2 cursor-pointer text-yellow-700">
+                      <Users className="h-4 w-4" />
+                      Manage Child Merchants
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onRevokeSuperMerchant} className="flex items-center gap-2 cursor-pointer text-red-600">
+                      <Crown className="h-4 w-4" />
+                      Revoke Super Merchant
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={onGrantSuperMerchant} className="flex items-center gap-2 cursor-pointer text-yellow-700">
+                    <Crown className="h-4 w-4" />
+                    Promote to Super Merchant
+                  </DropdownMenuItem>
+                )}
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>

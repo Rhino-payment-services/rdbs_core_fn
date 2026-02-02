@@ -1,6 +1,7 @@
 "use client"
 import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Navbar from '@/components/dashboard/Navbar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CustomerStats } from '@/components/dashboard/customers/CustomerStats'
@@ -8,6 +9,9 @@ import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilter
 import { CustomerTable } from '@/components/dashboard/customers/CustomerTable'
 import { CustomerBulkActions } from '@/components/dashboard/customers/CustomerBulkActions'
 import { CustomerDetailsModal } from '@/components/dashboard/customers/CustomerDetailsModal'
+import { PromoteSubscriberModal } from '@/components/dashboard/customers/PromoteSubscriberModal'
+import { RevokeSubscriberModal } from '@/components/dashboard/customers/RevokeSubscriberModal'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { useUsers, useApiPartners } from '@/lib/hooks/useApi'
 import { useTransactionSystemStats } from '@/lib/hooks/useTransactions'
 import { useMerchants } from '@/lib/hooks/useMerchants'
@@ -21,6 +25,7 @@ import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 
 const CustomersPage = () => {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('subscribers')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -35,7 +40,13 @@ const CustomersPage = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<User | null>(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
-  
+  const [promoteModalOpen, setPromoteModalOpen] = useState(false)
+  const [selectedSubscriberForPromote, setSelectedSubscriberForPromote] = useState<User | null>(null)
+  const [revokeModalOpen, setRevokeModalOpen] = useState(false)
+  const [selectedSubscriberForRevoke, setSelectedSubscriberForRevoke] = useState<User | null>(null)
+
+  const { user } = useAuth()
+  const isSuperAdmin = (user as any)?.role === 'SUPER_ADMIN'
 
   // API hooks - add keepPreviousData to prevent loading flashes
   const { data: usersData, isLoading: usersLoading, error: usersError, refetch } = useUsers()
@@ -400,10 +411,13 @@ const CustomersPage = () => {
           if (activeTab === 'subscribers') {
             // ✅ Include INDIVIDUAL, ALL MERCHANT users, users with merchants but no subscriberType, or users with no subscriberType
             const isIndividual = user.subscriberType === 'INDIVIDUAL'
-            const isMerchantType = user.subscriberType === 'MERCHANT' // All MERCHANT users are subscribers
+            const isMerchantType = user.subscriberType === 'MERCHANT'
+            const isSuperMerchant =
+              user.subscriberType === 'SUPER_MERCHANT' ||
+              (user.subscriberTypes && user.subscriberTypes.includes('SUPER_MERCHANT'))
             const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
             const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
-            return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+            return isIndividual || isMerchantType || isSuperMerchant || hasMerchantsButNoSubscriberType || hasNoSubscriberType
           }
           if (activeTab === 'merchants') return !!(user.merchants && user.merchants.length > 0) // ✅ Updated: Check merchants array
           return true
@@ -425,40 +439,73 @@ const CustomersPage = () => {
     }
   }
 
-  const handleViewCustomer = (customer: User | any) => {
-    // Determine customer type for routing
+  const handleViewCustomer = (customer: User | any, sourceTab?: 'subscribers' | 'merchants' | 'partners') => {
+    // When viewing from Subscribers tab: always show USER profile (the person), not their businesses
+    // When viewing from Merchants tab: show BUSINESS profile (the merchant)
     let customerType = 'subscriber' // default
     let customerId = customer.id
     
-    // All partners (gateway and regular) open on the same customer profile page
-    if (customer.partnerName) {
-      // Gateway partner from Partners tab - show on customer profile page (no redirect)
+    if (sourceTab === 'subscribers') {
+      // Subscribers tab: always route to user/subscriber profile (person), separate from businesses
+      customerType = 'subscriber'
+      customerId = customer.id // user id
+    } else if (sourceTab === 'merchants') {
+      // Merchants tab: show business profile
+      customerType = 'merchant'
+      customerId = customer.id // merchant id
+    } else if (sourceTab === 'partners') {
+      // Partners tab
       customerType = 'partner'
       customerId = customer.id
-    } else if (customer.businessTradeName) {
-      // ✅ This is a merchant object from the merchants tab (has businessTradeName)
-      // Use the merchant's ID directly, not the userId
+    } else if ((customer as any).partnerName) {
+      customerType = 'partner'
+      customerId = customer.id
+    } else if ((customer as any).businessTradeName) {
       customerType = 'merchant'
-      customerId = customer.id // Use merchant ID, not userId
+      customerId = customer.id
     } else if (customer.merchants && customer.merchants.length > 0) {
-      // ✅ This is a user object with merchants array (from subscribers tab)
-      customerType = 'merchant'
-      // For users with merchants, use the first merchant's ID or userId
-      const firstMerchant = customer.merchants[0]
-      customerId = firstMerchant.id || (customer as any).userId || customer.id
+      // Fallback when sourceTab not passed: treat as subscriber (user profile)
+      customerType = 'subscriber'
+      customerId = customer.id
     } else if (customer.subscriberType === 'AGENT' || (!customer.subscriberType && (customer.userType === 'PARTNER' || customer.userType === 'AGENT'))) {
-      // ✅ Regular partners: subscriberType === 'AGENT' or userType === 'PARTNER'/'AGENT' as fallback
       customerType = 'partner'
     } else if (customer.subscriberType === 'INDIVIDUAL') {
       customerType = 'subscriber'
     }
     
-    // Navigate to customer detail page
     router.push(`/dashboard/customers/${customerType}/${customerId}`)
   }
 
-  const handleEditCustomer = (customer: User) => {
-    router.push(`/dashboard/customers/${customer.id}/edit`)
+  const handleEditCustomer = (customer: User, sourceTab?: 'subscribers' | 'merchants' | 'partners') => {
+    // Same routing logic as handleViewCustomer - separate user from business
+    let customerType = 'subscriber'
+    let customerId = customer.id
+    
+    if (sourceTab === 'subscribers') {
+      customerType = 'subscriber'
+      customerId = customer.id
+    } else if (sourceTab === 'merchants') {
+      customerType = 'merchant'
+      customerId = customer.id
+    } else if (sourceTab === 'partners') {
+      customerType = 'partner'
+      customerId = customer.id
+    } else if ((customer as any).partnerName) {
+      customerType = 'partner'
+      customerId = customer.id
+    } else if ((customer as any).businessTradeName) {
+      customerType = 'merchant'
+      customerId = customer.id
+    } else if (customer.merchants && customer.merchants.length > 0) {
+      customerType = 'subscriber'
+      customerId = customer.id
+    } else if (customer.subscriberType === 'AGENT' || (!customer.subscriberType && (customer.userType === 'PARTNER' || customer.userType === 'AGENT'))) {
+      customerType = 'partner'
+    } else if (customer.subscriberType === 'INDIVIDUAL') {
+      customerType = 'subscriber'
+    }
+    
+    router.push(`/dashboard/customers/${customerType}/${customerId}`)
   }
 
   const handleDeleteCustomer = (customer: User) => {
@@ -480,6 +527,86 @@ const CustomersPage = () => {
     setShowCustomerModal(false)
     setSelectedCustomer(null)
     handleDeleteCustomer(customer)
+  }
+
+  // Promote to Super Merchant - open modal from Subscribers tab
+  const handlePromoteToSuperMerchant = (subscriber: User | any) => {
+    setSelectedSubscriberForPromote(subscriber)
+    setPromoteModalOpen(true)
+  }
+
+  // Get merchant options for the selected subscriber (from user.merchants or merchantsData)
+  const subscriberMerchants = useMemo(() => {
+    if (!selectedSubscriberForPromote) return []
+    const userId = selectedSubscriberForPromote.id
+    // Use subscriber.merchants if available
+    const fromUser = (selectedSubscriberForPromote as any).merchants || []
+    // Fallback: filter merchantsData by userId
+    const fromMerchantsData = (merchantsData?.merchants || []).filter(
+      (m: any) => m.userId === userId
+    )
+    const merged = fromUser.length > 0 ? fromUser : fromMerchantsData
+    return merged.map((m: any) => ({
+      id: m.id,
+      merchantCode: m.merchantCode || m.code,
+      businessTradeName: m.businessTradeName || m.name || 'Unknown',
+      isSuperMerchant: m.isSuperMerchant,
+    }))
+  }, [selectedSubscriberForPromote, merchantsData?.merchants])
+
+  const handleConfirmPromote = async (merchantId: string) => {
+    try {
+      const response = await api.post('/super-merchant/grant', { merchantId })
+      toast.success(response.data.message || 'Successfully promoted to Super Merchant')
+      setPromoteModalOpen(false)
+      setSelectedSubscriberForPromote(null)
+      await queryClient.invalidateQueries({ queryKey: ['merchants'] })
+      refetch()
+      refetchMerchants()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to promote to Super Merchant')
+      throw error
+    }
+  }
+
+  // Revoke Super Merchant - open modal from Subscribers tab
+  const handleRevokeSuperMerchant = (subscriber: User | any) => {
+    setSelectedSubscriberForRevoke(subscriber)
+    setRevokeModalOpen(true)
+  }
+
+  // Get super merchant accounts for the selected subscriber
+  const superMerchantAccountsForRevoke = useMemo(() => {
+    if (!selectedSubscriberForRevoke) return []
+    const userId = selectedSubscriberForRevoke.id
+    const fromUser = ((selectedSubscriberForRevoke as any).merchants || []).filter(
+      (m: any) => m.isSuperMerchant === true
+    )
+    const fromMerchantsData = (merchantsData?.merchants || []).filter(
+      (m: any) => m.userId === userId && m.isSuperMerchant === true
+    )
+    const merged = fromUser.length > 0 ? fromUser : fromMerchantsData
+    return merged.map((m: any) => ({
+      id: m.id,
+      merchantCode: m.merchantCode || m.code,
+      businessTradeName: m.businessTradeName || m.name || 'Unknown',
+      isSuperMerchant: true,
+    }))
+  }, [selectedSubscriberForRevoke, merchantsData?.merchants])
+
+  const handleConfirmRevoke = async (merchantId: string) => {
+    try {
+      const response = await api.delete(`/super-merchant/revoke/${merchantId}`)
+      toast.success(response.data.message || 'Successfully revoked Super Merchant status')
+      setRevokeModalOpen(false)
+      setSelectedSubscriberForRevoke(null)
+      await queryClient.invalidateQueries({ queryKey: ['merchants'] })
+      refetch()
+      refetchMerchants()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to revoke Super Merchant status')
+      throw error
+    }
   }
 
   const handlePageChange = (page: number) => {
@@ -733,14 +860,17 @@ const CustomersPage = () => {
         // Include if subscriberType is 'INDIVIDUAL'
         const isIndividual = user.subscriberType === 'INDIVIDUAL'
         // ✅ Include ALL users with 'MERCHANT' subscriberType (they are individuals who registered as merchants)
-        //    Whether they have merchant accounts or not, they should appear as subscribers
         const isMerchantType = user.subscriberType === 'MERCHANT'
+        // ✅ Include SUPER_MERCHANT (check both subscriberType and subscriberTypes array)
+        const isSuperMerchant =
+          user.subscriberType === 'SUPER_MERCHANT' ||
+          (user.subscriberTypes && user.subscriberTypes.includes('SUPER_MERCHANT'))
         // Include users with merchants but null subscriberType (they should be INDIVIDUAL)
         const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
         // ✅ Include users with no subscriberType and no merchants (default to INDIVIDUAL subscribers)
         const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
         
-        const shouldInclude = isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+        const shouldInclude = isIndividual || isMerchantType || isSuperMerchant || hasMerchantsButNoSubscriberType || hasNoSubscriberType
         
         if (!shouldInclude) {
           console.log(`  - User ${user.email || user.phone} excluded from subscribers: subscriberType=${user.subscriberType}, hasMerchants=${!!(user.merchants && user.merchants.length > 0)}`)
@@ -862,9 +992,10 @@ const CustomersPage = () => {
     const usersInSubscribers = nonStaffUsersForDebug.filter(u => {
       const isIndividual = u.subscriberType === 'INDIVIDUAL'
       const isMerchantType = u.subscriberType === 'MERCHANT'
+      const isSuperMerchant = u.subscriberType === 'SUPER_MERCHANT' || (u.subscriberTypes && u.subscriberTypes.includes('SUPER_MERCHANT'))
       const hasMerchantsButNoSubscriberType = (u.merchants && u.merchants.length > 0) && !u.subscriberType
       const hasNoSubscriberType = !u.subscriberType && (!u.merchants || u.merchants.length === 0)
-      return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+      return isIndividual || isMerchantType || isSuperMerchant || hasMerchantsButNoSubscriberType || hasNoSubscriberType
     })
     const usersInMerchants = nonStaffUsersForDebug.filter(u => u.merchants && u.merchants.length > 0)
     const usersInPartners = nonStaffUsersForDebug.filter(u => {
@@ -916,10 +1047,13 @@ const CustomersPage = () => {
   // ✅ Count subscribers: INDIVIDUAL users, ALL MERCHANT users, users with merchants but no subscriberType, or users with no subscriberType
   const subscribersCount = nonStaffUsers.filter(user => {
     const isIndividual = user.subscriberType === 'INDIVIDUAL'
-    const isMerchantType = user.subscriberType === 'MERCHANT' // All MERCHANT users are subscribers
+    const isMerchantType = user.subscriberType === 'MERCHANT'
+    const isSuperMerchant =
+      user.subscriberType === 'SUPER_MERCHANT' ||
+      (user.subscriberTypes && user.subscriberTypes.includes('SUPER_MERCHANT'))
     const hasMerchantsButNoSubscriberType = (user.merchants && user.merchants.length > 0) && !user.subscriberType
     const hasNoSubscriberType = !user.subscriberType && (!user.merchants || user.merchants.length === 0)
-    return isIndividual || isMerchantType || hasMerchantsButNoSubscriberType || hasNoSubscriberType
+    return isIndividual || isMerchantType || isSuperMerchant || hasMerchantsButNoSubscriberType || hasNoSubscriberType
   }).length
   const merchantsCount = merchantsTotal // Get count from merchants API (includes dual account users)
   // ✅ Partners: Use API partners count from partnersData
@@ -1002,7 +1136,7 @@ const CustomersPage = () => {
       <Navbar />
       
       <main className="flex-1 overflow-hidden relative">
-        <div className="h-full overflow-y-auto p-6">
+        <div className="h-full overflow-y-auto px-4 py-6">
           <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -1080,8 +1214,8 @@ const CustomersPage = () => {
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
-              onViewCustomer={handleViewCustomer}
-              onEditCustomer={handleEditCustomer}
+              onViewCustomer={(c) => handleViewCustomer(c, 'subscribers')}
+              onEditCustomer={(c) => handleEditCustomer(c, 'subscribers')}
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={usersLoading}
               currentPage={currentPage}
@@ -1091,6 +1225,10 @@ const CustomersPage = () => {
               onItemsPerPageChange={setItemsPerPage}
               totalItems={filteredUsers.length}
               onRefresh={refetch}
+              isSuperAdmin={isSuperAdmin}
+              isSubscribersTab={true}
+              onPromoteToSuperMerchant={handlePromoteToSuperMerchant}
+              onRevokeSuperMerchant={handleRevokeSuperMerchant}
             />
           </TabsContent>
 
@@ -1100,8 +1238,8 @@ const CustomersPage = () => {
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
-              onViewCustomer={handleViewCustomer}
-              onEditCustomer={handleEditCustomer}
+              onViewCustomer={(c) => handleViewCustomer(c, 'merchants')}
+              onEditCustomer={(c) => handleEditCustomer(c, 'merchants')}
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={merchantsLoading}
               currentPage={merchantsData?.page || merchantsData?.pagination?.currentPage || currentPage}
@@ -1121,8 +1259,8 @@ const CustomersPage = () => {
               selectedCustomers={selectedCustomers}
               onSelectCustomer={handleSelectCustomer}
               onSelectAll={handleSelectAll}
-              onViewCustomer={handleViewCustomer}
-              onEditCustomer={handleEditCustomer}
+              onViewCustomer={(c) => handleViewCustomer(c, 'partners')}
+              onEditCustomer={(c) => handleEditCustomer(c, 'partners')}
               onDeleteCustomer={handleDeleteCustomer}
               isLoading={partnersLoading}
               currentPage={currentPage}
@@ -1145,6 +1283,43 @@ const CustomersPage = () => {
           onClose={handleCloseModal}
           onEdit={handleEditFromModal}
           onDelete={handleDeleteFromModal}
+        />
+
+        {/* Promote Subscriber to Super Merchant Modal */}
+        <PromoteSubscriberModal
+          open={promoteModalOpen}
+          onOpenChange={setPromoteModalOpen}
+          subscriberName={
+            selectedSubscriberForPromote?.profile
+              ? `${selectedSubscriberForPromote.profile.firstName || ''} ${selectedSubscriberForPromote.profile.lastName || ''}`.trim() ||
+                selectedSubscriberForPromote.email ||
+                selectedSubscriberForPromote.phone ||
+                'This subscriber'
+              : (selectedSubscriberForPromote as any)?.firstName
+                ? `${(selectedSubscriberForPromote as any).firstName} ${(selectedSubscriberForPromote as any).lastName || ''}`.trim()
+                : selectedSubscriberForPromote?.email || selectedSubscriberForPromote?.phone || 'This subscriber'
+          }
+          subscriberId={selectedSubscriberForPromote?.id || ''}
+          merchants={subscriberMerchants}
+          onConfirm={handleConfirmPromote}
+        />
+
+        {/* Revoke Super Merchant Modal */}
+        <RevokeSubscriberModal
+          open={revokeModalOpen}
+          onOpenChange={setRevokeModalOpen}
+          subscriberName={
+            selectedSubscriberForRevoke?.profile
+              ? `${selectedSubscriberForRevoke.profile.firstName || ''} ${selectedSubscriberForRevoke.profile.lastName || ''}`.trim() ||
+                selectedSubscriberForRevoke.email ||
+                selectedSubscriberForRevoke.phone ||
+                'This subscriber'
+              : (selectedSubscriberForRevoke as any)?.firstName
+                ? `${(selectedSubscriberForRevoke as any).firstName} ${(selectedSubscriberForRevoke as any).lastName || ''}`.trim()
+                : selectedSubscriberForRevoke?.email || selectedSubscriberForRevoke?.phone || 'This subscriber'
+          }
+          superMerchantAccounts={superMerchantAccountsForRevoke}
+          onConfirm={handleConfirmRevoke}
         />
       </main>
     </div>
