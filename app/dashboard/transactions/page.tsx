@@ -338,6 +338,7 @@ const TransactionsPage = () => {
       // Define CSV headers
       const headers = [
         'Reference',
+        'External Reference',
         'Transaction ID',
         'Type',
         'Channel',
@@ -414,6 +415,7 @@ const TransactionsPage = () => {
         
         return [
           escapeCSV(tx.reference || tx.id),
+          escapeCSV(tx.externalReference || ''),
           escapeCSV(tx.id),
           escapeCSV(tx.type || 'N/A'),
           escapeCSV(getChannelDisplay(tx.channel, tx.metadata).label),
