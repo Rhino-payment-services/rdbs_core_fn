@@ -223,6 +223,8 @@ const ReportsPage = () => {
     lines.push(`Wallet To Bank,Volume,${report.transactions.walletToBank.volume}`)
     lines.push(`Merchant To Wallet,Count,${report.transactions.merchantToWallet.count}`)
     lines.push(`Merchant To Wallet,Volume,${report.transactions.merchantToWallet.volume}`)
+    lines.push(`Personal To Business,Count,${report.transactions.personalToBusiness.count}`)
+    lines.push(`Personal To Business,Volume,${report.transactions.personalToBusiness.volume}`)
     lines.push('')
     lines.push('Band Label,Min,Max,Transaction Count,Total Volume')
     report.transactions.bands.forEach((b) => {
@@ -304,6 +306,8 @@ const ReportsPage = () => {
                 <tr><td>Wallet to Bank - Volume</td><td>${report.transactions.walletToBank.volume}</td></tr>
                 <tr><td>Merchant to Wallet - Count</td><td>${report.transactions.merchantToWallet.count}</td></tr>
                 <tr><td>Merchant to Wallet - Volume</td><td>${report.transactions.merchantToWallet.volume}</td></tr>
+                <tr><td>Personal to Business - Count</td><td>${report.transactions.personalToBusiness.count}</td></tr>
+                <tr><td>Personal to Business - Volume</td><td>${report.transactions.personalToBusiness.volume}</td></tr>
               </tbody>
             </table>
           </div>
@@ -674,7 +678,7 @@ const ReportsPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                     <div className="bg-blue-50 rounded-lg p-4">
                       <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
                         Transactions
@@ -689,6 +693,23 @@ const ReportsPage = () => {
                         Volume:{' '}
                         <span className="font-semibold">
                           {bouReport.transactions.totalVolume.toLocaleString()}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-4">
+                      <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">
+                        Personal to Business
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Count:{' '}
+                        <span className="font-semibold">
+                          {bouReport.transactions.personalToBusiness.count.toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Volume:{' '}
+                        <span className="font-semibold">
+                          {bouReport.transactions.personalToBusiness.volume.toLocaleString()}
                         </span>
                       </p>
                     </div>
