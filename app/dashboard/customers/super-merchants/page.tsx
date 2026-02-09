@@ -71,6 +71,17 @@ interface AllMerchant {
   isSuperMerchant?: boolean;
 }
 
+interface SuperMerchantDashboard {
+  superMerchant: SuperMerchant;
+  totalChildMerchants: number;
+  activeChildMerchants: number;
+  verifiedChildMerchants: number;
+  totalWalletBalance: number;
+  totalTransactionsCount: number;
+  totalTransactionVolume: number;
+  childMerchants: any[];
+}
+
 const AccessDeniedFallback = () => {
   const router = useRouter();
   return (
@@ -108,6 +119,13 @@ export default function SuperMerchantsPage() {
   const [childMerchants, setChildMerchants] = useState<any[]>([]);
   const [viewChildrenDialogOpen, setViewChildrenDialogOpen] = useState(false);
   const [viewingSuperMerchant, setViewingSuperMerchant] = useState<SuperMerchant | null>(null);
+  const [dashboard, setDashboard] = useState<SuperMerchantDashboard | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [childToUnassign, setChildToUnassign] = useState<any | null>(null);
+  const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [superToRevoke, setSuperToRevoke] = useState<SuperMerchant | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSuperMerchants();
@@ -168,21 +186,36 @@ export default function SuperMerchantsPage() {
     }
   };
 
-  const handleRevokeSuperMerchant = async (merchantId: string) => {
-    if (!confirm('Are you sure you want to revoke SUPER_MERCHANT status from this merchant?')) {
-      return;
-    }
+  const openRevokeDialog = (superMerchant: SuperMerchant) => {
+    setSuperToRevoke(superMerchant);
+    setRevokeError(null);
+    setRevokeDialogOpen(true);
+  };
+
+  const handleConfirmRevoke = async () => {
+    if (!superToRevoke) return;
 
     try {
-      const response = await api.delete(`/super-merchant/revoke/${merchantId}`);
+      const response = await api.delete(`/super-merchant/revoke/${superToRevoke.id}`);
       toast.success(response.data.message || 'Successfully revoked SUPER_MERCHANT status');
       await queryClient.invalidateQueries({ queryKey: ['merchants'] });
       fetchSuperMerchants();
       fetchAvailableMerchants();
       fetchAllMerchants();
+      setRevokeDialogOpen(false);
+      setSuperToRevoke(null);
+      setRevokeError(null);
     } catch (error: any) {
       console.error('Error revoking super merchant:', error);
-      toast.error(error?.response?.data?.message || 'Failed to revoke SUPER_MERCHANT status');
+      // Axios wrapper (lib/axios.ts) returns { message, status, data }
+      const backendMessage = error?.data?.message || error?.message;
+      if (backendMessage) {
+        setRevokeError(backendMessage);
+        toast.error(backendMessage);
+      } else {
+        setRevokeError('Failed to revoke SUPER_MERCHANT status.');
+        toast.error('Failed to revoke SUPER_MERCHANT status');
+      }
     }
   };
 
@@ -208,19 +241,24 @@ export default function SuperMerchantsPage() {
     }
   };
 
-  const handleUnassignMerchant = async (merchantId: string) => {
-    if (!confirm('Are you sure you want to unassign this merchant?')) {
-      return;
-    }
+  const openUnassignDialog = (child: any) => {
+    setChildToUnassign(child);
+    setUnassignDialogOpen(true);
+  };
+
+  const handleConfirmUnassign = async () => {
+    if (!childToUnassign) return;
 
     try {
-      const response = await api.delete(`/super-merchant/unassign/${merchantId}`);
+      const response = await api.delete(`/super-merchant/unassign/${childToUnassign.id}`);
       toast.success(response.data.message || 'Successfully unassigned merchant');
       fetchSuperMerchants();
       fetchAvailableMerchants();
       if (viewingSuperMerchant) {
         fetchChildMerchants(viewingSuperMerchant.id);
       }
+      setUnassignDialogOpen(false);
+      setChildToUnassign(null);
     } catch (error: any) {
       console.error('Error unassigning merchant:', error);
       toast.error(error?.response?.data?.message || 'Failed to unassign merchant');
@@ -237,9 +275,25 @@ export default function SuperMerchantsPage() {
     }
   };
 
+  const fetchDashboard = async (superMerchantId: string) => {
+    try {
+      setDashboardLoading(true);
+      const response = await api.get(`/super-merchant/dashboard/${superMerchantId}`);
+      setDashboard(response.data as SuperMerchantDashboard);
+    } catch (error: any) {
+      console.error('Error fetching super merchant dashboard:', error);
+      toast.error(error?.response?.data?.message || 'Failed to fetch super merchant dashboard');
+      setDashboard(null);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
   const openViewChildrenDialog = (superMerchant: SuperMerchant) => {
     setViewingSuperMerchant(superMerchant);
+    setDashboard(null);
     fetchChildMerchants(superMerchant.id);
+    fetchDashboard(superMerchant.id);
     setViewChildrenDialogOpen(true);
   };
 
@@ -482,7 +536,7 @@ export default function SuperMerchantsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRevokeSuperMerchant(sm.id)}
+                        onClick={() => openRevokeDialog(sm)}
                         className="text-red-600 hover:text-red-800"
                       >
                         Revoke
@@ -498,62 +552,187 @@ export default function SuperMerchantsPage() {
 
       {/* View Child Merchants Dialog */}
       <Dialog open={viewChildrenDialogOpen} onOpenChange={setViewChildrenDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent
+          className="w-[90vw] max-w-5xl max-h-[80vh] overflow-hidden"
+          style={{ width: '90vw', maxWidth: '1200px' }}
+        >
           <DialogHeader>
             <DialogTitle>
               Child Merchants of {viewingSuperMerchant?.businessTradeName}
             </DialogTitle>
             <DialogDescription>
-              Merchants assigned under this super merchant
+              Merchants assigned under this super merchant, plus aggregate performance
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 space-y-4 max-h-[64vh] overflow-y-auto">
+            {/* Dashboard summary */}
+            {dashboardLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading dashboard...
+              </div>
+            ) : dashboard ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Card className="bg-gray-50 border-none shadow-none">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-xs font-medium text-gray-500">Child Merchants</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-semibold text-gray-900">
+                      {dashboard.activeChildMerchants}/{dashboard.totalChildMerchants} active
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gray-50 border-none shadow-none">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-xs font-medium text-gray-500">Total Transactions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-semibold text-gray-900">
+                      {dashboard.totalTransactionsCount.toLocaleString()}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gray-50 border-none shadow-none">
+                  <CardHeader className="pb-1">
+                    <CardTitle className="text-xs font-medium text-gray-500">Total Volume</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-semibold text-gray-900">
+                      {dashboard.totalTransactionVolume.toLocaleString('en-UG', {
+                        style: 'currency',
+                        currency: 'UGX',
+                        maximumFractionDigits: 0,
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+
+            {/* Child merchants table */}
             {childMerchants.length === 0 ? (
               <div className="text-center py-4 text-gray-500">
                 No merchants assigned yet.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Business Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {childMerchants.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="font-medium">{m.businessTradeName}</TableCell>
-                      <TableCell>{m.merchantCode}</TableCell>
-                      <TableCell>{m.businessCity}</TableCell>
-                      <TableCell>
-                        <Badge variant={m.isActive ? 'default' : 'secondary'}>
-                          {m.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
+              <div className="rounded-md border bg-white">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Business Name</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>City</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {childMerchants.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">{m.businessTradeName}</TableCell>
+                        <TableCell>{m.merchantCode}</TableCell>
+                        <TableCell>{m.businessCity}</TableCell>
+                        <TableCell>
+                          <Badge variant={m.isActive ? 'default' : 'secondary'}>
+                            {m.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleUnassignMerchant(m.id)}
+                          onClick={() => openUnassignDialog(m)}
                           className="text-red-600 hover:text-red-800"
                         >
-                          <Unlink className="h-4 w-4 mr-1" />
-                          Unassign
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                            <Unlink className="h-4 w-4 mr-1" />
+                            Unassign
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewChildrenDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke super merchant confirmation dialog */}
+      <Dialog open={revokeDialogOpen} onOpenChange={setRevokeDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Revoke Super Merchant Status</DialogTitle>
+            <DialogDescription>
+              This will remove <span className="font-semibold">{superToRevoke?.businessTradeName}</span>{' '}
+              (<span className="font-mono">{superToRevoke?.merchantCode}</span>) from SUPER_MERCHANT status.
+              Make sure all child merchants are unassigned first.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 text-sm text-gray-600">
+            After revoking, this merchant will no longer appear in the Super Merchants list or have access to
+            aggregate views for its children.
+          </div>
+          {revokeError && (
+            <div className="py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3">
+              {revokeError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRevokeDialogOpen(false);
+                setSuperToRevoke(null);
+              setRevokeError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmRevoke}>
+              Revoke
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Unassign child merchant confirmation dialog */}
+      <Dialog open={unassignDialogOpen} onOpenChange={setUnassignDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Unassign Merchant</DialogTitle>
+            <DialogDescription>
+              This will remove{' '}
+              <span className="font-semibold">
+                {childToUnassign?.businessTradeName} ({childToUnassign?.merchantCode})
+              </span>{' '}
+              from{' '}
+              <span className="font-semibold">
+                {viewingSuperMerchant?.businessTradeName}
+              </span>
+              . The merchant will no longer appear under this super merchant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 text-sm text-gray-600">
+            You can reassign this merchant again later from the Super Merchants page.
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUnassignDialogOpen(false);
+                setChildToUnassign(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmUnassign}>
+              Unassign
             </Button>
           </DialogFooter>
         </DialogContent>
