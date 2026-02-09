@@ -239,6 +239,8 @@ const ReportsPage = () => {
     lines.push(`Customers,Total,${report.customers.total}`)
     lines.push(`Customers,Female,${report.customers.female}`)
     lines.push(`Customers,Male,${report.customers.male}`)
+    lines.push(`Customers,Active in Month,${report.customers.activeInMonth}`)
+    lines.push(`Customers,Active in 90 Days,${report.customers.activeIn90Days}`)
     lines.push(`Merchants,Total,${report.merchants.total}`)
     lines.push(`Merchants,Female,${report.merchants.female}`)
     lines.push(`Merchants,Male,${report.merchants.male}`)
@@ -329,9 +331,11 @@ const ReportsPage = () => {
             <table>
               <tbody>
                 <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Total Customers</td><td>${report.customers.total}</td></tr>
+                <tr><td>Total Customers (Registered in Month)</td><td>${report.customers.total}</td></tr>
                 <tr><td>Female Customers</td><td>${report.customers.female}</td></tr>
                 <tr><td>Male Customers</td><td>${report.customers.male}</td></tr>
+                <tr><td>Active Customers in Month</td><td>${report.customers.activeInMonth}</td></tr>
+                <tr><td>Active Customers in 90 Days</td><td>${report.customers.activeIn90Days}</td></tr>
               </tbody>
             </table>
           </div>
@@ -693,20 +697,23 @@ const ReportsPage = () => {
                         Customers
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
-                        Total:{' '}
+                        Registered:{' '}
                         <span className="font-semibold">
                           {bouReport.customers.total.toLocaleString()}
                         </span>
+                        {' '}
+                        (F: {bouReport.customers.female.toLocaleString()}, M: {bouReport.customers.male.toLocaleString()})
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
-                        Female:{' '}
-                        <span className="font-semibold">
-                          {bouReport.customers.female.toLocaleString()}
+                        Active in Month:{' '}
+                        <span className="font-semibold text-green-700">
+                          {bouReport.customers.activeInMonth.toLocaleString()}
                         </span>
-                        {' • '}
-                        Male:{' '}
-                        <span className="font-semibold">
-                          {bouReport.customers.male.toLocaleString()}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Active in 90 Days:{' '}
+                        <span className="font-semibold text-green-700">
+                          {bouReport.customers.activeIn90Days.toLocaleString()}
                         </span>
                       </p>
                     </div>

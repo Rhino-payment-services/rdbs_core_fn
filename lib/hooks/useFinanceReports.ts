@@ -76,6 +76,8 @@ export interface BouMonthlyReport {
     total: number
     female: number
     male: number
+    activeInMonth: number
+    activeIn90Days: number
   }
   merchants: {
     total: number
