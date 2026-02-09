@@ -225,6 +225,8 @@ const ReportsPage = () => {
     lines.push(`Merchant To Wallet,Volume,${report.transactions.merchantToWallet.volume}`)
     lines.push(`Personal To Business,Count,${report.transactions.personalToBusiness.count}`)
     lines.push(`Personal To Business,Volume,${report.transactions.personalToBusiness.volume}`)
+    lines.push(`Personal To Merchant,Count,${report.transactions.personalToMerchant.count}`)
+    lines.push(`Personal To Merchant,Volume,${report.transactions.personalToMerchant.volume}`)
     lines.push('')
     lines.push('Band Label,Min,Max,Transaction Count,Total Volume')
     report.transactions.bands.forEach((b) => {
@@ -238,11 +240,15 @@ const ReportsPage = () => {
     })
     lines.push('')
     lines.push('Entity,Metric,Value')
-    lines.push(`Customers,Total,${report.customers.total}`)
-    lines.push(`Customers,Female,${report.customers.female}`)
-    lines.push(`Customers,Male,${report.customers.male}`)
-    lines.push(`Customers,Active in Month,${report.customers.activeInMonth}`)
-    lines.push(`Customers,Active in 90 Days,${report.customers.activeIn90Days}`)
+    lines.push(`Customers,Total Registered,${report.customers.total}`)
+    lines.push(`Customers,Registered Female,${report.customers.female}`)
+    lines.push(`Customers,Registered Male,${report.customers.male}`)
+    lines.push(`Customers,Active in Month - Total,${report.customers.activeInMonth.total}`)
+    lines.push(`Customers,Active in Month - Female,${report.customers.activeInMonth.female}`)
+    lines.push(`Customers,Active in Month - Male,${report.customers.activeInMonth.male}`)
+    lines.push(`Customers,Active in 90 Days - Total,${report.customers.activeIn90Days.total}`)
+    lines.push(`Customers,Active in 90 Days - Female,${report.customers.activeIn90Days.female}`)
+    lines.push(`Customers,Active in 90 Days - Male,${report.customers.activeIn90Days.male}`)
     lines.push(`Merchants,Total,${report.merchants.total}`)
     lines.push(`Merchants,Female,${report.merchants.female}`)
     lines.push(`Merchants,Male,${report.merchants.male}`)
@@ -308,6 +314,8 @@ const ReportsPage = () => {
                 <tr><td>Merchant to Wallet - Volume</td><td>${report.transactions.merchantToWallet.volume}</td></tr>
                 <tr><td>Personal to Business - Count</td><td>${report.transactions.personalToBusiness.count}</td></tr>
                 <tr><td>Personal to Business - Volume</td><td>${report.transactions.personalToBusiness.volume}</td></tr>
+                <tr><td>Personal to Merchant - Count</td><td>${report.transactions.personalToMerchant.count}</td></tr>
+                <tr><td>Personal to Merchant - Volume</td><td>${report.transactions.personalToMerchant.volume}</td></tr>
               </tbody>
             </table>
           </div>
@@ -335,11 +343,17 @@ const ReportsPage = () => {
             <table>
               <tbody>
                 <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Total Customers (Registered in Month)</td><td>${report.customers.total}</td></tr>
-                <tr><td>Female Customers</td><td>${report.customers.female}</td></tr>
-                <tr><td>Male Customers</td><td>${report.customers.male}</td></tr>
-                <tr><td>Active Customers in Month</td><td>${report.customers.activeInMonth}</td></tr>
-                <tr><td>Active Customers in 90 Days</td><td>${report.customers.activeIn90Days}</td></tr>
+                <tr><td>Total Registered in Month</td><td>${report.customers.total}</td></tr>
+                <tr><td>Registered - Female</td><td>${report.customers.female}</td></tr>
+                <tr><td>Registered - Male</td><td>${report.customers.male}</td></tr>
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in Month (with transactions)</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${report.customers.activeInMonth.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${report.customers.activeInMonth.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${report.customers.activeInMonth.male}</td></tr>
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in 90 Days (with transactions)</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${report.customers.activeIn90Days.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${report.customers.activeIn90Days.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${report.customers.activeIn90Days.male}</td></tr>
               </tbody>
             </table>
           </div>
@@ -678,7 +692,7 @@ const ReportsPage = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-2">
                     <div className="bg-blue-50 rounded-lg p-4">
                       <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
                         Transactions
@@ -728,14 +742,18 @@ const ReportsPage = () => {
                       <p className="mt-1 text-sm text-gray-700">
                         Active in Month:{' '}
                         <span className="font-semibold text-green-700">
-                          {bouReport.customers.activeInMonth.toLocaleString()}
+                          {bouReport.customers.activeInMonth.total.toLocaleString()}
                         </span>
+                        {' '}
+                        (F: {bouReport.customers.activeInMonth.female.toLocaleString()}, M: {bouReport.customers.activeInMonth.male.toLocaleString()})
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
-                        Active in 90 Days:{' '}
+                        Active in 90d:{' '}
                         <span className="font-semibold text-green-700">
-                          {bouReport.customers.activeIn90Days.toLocaleString()}
+                          {bouReport.customers.activeIn90Days.total.toLocaleString()}
                         </span>
+                        {' '}
+                        (F: {bouReport.customers.activeIn90Days.female.toLocaleString()}, M: {bouReport.customers.activeIn90Days.male.toLocaleString()})
                       </p>
                     </div>
                     <div className="bg-purple-50 rounded-lg p-4">
@@ -752,6 +770,23 @@ const ReportsPage = () => {
                         Active Wallet Balance:{' '}
                         <span className="font-semibold">
                           {bouReport.wallets.totalActiveBalance.toLocaleString()}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg p-4">
+                      <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">
+                        Personal to Merchant
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Count:{' '}
+                        <span className="font-semibold">
+                          {bouReport.transactions.personalToMerchant.count.toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Volume:{' '}
+                        <span className="font-semibold">
+                          {bouReport.transactions.personalToMerchant.volume.toLocaleString()}
                         </span>
                       </p>
                     </div>
