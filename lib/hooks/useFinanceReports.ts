@@ -64,6 +64,7 @@ export interface BouMonthlyReport {
     p2p: { count: number; volume: number }
     walletToBank: { count: number; volume: number }
     merchantToWallet: { count: number; volume: number }
+    personalToBusiness: { count: number; volume: number }
     bands: Array<{
       label: string
       min: number
@@ -76,6 +77,8 @@ export interface BouMonthlyReport {
     total: number
     female: number
     male: number
+    activeInMonth: number
+    activeIn90Days: number
   }
   merchants: {
     total: number
