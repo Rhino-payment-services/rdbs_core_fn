@@ -335,6 +335,32 @@ const TransactionsPage = () => {
         }
       }
 
+      // Helper: get partner label for CSV/export
+      const getPartnerLabel = (tx: any) => {
+        // 1) External payment partners (ABC, PEGASUS, etc.) via PartnerMapping
+        if (tx.partnerMapping?.partner?.partnerCode) {
+          return tx.partnerMapping.partner.partnerCode
+        }
+
+        // 2) API partners (gateway partners) – baseTransactionService adds apiPartnerName into metadata
+        if (tx.metadata?.apiPartnerName) {
+          return tx.metadata.apiPartnerName
+        }
+
+        // 3) Direct ApiPartner relation on the transaction (fallback)
+        if (tx.partner?.partnerName) {
+          return tx.partner.partnerName
+        }
+
+        // 4) Any other metadata-based partner name
+        if (tx.metadata?.partnerName) {
+          return tx.metadata.partnerName
+        }
+
+        // 5) Default when no partner info is attached (purely internal)
+        return 'Direct'
+      }
+
       // Define CSV headers
       const headers = [
         'Reference',
@@ -429,7 +455,7 @@ const TransactionsPage = () => {
           escapeCSV(senderContact),
           escapeCSV(receiverName),
           escapeCSV(receiverContact),
-          escapeCSV(tx.partnerMapping?.partner?.partnerCode || 'Direct'),
+          escapeCSV(getPartnerLabel(tx)),
           escapeCSV(dateTime),
           escapeCSV(tx.description || 'N/A'),
           escapeCSV(tx.errorMessage || 'N/A')
