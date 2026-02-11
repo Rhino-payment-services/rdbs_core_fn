@@ -19,7 +19,7 @@ import type { User } from '@/lib/types/api'
 import type { ApiPartner } from '@/lib/hooks/usePartners'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
-import { Users, Building2, Handshake, Plus } from 'lucide-react'
+import { Users, Building2, Handshake, Plus, Crown } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 
@@ -1139,20 +1139,31 @@ const CustomersPage = () => {
         <div className="h-full overflow-y-auto px-4 py-6">
           <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
               <p className="text-gray-600 mt-2">Manage your customer base</p>
             </div>
-            <PermissionGuard permission={PERMISSIONS.MERCHANT_KYC_CREATE}>
-              <button
-                onClick={() => router.push('/dashboard/customers/merchant-onboard')}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4" />
-                Add Merchant
-              </button>
-            </PermissionGuard>
+            <div className="flex items-center gap-3">
+              {isSuperAdmin && (
+                <button
+                  onClick={() => router.push('/dashboard/customers/super-merchants')}
+                  className="flex items-center gap-2 border border-yellow-500 text-yellow-800 px-4 py-2 rounded-lg hover:bg-yellow-50"
+                >
+                  <Crown className="h-4 w-4" />
+                  Super Merchants
+                </button>
+              )}
+              <PermissionGuard permission={PERMISSIONS.MERCHANT_KYC_CREATE}>
+                <button
+                  onClick={() => router.push('/dashboard/customers/merchant-onboard')}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Merchant
+                </button>
+              </PermissionGuard>
+            </div>
           </div>
         </div>
 
