@@ -112,6 +112,7 @@ import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
+import KycGatingRulesSection from '../../../components/dashboard/kyc/KycGatingRulesSection'
 
 interface PendingKycUser {
   userId: string
@@ -214,8 +215,10 @@ const KycPage = () => {
   } | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [verificationLevel, setVerificationLevel] = useState<'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'>('STANDARD')
-  // Tab state for KYC vs Business Approvals
-  const [activeTab, setActiveTab] = useState<'kyc' | 'business'>('kyc')
+  // Tab state for KYC, Business Approvals, and Gating Rules
+  const [activeTab, setActiveTab] = useState<'kyc' | 'business' | 'gating'>(
+    'kyc'
+  )
 
   const queryClient = useQueryClient()
 
@@ -561,21 +564,37 @@ const KycPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>
-                      {activeTab === 'kyc' ? 'Pending KYC Requests' : 'Pending Business Approvals'}
+                      {activeTab === 'kyc'
+                        ? 'Pending KYC Requests'
+                        : activeTab === 'business'
+                        ? 'Pending Business Approvals'
+                        : 'KYC Gating Rules'}
                     </CardTitle>
                     <CardDescription>
-                      {activeTab === 'kyc' 
+                      {activeTab === 'kyc'
                         ? 'Review and approve new user identity verification submissions'
-                        : 'Approve new businesses from users whose identity is already verified'
-                      }
+                        : activeTab === 'business'
+                        ? 'Approve new businesses from users whose identity is already verified'
+                        : 'Define minimum KYC requirements for products and actions.'}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
+                  {activeTab !== 'gating' && (
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={isLoading}
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 mr-2 ${
+                            isLoading ? 'animate-spin' : ''
+                          }`}
+                        />
+                        Refresh
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {/* Tab navigation */}
                 <div className="flex space-x-1 mt-4 border-b">
@@ -605,9 +624,27 @@ const KycPage = () => {
                       Business Approvals ({pendingBusinessApprovals.length})
                     </div>
                   </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('gating')
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                      activeTab === 'gating'
+                        ? 'bg-white border border-b-0 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      Gating Rules
+                    </div>
+                  </button>
                 </div>
               </CardHeader>
               <CardContent>
+                {activeTab === 'gating' ? (
+                  <KycGatingRulesSection />
+                ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -865,6 +902,7 @@ const KycPage = () => {
                     </>
                   )}
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
