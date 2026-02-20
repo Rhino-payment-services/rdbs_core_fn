@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
@@ -51,18 +52,12 @@ const CreateGatewayPartnerPage = () => {
     website: '',
     address: '',
     description: '',
-    walletTypes: ['ESCROW'], // Default to ESCROW
+    canDepositAndWithdraw: true,
   })
 
 
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Validate wallet types
-    if (!formData.walletTypes || formData.walletTypes.length === 0) {
-      toast.error('Please select at least one wallet type')
-      return
-    }
 
     try {
       const result = await createPartner.mutateAsync(formData)
@@ -278,43 +273,22 @@ const CreateGatewayPartnerPage = () => {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="walletTypes">Wallet Types *</Label>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="wallet-escrow"
-                          checked={formData.walletTypes?.includes('ESCROW')}
-                          onChange={(e) => toggleWalletType('ESCROW', e.target.checked)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <Label htmlFor="wallet-escrow" className="font-normal cursor-pointer">
-                          ESCROW Wallet
-                        </Label>
-                        <span className="text-xs text-gray-500">
-                          (For holding customer funds before transfer)
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="wallet-commission"
-                          checked={formData.walletTypes?.includes('COMMISSION')}
-                          onChange={(e) => toggleWalletType('COMMISSION', e.target.checked)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <Label htmlFor="wallet-commission" className="font-normal cursor-pointer">
-                          COMMISSION Wallet
-                        </Label>
-                        <span className="text-xs text-gray-500">
-                          (For storing partner commission/revenue)
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="canDepositAndWithdraw" className="text-base">
+                        Deposit & Withdrawal
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Allow this partner to perform deposit and withdrawal operations
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Select at least one wallet type. ESCROW is used for holding customer funds, COMMISSION for partner revenue.
-                    </p>
+                    <Switch
+                      id="canDepositAndWithdraw"
+                      checked={formData.canDepositAndWithdraw ?? true}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, canDepositAndWithdraw: checked })
+                      }
+                    />
                   </div>
 
                   <div className="flex justify-end space-x-3">
