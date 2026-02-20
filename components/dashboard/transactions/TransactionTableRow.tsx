@@ -4,12 +4,12 @@ import { TableCell, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Eye, RotateCcw } from 'lucide-react'
-import { 
-  shortenTransactionId, 
-  formatAmount, 
-  formatDate, 
-  getStatusBadgeConfig, 
-  getTypeDisplay, 
+import {
+  shortenTransactionId,
+  formatAmount,
+  formatDate,
+  getStatusBadgeConfig,
+  getTypeDisplay,
   getChannelDisplay,
   getDisplayName,
   getContactInfo
@@ -21,10 +21,10 @@ interface TransactionTableRowProps {
   onReverseTransaction: (transaction: any) => void
 }
 
-export const TransactionTableRow = ({ 
-  transaction, 
-  onViewTransaction, 
-  onReverseTransaction 
+export const TransactionTableRow = ({
+  transaction,
+  onViewTransaction,
+  onReverseTransaction
 }: TransactionTableRowProps) => {
   return (
     <TableRow key={transaction.id}>
@@ -56,7 +56,7 @@ export const TransactionTableRow = ({
       </TableCell>
       {/* Sender Column */}
       <TableCell>
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-[0.5px]">
           {transaction.type === 'REVERSAL' ? (
             <>
               {/* Reversal transaction - sender is the system crediting back */}
@@ -84,7 +84,7 @@ export const TransactionTableRow = ({
               </span>
             </>
           ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-              (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+            (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
             <>
               {/* QR Code Payment - customer is the sender (check FIRST before DEBIT) */}
               <span className="font-medium">
@@ -104,14 +104,14 @@ export const TransactionTableRow = ({
                 <>
                   {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
                   {(() => {
-                    const merchantName = transaction.metadata?.merchantName || 
-                                       transaction.user?.merchant?.businessTradeName ||
-                                       transaction.user?.profile?.merchantBusinessTradeName ||
-                                       transaction.user?.profile?.businessTradeName ||
-                                       transaction.user?.profile?.merchant_names ||
-                                       (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant');
+                    const merchantName = transaction.metadata?.merchantName ||
+                      transaction.user?.merchant?.businessTradeName ||
+                      transaction.user?.profile?.merchantBusinessTradeName ||
+                      transaction.user?.profile?.businessTradeName ||
+                      transaction.user?.profile?.merchant_names ||
+                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant');
                     const merchantCode = transaction.metadata?.merchantCode || transaction.user?.merchantCode;
-                    
+
                     return (
                       <>
                         <span className="font-medium">
@@ -131,38 +131,81 @@ export const TransactionTableRow = ({
                 </>
               ) : (
                 <>
-                  {/* Other DEBIT transactions - sender is wallet owner */}
+                  {/* Other DEBIT transactions - sender is wallet owner OR API partner */}
                   {(() => {
-                    const isMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName || transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                    const displayName = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                    
+                    const isPartnerApi =
+                      transaction.partner ||
+                      transaction.partnerId ||
+                      transaction.metadata?.isApiPartnerTransaction ||
+                      transaction.metadata?.apiPartnerName
+
+                    const baseDisplayName = getDisplayName(
+                      transaction.user,
+                      transaction.metadata,
+                      transaction.counterpartyUser
+                    )
+
+                    const displayName = isPartnerApi
+                      ? (transaction.partner?.partnerName ||
+                        transaction.metadata?.apiPartnerName ||
+                        baseDisplayName)
+                      : baseDisplayName
+
+                    const isMerchant =
+                      transaction.user?.merchantCode ||
+                      transaction.user?.merchant?.businessTradeName ||
+                      transaction.metadata?.merchantName ||
+                      transaction.metadata?.merchantCode
+
+                    const contactForPartner =
+                      transaction.partner?.contactPhone ||
+                      transaction.metadata?.recipientPhone ||
+                      transaction.metadata?.phoneNumber ||
+                      transaction.user?.phone
+
                     return (
                       <>
-                        <span className="font-medium">
+                        {/* name line */}
+                        <span className="font-medium capitalize">
                           {displayName}
                         </span>
-                        {isMerchant && transaction.metadata?.merchantCode && (
+
+                        {/* phone / contact line */}
+                        {isPartnerApi ? (
+                          contactForPartner && (
+                            <span className="text-xs text-gray-500">
+                              📱 {contactForPartner}
+                            </span>
+                          )
+                        ) : !isMerchant && (
+                          <span className="text-xs text-gray-500">
+                            📱 {getContactInfo(
+                              transaction.user,
+                              transaction.metadata,
+                              transaction.counterpartyUser
+                            )}
+                          </span>
+                        )}
+
+                        {/* merchant code line (unchanged for non-partner merchant debits) */}
+                        {!isPartnerApi && isMerchant && transaction.metadata?.merchantCode && (
                           <span className="text-xs text-gray-500">
                             🏪 Code: {transaction.metadata.merchantCode}
                           </span>
                         )}
-                        {!isMerchant && (
-                          <span className="text-xs text-gray-500">
-                            📱 {getContactInfo(transaction.user, transaction.metadata, transaction.counterpartyUser)}
+
+                        {/* badge line */}
+                        {isPartnerApi ? (
+                          <span className="text-xs text-blue-600 font-medium">
+                            API Partner
                           </span>
-                        )}
-                        {isMerchant ? (
+                        ) : isMerchant ? (
                           <span className="text-xs text-blue-600 font-medium">
                             🏦 Internal Account
                           </span>
                         ) : transaction.user?.userType === 'SUBSCRIBER' && (
                           <span className="text-xs text-blue-600 font-medium">
                             🏦 RukaPay Subscriber
-                          </span>
-                        )}
-                        {(transaction.partnerId || transaction.metadata?.isApiPartnerTransaction) && (
-                          <span className="text-xs text-purple-600 font-medium">
-                            🔑 API Partner
                           </span>
                         )}
                       </>
@@ -177,8 +220,8 @@ export const TransactionTableRow = ({
               {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
               {/* Also check metadata.direction as fallback for older transactions */}
               {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-               (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
-               (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+                (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
+                (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
                   {/* QR Code Payment - customer is the sender */}
                   {transaction.metadata?.customerPhone ? (
@@ -213,10 +256,10 @@ export const TransactionTableRow = ({
                 <>
                   {(() => {
                     const isMerchant = transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                    const displayName = transaction.metadata?.merchantName || 
-                                       transaction.metadata?.counterpartyInfo?.name ||
-                                       getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-                    
+                    const displayName = transaction.metadata?.merchantName ||
+                      transaction.metadata?.counterpartyInfo?.name ||
+                      getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
+
                     return (
                       <>
                         <span className="font-medium">
@@ -307,15 +350,15 @@ export const TransactionTableRow = ({
                     {transaction.metadata.counterpartyInfo.name}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {transaction.metadata.counterpartyInfo.type === 'USER' 
+                    {transaction.metadata.counterpartyInfo.type === 'USER'
                       ? '👤 Mobile User'
                       : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                      ? '⚡ Utility'
-                      : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                      ? '🏪 Merchant'
-                      : transaction.metadata.counterpartyInfo.type === 'MNO'
-                      ? '📱 Mobile Money'
-                      : transaction.metadata.counterpartyInfo.type
+                        ? '⚡ Utility'
+                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                          ? '🏪 Merchant'
+                          : transaction.metadata.counterpartyInfo.type === 'MNO'
+                            ? '📱 Mobile Money'
+                            : transaction.metadata.counterpartyInfo.type
                     }
                   </span>
                   {transaction.metadata.counterpartyInfo.type === 'USER' && (
@@ -338,7 +381,7 @@ export const TransactionTableRow = ({
           {transaction.type === 'REVERSAL' ? (
             <>
               <span className="font-medium text-green-600">
-                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
                   ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
                   : transaction.user?.phone || transaction.user?.email || 'Wallet Owner'
                 }
@@ -358,7 +401,7 @@ export const TransactionTableRow = ({
           ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
             <>
               <span className="font-medium text-green-600">
-                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
                   ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
                   : transaction.user?.phone || transaction.user?.email || 'RukaPay User'
                 }
@@ -376,16 +419,16 @@ export const TransactionTableRow = ({
               </span>
             </>
           ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-              (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+            (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
             <>
               {/* QR Code Payment - merchant is the receiver (check FIRST before DEBIT) */}
               <span className="font-medium">
                 {transaction.metadata?.merchantName ||
-                 transaction.user?.merchant?.businessTradeName ||
-                 transaction.user?.profile?.merchantBusinessTradeName ||
-                 transaction.user?.profile?.businessTradeName ||
-                 transaction.user?.profile?.merchant_names ||
-                 (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                  transaction.user?.merchant?.businessTradeName ||
+                  transaction.user?.profile?.merchantBusinessTradeName ||
+                  transaction.user?.profile?.businessTradeName ||
+                  transaction.user?.profile?.merchant_names ||
+                  (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
               </span>
               {transaction.metadata?.merchantCode && (
                 <span className="text-xs text-gray-500">
@@ -403,7 +446,7 @@ export const TransactionTableRow = ({
                   {(() => {
                     let displayName = '';
                     let contact = '';
-                    
+
                     if (transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName) {
                       displayName = `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`;
                       contact = transaction.counterpartyUser.phone || '';
@@ -420,7 +463,7 @@ export const TransactionTableRow = ({
                       displayName = 'RukaPay User';
                       contact = '';
                     }
-                    
+
                     return (
                       <>
                         <span className="font-medium">
@@ -482,14 +525,14 @@ export const TransactionTableRow = ({
               ) : transaction.type === 'WALLET_TO_MERCHANT' || (transaction.type?.includes('MERCHANT') && transaction.type !== 'MERCHANT_TO_WALLET') || transaction.metadata?.merchantName ? (
                 <>
                   <span className="font-medium">
-                    {transaction.metadata?.merchantName || 
-                     transaction.metadata?.counterpartyInfo?.name || 
-                     transaction.metadata?.userName ||
-                     transaction.user?.merchant?.businessTradeName ||
-                     transaction.user?.profile?.merchantBusinessTradeName ||
-                     transaction.user?.profile?.businessTradeName ||
-                     transaction.user?.profile?.merchant_names ||
-                     (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                    {transaction.metadata?.merchantName ||
+                      transaction.metadata?.counterpartyInfo?.name ||
+                      transaction.metadata?.userName ||
+                      transaction.user?.merchant?.businessTradeName ||
+                      transaction.user?.profile?.merchantBusinessTradeName ||
+                      transaction.user?.profile?.businessTradeName ||
+                      transaction.user?.profile?.merchant_names ||
+                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
                   </span>
                   {transaction.metadata?.accountNumber && (
                     <span className="text-xs text-gray-500">
@@ -511,17 +554,17 @@ export const TransactionTableRow = ({
                     {transaction.metadata.counterpartyInfo.name}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {transaction.metadata.counterpartyInfo.type === 'USER' 
-                      ? (transaction.type === 'WALLET_TO_WALLET' 
-                         ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
-                         : '👤 Mobile User')
+                    {transaction.metadata.counterpartyInfo.type === 'USER'
+                      ? (transaction.type === 'WALLET_TO_WALLET'
+                        ? `📱 ${transaction.counterpartyId ? 'RukaPay ID: ' + transaction.counterpartyId.slice(0, 8) + '...' : 'RukaPay User'}`
+                        : '👤 Mobile User')
                       : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                      ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
-                      : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                      ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
-                      : transaction.metadata.counterpartyInfo.type === 'MNO'
-                      ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
-                      : transaction.metadata.counterpartyInfo.type
+                        ? `⚡ ${transaction.metadata.counterpartyInfo.accountNumber || 'Utility'}`
+                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
+                          ? `🏪 ${transaction.metadata.counterpartyInfo.accountNumber || 'Merchant'}`
+                          : transaction.metadata.counterpartyInfo.type === 'MNO'
+                            ? `📱 ${transaction.metadata.counterpartyInfo.accountNumber || 'Mobile Money'}`
+                            : transaction.metadata.counterpartyInfo.type
                     }
                   </span>
                   {transaction.metadata.counterpartyInfo.type === 'USER' && transaction.type === 'WALLET_TO_WALLET' && (
@@ -566,11 +609,11 @@ export const TransactionTableRow = ({
                         {transaction.metadata.userName || transaction.metadata.recipientName || 'External Account'}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {transaction.type?.includes('BANK') 
+                        {transaction.type?.includes('BANK')
                           ? `🏦 Bank: ${transaction.metadata.accountNumber}`
                           : transaction.type?.includes('UTILITY')
-                          ? `⚡ Utility: ${transaction.metadata.accountNumber}`
-                          : `Account: ${transaction.metadata.accountNumber}`
+                            ? `⚡ Utility: ${transaction.metadata.accountNumber}`
+                            : `Account: ${transaction.metadata.accountNumber}`
                         }
                       </span>
                     </>
@@ -589,18 +632,18 @@ export const TransactionTableRow = ({
             <>
               {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
               {/* Also check metadata.direction as fallback for older transactions */}
-              {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) && 
-               (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
-               (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
+              {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
+                (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
                   {/* QR Code Payment - merchant is the receiver */}
                   <span className="font-medium">
                     {transaction.metadata?.merchantName ||
-                     transaction.user?.merchant?.businessTradeName ||
-                     transaction.user?.profile?.merchantBusinessTradeName ||
-                     transaction.user?.profile?.businessTradeName ||
-                     transaction.user?.profile?.merchant_names ||
-                     (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+                      transaction.user?.merchant?.businessTradeName ||
+                      transaction.user?.profile?.merchantBusinessTradeName ||
+                      transaction.user?.profile?.businessTradeName ||
+                      transaction.user?.profile?.merchant_names ||
+                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
                   </span>
                   {transaction.metadata?.merchantCode && (
                     <span className="text-xs text-gray-500">
@@ -616,9 +659,9 @@ export const TransactionTableRow = ({
                   {(() => {
                     let displayName = '';
                     let contact = '';
-                    
+
                     const isUserMerchant = transaction.user?.merchantCode || transaction.user?.merchant?.businessTradeName;
-                    
+
                     if (!isUserMerchant) {
                       if (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName) {
                         displayName = `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`;
@@ -645,7 +688,7 @@ export const TransactionTableRow = ({
                         contact = '';
                       }
                     }
-                    
+
                     return (
                       <>
                         <span className="font-medium">
@@ -664,25 +707,25 @@ export const TransactionTableRow = ({
                   })()}
                 </>
               ) : (() => {
-                const isMerchantTransaction = 
-                  transaction.metadata?.merchantName || 
-                  transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' || 
+                const isMerchantTransaction =
+                  transaction.metadata?.merchantName ||
+                  transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' ||
                   transaction.metadata?.walletType === 'BUSINESS' ||
                   transaction.user?.merchantCode ||
                   transaction.user?.merchant?.businessTradeName;
-                
-                const merchantName = 
+
+                const merchantName =
                   transaction.metadata?.merchantName ||
                   transaction.user?.merchant?.businessTradeName ||
                   transaction.user?.profile?.merchantBusinessTradeName ||
                   transaction.user?.profile?.businessTradeName ||
                   transaction.user?.profile?.merchant_names ||
                   (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null);
-                
-                const merchantCode = 
+
+                const merchantCode =
                   transaction.metadata?.merchantCode ||
                   transaction.user?.merchantCode;
-                
+
                 return isMerchantTransaction ? (
                   <>
                     <span className="font-medium">
@@ -700,7 +743,7 @@ export const TransactionTableRow = ({
                 ) : (
                   <>
                     <span className="font-medium">
-                      {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName 
+                      {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
                         ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
                         : transaction.user?.phone || transaction.user?.email || 'Unknown User'
                       }
@@ -728,13 +771,13 @@ export const TransactionTableRow = ({
           // Show RukaPay Fee (RukaPay Revenue) only, not total fees
           // Use feeBreakdown as source of truth if available
           const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-          
+
           // Get RukaPay Fee from feeBreakdown first, then fall back to transaction field
           const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-          const rukapayFee = rukapayFeeFromBreakdown > 0 
-            ? rukapayFeeFromBreakdown 
+          const rukapayFee = rukapayFeeFromBreakdown > 0
+            ? rukapayFeeFromBreakdown
             : (Number(transaction.rukapayFee) || 0);
-          
+
           // If still 0, return 0 (don't fall back to total fee)
           return formatAmount(rukapayFee);
         })()}
@@ -746,42 +789,42 @@ export const TransactionTableRow = ({
           // For CREDIT transactions: netAmount (amount received)
           if (transaction.direction === 'DEBIT') {
             const amount = Number(transaction.amount) || 0;
-            
+
             // Use feeBreakdown as source of truth if available
             const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-            
+
             // Get individual fees from feeBreakdown first, then fall back to transaction fields
             const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-            const rukapayFee = rukapayFeeFromBreakdown > 0 
-              ? rukapayFeeFromBreakdown 
+            const rukapayFee = rukapayFeeFromBreakdown > 0
+              ? rukapayFeeFromBreakdown
               : (Number(transaction.rukapayFee) || 0);
-            
+
             const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
-            const thirdPartyFee = partnerFeeFromBreakdown > 0 
-              ? partnerFeeFromBreakdown 
+            const thirdPartyFee = partnerFeeFromBreakdown > 0
+              ? partnerFeeFromBreakdown
               : (Number(transaction.thirdPartyFee) || 0);
-            
+
             const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
-            const governmentTax = govTaxFromBreakdown > 0 
-              ? govTaxFromBreakdown 
+            const governmentTax = govTaxFromBreakdown > 0
+              ? govTaxFromBreakdown
               : (Number(transaction.governmentTax) || 0);
-            
+
             const processingFee = feeBreakdown.processingFee || Number(transaction.processingFee) || 0;
             const networkFee = feeBreakdown.networkFee || Number(transaction.networkFee) || 0;
             const complianceFee = feeBreakdown.complianceFee || Number(transaction.complianceFee) || 0;
             const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
-            
+
             // Sum all fees (including telecomBankCharge if present)
             let calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee + telecomBankCharge;
-            
+
             // Use feeBreakdown.totalFee if available, otherwise use calculated total
             if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
               calculatedTotalFees = Number(feeBreakdown.totalFee);
             }
-            
+
             // Use calculated total fees if available, otherwise fall back to transaction.fee or calculate from difference
             let finalTotalFee = calculatedTotalFees;
-            
+
             if (finalTotalFee === 0) {
               const fee = Number(transaction.fee) || 0;
               if (fee > 0) {
@@ -794,7 +837,7 @@ export const TransactionTableRow = ({
                 }
               }
             }
-            
+
             return formatAmount(amount + finalTotalFee);
           } else {
             // For CREDIT transactions, show netAmount (amount received)
@@ -811,26 +854,26 @@ export const TransactionTableRow = ({
       <TableCell className="text-sm">{formatDate(transaction.createdAt)}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             onClick={() => onViewTransaction(transaction)}
             title="View Details"
           >
             <Eye className="h-4 w-4" />
           </Button>
-          {transaction.type === 'WALLET_TO_MNO' && 
-           (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => onReverseTransaction(transaction)}
-              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-600 font-medium"
-              title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          )}
+          {transaction.type === 'WALLET_TO_MNO' &&
+            (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onReverseTransaction(transaction)}
+                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-600 font-medium"
+                title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
         </div>
       </TableCell>
     </TableRow>
