@@ -26,6 +26,21 @@ export const TransactionTableRow = ({
   onViewTransaction,
   onReverseTransaction
 }: TransactionTableRowProps) => {
+  const metadata = transaction.metadata || {}
+
+  const hasPartnerSignal =
+    transaction.partnerId ||
+    transaction.partner ||
+    metadata.partnerId ||
+    metadata.isApiPartnerTransaction ||
+    metadata.apiPartnerName
+
+  const isPartnerSubscriberWithdraw =
+    transaction.type === 'WITHDRAWAL' &&
+    transaction.direction === 'DEBIT' &&
+    metadata.mode === 'WITHDRAW' &&
+    !!hasPartnerSignal
+
   return (
     <TableRow key={transaction.id}>
       <TableCell className="font-medium font-mono text-sm" title={transaction.reference || transaction.id}>
@@ -96,6 +111,37 @@ export const TransactionTableRow = ({
               <span className="text-xs text-gray-500">
                 📱 Mobile Money
               </span>
+            </>
+          ) : isPartnerSubscriberWithdraw ? (
+            <>
+              {(() => {
+                const partnerDisplayName =
+                  transaction.partner?.partnerName ||
+                  metadata.apiPartnerName ||
+                  metadata.partnerName ||
+                  'API Partner'
+
+                const contact =
+                  transaction.partner?.contactPhone ||
+                  transaction.metadata?.partnerContact ||
+                  transaction.partner?.contactEmail
+
+                return (
+                  <>
+                    <span className="font-medium">
+                      {partnerDisplayName}
+                    </span>
+                    {contact && (
+                      <span className="text-xs text-gray-500">
+                        📱 {contact}
+                      </span>
+                    )}
+                    <span className="text-xs text-blue-600 font-medium">
+                      API Partner
+                    </span>
+                  </>
+                )
+              })()}
             </>
           ) : transaction.direction === 'DEBIT' ? (
             <>
@@ -438,6 +484,39 @@ export const TransactionTableRow = ({
               <span className="text-xs text-blue-600 font-medium">
                 🏦 Merchant Account
               </span>
+            </>
+          ) : isPartnerSubscriberWithdraw ? (
+            <>
+              {(() => {
+                const subscriberDisplayName =
+                  metadata.receiverName ||
+                  (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
+                    ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                    : transaction.user?.phone || transaction.user?.email || 'RukaPay User')
+
+                const subscriberContact =
+                  metadata.receiverPhone ||
+                  metadata.userPhoneNumber ||
+                  transaction.user?.phone ||
+                  transaction.user?.email ||
+                  'N/A'
+
+                return (
+                  <>
+                    <span className="font-medium">
+                      {subscriberDisplayName}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      📱 {subscriberContact}
+                    </span>
+                    {transaction.user?.userType === 'SUBSCRIBER' && (
+                      <span className="text-xs text-blue-600 font-medium">
+                        🏦 RukaPay Subscriber
+                      </span>
+                    )}
+                  </>
+                )
+              })()}
             </>
           ) : transaction.direction === 'DEBIT' ? (
             <>
