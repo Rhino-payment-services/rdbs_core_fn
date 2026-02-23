@@ -208,6 +208,31 @@ export function useCreateOvaMapping() {
   })
 }
 
+export function useUpdateOvaMapping() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ovaAccountId,
+    }: {
+      id: string
+      ovaAccountId: string
+    }) => {
+      const res = await api.patch(`/api/v1/admin/ova-account-mappings/${id}`, {
+        ovaAccountId,
+      })
+      return res.data as OvaAccountMapping
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ovaQueryKeys.mappings })
+      toast.success('OVA mapping updated')
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update OVA mapping')
+    },
+  })
+}
+
 export function useDeleteOvaMapping() {
   const queryClient = useQueryClient()
   return useMutation({

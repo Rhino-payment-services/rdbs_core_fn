@@ -22,11 +22,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Link2, ArrowLeft, Plus, Search, Loader2, Trash2 } from 'lucide-react'
+import { Link2, ArrowLeft, Plus, Search, Loader2, Trash2, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import {
   useOvaMappings,
   useCreateOvaMapping,
+  useUpdateOvaMapping,
   useDeleteOvaMapping,
   useOvaAccounts,
   type OvaAccountMapping,
@@ -47,6 +48,9 @@ const OvaMappingsPage = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [partnerFilter, setPartnerFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingMapping, setEditingMapping] = useState<OvaAccountMapping | null>(null)
+  const [editOvaAccountId, setEditOvaAccountId] = useState('')
   const [createForm, setCreateForm] = useState({
     transactionType: 'MNO_TO_WALLET',
     partnerCode: '',
@@ -65,6 +69,7 @@ const OvaMappingsPage = () => {
     },
   })
   const createMapping = useCreateOvaMapping()
+  const updateMapping = useUpdateOvaMapping()
   const deleteMapping = useDeleteOvaMapping()
 
   const filteredMappings = (mappings as OvaAccountMapping[]).filter((m) => {
@@ -103,6 +108,23 @@ const OvaMappingsPage = () => {
       ovaAccountId: '',
       action: 'CREDIT',
     })
+  }
+
+  const handleOpenEditModal = (m: OvaAccountMapping) => {
+    setEditingMapping(m)
+    setEditOvaAccountId(m.ovaAccountId)
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingMapping || !editOvaAccountId) return
+    await updateMapping.mutateAsync({
+      id: editingMapping.id,
+      ovaAccountId: editOvaAccountId,
+    })
+    setShowEditModal(false)
+    setEditingMapping(null)
+    setEditOvaAccountId('')
   }
 
   const handleDelete = async (id: string) => {
@@ -145,8 +167,8 @@ const OvaMappingsPage = () => {
           <CardHeader>
             <CardTitle>Mappings</CardTitle>
             <CardDescription>
-              Links transaction flow (e.g. MNO_TO_WALLET) + partner + network to the OVA account
-              for CREDIT or DEBIT
+              ABC/Pegasus collections on Airtel → AIRTEL_COLLECTION; on MTN → MTN_MNO. You can edit
+              any mapping to change its target OVA account.
             </CardDescription>
             <div className="flex gap-4 pt-4">
               <div className="relative flex-1">
@@ -244,14 +266,26 @@ const OvaMappingsPage = () => {
                       </TableCell>
                       <TableCell>
                         {m.isActive && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(m.id)}
-                            disabled={deleteMapping.isPending}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEditModal(m)}
+                              disabled={updateMapping.isPending}
+                              title="Edit mapping"
+                            >
+                              <Pencil className="h-4 w-4 text-gray-500" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(m.id)}
+                              disabled={deleteMapping.isPending}
+                              title="Deactivate mapping"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -262,6 +296,56 @@ const OvaMappingsPage = () => {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog
+        open={showEditModal}
+        onOpenChange={(open) => {
+          setShowEditModal(open)
+          if (!open) setEditingMapping(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit mapping</DialogTitle>
+            <DialogDescription>
+              {editingMapping
+                ? `${editingMapping.transactionType} / ${editingMapping.partnerCode} / ${editingMapping.network ?? 'null'} / ${editingMapping.action} – change target OVA`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">OVA account</label>
+              <Select
+                value={editOvaAccountId}
+                onValueChange={setEditOvaAccountId}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select OVA account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(ovaAccounts as any[]).map((oa) => (
+                    <SelectItem key={oa.id} value={oa.id}>
+                      {oa.code} ({oa.partnerCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={updateMapping.isPending || !editOvaAccountId}
+            >
+              {updateMapping.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="max-w-lg">
