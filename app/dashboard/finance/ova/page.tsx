@@ -28,12 +28,15 @@ import {
   Plus,
   Search,
   Loader2,
+  History,
+  Wallet,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   useOvaAccounts,
   useCreateOvaAccount,
   useSetOvaBalance,
+  useFundOva,
   type OvaAccount,
 } from '@/lib/hooks/useOvaAccounts'
 import { useQuery } from '@tanstack/react-query'
@@ -46,8 +49,10 @@ const OvaAccountsPage = () => {
   const [ovaTypeFilter, setOvaTypeFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showBalanceModal, setShowBalanceModal] = useState(false)
+  const [showFundModal, setShowFundModal] = useState(false)
   const [selectedOva, setSelectedOva] = useState<OvaAccount | null>(null)
   const [balanceForm, setBalanceForm] = useState({ expectedBalance: '' })
+  const [fundForm, setFundForm] = useState({ amount: '', reference: '', description: '' })
   const [createForm, setCreateForm] = useState({
     code: '',
     name: '',
@@ -70,6 +75,7 @@ const OvaAccountsPage = () => {
   })
   const createOva = useCreateOvaAccount()
   const setBalance = useSetOvaBalance()
+  const fundOva = useFundOva()
 
   const filteredAccounts = ovaAccounts.filter((acc: OvaAccount) => {
     const matchesSearch =
@@ -112,6 +118,32 @@ const OvaAccountsPage = () => {
     })
     setShowBalanceModal(false)
     setSelectedOva(null)
+  }
+
+  const handleOpenFundModal = (ova: OvaAccount) => {
+    setSelectedOva(ova)
+    setFundForm({ amount: '', reference: '', description: 'Manual funding' })
+    setShowFundModal(true)
+  }
+
+  const handleAddFunding = async () => {
+    if (!selectedOva) return
+    const amount = fundForm.amount ? parseFloat(fundForm.amount) : 0
+    if (!amount || amount <= 0) {
+      toast.error('Enter a valid amount')
+      return
+    }
+    await fundOva.mutateAsync({
+      id: selectedOva.id,
+      data: {
+        amount,
+        reference: fundForm.reference || undefined,
+        description: fundForm.description || 'Manual funding',
+      },
+    })
+    setShowFundModal(false)
+    setSelectedOva(null)
+    setFundForm({ amount: '', reference: '', description: '' })
   }
 
   const handleCreateOva = async () => {
@@ -260,9 +292,21 @@ const OvaAccountsPage = () => {
                         {formatAmount(acc.expectedBalance)} UGX
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenBalanceModal(acc)}>
-                          Update balance
-                        </Button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/dashboard/finance/ova/${acc.id}/movements`}>
+                              <History className="h-4 w-4 mr-1" />
+                              View movements
+                            </Link>
+                          </Button>
+                          <Button variant="default" size="sm" onClick={() => handleOpenFundModal(acc)}>
+                            <Wallet className="h-4 w-4 mr-1" />
+                            Add funding
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleOpenBalanceModal(acc)}>
+                            Update balance
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -302,6 +346,57 @@ const OvaAccountsPage = () => {
             </Button>
             <Button onClick={handleSaveBalance} disabled={setBalance.isPending}>
               {setBalance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add funding modal – records a CREDIT movement and shows in movements log */}
+      <Dialog open={showFundModal} onOpenChange={setShowFundModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add funding</DialogTitle>
+            <DialogDescription>
+              {selectedOva?.code} – Add amount to this OVA. A credit movement will be recorded and appear in the movements log.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Amount to add (UGX)</label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="Enter amount"
+                value={fundForm.amount}
+                onChange={(e) => setFundForm((f) => ({ ...f, amount: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Reference (optional)</label>
+              <Input
+                placeholder="e.g. Bank transfer ref"
+                value={fundForm.reference}
+                onChange={(e) => setFundForm((f) => ({ ...f, reference: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description (optional)</label>
+              <Input
+                placeholder="e.g. Manual funding"
+                value={fundForm.description}
+                onChange={(e) => setFundForm((f) => ({ ...f, description: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFundModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddFunding} disabled={fundOva.isPending}>
+              {fundOva.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add funding'}
             </Button>
           </DialogFooter>
         </DialogContent>

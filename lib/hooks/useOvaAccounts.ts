@@ -35,9 +35,26 @@ export interface OvaAccountMapping {
   updatedAt: string
 }
 
+export interface OvaMovement {
+  id: string
+  ovaAccountId: string
+  transactionId: string | null
+  amount: number
+  direction: 'CREDIT' | 'DEBIT'
+  transactionType: string
+  balanceBefore: number
+  balanceAfter: number
+  reference: string | null
+  description: string | null
+  createdAt: string
+  transaction?: { id: string; reference: string | null; status: string } | null
+}
+
 const ovaQueryKeys = {
   accounts: ['ova-accounts'] as const,
   account: (id: string) => ['ova-account', id] as const,
+  movements: (id: string, params?: { page?: number; limit?: number; direction?: string }) =>
+    ['ova-movements', id, params] as const,
   mappings: ['ova-mappings'] as const,
 }
 
@@ -86,6 +103,34 @@ export function useOvaExpectedVsActual(id: string | undefined) {
     },
     enabled: !!id,
     staleTime: 15000,
+  })
+}
+
+export function useOvaMovements(
+  ovaAccountId: string | undefined,
+  params?: { page?: number; limit?: number; direction?: 'CREDIT' | 'DEBIT' }
+) {
+  return useQuery({
+    queryKey: ovaQueryKeys.movements(ovaAccountId || '', params),
+    queryFn: async () => {
+      const searchParams = new URLSearchParams()
+      if (params?.page != null) searchParams.set('page', String(params.page))
+      if (params?.limit != null) searchParams.set('limit', String(params.limit))
+      if (params?.direction) searchParams.set('direction', params.direction)
+      const qs = searchParams.toString()
+      const res = await api.get(
+        `/api/v1/admin/ova-accounts/${ovaAccountId}/movements${qs ? `?${qs}` : ''}`
+      )
+      return res.data as {
+        items: OvaMovement[]
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+      }
+    },
+    enabled: !!ovaAccountId,
+    staleTime: 10000,
   })
 }
 
@@ -161,6 +206,32 @@ export function useSetOvaBalance() {
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to update balance')
+    },
+  })
+}
+
+export function useFundOva() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string
+      data: { amount: number; reference?: string; description?: string }
+    }) => {
+      const res = await api.post(`/api/v1/admin/ova-accounts/${id}/fund`, data)
+      return res.data as { balanceBefore: number; balanceAfter: number }
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ovaQueryKeys.accounts })
+      queryClient.invalidateQueries({ queryKey: ovaQueryKeys.account(id) })
+      queryClient.invalidateQueries({ queryKey: ['ova-movements', id] })
+      queryClient.invalidateQueries({ queryKey: ['ova-expected-vs-actual', id] })
+      toast.success('Funding recorded. View movements to see the log.')
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to add funding')
     },
   })
 }
