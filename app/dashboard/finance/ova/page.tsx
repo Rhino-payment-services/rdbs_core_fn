@@ -28,12 +28,14 @@ import {
   Plus,
   Search,
   Loader2,
+  History,
+  Wallet,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   useOvaAccounts,
   useCreateOvaAccount,
-  useSetOvaBalance,
+  useFundOva,
   type OvaAccount,
 } from '@/lib/hooks/useOvaAccounts'
 import { useQuery } from '@tanstack/react-query'
@@ -45,9 +47,9 @@ const OvaAccountsPage = () => {
   const [partnerFilter, setPartnerFilter] = useState<string>('all')
   const [ovaTypeFilter, setOvaTypeFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showBalanceModal, setShowBalanceModal] = useState(false)
+  const [showFundModal, setShowFundModal] = useState(false)
   const [selectedOva, setSelectedOva] = useState<OvaAccount | null>(null)
-  const [balanceForm, setBalanceForm] = useState({ expectedBalance: '' })
+  const [fundForm, setFundForm] = useState({ amount: '', reference: '', description: '' })
   const [createForm, setCreateForm] = useState({
     code: '',
     name: '',
@@ -69,7 +71,7 @@ const OvaAccountsPage = () => {
     },
   })
   const createOva = useCreateOvaAccount()
-  const setBalance = useSetOvaBalance()
+  const fundOva = useFundOva()
 
   const filteredAccounts = ovaAccounts.filter((acc: OvaAccount) => {
     const matchesSearch =
@@ -91,27 +93,30 @@ const OvaAccountsPage = () => {
     }).format(n)
   }
 
-  const handleOpenBalanceModal = (ova: OvaAccount) => {
+  const handleOpenFundModal = (ova: OvaAccount) => {
     setSelectedOva(ova)
-    setBalanceForm({
-      expectedBalance: ova.expectedBalance != null ? String(ova.expectedBalance) : '',
-    })
-    setShowBalanceModal(true)
+    setFundForm({ amount: '', reference: '', description: 'Manual funding' })
+    setShowFundModal(true)
   }
 
-  const handleSaveBalance = async () => {
+  const handleAddFunding = async () => {
     if (!selectedOva) return
-    const expected = balanceForm.expectedBalance ? parseFloat(balanceForm.expectedBalance) : undefined
-    if (expected === undefined) {
-      toast.error('Enter expected balance')
+    const amount = fundForm.amount ? parseFloat(fundForm.amount) : 0
+    if (!amount || amount <= 0) {
+      toast.error('Enter a valid amount')
       return
     }
-    await setBalance.mutateAsync({
+    await fundOva.mutateAsync({
       id: selectedOva.id,
-      data: { expectedBalance: expected },
+      data: {
+        amount,
+        reference: fundForm.reference || undefined,
+        description: fundForm.description || 'Manual funding',
+      },
     })
-    setShowBalanceModal(false)
+    setShowFundModal(false)
     setSelectedOva(null)
+    setFundForm({ amount: '', reference: '', description: '' })
   }
 
   const handleCreateOva = async () => {
@@ -260,9 +265,16 @@ const OvaAccountsPage = () => {
                         {formatAmount(acc.expectedBalance)} UGX
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenBalanceModal(acc)}>
-                          Update balance
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" asChild title="View movements">
+                            <Link href={`/dashboard/finance/ova/${acc.id}/movements`}>
+                              <History className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button variant="default" size="icon" className="h-8 w-8" onClick={() => handleOpenFundModal(acc)} title="Add funding">
+                            <Wallet className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -273,35 +285,52 @@ const OvaAccountsPage = () => {
         </Card>
       </main>
 
-      {/* Balance modal */}
-      <Dialog open={showBalanceModal} onOpenChange={setShowBalanceModal}>
+      {/* Add funding modal – records a CREDIT movement and shows in movements log */}
+      <Dialog open={showFundModal} onOpenChange={setShowFundModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update OVA balance</DialogTitle>
+            <DialogTitle>Add funding</DialogTitle>
             <DialogDescription>
-              {selectedOva?.code} – Set expected balance (e.g. to reset or correct)
+              {selectedOva?.code} – Add amount to this OVA. A credit movement will be recorded and appear in the movements log.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium">Expected balance (UGX)</label>
+              <label className="text-sm font-medium">Amount to add (UGX)</label>
               <Input
                 type="number"
+                min={1}
                 placeholder="Enter amount"
-                value={balanceForm.expectedBalance}
-                onChange={(e) =>
-                  setBalanceForm((f) => ({ ...f, expectedBalance: e.target.value }))
-                }
+                value={fundForm.amount}
+                onChange={(e) => setFundForm((f) => ({ ...f, amount: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Reference (optional)</label>
+              <Input
+                placeholder="e.g. Bank transfer ref"
+                value={fundForm.reference}
+                onChange={(e) => setFundForm((f) => ({ ...f, reference: e.target.value }))}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description (optional)</label>
+              <Input
+                placeholder="e.g. Manual funding"
+                value={fundForm.description}
+                onChange={(e) => setFundForm((f) => ({ ...f, description: e.target.value }))}
                 className="mt-1"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBalanceModal(false)}>
+            <Button variant="outline" onClick={() => setShowFundModal(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveBalance} disabled={setBalance.isPending}>
-              {setBalance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+            <Button onClick={handleAddFunding} disabled={fundOva.isPending}>
+              {fundOva.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add funding'}
             </Button>
           </DialogFooter>
         </DialogContent>
