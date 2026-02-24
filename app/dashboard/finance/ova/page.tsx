@@ -30,13 +30,11 @@ import {
   Loader2,
   History,
   Wallet,
-  Scale,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   useOvaAccounts,
   useCreateOvaAccount,
-  useSetOvaBalance,
   useFundOva,
   type OvaAccount,
 } from '@/lib/hooks/useOvaAccounts'
@@ -49,10 +47,8 @@ const OvaAccountsPage = () => {
   const [partnerFilter, setPartnerFilter] = useState<string>('all')
   const [ovaTypeFilter, setOvaTypeFilter] = useState<string>('all')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showBalanceModal, setShowBalanceModal] = useState(false)
   const [showFundModal, setShowFundModal] = useState(false)
   const [selectedOva, setSelectedOva] = useState<OvaAccount | null>(null)
-  const [balanceForm, setBalanceForm] = useState({ expectedBalance: '' })
   const [fundForm, setFundForm] = useState({ amount: '', reference: '', description: '' })
   const [createForm, setCreateForm] = useState({
     code: '',
@@ -75,7 +71,6 @@ const OvaAccountsPage = () => {
     },
   })
   const createOva = useCreateOvaAccount()
-  const setBalance = useSetOvaBalance()
   const fundOva = useFundOva()
 
   const filteredAccounts = ovaAccounts.filter((acc: OvaAccount) => {
@@ -96,29 +91,6 @@ const OvaAccountsPage = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(n)
-  }
-
-  const handleOpenBalanceModal = (ova: OvaAccount) => {
-    setSelectedOva(ova)
-    setBalanceForm({
-      expectedBalance: ova.expectedBalance != null ? String(ova.expectedBalance) : '',
-    })
-    setShowBalanceModal(true)
-  }
-
-  const handleSaveBalance = async () => {
-    if (!selectedOva) return
-    const expected = balanceForm.expectedBalance ? parseFloat(balanceForm.expectedBalance) : undefined
-    if (expected === undefined) {
-      toast.error('Enter expected balance')
-      return
-    }
-    await setBalance.mutateAsync({
-      id: selectedOva.id,
-      data: { expectedBalance: expected },
-    })
-    setShowBalanceModal(false)
-    setSelectedOva(null)
   }
 
   const handleOpenFundModal = (ova: OvaAccount) => {
@@ -302,9 +274,6 @@ const OvaAccountsPage = () => {
                           <Button variant="default" size="icon" className="h-8 w-8" onClick={() => handleOpenFundModal(acc)} title="Add funding">
                             <Wallet className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenBalanceModal(acc)} title="Update balance">
-                            <Scale className="h-4 w-4" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -315,40 +284,6 @@ const OvaAccountsPage = () => {
           </CardContent>
         </Card>
       </main>
-
-      {/* Balance modal */}
-      <Dialog open={showBalanceModal} onOpenChange={setShowBalanceModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update OVA balance</DialogTitle>
-            <DialogDescription>
-              {selectedOva?.code} – Set expected balance (e.g. to reset or correct)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium">Expected balance (UGX)</label>
-              <Input
-                type="number"
-                placeholder="Enter amount"
-                value={balanceForm.expectedBalance}
-                onChange={(e) =>
-                  setBalanceForm((f) => ({ ...f, expectedBalance: e.target.value }))
-                }
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBalanceModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveBalance} disabled={setBalance.isPending}>
-              {setBalance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Add funding modal – records a CREDIT movement and shows in movements log */}
       <Dialog open={showFundModal} onOpenChange={setShowFundModal}>
