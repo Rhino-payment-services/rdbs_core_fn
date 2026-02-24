@@ -87,17 +87,17 @@ const CreateGatewayPartnerPage = () => {
     }
   }
 
-  const toggleWalletType = (type: WalletType, checked: boolean) => {
-    setFormData((prev) => {
-      const current: WalletType[] = prev.walletTypes ? [...prev.walletTypes] : []
-      const next = checked
-        ? current.includes(type)
-          ? current
-          : [...current, type]
-        : current.filter((t) => t !== type)
-      return { ...prev, walletTypes: next }
-    })
-  }
+  // const toggleWalletType = (type: WalletType, checked: boolean) => {
+  //   setFormData((prev) => {
+  //     const current: WalletType[] = prev.walletTypes ? [...prev.walletTypes] : []
+  //     const next = checked
+  //       ? current.includes(type)
+  //         ? current
+  //         : [...current, type]
+  //       : current.filter((t) => t !== type)
+  //     return { ...prev, walletTypes: next }
+  //   })
+  // }
 
 
   const copyToClipboard = (text: string) => {
