@@ -30,6 +30,7 @@ import {
   Loader2,
   History,
   Wallet,
+  Scale,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -292,19 +293,17 @@ const OvaAccountsPage = () => {
                         {formatAmount(acc.expectedBalance)} UGX
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button variant="outline" size="sm" asChild>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" asChild title="View movements">
                             <Link href={`/dashboard/finance/ova/${acc.id}/movements`}>
-                              <History className="h-4 w-4 mr-1" />
-                              View movements
+                              <History className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button variant="default" size="sm" onClick={() => handleOpenFundModal(acc)}>
-                            <Wallet className="h-4 w-4 mr-1" />
-                            Add funding
+                          <Button variant="default" size="icon" className="h-8 w-8" onClick={() => handleOpenFundModal(acc)} title="Add funding">
+                            <Wallet className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenBalanceModal(acc)}>
-                            Update balance
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenBalanceModal(acc)} title="Update balance">
+                            <Scale className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
