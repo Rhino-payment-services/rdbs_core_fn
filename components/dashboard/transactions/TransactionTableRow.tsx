@@ -654,6 +654,59 @@ export const TransactionTableRow = ({
                     🏦 Merchant Account
                   </span>
                 </>
+              ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
+                (transaction.channel === 'API' || transaction.metadata?.channel === 'API') &&
+                (transaction.mode === 'PARTNER_COLLECT_MNO' ||
+                  transaction.metadata?.transactionModeCode === 'PARTNER_COLLECT_MNO' ||
+                  transaction.metadata?.mode === 'PARTNER_COLLECT_MNO') ? (
+                <>
+                  {(() => {
+                    const isPartnerApi =
+                      transaction.partner ||
+                      transaction.partnerId ||
+                      transaction.metadata?.isApiPartnerTransaction ||
+                      transaction.metadata?.isPartnerTransaction ||
+                      transaction.metadata?.apiPartnerName
+
+                    if (!isPartnerApi) {
+                      return (
+                        <span className="font-medium">
+                          {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
+                            ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                            : transaction.user?.phone || transaction.user?.email || 'RukaPay User'}
+                        </span>
+                      )
+                    }
+
+                    const displayName =
+                      transaction.partner?.partnerName ||
+                      transaction.metadata?.apiPartnerName ||
+                      transaction.partner?.partnerCode ||
+                      'API Partner'
+
+                    const partnerContact =
+                      transaction.partner?.contactPhone ||
+                      transaction.metadata?.partnerPhone ||
+                      null
+
+                    return (
+                      <>
+                        <span className="font-medium">
+                          {displayName}
+                        </span>
+                        {partnerContact && (
+                          <span className="text-xs text-gray-500">
+                            📱 {partnerContact}
+                          </span>
+                        )}
+                        <span className="text-xs text-blue-600 font-medium">
+                          API Partner
+                        </span>
+                      </>
+                    )
+                  })()}
+                </>
               ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                 <>
                   {(() => {
