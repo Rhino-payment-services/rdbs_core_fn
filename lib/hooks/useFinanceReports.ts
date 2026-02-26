@@ -48,6 +48,58 @@ const defaultAmountBandData = {
   status: undefined as string | undefined
 }
 
+// BOU monthly report (Bank of Uganda)
+export interface BouMonthlyReport {
+  reportType: string
+  period: {
+    month: string
+    start: string
+    end: string
+  }
+  transactions: {
+    totalCount: number
+    totalVolume: number
+    cashIn: { count: number; volume: number }
+    cashOut: { count: number; volume: number }
+    p2p: { count: number; volume: number }
+    walletToBank: { count: number; volume: number }
+    merchantToWallet: { count: number; volume: number }
+    personalToBusiness: { count: number; volume: number }
+    personalToMerchant: { count: number; volume: number }
+    bands: Array<{
+      label: string
+      min: number
+      max: number | null
+      transactionCount: number
+      totalVolume: number
+    }>
+  }
+  customers: {
+    total: number
+    female: number
+    male: number
+    activeInMonth: {
+      total: number
+      female: number
+      male: number
+    }
+    activeIn90Days: {
+      total: number
+      female: number
+      male: number
+    }
+  }
+  merchants: {
+    total: number
+    female: number
+    male: number
+  }
+  wallets: {
+    totalActiveBalance: number
+  }
+  generatedAt: string | Date
+}
+
 // Finance Reporting API functions - with complete error handling
 export const getCustomerCount = async (startDate: string, endDate: string) => {
   try {
@@ -199,6 +251,14 @@ export const getTransactionsByAmountBands = async (params: {
   }
 }
 
+// BOU monthly report - backend already aggregates everything
+export const getBouMonthlyReport = async (month?: string): Promise<BouMonthlyReport> => {
+  const response = await api.get('/analytics/reports/bou', {
+    params: month ? { month } : undefined,
+  })
+  return response.data as BouMonthlyReport
+}
+
 // React Query hooks with placeholderData for immediate display
 export const useCustomerCount = (startDate: string, endDate: string, enabled: boolean = true) => {
   return useQuery({
@@ -270,3 +330,14 @@ export const useTransactionsByAmountBands = (
     placeholderData: { bandStats, totalVolume: 0, totalCount: 0, startDate, endDate, status },
   })
 }
+
+export const useBouMonthlyReport = (month?: string, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ['finance', 'bouMonthlyReport', month],
+    queryFn: () => getBouMonthlyReport(month),
+    enabled: enabled && typeof window !== 'undefined', // only in browser
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
