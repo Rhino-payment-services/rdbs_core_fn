@@ -839,23 +839,26 @@ export const TransactionTableRow = ({
                   })()}
                 </>
               ) : (() => {
+                // For CREDIT rows, tx.user IS the receiver — only check their own properties
                 const isMerchantTransaction =
                   transaction.metadata?.merchantName ||
                   transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' ||
                   transaction.metadata?.walletType === 'BUSINESS' ||
+                  (transaction.user?.isMerchant ||
+                  transaction.user?.merchants?.length > 0 ||
                   transaction.user?.merchantCode ||
-                  transaction.user?.merchant?.businessTradeName;
+                  transaction.user?.merchant?.businessTradeName) &&
+                  transaction.metadata?.recipientWalletType === 'BUSINESS';
 
                 const merchantName =
-                  transaction.metadata?.merchantName ||
+                  transaction.user?.merchants?.[0]?.businessTradeName ||
                   transaction.user?.merchant?.businessTradeName ||
-                  transaction.user?.profile?.merchantBusinessTradeName ||
-                  transaction.user?.profile?.businessTradeName ||
-                  transaction.user?.profile?.merchant_names ||
+                  transaction.user?.displayName ||
                   (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null);
 
                 const merchantCode =
                   transaction.metadata?.merchantCode ||
+                  transaction.user?.merchants?.[0]?.merchantCode ||
                   transaction.user?.merchantCode;
 
                 return isMerchantTransaction ? (
