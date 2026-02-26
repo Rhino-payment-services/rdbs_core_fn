@@ -75,8 +75,8 @@ export interface CreateGatewayPartnerRequest {
   website?: string;
   address?: string;
   description?: string;
+  canDepositAndWithdraw?: boolean;
   permissions?: string[];
-  walletTypes?: Array<'ESCROW' | 'COMMISSION'>;
   rateLimits?: {
     requests_per_second?: number;
     requests_per_minute?: number;
