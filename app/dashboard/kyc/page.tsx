@@ -190,6 +190,9 @@ interface VerifyKycRequest {
   status: 'APPROVED' | 'REJECTED'
   rejectionReason?: string
   verificationLevel: 'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'
+  // Optional: merchant BUSINESS wallet collection fee configuration
+  collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
+  collectionCustomerSharePercent?: number
 }
 
 const KycPage = () => {
@@ -214,6 +217,8 @@ const KycPage = () => {
   } | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [verificationLevel, setVerificationLevel] = useState<'BASIC' | 'STANDARD' | 'ENHANCED' | 'PREMIUM'>('STANDARD')
+  const [collectionFeeMode, setCollectionFeeMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>('CUSTOMER_PAYS_NONE')
+  const [collectionCustomerSharePercent, setCollectionCustomerSharePercent] = useState<number>(0)
   // Tab state for KYC vs Business Approvals
   const [activeTab, setActiveTab] = useState<'kyc' | 'business'>('kyc')
 
@@ -282,6 +287,8 @@ const KycPage = () => {
       setPendingApproval(null)
       setRejectionReason('')
       setVerificationLevel('STANDARD')
+      setCollectionFeeMode('CUSTOMER_PAYS_NONE')
+      setCollectionCustomerSharePercent(0)
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to process KYC request')
@@ -344,6 +351,14 @@ const KycPage = () => {
       status: pendingApproval.action === 'approve' ? 'APPROVED' : 'REJECTED',
       // For business-only approvals, use STANDARD by default (user already has a level)
       verificationLevel: pendingApproval.isBusinessApprovalOnly ? 'STANDARD' : verificationLevel,
+    }
+
+    // When approving a specific business (merchantId present), attach collection fee configuration
+    if (pendingApproval.action === 'approve' && pendingApproval.merchantId) {
+      verifyData.collectionFeeMode = collectionFeeMode
+      if (collectionFeeMode === 'CUSTOMER_PAYS_PARTIAL') {
+        verifyData.collectionCustomerSharePercent = collectionCustomerSharePercent
+      }
     }
 
     if (pendingApproval.action === 'reject' && rejectionReason.trim()) {
@@ -921,7 +936,56 @@ const KycPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
+                  {/* Merchant BUSINESS collection fee configuration */}
+                  {pendingApproval.merchantId && (
+                    <div className="space-y-2 border rounded-md p-3 bg-gray-50">
+                      <p className="text-xs font-medium text-gray-600">
+                        Collection fee mode (MNO collections into this business wallet)
+                      </p>
+                      <Select
+                        value={collectionFeeMode}
+                        onValueChange={(value: any) => setCollectionFeeMode(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select collection fee mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CUSTOMER_PAYS_ALL">
+                            Customer pays all external fee
+                          </SelectItem>
+                          <SelectItem value="CUSTOMER_PAYS_PARTIAL">
+                            Customer pays partial external fee
+                          </SelectItem>
+                          <SelectItem value="CUSTOMER_PAYS_NONE">
+                            Customer pays no external fee
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {collectionFeeMode === 'CUSTOMER_PAYS_PARTIAL' && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-gray-600">
+                            Customer share of external fee (%)
+                          </label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={collectionCustomerSharePercent}
+                            onChange={(e) =>
+                              setCollectionCustomerSharePercent(Number(e.target.value) || 0)
+                            }
+                            className="h-8 text-sm"
+                          />
+                          <p className="text-[11px] text-gray-500">
+                            Example: if external fee is 2% and you set 50%, customer pays 1% and RukaPay absorbs 1%.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Show info about other pending businesses */}
                   {pendingApproval?.otherPendingBusinesses && pendingApproval.otherPendingBusinesses.length > 0 && (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">

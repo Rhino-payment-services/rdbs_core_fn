@@ -53,7 +53,7 @@ const CustomerStatsCards = ({ stats }: CustomerStatsCardsProps) => {
             <div>
               <p className="text-sm font-medium text-gray-600">Current Balance</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.currentBalance.toLocaleString()} {stats.currency}
+                {(stats.currentBalance ?? 0).toLocaleString()} {stats.currency}
               </p>
             </div>
             <DollarSign className="h-6 w-6 text-green-600" />
@@ -68,7 +68,7 @@ const CustomerStatsCards = ({ stats }: CustomerStatsCardsProps) => {
             <div>
               <p className="text-sm font-medium text-gray-600">Suspension Fund</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.suspensionFund.toLocaleString()} {stats.currency}
+                {(stats.suspensionFund ?? 0).toLocaleString()} {stats.currency}
               </p>
             </div>
             <Shield className="h-6 w-6 text-red-600" />

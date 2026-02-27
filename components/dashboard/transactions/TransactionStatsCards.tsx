@@ -12,11 +12,18 @@ interface TransactionStats {
 }
 
 interface TransactionStatsCardsProps {
-  stats: TransactionStats
+  stats?: TransactionStats
   isLoading: boolean
 }
 
 export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCardsProps) => {
+  const totalTransactions = stats?.totalTransactions ?? 0
+  const successRate = stats?.successRate ?? 0
+  const totalVolume = stats?.totalVolume ?? 0
+  const averageAmount = stats?.averageTransactionAmount ?? 0
+  const rukapayRevenue = stats?.rukapayRevenue ?? 0
+  const partnerFees = stats?.partnerFees ?? 0
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
       <Card className="bg-white border-gray-200">
@@ -27,7 +34,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
                 Total Transactions
               </p>
               <p className="text-xl font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : stats.totalTransactions.toLocaleString()}
+                {isLoading ? '...' : totalTransactions.toLocaleString()}
               </p>
             </div>
             <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -36,7 +43,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
           </div>
           <div className="mt-0">
             <span className="text-sm text-green-600 font-medium">
-              {stats.successRate.toFixed(1)}%
+              {successRate.toFixed(1)}%
             </span>
             <span className="text-sm ml-1 text-gray-500">
               success rate
@@ -53,7 +60,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
                 Total Volume
               </p>
               <p className="text-xl font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : `UGX ${(stats.totalVolume / 1000000).toFixed(1)}M`}
+                {isLoading ? '...' : `UGX ${(totalVolume / 1000000).toFixed(1)}M`}
               </p>
             </div>
             <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -62,7 +69,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
           </div>
           <div className="mt-0">
             <span className="text-sm text-green-600 font-medium">
-              UGX {stats.averageTransactionAmount.toFixed(0)}
+              UGX {averageAmount.toFixed(0)}
             </span>
             <span className="text-sm ml-1 text-gray-500">
               avg transaction
@@ -79,7 +86,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
                 RukaPay Gross Revenue
               </p>
               <p className="text-xl font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : formatAmount(stats.rukapayRevenue || 0)}
+                {isLoading ? '...' : formatAmount(rukapayRevenue || 0)}
               </p>
             </div>
             <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -102,7 +109,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
                 Partner Fees
               </p>
               <p className="text-xl font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : formatAmount(stats.partnerFees || 0)}
+                {isLoading ? '...' : formatAmount(partnerFees || 0)}
               </p>
             </div>
             <div className="w-8 h-8 flex items-center justify-center ml-2">
