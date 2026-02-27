@@ -23,23 +23,34 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
+import { extractErrorMessage } from '@/lib/utils'
 
 interface CustomerSettingsProps {
+  type: string
   customerId: string
   customerStatus: string
   customerPhone?: string
   walletBalance?: number
   currency?: string
   onActionComplete?: () => void
+  merchantId?: string
+  merchantCode?: string
+  collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
+  collectionCustomerSharePercent?: number
 }
 
 const CustomerSettings = ({ 
+  type,
   customerId, 
   customerStatus,
   customerPhone = '',
   walletBalance = 0, 
   currency = 'UGX',
-  onActionComplete 
+  onActionComplete,
+  merchantId,
+  merchantCode,
+  collectionFeeMode = 'CUSTOMER_PAYS_NONE',
+  collectionCustomerSharePercent = 0,
 }: CustomerSettingsProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
@@ -47,6 +58,7 @@ const CustomerSettings = ({
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
   const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false)
   const [isResettingPin, setIsResettingPin] = useState(false)
+  const [isSavingFeeMode, setIsSavingFeeMode] = useState(false)
   
   // Suspend form state
   const [suspendForm, setSuspendForm] = useState({
@@ -63,6 +75,10 @@ const CustomerSettings = ({
     description: '',
     reference: ''
   })
+
+  // Merchant collection fee configuration state
+  const [collectionMode, setCollectionMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>(collectionFeeMode)
+  const [customerSharePercent, setCustomerSharePercent] = useState<number>(collectionCustomerSharePercent ?? 0)
 
   const handleSuspend = async () => {
     if (!suspendForm.reason) {
@@ -186,6 +202,39 @@ const CustomerSettings = ({
       toast.error(errorMessage)
     } finally {
       setIsResettingPin(false)
+    }
+  }
+
+  const handleSaveCollectionFeeMode = async () => {
+    if (type !== 'merchant' || !merchantId) {
+      toast.error('Merchant information not available for fee configuration.')
+      return
+    }
+
+    if (collectionMode === 'CUSTOMER_PAYS_PARTIAL') {
+      if (customerSharePercent <= 0 || customerSharePercent > 100) {
+        toast.error('Customer share percent must be between 1 and 100.')
+        return
+      }
+    }
+
+    setIsSavingFeeMode(true)
+    try {
+      const payload: any = {
+        collectionFeeMode: collectionMode,
+      }
+      if (collectionMode === 'CUSTOMER_PAYS_PARTIAL') {
+        payload.collectionCustomerSharePercent = customerSharePercent
+      }
+
+      await api.patch(`/merchant-kyc/${merchantId}/fee-mode`, payload)
+
+      toast.success('Merchant collection fee mode updated successfully.')
+      onActionComplete?.()
+    } catch (error: any) {
+      toast.error(extractErrorMessage(error) || 'Failed to update collection fee mode.')
+    } finally {
+      setIsSavingFeeMode(false)
     }
   }
 
@@ -316,6 +365,92 @@ const CustomerSettings = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Merchant collection fee configuration (for merchant profiles only) */}
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Merchant Collection Fee Mode
+            </CardTitle>
+            <CardDescription>
+              Configure how external collection fees are shared between the merchant and their customers
+              {merchantCode ? ` (Merchant Code: ${merchantCode})` : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Customer fee mode</Label>
+                <Select
+                  value={collectionMode}
+                  onValueChange={(value) =>
+                    setCollectionMode(value as 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE')
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select fee mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CUSTOMER_PAYS_ALL">
+                      Customer pays all external fee
+                    </SelectItem>
+                    <SelectItem value="CUSTOMER_PAYS_PARTIAL">
+                      Customer pays partial external fee
+                    </SelectItem>
+                    <SelectItem value="CUSTOMER_PAYS_NONE">
+                      Customer pays no external fee
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {collectionMode === 'CUSTOMER_PAYS_PARTIAL' && (
+                <div className="space-y-2">
+                  <Label htmlFor="customerSharePercent">Customer share of external fee (%)</Label>
+                  <Input
+                    id="customerSharePercent"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={Number.isFinite(customerSharePercent) ? customerSharePercent : 0}
+                    onChange={(e) => {
+                      const value = Number(e.target.value)
+                      setCustomerSharePercent(Number.isNaN(value) ? 0 : value)
+                    }}
+                    placeholder="Enter percentage (e.g. 50)"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Example: if external fee is 2% and you set 50%, customer pays 1% and RukaPay absorbs 1%.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  variant="default"
+                  onClick={handleSaveCollectionFeeMode}
+                  disabled={isSavingFeeMode}
+                  className="flex items-center gap-2"
+                >
+                  {isSavingFeeMode ? (
+                    <>
+                      <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Save fee configuration
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Wallet Management */}
       <Card>
