@@ -350,11 +350,14 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
             </div>
           ) : (
             <CustomerSettings
+              type={type}
               customerId={customer?.id || id}
               customerStatus={customer?.status || 'unknown'}
               customerPhone={customer?.profile?.phone || customer?.phone || ''}
               walletBalance={walletBalance?.balance || 0}
               currency={walletBalance?.currency || 'UGX'}
+              merchantId={merchantData?.id}
+              merchantCode={merchantData?.merchantCode}
               onActionComplete={() => {
                 window.location.reload()
               }}
