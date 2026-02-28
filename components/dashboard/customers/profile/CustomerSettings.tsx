@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +19,10 @@ import {
   UserX,
   UserCheck,
   Wallet,
-  Key
+  Key,
+  LayoutDashboard
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { extractErrorMessage } from '@/lib/utils'
@@ -32,8 +34,8 @@ interface CustomerSettingsProps {
   customerPhone?: string
   walletBalance?: number
   currency?: string
-  onActionComplete?: () => void
   merchantId?: string
+  onActionComplete?: () => void
   merchantCode?: string
   collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
   collectionCustomerSharePercent?: number
@@ -79,6 +81,41 @@ const CustomerSettings = ({
   // Merchant collection fee configuration state
   const [collectionMode, setCollectionMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>(collectionFeeMode)
   const [customerSharePercent, setCustomerSharePercent] = useState<number>(collectionCustomerSharePercent ?? 0)
+
+  // Merchant feature flags state
+  const [featureFlags, setFeatureFlags] = useState({
+    featureBulkPayments: false,
+    featurePayroll: false,
+    featurePayrollApprovals: false,
+  })
+  const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
+  const [savingFlag, setSavingFlag] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (type === 'merchant' && merchantId) {
+      setFeatureFlagsLoading(true)
+      api.get(`/merchants/${merchantId}/feature-flags`)
+        .then(res => setFeatureFlags(res.data))
+        .catch(() => toast.error('Failed to load feature flags'))
+        .finally(() => setFeatureFlagsLoading(false))
+    }
+  }, [type, merchantId])
+
+  const handleFeatureFlagToggle = async (flag: keyof typeof featureFlags, value: boolean) => {
+    if (!merchantId) return
+    setSavingFlag(flag)
+    const previous = featureFlags[flag]
+    setFeatureFlags(prev => ({ ...prev, [flag]: value }))
+    try {
+      await api.patch(`/merchants/${merchantId}/feature-flags`, { [flag]: value })
+      toast.success('Feature flag updated')
+    } catch {
+      setFeatureFlags(prev => ({ ...prev, [flag]: previous }))
+      toast.error('Failed to update feature flag')
+    } finally {
+      setSavingFlag(null)
+    }
+  }
 
   const handleSuspend = async () => {
     if (!suspendForm.reason) {
@@ -676,6 +713,66 @@ const CustomerSettings = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Dashboard Feature Flags — merchants only */}
+      {type === 'merchant' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LayoutDashboard className="h-5 w-5" />
+              Dashboard Features
+            </CardTitle>
+            <CardDescription>
+              Control which tabs are visible in this merchant&apos;s dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {featureFlagsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Payment (Bulk Payments)</div>
+                    <div className="text-sm text-gray-500">Show the bulk payments tab in the dashboard</div>
+                  </div>
+                  <Switch
+                    checked={featureFlags.featureBulkPayments}
+                    onCheckedChange={(val) => handleFeatureFlagToggle('featureBulkPayments', val)}
+                    disabled={savingFlag === 'featureBulkPayments'}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Payroll</div>
+                    <div className="text-sm text-gray-500">Show the payroll tab in the dashboard</div>
+                  </div>
+                  <Switch
+                    checked={featureFlags.featurePayroll}
+                    onCheckedChange={(val) => handleFeatureFlagToggle('featurePayroll', val)}
+                    disabled={savingFlag === 'featurePayroll'}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Payroll Approvals</div>
+                    <div className="text-sm text-gray-500">Show the payroll approvals tab in the dashboard</div>
+                  </div>
+                  <Switch
+                    checked={featureFlags.featurePayrollApprovals}
+                    onCheckedChange={(val) => handleFeatureFlagToggle('featurePayrollApprovals', val)}
+                    disabled={savingFlag === 'featurePayrollApprovals'}
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
