@@ -12,6 +12,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -586,179 +587,123 @@ const WalletPage = () => {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {walletsArray.map((wallet, index) => {
-                    // Check if there are multiple wallets of same type
-                    const sameTypeWallets = walletsArray.filter(w => w.walletType === wallet.walletType)
-                    const walletNumber = sameTypeWallets.findIndex(w => w.id === wallet.id) + 1
-                    const showWalletNumber = sameTypeWallets.length > 1
-                    
-                    return (
-                    <Card key={wallet.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <div className="flex items-center space-x-2 min-w-0 flex-1">
-                            <Wallet className="h-5 w-5 text-[#08163d] shrink-0" />
-                            <CardTitle className="text-lg truncate">
-                              {wallet.description || `${wallet.walletType} Wallet`}
-                              {showWalletNumber && ` #${walletNumber}`}
-                            </CardTitle>
-                          </div>
-                          <div className="shrink-0">
-                            {getStatusBadge(wallet)}
-                          </div>
-                        </div>
-                        <CardDescription className="flex items-center gap-2 flex-nowrap overflow-hidden">
-                          <Badge variant="outline" className="text-xs shrink-0">
-                            {wallet.walletType}
-                          </Badge>
-                          <span className="shrink-0">{getCurrencyBadge(wallet.currency)}</span>
-                          <span className="text-xs text-gray-500 shrink-0 whitespace-nowrap">
-                            • Created {formatDateShort(wallet.createdAt)}
-                          </span>
-                          {showWalletNumber && (
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs shrink-0">
-                              {walletNumber} of {sameTypeWallets.length} {wallet.walletType.toLowerCase()} wallets
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Wallet</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Currency</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead className="font-mono text-xs">ID</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {walletsArray.map((wallet) => {
+                      const sameTypeWallets = walletsArray.filter(w => w.walletType === wallet.walletType)
+                      const walletNumber = sameTypeWallets.findIndex(w => w.id === wallet.id) + 1
+                      const showWalletNumber = sameTypeWallets.length > 1
+                      const ownerName = (wallet as any).ownerName ||
+                        ((wallet as any).user?.profile
+                          ? `${(wallet as any).user.profile.firstName} ${(wallet as any).user.profile.lastName}`.trim()
+                          : null)
+                      const ownerContact = (wallet as any).ownerPhone || (wallet as any).user?.phone ||
+                        (wallet as any).ownerEmail || (wallet as any).user?.email
+
+                      return (
+                        <TableRow key={wallet.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Wallet className="h-4 w-4 text-[#08163d] shrink-0" />
+                              <span className="font-medium">
+                                {wallet.description || `${wallet.walletType} Wallet`}
+                                {showWalletNumber && ` #${walletNumber}`}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(wallet)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {wallet.walletType}
                             </Badge>
-                          )}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-sm text-gray-600">Balance</p>
-                            <p className="text-2xl font-bold text-[#08163d]">
-                              {formatCurrency(wallet.balance, wallet.currency)}
-                            </p>
-                          </div>
-                          
-                          {/* Daily Limit Information */}
-                          {(wallet.dailyLimit !== undefined && wallet.dailyLimit !== null) && (
-                            <div className="pt-2 border-t border-gray-200">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-xs font-medium text-gray-500">Daily Limit</p>
-                                <span className="text-xs text-gray-400">
-                                  {wallet.dailyUsed !== undefined && wallet.dailyUsed !== null
-                                    ? `${formatCurrency(wallet.dailyUsed, wallet.currency)} used`
-                                    : ''}
-                                </span>
-                              </div>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {formatCurrency(wallet.dailyLimit, wallet.currency)}
-                              </p>
-                              {wallet.dailyUsed !== undefined && wallet.dailyUsed !== null && (
-                                <div className="mt-1">
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div
-                                      className="bg-blue-600 h-1.5 rounded-full"
-                                      style={{
-                                        width: `${Math.min((wallet.dailyUsed / wallet.dailyLimit) * 100, 100)}%`
-                                      }}
-                                    />
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {formatCurrency(Math.max(0, wallet.dailyLimit - wallet.dailyUsed), wallet.currency)} remaining
-                                  </p>
-                                </div>
+                          </TableCell>
+                          <TableCell>{getCurrencyBadge(wallet.currency)}</TableCell>
+                          <TableCell className="text-right font-semibold text-[#08163d]">
+                            {formatCurrency(wallet.balance, wallet.currency)}
+                          </TableCell>
+                          <TableCell className="text-gray-500">
+                            {formatDateShort(wallet.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="min-w-0 max-w-[180px]">
+                              {ownerName && (
+                                <p className="text-sm font-medium truncate" title={ownerName}>{ownerName}</p>
+                              )}
+                              {ownerContact && (
+                                <p className="text-xs text-gray-500 truncate" title={String(ownerContact)}>
+                                  {String(ownerContact)}
+                                </p>
+                              )}
+                              {!ownerName && !ownerContact && (
+                                <span className="text-gray-400 text-sm">—</span>
                               )}
                             </div>
-                          )}
-                          
-                          {/* Owner Information */}
-                          {(wallet as any).ownerName || (wallet as any).ownerEmail || (wallet as any).ownerPhone ? (
-                            <div className="pt-2 border-t border-gray-200">
-                              <p className="text-xs font-medium text-gray-500 mb-2">Owner</p>
-                              {(wallet as any).ownerName && (
-                                <p className="text-sm text-gray-900 font-medium">
-                                  {(wallet as any).ownerName}
-                                </p>
-                              )}
-                              {(wallet as any).ownerEmail && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  📧 {(wallet as any).ownerEmail}
-                                </p>
-                              )}
-                              {(wallet as any).ownerPhone && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  📱 {(wallet as any).ownerPhone}
-                                </p>
-                              )}
-                            </div>
-                          ) : (wallet as any).user ? (
-                            <div className="pt-2 border-t border-gray-200">
-                              <p className="text-xs font-medium text-gray-500 mb-2">Owner</p>
-                              {(wallet as any).user.profile && (
-                                <p className="text-sm text-gray-900 font-medium">
-                                  {(wallet as any).user.profile.firstName} {(wallet as any).user.profile.lastName}
-                                </p>
-                              )}
-                              {(wallet as any).user.email && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  📧 {(wallet as any).user.email}
-                                </p>
-                              )}
-                              {(wallet as any).user.phone && (
-                                <p className="text-xs text-gray-600 mt-1">
-                                  📱 {(wallet as any).user.phone}
-                                </p>
-                              )}
-                            </div>
-                          ) : null}
-                          
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Wallet ID</span>
-                            <span className="text-xs font-mono text-gray-400">
-                              {wallet.id.slice(0, 8)}...
-                            </span>
-                          </div>
-                          <div className="pt-3 space-y-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white"
-                              onClick={() => {
-                                setSelectedWallet(wallet)
-                                setShowWalletDetails(true)
-                              }}
-                            >
-                              View Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 py-2.5"
-                              onClick={() => {
-                                setSelectedWallet(wallet)
-                                setShowFundWallet(true)
-                              }}
-                            >
-                              <Plus className="w-4 h-4" strokeWidth={2.5} />
-                              <span>Fund Wallet</span>
-                            </Button>
-                            {(wallet.dailyLimit !== undefined && wallet.dailyLimit !== null) && (
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-gray-500">
+                            {wallet.id.slice(0, 8)}...
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
+                                className="border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white"
                                 onClick={() => {
                                   setSelectedWallet(wallet)
-                                  setLimitForm({
-                                    dailyLimit: wallet.dailyLimit?.toString() || '',
-                                    reason: ''
-                                  })
-                                  setShowIncreaseLimit(true)
+                                  setShowWalletDetails(true)
                                 }}
                               >
-                                <TrendingUp className="w-4 h-4 mr-2" />
-                                Increase Daily Limit
+                                View Details
                               </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                  })}
-                </div>
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => {
+                                  setSelectedWallet(wallet)
+                                  setShowFundWallet(true)
+                                }}
+                              >
+                                <Plus className="w-4 h-4 mr-1" strokeWidth={2.5} />
+                                Fund
+                              </Button>
+                              {(wallet.dailyLimit !== undefined && wallet.dailyLimit !== null) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                  onClick={() => {
+                                    setSelectedWallet(wallet)
+                                    setLimitForm({
+                                      dailyLimit: wallet.dailyLimit?.toString() || '',
+                                      reason: ''
+                                    })
+                                    setShowIncreaseLimit(true)
+                                  }}
+                                >
+                                  <TrendingUp className="w-4 h-4 mr-1" />
+                                  Limit
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>
