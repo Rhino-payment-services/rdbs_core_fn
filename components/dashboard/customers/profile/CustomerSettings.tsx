@@ -85,6 +85,7 @@ const CustomerSettings = ({
   // Merchant feature flags state
   const [featureFlags, setFeatureFlags] = useState({
     featureBulkPayments: false,
+    featureLiquidation: false,
     featurePayroll: false,
     featurePayrollApprovals: false,
   })
@@ -742,6 +743,18 @@ const CustomerSettings = ({
                     checked={featureFlags.featureBulkPayments}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featureBulkPayments', val)}
                     disabled={savingFlag === 'featureBulkPayments'}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Disbursement (Bulk pay, Payroll, Withdrawal)</div>
+                    <div className="text-sm text-gray-500">Enable separate disbursement wallet for bulk payments, payroll, and withdrawals. Creates DISBURSEMENT wallet when enabled.</div>
+                  </div>
+                  <Switch
+                    checked={featureFlags.featureLiquidation}
+                    onCheckedChange={(val) => handleFeatureFlagToggle('featureLiquidation', val)}
+                    disabled={savingFlag === 'featureLiquidation'}
                   />
                 </div>
 

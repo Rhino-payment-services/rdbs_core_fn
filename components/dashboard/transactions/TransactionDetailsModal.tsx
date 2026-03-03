@@ -356,13 +356,24 @@ export const TransactionDetailsModal = ({
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-indigo-600 font-bold">Balance After:</span>
                       <span className="font-bold text-indigo-600 text-lg">
-                        {transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
-                          ? formatAmount(Number(transaction.balanceAfter))
-                          : 'N/A'}
+                        {(() => {
+                          // For failed transactions, no deduction occurred — Balance After = Balance Before
+                          const isFailed = transaction.status === 'FAILED'
+                          const isDebit = transaction.direction === 'DEBIT'
+                          if (isFailed && isDebit && transaction.balanceBefore != null) {
+                            return formatAmount(Number(transaction.balanceBefore))
+                          }
+                          return transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
+                            ? formatAmount(Number(transaction.balanceAfter))
+                            : 'N/A'
+                        })()}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 italic">
                       * Balance at the time of this transaction
+                      {transaction.status === 'FAILED' && transaction.direction === 'DEBIT' && (
+                        <span className="block mt-1 text-amber-600">No deduction occurred — balance unchanged</span>
+                      )}
                     </div>
                   </>
                 ) : null}

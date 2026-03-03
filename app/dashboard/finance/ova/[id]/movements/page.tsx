@@ -131,6 +131,7 @@ export default function OvaMovementsPage() {
                       <TableHead className="text-right">Balance before</TableHead>
                       <TableHead className="text-right">Balance after</TableHead>
                       <TableHead>Reference</TableHead>
+                      <TableHead className="min-w-[240px]">Details</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -164,8 +165,11 @@ export default function OvaMovementsPage() {
                         <TableCell className="text-right font-mono">
                           {formatAmount(m.balanceAfter)} UGX
                         </TableCell>
-                        <TableCell className="max-w-[160px] truncate text-sm" title={m.reference ?? m.description ?? ''}>
-                          {m.reference || m.description || '-'}
+                        <TableCell className="max-w-[140px] truncate font-mono text-sm" title={m.reference ?? ''}>
+                          {m.reference || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600 max-w-[320px]" title={m.description ?? ''}>
+                          {m.description || '-'}
                         </TableCell>
                         <TableCell>
                           {m.transactionId ? (

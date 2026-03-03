@@ -26,10 +26,12 @@ import {
   Loader2,
   Plus,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  ArrowRightLeft
 } from 'lucide-react'
 import type { User as CustomerType } from '@/lib/types/api'
 import api from '@/lib/axios'
+import { useSweepCollectionToDisbursement } from '@/lib/hooks/useWallets'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
 
@@ -59,6 +61,10 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   const [fundDescription, setFundDescription] = useState('')
   const [funding, setFunding] = useState(false)
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
+  const [sweepModalOpen, setSweepModalOpen] = useState(false)
+  const [sweepAmount, setSweepAmount] = useState('')
+
+  const sweepMutation = useSweepCollectionToDisbursement()
 
   // Check if user is admin
   const isAdmin = session?.user && (
@@ -191,6 +197,46 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
       toast.error(error.response?.data?.message || 'Failed to fund wallet')
     } finally {
       setFunding(false)
+    }
+  }
+
+  // Merchants with featureLiquidation have separate COLLECTION and DISBURSEMENT wallets
+  const collectionWallet = wallets.find(
+    (w: any) => w.walletType === 'BUSINESS_COLLECTION' || w.walletType === 'BUSINESS'
+  )
+  const disbursementWallet = wallets.find(
+    (w: any) => w.walletType === 'BUSINESS_DISBURSEMENT' || w.walletType === 'BUSINESS_LIQUIDATION'
+  )
+  const canLiquidate =
+    isAdmin &&
+    customer?.subscriberType === 'MERCHANT' &&
+    collectionWallet &&
+    disbursementWallet &&
+    collectionWallet.id !== disbursementWallet.id
+
+  const handleLiquidateCollections = async () => {
+    if (!customer?.id || !sweepAmount || parseFloat(sweepAmount) <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+    const amount = parseFloat(sweepAmount)
+    if (collectionWallet && amount > Number(collectionWallet.balance || 0)) {
+      toast.error('Amount exceeds collection balance')
+      return
+    }
+    try {
+      await sweepMutation.mutateAsync({
+        userId: customer.id,
+        amount,
+        merchantCode: (customer as any)?.merchantCode,
+      })
+      toast.success(`Successfully liquidated ${formatCurrency(amount)} to disbursement wallet`)
+      setSweepModalOpen(false)
+      setSweepAmount('')
+      await fetchUserWallets()
+      await fetchUserTransactions()
+    } catch (error: any) {
+      toast.error(error?.message || error?.data?.message || 'Failed to liquidate collections')
     }
   }
 
@@ -708,6 +754,45 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
             </CardContent>
           </Card>
 
+          {/* Liquidate collections → disbursement (finance manager) */}
+          {canLiquidate && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-amber-800">
+                  <ArrowRightLeft className="h-5 w-5" />
+                  Liquidate collections → disbursement
+                </CardTitle>
+                <p className="text-sm text-amber-700">
+                  Fund the disbursement wallet by moving collected funds. Merchants need disbursement balance for bulk payments, payroll, and withdrawals.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="rounded-lg border border-amber-200 bg-white px-4 py-2">
+                    <p className="text-xs text-gray-500">Collection balance</p>
+                    <p className="font-semibold text-green-600">
+                      {formatCurrency(Number(collectionWallet?.balance) || 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-amber-200 bg-white px-4 py-2">
+                    <p className="text-xs text-gray-500">Disbursement balance</p>
+                    <p className="font-semibold text-blue-600">
+                      {formatCurrency(Number(disbursementWallet?.balance) || 0)}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setSweepModalOpen(true)}
+                    disabled={Number(collectionWallet?.balance) <= 0}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                    Liquidate to disbursement
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Last 5 Transactions */}
           {isAdmin && (
             <Card>
@@ -926,6 +1011,69 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                   <>
                     <Plus className="h-4 w-4 mr-2" />
                     Fund {fundAmount && parseFloat(fundAmount) > 0 ? formatCurrency(parseFloat(fundAmount)) : 'Wallet'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Liquidate collections modal */}
+      <Dialog open={sweepModalOpen} onOpenChange={setSweepModalOpen}>
+        <DialogContent className="w-full max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5 text-amber-600" />
+              Liquidate collections
+            </DialogTitle>
+            <p className="text-sm text-gray-500">
+              Transfer from collection wallet to disbursement. Available: {formatCurrency(Number(collectionWallet?.balance) || 0)}
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="sweep-amount">Amount (UGX)</Label>
+              <Input
+                id="sweep-amount"
+                type="number"
+                min={1}
+                max={Number(collectionWallet?.balance) || 0}
+                placeholder="Enter amount"
+                value={sweepAmount}
+                onChange={(e) => setSweepAmount(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSweepModalOpen(false)
+                  setSweepAmount('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleLiquidateCollections}
+                disabled={
+                  !sweepAmount ||
+                  parseFloat(sweepAmount) <= 0 ||
+                  parseFloat(sweepAmount) > (Number(collectionWallet?.balance) || 0) ||
+                  sweepMutation.isPending
+                }
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {sweepMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Liquidating...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                    Liquidate {sweepAmount && parseFloat(sweepAmount) > 0 ? formatCurrency(parseFloat(sweepAmount)) : ''}
                   </>
                 )}
               </Button>

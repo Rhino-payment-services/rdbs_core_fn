@@ -180,6 +180,26 @@ export const useAdminWallets = (filters?: {
   })
 }
 
+// Sweep collection to disbursement (admin liquidate) - finance manager funds disbursement from collections
+export const useSweepCollectionToDisbursement = () => {
+  const queryClient = useQueryClient()
+  return useMutation<
+    any,
+    Error,
+    { userId: string; amount: number; merchantCode?: string }
+  >({
+    mutationFn: ({ userId, amount, merchantCode }) =>
+      apiFetch(`/wallet/admin/merchant/${userId}/sweep-collection-to-liquidation`, {
+        method: 'POST',
+        data: { amount, merchantCode },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
 // Fund wallet mutation
 export const useFundWallet = () => {
   const queryClient = useQueryClient()
