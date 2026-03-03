@@ -469,7 +469,8 @@ export const TransactionTableRow = ({
             <>
               {/* QR Code Payment - merchant is the receiver (check FIRST before DEBIT) */}
               <span className="font-medium">
-                {transaction.metadata?.merchantName ||
+                {transaction.user?.displayName ||
+                  transaction.metadata?.merchantName ||
                   transaction.user?.merchant?.businessTradeName ||
                   transaction.user?.profile?.merchantBusinessTradeName ||
                   transaction.user?.profile?.businessTradeName ||
@@ -717,7 +718,8 @@ export const TransactionTableRow = ({
                 <>
                   {/* QR Code Payment - merchant is the receiver */}
                   <span className="font-medium">
-                    {transaction.metadata?.merchantName ||
+                    {transaction.user?.displayName ||
+                      transaction.metadata?.merchantName ||
                       transaction.user?.merchant?.businessTradeName ||
                       transaction.user?.profile?.merchantBusinessTradeName ||
                       transaction.user?.profile?.businessTradeName ||
