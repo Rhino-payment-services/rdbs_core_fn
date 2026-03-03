@@ -88,6 +88,9 @@ const WalletPage = () => {
   let walletsArray: WalletType[] = []
   let categoryStats: any = {}
   let totalWallets = 0
+  let apiPage: number | undefined
+  let apiLimit: number | undefined
+  let apiTotalPages: number | undefined
   
   if (walletsData) {
     console.log('Processing walletsData:', walletsData)
@@ -100,6 +103,9 @@ const WalletPage = () => {
         walletsArray = walletsData.wallets
         categoryStats = walletsData.categoryStats || {}
         totalWallets = walletsData.total || walletsArray.length
+        apiPage = walletsData.page
+        apiLimit = walletsData.limit
+        apiTotalPages = walletsData.totalPages
         console.log('Wallets found in response, count:', walletsArray.length, 'Stats:', categoryStats)
       } else if (walletsData.data && Array.isArray(walletsData.data)) {
         walletsArray = walletsData.data
@@ -287,6 +293,17 @@ const WalletPage = () => {
     .filter(([, count]) => count > 1)
     .map(([type, count]) => `${count} ${type}`)
 
+  const currentPage = apiPage || filters.page || 1
+  const pageSize = apiLimit || filters.limit || walletsArray.length || 50
+  const totalPages = apiTotalPages || (pageSize > 0 ? Math.max(1, Math.ceil(totalWallets / pageSize)) : 1)
+
+  const handlePageChange = (page: number) => {
+    setFilters(prev => ({
+      ...prev,
+      page: Math.max(1, Math.min(totalPages, page)),
+    }))
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -412,6 +429,25 @@ const WalletPage = () => {
                   <SelectItem value="UGX">UGX</SelectItem>
                   <SelectItem value="USD">USD</SelectItem>
                   <SelectItem value="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={String(filters.limit || pageSize || 50)}
+                onValueChange={(value) =>
+                  setFilters(prev => ({
+                    ...prev,
+                    limit: Number(value),
+                    page: 1,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue placeholder="Per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20 / page</SelectItem>
+                  <SelectItem value="50">50 / page</SelectItem>
+                  <SelectItem value="100">100 / page</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -704,6 +740,44 @@ const WalletPage = () => {
                     })}
                   </TableBody>
                 </Table>
+              )}
+              {walletsArray.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    Showing{' '}
+                    <span className="font-medium text-gray-700">
+                      {(currentPage - 1) * pageSize + 1}-
+                      {Math.min(currentPage * pageSize, totalWallets || walletsArray.length)}
+                    </span>{' '}
+                    of{' '}
+                    <span className="font-medium text-gray-700">
+                      {totalWallets || walletsArray.length}
+                    </span>{' '}
+                    wallets
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage <= 1 || isWalletsLoading}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs sm:text-sm text-gray-600">
+                      Page <span className="font-semibold">{currentPage}</span> of{' '}
+                      <span className="font-semibold">{totalPages}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage >= totalPages || isWalletsLoading}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
