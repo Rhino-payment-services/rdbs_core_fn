@@ -840,20 +840,27 @@ export const TransactionTableRow = ({
                 </>
               ) : (() => {
                 // For CREDIT rows, tx.user IS the receiver — only check their own properties
+                const recipientWalletType =
+                  transaction.user?.walletType ||        // set by backend when wallet data is available
+                  transaction.metadata?.recipientWalletType ||
+                  transaction.metadata?.walletType;
+
                 const isMerchantTransaction =
                   transaction.metadata?.merchantName ||
                   transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' ||
-                  transaction.metadata?.walletType === 'BUSINESS' ||
+                  recipientWalletType === 'BUSINESS' ||
+                  recipientWalletType === 'BUSINESS_COLLECTION' ||
                   (transaction.user?.isMerchant ||
                   transaction.user?.merchants?.length > 0 ||
                   transaction.user?.merchantCode ||
-                  transaction.user?.merchant?.businessTradeName) &&
-                  transaction.metadata?.recipientWalletType === 'BUSINESS';
+                  transaction.user?.merchant?.businessTradeName);
 
+                // Prefer displayName (explicitly set by backend to wallet-linked company),
+                // then fall back to merchants[0] (now also overridden by backend to the correct company).
                 const merchantName =
+                  transaction.user?.displayName ||
                   transaction.user?.merchants?.[0]?.businessTradeName ||
                   transaction.user?.merchant?.businessTradeName ||
-                  transaction.user?.displayName ||
                   (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null);
 
                 const merchantCode =
