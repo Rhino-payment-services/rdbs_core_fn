@@ -279,7 +279,12 @@ const WalletPage = () => {
     setFilters(prev => ({ ...prev, category: categoryValue, page: 1 }))
   }
 
-  const totalBalance = walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
+  // Use backend-provided aggregate when available so Total Balance
+  // reflects all wallets, not just the current page/filter slice.
+  const totalBalance =
+    categoryStats && typeof categoryStats.totalBalance === 'number'
+      ? categoryStats.totalBalance
+      : walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
   const activeWallets = walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
   const suspendedWallets = walletsArray.filter(wallet => wallet.isSuspended).length
   
