@@ -20,7 +20,7 @@ interface StatusCheckModalProps {
   isLoading: boolean
   result: ManualStatusCheckResult | null
   error: Error | null
-  onRetry: () => void
+  onCheck: () => void
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,11 +43,12 @@ export function StatusCheckModal({
   isLoading,
   result,
   error,
-  onRetry,
+  onCheck,
 }: StatusCheckModalProps) {
   const data = result?.data
   const partnerResponse = data?.partnerResponse
   const partnerSuccess = partnerResponse?.success
+  const hasResult = !!data || !!error
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -58,7 +59,7 @@ export function StatusCheckModal({
             Partner Status Check
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Real-time status check with external payment partner
+            Check the real-time status of this transaction with the external payment partner
           </DialogDescription>
         </DialogHeader>
 
@@ -75,6 +76,10 @@ export function StatusCheckModal({
               <span className="text-gray-500">Type</span>
               <span className="text-gray-700">{transaction.type}</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Current Status</span>
+              {statusBadge(transaction.status)}
+            </div>
             {transaction.amount !== undefined && (
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Amount</span>
@@ -83,6 +88,23 @@ export function StatusCheckModal({
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Initial state — prompt to run the check */}
+        {!isLoading && !hasResult && (
+          <div className="rounded-md border border-dashed border-blue-200 bg-blue-50 px-4 py-5 text-center space-y-3">
+            <p className="text-sm text-blue-700">
+              Click the button below to query the partner for the latest status of this transaction.
+              If the status has changed, the transaction and wallet will be updated automatically.
+            </p>
+            <Button
+              onClick={onCheck}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Check Status with Partner
+            </Button>
           </div>
         )}
 
@@ -103,9 +125,9 @@ export function StatusCheckModal({
               <p className="text-xs text-red-700">
                 {(error as any)?.response?.data?.message || error.message}
               </p>
-              <Button size="sm" variant="outline" className="mt-2" onClick={onRetry}>
+              <Button size="sm" variant="outline" className="mt-2" onClick={onCheck}>
                 <RefreshCcw className="h-3.5 w-3.5 mr-1" />
-                Retry
+                Try Again
               </Button>
             </div>
           </div>
@@ -117,7 +139,7 @@ export function StatusCheckModal({
 
             {/* Status change */}
             <div className="rounded-md border p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status Result</p>
               <div className="flex items-center gap-3 flex-wrap">
                 {statusBadge(data.previousStatus)}
                 <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
@@ -175,7 +197,7 @@ export function StatusCheckModal({
               </div>
             </div>
 
-            {/* Raw partner response — only shown if available */}
+            {/* Raw partner response */}
             {partnerResponse !== undefined && partnerResponse !== null ? (
               <div className="rounded-md border overflow-hidden">
                 <div className="bg-gray-50 border-b px-4 py-2 flex items-center justify-between">
@@ -193,8 +215,7 @@ export function StatusCheckModal({
             ) : (
               <div className="rounded-md border border-dashed p-4 text-center">
                 <p className="text-xs text-gray-400">
-                  Partner response body not available for this check.
-                  Run the check again after the latest backend update is deployed.
+                  Partner response body not available — deploy the latest backend update and run again.
                 </p>
               </div>
             )}
@@ -204,10 +225,18 @@ export function StatusCheckModal({
                 Checked at {new Date(data.checkedAt).toLocaleString()}
               </p>
             )}
+
+            {/* Recheck button after result */}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
+                <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
+                Recheck
+              </Button>
+            </div>
           </div>
         )}
 
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-end pt-1">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Close
           </Button>

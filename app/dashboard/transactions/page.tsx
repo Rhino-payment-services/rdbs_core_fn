@@ -229,16 +229,24 @@ const TransactionsPage = () => {
     setIsModalOpen(true)
   }
 
-  // Handle manual status check — opens modal and fires the check immediately
+  // Open the modal for a transaction — does NOT fire the API call yet
   const handleManualStatusCheck = (transaction: any) => {
     if (!transaction?.id) return
     setStatusCheckTransaction(transaction)
     setStatusCheckResult(null)
     setStatusCheckError(null)
-    setStatusCheckLoading(true)
+    setStatusCheckLoading(false)
     setIsStatusCheckModalOpen(true)
+  }
 
-    manualStatusCheckMutation.mutateAsync(transaction.id)
+  // Actually fire the status check API — called by the button inside the modal
+  const handlePerformStatusCheck = () => {
+    if (!statusCheckTransaction?.id) return
+    setStatusCheckResult(null)
+    setStatusCheckError(null)
+    setStatusCheckLoading(true)
+
+    manualStatusCheckMutation.mutateAsync(statusCheckTransaction.id)
       .then((result) => {
         setStatusCheckResult(result)
         if (result?.data?.statusChanged) {
@@ -251,11 +259,6 @@ const TransactionsPage = () => {
       .finally(() => {
         setStatusCheckLoading(false)
       })
-  }
-
-  const handleStatusCheckRetry = () => {
-    if (!statusCheckTransaction) return
-    handleManualStatusCheck(statusCheckTransaction)
   }
 
   // Handle view API logs for a transaction
@@ -727,7 +730,7 @@ const TransactionsPage = () => {
         isLoading={statusCheckLoading}
         result={statusCheckResult}
         error={statusCheckError}
-        onRetry={handleStatusCheckRetry}
+        onCheck={handlePerformStatusCheck}
       />
 
       {/* Reversal Modal */}

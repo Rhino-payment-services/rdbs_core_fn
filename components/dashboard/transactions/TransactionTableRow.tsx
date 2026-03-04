@@ -44,6 +44,24 @@ export const TransactionTableRow = ({
     transaction.type !== 'WALLET_TO_WALLET' &&
     transaction.type !== 'REVERSAL'
 
+  // Reversal makes sense only for real money-movement transactions (in or out of a RukaPay wallet)
+  const REVERSIBLE_TYPES = new Set([
+    'WALLET_TO_MNO',
+    'WALLET_TO_BANK',
+    'WALLET_TO_MERCHANT',
+    'WALLET_TO_EXTERNAL_MERCHANT',
+    'WALLET_TO_INTERNAL_MERCHANT',
+    'WALLET_TO_WALLET',
+    'MERCHANT_TO_WALLET',
+    'MERCHANT_TO_INTERNAL_WALLET',
+    'MERCHANT_WITHDRAWAL',
+    'BILL_PAYMENT',
+    'MNO_TO_WALLET',
+    'WALLET_TOPUP_PULL',
+    'SCHOOL_FEES',
+  ])
+  const showReversalButton = REVERSIBLE_TYPES.has(transaction.type as string)
+
   const isPartnerSubscriberWithdraw =
     transaction.type === 'WITHDRAWAL' &&
     transaction.direction === 'DEBIT' &&
@@ -1060,7 +1078,7 @@ export const TransactionTableRow = ({
           >
             <Download className="h-4 w-4" />
           </Button>
-          {transaction.type !== 'REVERSAL' && (
+          {showReversalButton && (
             <Button
               variant="outline"
               size="sm"
