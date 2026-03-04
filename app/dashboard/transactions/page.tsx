@@ -248,6 +248,14 @@ const TransactionsPage = () => {
 
     manualStatusCheckMutation.mutateAsync(statusCheckTransaction.id)
       .then((result) => {
+        console.log('[MANUAL_STATUS_CHECK][FRONTEND] Modal result', {
+          transactionId: statusCheckTransaction.id,
+          partnerCode: result?.data?.partnerCode,
+          partnerStatus: result?.data?.partnerStatus,
+          previousStatus: result?.data?.previousStatus,
+          newStatus: result?.data?.newStatus,
+          statusChanged: result?.data?.statusChanged,
+        })
         setStatusCheckResult(result)
         if (result?.data?.statusChanged) {
           toast.success(result.message)

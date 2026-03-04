@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Loader2, RefreshCcw, CheckCircle2, XCircle, ArrowRight, Wallet, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { Loader2, RefreshCcw, CheckCircle2, XCircle, ArrowRight, Wallet, AlertTriangle, ChevronDown, ChevronRight, Copy } from 'lucide-react'
 import type { ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 
 interface StatusCheckModalProps {
@@ -36,7 +36,17 @@ const statusBadge = (status?: string) => (
   </Badge>
 )
 
-function CollapsibleSection({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function CollapsibleSection({
+  title,
+  badge,
+  action,
+  children,
+}: {
+  title: string
+  badge?: React.ReactNode
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
   const [open, setOpen] = useState(true)
   return (
     <div className="rounded-md border overflow-hidden">
@@ -48,6 +58,7 @@ function CollapsibleSection({ title, badge, children }: { title: string; badge?:
         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
         <div className="flex items-center gap-2">
           {badge}
+          {action}
           {open ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
         </div>
       </button>
@@ -74,9 +85,25 @@ export function StatusCheckModal({
   const requestBody = data?.partnerRequestBody as Record<string, any> | undefined
   const partnerRequestInfo = requestBody?.partnerRequestInfo as Record<string, any> | undefined
 
+  const handleCopyJson = (label: string, payload: unknown) => {
+    if (!payload) return
+    try {
+      const text = JSON.stringify(payload, null, 2)
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {
+          console.error(`[MANUAL_STATUS_CHECK] Failed to copy ${label} to clipboard`)
+        })
+      } else {
+        console.warn('[MANUAL_STATUS_CHECK] Clipboard API not available')
+      }
+    } catch (err) {
+      console.error(`[MANUAL_STATUS_CHECK] Failed to serialise ${label} for copy`, err)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <RefreshCcw className="h-4 w-4 text-gray-500" />
@@ -224,7 +251,24 @@ export function StatusCheckModal({
             {/* ── REQUEST sent to partner ─────────────────────────────────────── */}
             <CollapsibleSection
               title="Request Sent to Partner"
-              badge={<span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{partnerRequestInfo?.method ?? 'GET'}</span>}
+          badge={
+            <span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+              {partnerRequestInfo?.method ?? 'GET'}
+            </span>
+          }
+          action={
+            requestBody && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-gray-500 hover:text-gray-900"
+                onClick={() => handleCopyJson('partner request', requestBody)}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            )
+          }
             >
               <div className="bg-white">
                 {requestBody ? (
@@ -300,6 +344,19 @@ export function StatusCheckModal({
                   </span>
                 ) : undefined
               }
+          action={
+            partnerResponse !== undefined && partnerResponse !== null ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-gray-500 hover:text-gray-900"
+                onClick={() => handleCopyJson('partner response', partnerResponse)}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            ) : undefined
+          }
             >
               {partnerResponse !== undefined && partnerResponse !== null ? (
                 <pre className="text-xs font-mono p-4 bg-white overflow-x-auto max-h-56 leading-relaxed text-gray-800 whitespace-pre-wrap">

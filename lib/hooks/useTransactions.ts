@@ -120,7 +120,19 @@ export const useManualTransactionStatusCheck = () => {
         method: 'POST',
         data: { transactionId },
       }),
-    onSuccess: (_data, transactionId) => {
+    onSuccess: (data, transactionId) => {
+      // Helpful debug log for partner responses (ABC, Airtel, MTN, Pegasus, etc.)
+      console.log('[MANUAL_STATUS_CHECK][FRONTEND] Result received', {
+        transactionId,
+        partnerCode: data?.data?.partnerCode,
+        partnerStatus: data?.data?.partnerStatus,
+        previousStatus: data?.data?.previousStatus,
+        newStatus: data?.data?.newStatus,
+        statusChanged: data?.data?.statusChanged,
+        walletAction: data?.data?.walletAction,
+        partnerRequestBody: data?.data?.partnerRequestBody,
+        partnerResponse: data?.data?.partnerResponse,
+      })
       // Invalidate queries so table re-fetches with latest status/balances
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.list })
