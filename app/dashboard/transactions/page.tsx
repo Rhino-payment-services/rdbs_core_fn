@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useTransactionSystemStats, useAllTransactions, useChannelStatistics } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
@@ -31,6 +31,8 @@ const TransactionsPage = () => {
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [logsTransaction, setLogsTransaction] = useState<any>(null)
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   
   // Reversal modal state
   const [reversalModalOpen, setReversalModalOpen] = useState(false)
@@ -45,6 +47,9 @@ const TransactionsPage = () => {
   const [exportDateRangeOpen, setExportDateRangeOpen] = useState(false)
   const [exportStartDate, setExportStartDate] = useState("")
   const [exportEndDate, setExportEndDate] = useState("")
+
+  // Manual status check mutation
+  const manualStatusCheckMutation = useManualTransactionStatusCheck()
 
   // Fetch real transaction system stats with filters
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
@@ -176,6 +181,13 @@ const TransactionsPage = () => {
   const totalTransactions = (transactionsData as any)?.total || 0
   const totalPages = (transactionsData as any)?.totalPages || 1
 
+  // Fetch API logs when logs modal is open and a transaction is selected
+  const {
+    data: transactionLogs,
+    isLoading: logsLoading,
+    error: logsError,
+  } = useTransactionLogs(isLogsModalOpen && logsTransaction ? logsTransaction.id : undefined)
+
   // Reset filters
   const resetFilters = useCallback(() => {
     setSearchTerm("")
@@ -207,6 +219,24 @@ const TransactionsPage = () => {
   const handleViewTransaction = (transaction: any) => {
     setSelectedTransaction(transaction)
     setIsModalOpen(true)
+  }
+
+  // Handle manual status check with partner
+  const handleManualStatusCheck = async (transaction: any) => {
+    if (!transaction?.id) return
+    try {
+      await manualStatusCheckMutation.mutateAsync(transaction.id)
+      toast.success('Transaction status check requested. Refreshing data...')
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Failed to check transaction status'
+      toast.error(message)
+    }
+  }
+
+  // Handle view API logs for a transaction
+  const handleViewApiLogs = (transaction: any) => {
+    setLogsTransaction(transaction)
+    setIsLogsModalOpen(true)
   }
 
   // Handle reversal request
@@ -616,6 +646,8 @@ const TransactionsPage = () => {
                 pageSize={pageSize}
                 totalTransactions={totalTransactions}
                 onViewTransaction={handleViewTransaction}
+                onViewApiLogs={handleViewApiLogs}
+                onManualStatusCheck={handleManualStatusCheck}
                 onReverseTransaction={handleReverseTransaction}
                 onPageChange={handlePageChange}
               />
@@ -629,6 +661,32 @@ const TransactionsPage = () => {
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
         transaction={selectedTransaction}
+        transactions={transactions}
+        onSelectTransaction={setSelectedTransaction}
+      />
+
+      {/* API Logs Modal (reuses TransactionDetailsModal with logs attached in metadata) */}
+      <TransactionDetailsModal
+        isOpen={isLogsModalOpen}
+        onOpenChange={(open) => {
+          setIsLogsModalOpen(open)
+          if (!open) {
+            setLogsTransaction(null)
+          }
+        }}
+        transaction={
+          logsTransaction
+            ? {
+                ...logsTransaction,
+                metadata: {
+                  ...(logsTransaction.metadata || {}),
+                  apiLogs: transactionLogs || [],
+                  apiLogsError: logsError ? (logsError as any)?.message || 'Failed to load API logs' : undefined,
+                  apiLogsLoading: logsLoading,
+                },
+              }
+            : null
+        }
         transactions={transactions}
         onSelectTransaction={setSelectedTransaction}
       />

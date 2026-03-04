@@ -24,6 +24,8 @@ interface TransactionTableProps {
   pageSize: number
   totalTransactions: number
   onViewTransaction: (transaction: any) => void
+  onViewApiLogs: (transaction: any) => void
+   onManualStatusCheck: (transaction: any) => void
   onReverseTransaction: (transaction: any) => void
   onPageChange: (page: number) => void
 }
@@ -38,6 +40,8 @@ export const TransactionTable = ({
   pageSize,
   totalTransactions,
   onViewTransaction,
+  onViewApiLogs,
+  onManualStatusCheck,
   onReverseTransaction,
   onPageChange
 }: TransactionTableProps) => {
@@ -79,6 +83,8 @@ export const TransactionTable = ({
                   key={transaction.id}
                   transaction={transaction}
                   onViewTransaction={onViewTransaction}
+                  onViewApiLogs={onViewApiLogs}
+                  onManualStatusCheck={onManualStatusCheck}
                   onReverseTransaction={onReverseTransaction}
                 />
               ))}

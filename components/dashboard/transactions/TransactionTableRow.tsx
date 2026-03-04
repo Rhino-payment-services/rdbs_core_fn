@@ -3,7 +3,7 @@
 import { TableCell, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, RotateCcw } from 'lucide-react'
+import { Eye, RotateCcw, FileText, Download } from 'lucide-react'
 import {
   shortenTransactionId,
   formatAmount,
@@ -18,12 +18,16 @@ import {
 interface TransactionTableRowProps {
   transaction: any
   onViewTransaction: (transaction: any) => void
+  onViewApiLogs: (transaction: any) => void
+  onManualStatusCheck: (transaction: any) => void
   onReverseTransaction: (transaction: any) => void
 }
 
 export const TransactionTableRow = ({
   transaction,
   onViewTransaction,
+  onViewApiLogs,
+  onManualStatusCheck,
   onReverseTransaction
 }: TransactionTableRowProps) => {
   const metadata = transaction.metadata || {}
@@ -40,6 +44,25 @@ export const TransactionTableRow = ({
     transaction.direction === 'DEBIT' &&
     metadata.mode === 'WITHDRAW' &&
     !!hasPartnerSignal
+
+  const handleDownloadJson = () => {
+    try {
+      const fileName = `transaction-${transaction.id || transaction.reference || 'details'}.json`
+      const json = JSON.stringify(transaction, null, 2)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download transaction JSON:', error)
+    }
+  }
 
   return (
     <TableRow key={transaction.id}>
@@ -1005,6 +1028,32 @@ export const TransactionTableRow = ({
             title="View Details"
           >
             <Eye className="h-4 w-4" />
+          </Button>
+          {hasPartnerSignal && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onManualStatusCheck(transaction)}
+              title="Manually check partner status"
+            >
+              <span className="text-xs font-medium">Check status</span>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewApiLogs(transaction)}
+            title="View API Logs"
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadJson}
+            title="Download Transaction JSON"
+          >
+            <Download className="h-4 w-4" />
           </Button>
           {transaction.type === 'WALLET_TO_MNO' &&
             (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
