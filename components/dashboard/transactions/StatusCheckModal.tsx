@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Loader2, RefreshCcw, CheckCircle2, XCircle, ArrowRight, Wallet, AlertTriangle } from 'lucide-react'
+import { Loader2, RefreshCcw, CheckCircle2, XCircle, ArrowRight, Wallet, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import type { ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 
 interface StatusCheckModalProps {
@@ -36,6 +36,26 @@ const statusBadge = (status?: string) => (
   </Badge>
 )
 
+function CollapsibleSection({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full bg-gray-50 border-b px-4 py-2 flex items-center justify-between hover:bg-gray-100 transition-colors"
+      >
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
+        <div className="flex items-center gap-2">
+          {badge}
+          {open ? <ChevronDown className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400" />}
+        </div>
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
 export function StatusCheckModal({
   isOpen,
   onOpenChange,
@@ -50,9 +70,13 @@ export function StatusCheckModal({
   const partnerSuccess = partnerResponse?.success
   const hasResult = !!data || !!error
 
+  // Request descriptor: top-level partnerRequestBody + any nested partnerRequestInfo (URL/headers from partner)
+  const requestBody = data?.partnerRequestBody as Record<string, any> | undefined
+  const partnerRequestInfo = requestBody?.partnerRequestInfo as Record<string, any> | undefined
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <RefreshCcw className="h-4 w-4 text-gray-500" />
@@ -197,28 +221,87 @@ export function StatusCheckModal({
               </div>
             </div>
 
-            {/* Raw partner response */}
-            {partnerResponse !== undefined && partnerResponse !== null ? (
-              <div className="rounded-md border overflow-hidden">
-                <div className="bg-gray-50 border-b px-4 py-2 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                    Partner Response Body
-                  </p>
+            {/* ── REQUEST sent to partner ─────────────────────────────────────── */}
+            <CollapsibleSection
+              title="Request Sent to Partner"
+              badge={<span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{partnerRequestInfo?.method ?? 'GET'}</span>}
+            >
+              <div className="bg-white">
+                {/* URL */}
+                {partnerRequestInfo?.url && (
+                  <div className="border-b px-4 py-2.5">
+                    <p className="text-xs text-gray-400 mb-0.5">URL</p>
+                    <p className="text-xs font-mono break-all text-blue-700">{partnerRequestInfo.url}</p>
+                  </div>
+                )}
+                {/* Query params */}
+                {partnerRequestInfo?.queryParams && Object.keys(partnerRequestInfo.queryParams).length > 0 && (
+                  <div className="border-b px-4 py-2.5">
+                    <p className="text-xs text-gray-400 mb-0.5">Query Parameters</p>
+                    <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                      {JSON.stringify(partnerRequestInfo.queryParams, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {/* Headers (masked) */}
+                {partnerRequestInfo?.headers && (
+                  <div className="border-b px-4 py-2.5">
+                    <p className="text-xs text-gray-400 mb-0.5">Headers</p>
+                    <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                      {JSON.stringify(partnerRequestInfo.headers, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {/* General descriptor (serviceType, partnerCode, reference, timestamp) */}
+                <div className="px-4 py-2.5">
+                  <p className="text-xs text-gray-400 mb-0.5">Request Descriptor</p>
+                  <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                    {JSON.stringify(
+                      {
+                        serviceType: requestBody?.serviceType,
+                        partnerCode: requestBody?.partnerCode,
+                        transactionReference: requestBody?.transactionReference,
+                        internalTransactionId: requestBody?.internalTransactionId,
+                        calledAt: requestBody?.calledAt,
+                      },
+                      null,
+                      2,
+                    )}
+                  </pre>
+                </div>
+                {!requestBody && (
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-xs text-gray-400">
+                      Request details not available — deploy the latest backend update and run again.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+
+            {/* ── RESPONSE from partner ────────────────────────────────────────── */}
+            <CollapsibleSection
+              title="Partner Response Body"
+              badge={
+                partnerResponse !== undefined && partnerResponse !== null ? (
                   <span className={`text-xs font-medium ${partnerSuccess ? 'text-green-600' : 'text-red-600'}`}>
                     {partnerSuccess ? 'Success' : 'Error'}
                   </span>
-                </div>
+                ) : undefined
+              }
+            >
+              {partnerResponse !== undefined && partnerResponse !== null ? (
                 <pre className="text-xs font-mono p-4 bg-white overflow-x-auto max-h-56 leading-relaxed text-gray-800 whitespace-pre-wrap">
                   {JSON.stringify(partnerResponse, null, 2)}
                 </pre>
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed p-4 text-center">
-                <p className="text-xs text-gray-400">
-                  Partner response body not available — deploy the latest backend update and run again.
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-gray-400">
+                    Partner response body not available — deploy the latest backend update and run again.
+                  </p>
+                </div>
+              )}
+            </CollapsibleSection>
 
             {data.checkedAt && (
               <p className="text-xs text-gray-400 text-right">
