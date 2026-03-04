@@ -80,6 +80,27 @@ export interface ManualStatusCheckResult {
       message?: string
       reference?: string
       statusCode?: number
+      requestInfo?: {
+        method: string
+        url: string
+        headers: Record<string, string>
+        queryParams?: Record<string, any>
+        calledAt: string
+      }
+    }
+    partnerRequestBody?: {
+      serviceType?: string
+      partnerCode?: string
+      transactionReference?: string
+      internalTransactionId?: string
+      calledAt?: string
+      partnerRequestInfo?: {
+        method: string
+        url: string
+        headers: Record<string, string>
+        queryParams?: Record<string, any>
+        calledAt: string
+      }
     }
     walletAction: {
       type: 'CREDITED' | 'DEBITED'
