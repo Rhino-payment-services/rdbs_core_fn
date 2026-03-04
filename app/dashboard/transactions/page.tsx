@@ -241,7 +241,7 @@ const TransactionsPage = () => {
     manualStatusCheckMutation.mutateAsync(transaction.id)
       .then((result) => {
         setStatusCheckResult(result)
-        if (result.data.statusChanged) {
+        if (result?.data?.statusChanged) {
           toast.success(result.message)
         }
       })

@@ -39,6 +39,11 @@ export const TransactionTableRow = ({
     metadata.isApiPartnerTransaction ||
     metadata.apiPartnerName
 
+  // Show recheck for everything that isn't a pure internal transfer or reversal
+  const showRecheckButton =
+    transaction.type !== 'WALLET_TO_WALLET' &&
+    transaction.type !== 'REVERSAL'
+
   const isPartnerSubscriberWithdraw =
     transaction.type === 'WITHDRAWAL' &&
     transaction.direction === 'DEBIT' &&
@@ -1029,12 +1034,12 @@ export const TransactionTableRow = ({
           >
             <Eye className="h-4 w-4" />
           </Button>
-          {hasPartnerSignal && (
+          {showRecheckButton && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onManualStatusCheck(transaction)}
-              title="Manually check partner status"
+              title="Check partner status"
             >
               <RefreshCcw className="h-4 w-4" />
             </Button>
@@ -1055,18 +1060,17 @@ export const TransactionTableRow = ({
           >
             <Download className="h-4 w-4" />
           </Button>
-          {transaction.type === 'WALLET_TO_MNO' &&
-            (transaction.status === 'FAILED' || transaction.status === 'SUCCESS') && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onReverseTransaction(transaction)}
-                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-600 font-medium"
-                title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            )}
+          {transaction.type !== 'REVERSAL' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onReverseTransaction(transaction)}
+              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-600 font-medium"
+              title={Number(transaction.amount) >= 50000 ? "Reverse (Requires Approval)" : "Reverse Transaction"}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </TableCell>
     </TableRow>
