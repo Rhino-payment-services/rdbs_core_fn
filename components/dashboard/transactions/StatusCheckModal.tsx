@@ -227,52 +227,63 @@ export function StatusCheckModal({
               badge={<span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{partnerRequestInfo?.method ?? 'GET'}</span>}
             >
               <div className="bg-white">
-                {/* URL */}
-                {partnerRequestInfo?.url && (
-                  <div className="border-b px-4 py-2.5">
-                    <p className="text-xs text-gray-400 mb-0.5">URL</p>
-                    <p className="text-xs font-mono break-all text-blue-700">{partnerRequestInfo.url}</p>
-                  </div>
-                )}
-                {/* Query params */}
-                {partnerRequestInfo?.queryParams && Object.keys(partnerRequestInfo.queryParams).length > 0 && (
-                  <div className="border-b px-4 py-2.5">
-                    <p className="text-xs text-gray-400 mb-0.5">Query Parameters</p>
-                    <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
-                      {JSON.stringify(partnerRequestInfo.queryParams, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {/* Headers (masked) */}
-                {partnerRequestInfo?.headers && (
-                  <div className="border-b px-4 py-2.5">
-                    <p className="text-xs text-gray-400 mb-0.5">Headers</p>
-                    <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
-                      {JSON.stringify(partnerRequestInfo.headers, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {/* General descriptor (serviceType, partnerCode, reference, timestamp) */}
-                <div className="px-4 py-2.5">
-                  <p className="text-xs text-gray-400 mb-0.5">Request Descriptor</p>
-                  <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
-                    {JSON.stringify(
-                      {
-                        serviceType: requestBody?.serviceType,
-                        partnerCode: requestBody?.partnerCode,
-                        transactionReference: requestBody?.transactionReference,
-                        internalTransactionId: requestBody?.internalTransactionId,
-                        calledAt: requestBody?.calledAt,
-                      },
-                      null,
-                      2,
+                {requestBody ? (
+                  <>
+                    {/* URL */}
+                    {partnerRequestInfo?.url ? (
+                      <div className="border-b px-4 py-2.5">
+                        <p className="text-xs text-gray-400 mb-0.5">URL</p>
+                        <p className="text-xs font-mono break-all text-blue-700">{partnerRequestInfo.url}</p>
+                      </div>
+                    ) : (
+                      <div className="border-b px-4 py-2.5">
+                        <p className="text-xs text-gray-400 mb-0.5">URL</p>
+                        <p className="text-xs font-mono text-gray-500">
+                          {/* Reconstruct from descriptor when partner didn't expose URL directly */}
+                          Status check for <span className="text-blue-700">{requestBody.transactionReference}</span> via <span className="font-semibold">{requestBody.partnerCode}</span> ({requestBody.serviceType})
+                        </p>
+                      </div>
                     )}
-                  </pre>
-                </div>
-                {!requestBody && (
-                  <div className="px-4 py-3 text-center">
+                    {/* Query params */}
+                    {partnerRequestInfo?.queryParams && Object.keys(partnerRequestInfo.queryParams).length > 0 && (
+                      <div className="border-b px-4 py-2.5">
+                        <p className="text-xs text-gray-400 mb-0.5">Query Parameters</p>
+                        <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                          {JSON.stringify(partnerRequestInfo.queryParams, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    {/* Headers (masked) */}
+                    {partnerRequestInfo?.headers && (
+                      <div className="border-b px-4 py-2.5">
+                        <p className="text-xs text-gray-400 mb-0.5">Headers (sensitive values masked)</p>
+                        <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                          {JSON.stringify(partnerRequestInfo.headers, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    {/* Descriptor — service-level metadata */}
+                    <div className="px-4 py-2.5">
+                      <p className="text-xs text-gray-400 mb-0.5">Descriptor</p>
+                      <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap">
+                        {JSON.stringify(
+                          {
+                            serviceType: requestBody.serviceType,
+                            partnerCode: requestBody.partnerCode,
+                            transactionReference: requestBody.transactionReference,
+                            internalTransactionId: requestBody.internalTransactionId,
+                            calledAt: requestBody.calledAt,
+                          },
+                          null,
+                          2,
+                        )}
+                      </pre>
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-4 py-4 text-center">
                     <p className="text-xs text-gray-400">
-                      Request details not available — deploy the latest backend update and run again.
+                      Request details not available — restart the backend with the latest update and recheck.
                     </p>
                   </div>
                 )}
