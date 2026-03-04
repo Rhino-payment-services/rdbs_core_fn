@@ -69,12 +69,13 @@ export const TransactionTableRow = ({
   const isDisplayLeg = transaction.metadata?.displayLeg === true
 
   // Show recheck for everything that isn't a pure internal transfer, internal merchant move,
-  // reversal, or display-only leg (those share wallet/status with the primary row)
+  // reversal, display-only leg, or already-successful transaction
   const showRecheckButton =
     !isDisplayLeg &&
     transaction.type !== 'WALLET_TO_WALLET' &&
     transaction.type !== 'WALLET_TO_INTERNAL_MERCHANT' &&
-    transaction.type !== 'REVERSAL'
+    transaction.type !== 'REVERSAL' &&
+    transaction.status !== 'SUCCESS'
 
   // Reversal makes sense only for real money-movement transactions (in or out of a RukaPay wallet)
   const REVERSIBLE_TYPES = new Set([

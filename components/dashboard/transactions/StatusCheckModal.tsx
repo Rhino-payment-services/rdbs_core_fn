@@ -103,7 +103,10 @@ export function StatusCheckModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        style={{ width: '70vw', maxWidth: '70vw' }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <RefreshCcw className="h-4 w-4 text-gray-500" />
@@ -377,13 +380,15 @@ export function StatusCheckModal({
               </p>
             )}
 
-            {/* Recheck button after result */}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
-                <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
-                Recheck
-              </Button>
-            </div>
+            {/* Recheck button after result (only when not SUCCESS) */}
+            {data.newStatus !== 'SUCCESS' && (
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
+                  <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
+                  Recheck
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
