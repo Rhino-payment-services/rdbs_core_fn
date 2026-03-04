@@ -53,8 +53,15 @@ export const TransactionTableRow = ({
     metadata.isApiPartnerTransaction ||
     metadata.apiPartnerName
 
-  // Show recheck for everything that isn't a pure internal transfer, internal merchant move, or reversal
+  // Display-leg rows (metadata.displayLeg === true) are UX-only mirror entries of an external
+  // transaction. Rechecking a display leg would redirect to the primary on the backend anyway,
+  // but hiding the button here prevents confusion and duplicate work.
+  const isDisplayLeg = transaction.metadata?.displayLeg === true
+
+  // Show recheck for everything that isn't a pure internal transfer, internal merchant move,
+  // reversal, or display-only leg (those share wallet/status with the primary row)
   const showRecheckButton =
+    !isDisplayLeg &&
     transaction.type !== 'WALLET_TO_WALLET' &&
     transaction.type !== 'WALLET_TO_INTERNAL_MERCHANT' &&
     transaction.type !== 'REVERSAL'
@@ -75,7 +82,7 @@ export const TransactionTableRow = ({
     'WALLET_TOPUP_PULL',
     'SCHOOL_FEES',
   ])
-  const showReversalButton = REVERSIBLE_TYPES.has(transaction.type as string)
+  const showReversalButton = !isDisplayLeg && REVERSIBLE_TYPES.has(transaction.type as string)
 
   const isPartnerSubscriberWithdraw =
     transaction.type === 'WITHDRAWAL' &&
