@@ -32,16 +32,31 @@ export const TransactionTableRow = ({
 }: TransactionTableRowProps) => {
   const metadata = transaction.metadata || {}
 
+  // Resolve partner from the two places the API can return it, then fall back to metadata
+  const resolvedPartner = transaction.partnerMapping?.partner || transaction.partner || null
+  const resolvedPartnerCode =
+    resolvedPartner?.partnerCode ||
+    metadata.partnerCode ||
+    metadata.apiPartnerName ||
+    metadata.partnerName ||
+    null
+  const resolvedPartnerName =
+    resolvedPartner?.partnerName ||
+    metadata.apiPartnerName ||
+    metadata.partnerName ||
+    null
+
   const hasPartnerSignal =
     transaction.partnerId ||
-    transaction.partner ||
+    resolvedPartner ||
     metadata.partnerId ||
     metadata.isApiPartnerTransaction ||
     metadata.apiPartnerName
 
-  // Show recheck for everything that isn't a pure internal transfer or reversal
+  // Show recheck for everything that isn't a pure internal transfer, internal merchant move, or reversal
   const showRecheckButton =
     transaction.type !== 'WALLET_TO_WALLET' &&
+    transaction.type !== 'WALLET_TO_INTERNAL_MERCHANT' &&
     transaction.type !== 'REVERSAL'
 
   // Reversal makes sense only for real money-movement transactions (in or out of a RukaPay wallet)
@@ -93,9 +108,9 @@ export const TransactionTableRow = ({
         {shortenTransactionId(transaction.reference || transaction.id)}
       </TableCell>
       <TableCell>
-        {transaction.partnerMapping?.partner ? (
-          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-            {transaction.partnerMapping.partner.partnerCode}
+        {resolvedPartnerCode ? (
+          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium" title={resolvedPartnerName || resolvedPartnerCode}>
+            {resolvedPartnerCode}
           </span>
         ) : (
           <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
