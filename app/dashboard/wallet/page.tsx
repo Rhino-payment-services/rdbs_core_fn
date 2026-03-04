@@ -279,13 +279,27 @@ const WalletPage = () => {
     setFilters(prev => ({ ...prev, category: categoryValue, page: 1 }))
   }
 
-  // Use backend-provided aggregate when available so Total Balance
-  // reflects all wallets, not just the current page/filter slice.
+  // Use backend-provided aggregates when available so summary cards
+  // reflect the full result set (respecting filters), not just the
+  // current page slice.
   const totalBalance =
     categoryStats && typeof categoryStats.totalBalance === 'number'
       ? categoryStats.totalBalance
       : walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
-  const activeWallets = walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
+
+  // Total wallets should use the backend "total" (which already applies
+  // the current filters) instead of just the current page length.
+  const totalWalletsCount = totalWallets || walletsArray.length
+
+  // Active wallets:
+  // - Prefer backend aggregate of wallets that have transacted in the
+  //   last 6 months when available (categoryStats.activeLast6Months).
+  // - Fallback to simple flag-based active status on the current page.
+  const activeWallets =
+    categoryStats && typeof categoryStats.activeLast6Months === 'number'
+      ? categoryStats.activeLast6Months
+      : walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
+
   const suspendedWallets = walletsArray.filter(wallet => wallet.isSuspended).length
   
   // Calculate multiple wallets of same type
@@ -521,7 +535,12 @@ const WalletPage = () => {
                 </div>
                 <p className="text-xl font-bold text-gray-900 leading-tight">{activeWallets}</p>
                 <div className="mt-0">
-                  <span className="text-sm text-gray-500">{walletsArray.length > 0 ? `${Math.round((activeWallets / walletsArray.length) * 100)}%` : '0%'} of total</span>
+                  <span className="text-sm text-gray-500">
+                    {totalWalletsCount > 0
+                      ? `${Math.round((activeWallets / totalWalletsCount) * 100)}%`
+                      : '0%'}{' '}
+                    of total
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -534,7 +553,7 @@ const WalletPage = () => {
                     <TrendingUp className="w-4 h-4 text-gray-600" />
                   </div>
                 </div>
-                <p className="text-xl font-bold text-gray-900 leading-tight">{walletsArray.length}</p>
+                <p className="text-xl font-bold text-gray-900 leading-tight">{totalWalletsCount}</p>
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">All wallet types</span>
                 </div>
