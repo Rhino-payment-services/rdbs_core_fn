@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useTransactionSystemStats, useAllTransactions, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useAllTransactions, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck, type ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
@@ -17,6 +17,7 @@ import { TransactionTable } from '@/components/dashboard/transactions/Transactio
 import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
 import { ReversalModal } from '@/components/dashboard/transactions/ReversalModal'
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
+import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
 
 const TransactionsPage = () => {
   // Pagination and filtering state
@@ -34,6 +35,13 @@ const TransactionsPage = () => {
   const [logsTransaction, setLogsTransaction] = useState<any>(null)
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false)
   
+  // Status check modal state
+  const [statusCheckTransaction, setStatusCheckTransaction] = useState<any>(null)
+  const [isStatusCheckModalOpen, setIsStatusCheckModalOpen] = useState(false)
+  const [statusCheckResult, setStatusCheckResult] = useState<ManualStatusCheckResult | null>(null)
+  const [statusCheckError, setStatusCheckError] = useState<Error | null>(null)
+  const [statusCheckLoading, setStatusCheckLoading] = useState(false)
+
   // Reversal modal state
   const [reversalModalOpen, setReversalModalOpen] = useState(false)
   const [reversalTransaction, setReversalTransaction] = useState<any>(null)
@@ -221,16 +229,33 @@ const TransactionsPage = () => {
     setIsModalOpen(true)
   }
 
-  // Handle manual status check with partner
-  const handleManualStatusCheck = async (transaction: any) => {
+  // Handle manual status check — opens modal and fires the check immediately
+  const handleManualStatusCheck = (transaction: any) => {
     if (!transaction?.id) return
-    try {
-      await manualStatusCheckMutation.mutateAsync(transaction.id)
-      toast.success('Transaction status check requested. Refreshing data...')
-    } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || 'Failed to check transaction status'
-      toast.error(message)
-    }
+    setStatusCheckTransaction(transaction)
+    setStatusCheckResult(null)
+    setStatusCheckError(null)
+    setStatusCheckLoading(true)
+    setIsStatusCheckModalOpen(true)
+
+    manualStatusCheckMutation.mutateAsync(transaction.id)
+      .then((result) => {
+        setStatusCheckResult(result)
+        if (result.data.statusChanged) {
+          toast.success(result.message)
+        }
+      })
+      .catch((error: any) => {
+        setStatusCheckError(error)
+      })
+      .finally(() => {
+        setStatusCheckLoading(false)
+      })
+  }
+
+  const handleStatusCheckRetry = () => {
+    if (!statusCheckTransaction) return
+    handleManualStatusCheck(statusCheckTransaction)
   }
 
   // Handle view API logs for a transaction
@@ -689,6 +714,20 @@ const TransactionsPage = () => {
         }
         transactions={transactions}
         onSelectTransaction={setSelectedTransaction}
+      />
+
+      {/* Partner Status Check Modal */}
+      <StatusCheckModal
+        isOpen={isStatusCheckModalOpen}
+        onOpenChange={(open) => {
+          setIsStatusCheckModalOpen(open)
+          if (!open) setStatusCheckTransaction(null)
+        }}
+        transaction={statusCheckTransaction}
+        isLoading={statusCheckLoading}
+        result={statusCheckResult}
+        error={statusCheckError}
+        onRetry={handleStatusCheckRetry}
       />
 
       {/* Reversal Modal */}

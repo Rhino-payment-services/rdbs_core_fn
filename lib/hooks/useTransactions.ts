@@ -60,17 +60,47 @@ export const useTransaction = (id: string) => {
   })
 }
 
+export interface ManualStatusCheckResult {
+  success: boolean
+  message: string
+  data: {
+    transactionId: string
+    partnerCode: string
+    partnerName?: string
+    externalReference: string
+    previousStatus: string
+    newStatus: string
+    statusChanged: boolean
+    partnerStatus: string
+    partnerResponse: {
+      success: boolean
+      status: string
+      data?: any
+      error?: string
+      message?: string
+      reference?: string
+      statusCode?: number
+    }
+    walletAction: {
+      type: 'CREDITED' | 'DEBITED'
+      amount: number
+      reason: string
+    } | null
+    checkedAt: string
+  }
+}
+
 // Hook to manually check transaction status with external partner (admin use)
 export const useManualTransactionStatusCheck = () => {
   const queryClient = useQueryClient()
-  return useMutation({
+  return useMutation<ManualStatusCheckResult, Error, string>({
     mutationFn: (transactionId: string) =>
       apiFetch(`/transactions/manual-status-check`, {
         method: 'POST',
         data: { transactionId },
       }),
     onSuccess: (_data, transactionId) => {
-      // Invalidate transaction-related queries so UI reflects latest status/balances
+      // Invalidate queries so table re-fetches with latest status/balances
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.list })
       if (transactionId) {
