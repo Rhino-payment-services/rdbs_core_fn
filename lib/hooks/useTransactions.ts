@@ -35,6 +35,8 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
 export const transactionQueryKeys = {
   transactions: ['transactions'] as const,
   transaction: (id: string) => ['transaction', id] as const,
+  transactionLogs: (id: string) => ['transaction-logs', id] as const,
+  manualStatusCheck: (id: string) => ['transaction-manual-status-check', id] as const,
   stats: ['transactions', 'stats'] as const,
   systemStats: ['transactions', 'system', 'stats'] as const,
   list: ['transactions', 'all'] as const,
@@ -55,6 +57,36 @@ export const useTransaction = (id: string) => {
     queryKey: transactionQueryKeys.transaction(id),
     queryFn: () => apiFetch(`/transactions/${id}`),
     enabled: !!id,
+  })
+}
+
+// Hook to manually check transaction status with external partner (admin use)
+export const useManualTransactionStatusCheck = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (transactionId: string) =>
+      apiFetch(`/transactions/manual-status-check`, {
+        method: 'POST',
+        data: { transactionId },
+      }),
+    onSuccess: (_data, transactionId) => {
+      // Invalidate transaction-related queries so UI reflects latest status/balances
+      queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
+      queryClient.invalidateQueries({ queryKey: transactionQueryKeys.list })
+      if (transactionId) {
+        queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transaction(transactionId) })
+      }
+    },
+  })
+}
+
+// Hook to get API transaction logs for a specific transaction (admin view)
+export const useTransactionLogs = (transactionId?: string) => {
+  return useQuery({
+    queryKey: transactionId ? transactionQueryKeys.transactionLogs(transactionId) : ['transaction-logs', 'none'],
+    queryFn: () => apiFetch(`/transaction-logs/transaction/${transactionId}`),
+    enabled: !!transactionId,
+    staleTime: 60 * 1000, // 1 minute
   })
 }
 
