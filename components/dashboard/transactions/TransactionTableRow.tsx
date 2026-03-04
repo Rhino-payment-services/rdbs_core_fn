@@ -3,7 +3,7 @@
 import { TableCell, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, RotateCcw, FileText, Download } from 'lucide-react'
+import { Eye, RotateCcw, FileText, Download, RefreshCcw } from 'lucide-react'
 import {
   shortenTransactionId,
   formatAmount,
@@ -1036,7 +1036,7 @@ export const TransactionTableRow = ({
               onClick={() => onManualStatusCheck(transaction)}
               title="Manually check partner status"
             >
-              <span className="text-xs font-medium">Check status</span>
+              <RefreshCcw className="h-4 w-4" />
             </Button>
           )}
           <Button
