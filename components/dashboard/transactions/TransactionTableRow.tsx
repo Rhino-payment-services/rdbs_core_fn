@@ -218,15 +218,6 @@ export const TransactionTableRow = ({
             (() => {
               const isAdminFunding = transaction.type === 'DEPOSIT' && metadata.fundedByAdmin
               const isDebit = transaction.direction === 'DEBIT'
-              const isPartnerApi = !!(
-                resolvedPartner ||
-                transaction.partner ||
-                transaction.partnerId ||
-                metadata.partnerId ||
-                metadata.isApiPartnerTransaction ||
-                metadata.apiPartnerName ||
-                metadata.partnerName
-              )
               // Merchant sender: user or wallet has merchant association (even if API returns PERSONAL for walletType)
               const hasMerchantAssociation =
                 transaction.wallet?.merchant?.businessTradeName ||
@@ -240,37 +231,26 @@ export const TransactionTableRow = ({
                 (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                 (metadata.merchantCode || metadata.merchantName || metadata.isPublicPayment)
 
-              const name = isAdminFunding
-                ? (metadata.adminName || 'Admin User')
-                : isPartnerApi
-                  ? (resolvedPartnerName || metadata.apiPartnerName || metadata.partnerName || 'API Partner')
-                  : getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
-
+              // Sender is always the actual source of funds (wallet owner for DEBIT, counterparty for CREDIT). Never show partner as sender.
+              let name: string
               let contact: string | null = null
               let merchantCode: string | null = null
-              let badgeType: 'MERCHANT' | 'PARTNER' | 'ADMIN' | 'SUBSCRIBER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
+              let badgeType: 'MERCHANT' | 'ADMIN' | 'SUBSCRIBER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
 
               if (transaction.type === 'REVERSAL') {
-                // already handled above
+                name = 'System'
               } else if (isAdminFunding) {
+                name = metadata.adminName || 'Admin User'
                 contact = metadata.adminPhone || metadata.adminEmail || null
                 badgeType = 'ADMIN'
               } else if (isQrPayment && !isDebit) {
+                // CREDIT: Receive from Mobile Money — sender is the customer / MNO
+                name = metadata.customerName || metadata.userName || 'Customer'
                 contact = metadata.customerPhone || metadata.phoneNumber || null
                 badgeType = 'EXTERNAL_MNO'
-              } else if (isPartnerApi) {
-                contact =
-                  resolvedPartner?.contactPhone ||
-                  transaction.partner?.contactPhone ||
-                  metadata.partnerContact ||
-                  resolvedPartner?.contactEmail ||
-                  transaction.partner?.contactEmail ||
-                  metadata.recipientPhone ||
-                  metadata.phoneNumber ||
-                  transaction.user?.phone ||
-                  null
-                badgeType = 'PARTNER'
               } else if (isDebit) {
+                // DEBIT: Money leaving the wallet — sender is the wallet owner (merchant or subscriber)
+                name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
                 contact = !isMerchantSender
                   ? getContactInfo(transaction.user, senderMeta, transaction.counterpartyUser)
                   : null
@@ -282,7 +262,7 @@ export const TransactionTableRow = ({
                   null
                 badgeType = isMerchantSender ? 'MERCHANT' : transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
               } else {
-                // CREDIT - sender is counterparty or external
+                // CREDIT — sender is the external/counterparty who sent the money
                 contact =
                   transaction.counterpartyUser?.phone ||
                   metadata.customerPhone ||
@@ -290,29 +270,39 @@ export const TransactionTableRow = ({
                   metadata.recipientPhone ||
                   null
                 if (transaction.type === 'MERCHANT_TO_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET')) {
+                  // Top-up / receive from another merchant: sender is that merchant
+                  name = metadata.merchantName || metadata.counterpartyInfo?.name || getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
                   merchantCode = metadata.merchantCode || null
                   badgeType = 'MERCHANT'
                 } else if (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) {
+                  name = metadata.mnoProvider ? `${metadata.mnoProvider} Mobile Money` : (metadata.userName || metadata.phoneNumber || 'Mobile Money')
+                  contact = metadata.phoneNumber || null
                   badgeType = metadata.mnoProvider ? 'EXTERNAL_MNO' : null
-                } else if (transaction.counterpartyUser || transaction.counterpartyId) {
+                } else if (transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyUser || transaction.counterpartyId) {
+                  name = transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
+                    ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
+                    : metadata.counterpartyInfo?.name || metadata.userName || 'RukaPay User'
                   badgeType = 'SUBSCRIBER'
+                } else if (metadata.counterpartyInfo?.name) {
+                  name = metadata.counterpartyInfo.name
+                  badgeType = null
+                } else {
+                  name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
                 }
               }
 
               const badgeLabel =
                 badgeType === 'MERCHANT'
                   ? '🏦 Merchant Account'
-                  : badgeType === 'PARTNER'
-                    ? 'API Partner'
-                    : badgeType === 'ADMIN'
-                      ? '👨‍💼 Admin Funding'
-                      : badgeType === 'SUBSCRIBER'
-                        ? '🏦 RukaPay Subscriber'
-                        : badgeType === 'EXTERNAL_MNO'
-                          ? '📱 Mobile Money'
-                          : badgeType === 'EXTERNAL_BANK'
-                            ? '🏦 Bank'
-                            : null
+                  : badgeType === 'ADMIN'
+                    ? '👨‍💼 Admin Funding'
+                    : badgeType === 'SUBSCRIBER'
+                      ? '🏦 RukaPay Subscriber'
+                      : badgeType === 'EXTERNAL_MNO'
+                        ? '📱 Mobile Money'
+                        : badgeType === 'EXTERNAL_BANK'
+                          ? '🏦 Bank'
+                          : null
 
               return (
                 <>
@@ -331,7 +321,7 @@ export const TransactionTableRow = ({
                     <span
                       className={`text-xs font-medium ${
                         badgeType === 'ADMIN' ? 'text-purple-600' :
-                        badgeType === 'MERCHANT' || badgeType === 'PARTNER' || badgeType === 'SUBSCRIBER' ? 'text-blue-600' :
+                        badgeType === 'MERCHANT' || badgeType === 'SUBSCRIBER' ? 'text-blue-600' :
                         'text-gray-500'
                       }`}
                     >
