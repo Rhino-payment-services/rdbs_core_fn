@@ -40,6 +40,7 @@ export const transactionQueryKeys = {
   stats: ['transactions', 'stats'] as const,
   systemStats: ['transactions', 'system', 'stats'] as const,
   list: ['transactions', 'all'] as const,
+  walletTransactions: (walletId: string) => ['wallet-transactions', walletId] as const,
 }
 
 // Custom hooks for transactions
@@ -49,6 +50,50 @@ export const useTransactions = (filters?: TransactionFilters) => {
     queryKey: [...transactionQueryKeys.transactions, filters],
     queryFn: () => apiFetch(`/transactions/my-transactions${queryString ? `?${queryString}` : ''}`),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+}
+
+export interface WalletTransactionHistory {
+  transactions: Transaction[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+}
+
+export const useWalletTransactions = (
+  walletId?: string,
+  params?: {
+    page?: number
+    limit?: number
+    type?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+  },
+) => {
+  const queryParams = new URLSearchParams()
+  if (params?.page) queryParams.append('page', params.page.toString())
+  if (params?.limit) queryParams.append('limit', params.limit.toString())
+  if (params?.type) queryParams.append('type', params.type)
+  if (params?.status) queryParams.append('status', params.status)
+  if (params?.startDate) queryParams.append('startDate', params.startDate)
+  if (params?.endDate) queryParams.append('endDate', params.endDate)
+
+  const queryString = queryParams.toString()
+
+  return useQuery<WalletTransactionHistory>({
+    queryKey: walletId
+      ? [...transactionQueryKeys.walletTransactions(walletId), params]
+      : ['wallet-transactions', 'none'],
+    queryFn: () =>
+      apiFetch(
+        `/ledger/wallet/${walletId}/transactions${queryString ? `?${queryString}` : ''}`,
+      ),
+    enabled: !!walletId,
+    staleTime: 60 * 1000,
   })
 }
 
