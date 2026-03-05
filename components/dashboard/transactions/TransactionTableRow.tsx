@@ -601,7 +601,43 @@ export const TransactionTableRow = ({
             </>
           ) : transaction.direction === 'DEBIT' ? (
             <>
-              {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
+              {transaction.type === 'DEPOSIT' && hasPartnerSignal && metadata.mode === 'DEPOSIT' ? (
+                <>
+                  {(() => {
+                    // Partner-initiated DEPOSIT: sender is the partner (left column),
+                    // receiver should clearly be the RukaPay subscriber getting the money.
+                    const receiverName =
+                      metadata.receiverName ||
+                      metadata.userName ||
+                      (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
+                        ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                        : null) ||
+                      'RukaPay Subscriber'
+
+                    const receiverContact =
+                      metadata.receiverPhone ||
+                      metadata.userPhoneNumber ||
+                      metadata.phoneNumber ||
+                      transaction.user?.phone ||
+                      transaction.user?.email ||
+                      'N/A'
+
+                    return (
+                      <>
+                        <span className="font-medium">
+                          {receiverName}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          📱 {receiverContact}
+                        </span>
+                        <span className="text-xs text-blue-600 font-medium">
+                          🏦 RukaPay Subscriber
+                        </span>
+                      </>
+                    )
+                  })()}
+                </>
+              ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                 <>
                   {(() => {
                     let displayName = '';
