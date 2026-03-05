@@ -32,6 +32,16 @@ export const TransactionTableRow = ({
 }: TransactionTableRowProps) => {
   const metadata = transaction.metadata || {}
 
+  const recipientWalletType =
+    transaction.wallet?.walletType ||
+    metadata.recipientWalletType ||
+    metadata.walletType ||
+    transaction.user?.walletType ||
+    null
+
+  const isBusinessLikeRecipientWallet =
+    recipientWalletType === 'BUSINESS' || recipientWalletType === 'ESCROW' || recipientWalletType === 'PARTNER'
+
   // Resolve partner from the two places the API can return it, then fall back to metadata
   const resolvedPartner = transaction.partnerMapping?.partner || transaction.partner || null
   const resolvedPartnerCode =
@@ -533,6 +543,7 @@ export const TransactionTableRow = ({
               </span>
             </>
           ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+            isBusinessLikeRecipientWallet &&
             (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
             <>
               {/* QR Code Payment - merchant is the receiver (check FIRST before DEBIT) */}
@@ -782,6 +793,7 @@ export const TransactionTableRow = ({
               {/* Also check metadata.direction as fallback for older transactions */}
               {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                 (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
+                isBusinessLikeRecipientWallet &&
                 (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
                   {/* QR Code Payment - merchant is the receiver */}
