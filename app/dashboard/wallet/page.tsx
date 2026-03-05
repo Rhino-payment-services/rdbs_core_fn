@@ -25,14 +25,13 @@ import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/dashboard/Navbar'
 import type { Wallet as WalletType } from '@/lib/types/api'
-import { useWalletTransactions } from '@/lib/hooks/useTransactions'
+import { useRouter } from 'next/navigation'
 
 const WalletPage = () => {
   const [showCreateWallet, setShowCreateWallet] = useState(false)
   const [showFundWallet, setShowFundWallet] = useState(false)
   const [showIncreaseLimit, setShowIncreaseLimit] = useState(false)
   const [showWalletDetails, setShowWalletDetails] = useState(false)
-  const [showWalletStatement, setShowWalletStatement] = useState(false)
   const [selectedWallet, setSelectedWallet] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [walletForm, setWalletForm] = useState({
@@ -48,8 +47,6 @@ const WalletPage = () => {
     dailyLimit: '',
     reason: ''
   })
-  const [statementPage, setStatementPage] = useState(1)
-  const statementPageSize = 20
   type WalletFilters = {
     category?: 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER'
     search?: string
@@ -76,15 +73,7 @@ const WalletPage = () => {
   const fundWallet = useFundWallet()
   const updateDailyLimit = useUpdateDailyLimit()
   const { handleError } = useErrorHandler()
-
-  const {
-    data: walletStatement,
-    isLoading: isStatementLoading,
-    error: walletStatementError,
-  } = useWalletTransactions(selectedWallet?.id, {
-    page: statementPage,
-    limit: statementPageSize,
-  })
+  const router = useRouter()
 
   // Debug logging
   React.useEffect(() => {
@@ -735,9 +724,7 @@ const WalletPage = () => {
                                 size="sm"
                                 className="border-gray-300 text-gray-700 hover:bg-gray-50"
                                 onClick={() => {
-                                  setSelectedWallet(wallet)
-                                  setStatementPage(1)
-                                  setShowWalletStatement(true)
+                                  router.push(`/dashboard/wallet/${wallet.id}/statement`)
                                 }}
                               >
                                 Statement
@@ -1024,172 +1011,6 @@ const WalletPage = () => {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Wallet Details Dialog */}
-          <Dialog
-            open={showWalletStatement}
-            onOpenChange={(open) => {
-              setShowWalletStatement(open)
-              if (!open) {
-                setSelectedWallet(null)
-                setStatementPage(1)
-              }
-            }}
-          >
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Wallet Statement</DialogTitle>
-                <DialogDescription>
-                  {selectedWallet && (
-                    <>
-                      Transactions for wallet{' '}
-                      <span className="font-mono text-xs">
-                        {selectedWallet.id}
-                      </span>
-                      <span className="block text-xs text-gray-500 mt-1">
-                        {selectedWallet.description ||
-                          `${selectedWallet.walletType} Wallet`} ·{' '}
-                        {selectedWallet.currency}
-                      </span>
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              {isStatementLoading ? (
-                <div className="py-8 text-center">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">
-                    Loading wallet transactions...
-                  </p>
-                </div>
-              ) : walletStatementError ? (
-                <div className="py-8 text-center">
-                  <XCircle className="h-10 w-10 text-red-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
-                    Failed to load wallet statement
-                  </p>
-                  <p className="text-xs text-red-500 mt-1">
-                    {extractErrorMessage(walletStatementError as any)}
-                  </p>
-                </div>
-              ) : !walletStatement || walletStatement.transactions.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Wallet className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">
-                    No transactions found for this wallet
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="border rounded-md">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Direction</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Reference</TableHead>
-                          <TableHead>Description</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {walletStatement.transactions.map((tx) => (
-                          <TableRow key={tx.id}>
-                            <TableCell className="text-sm text-gray-600">
-                              {formatDateShort(tx.createdAt as any)}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono">
-                              {tx.type}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  tx.direction === 'INCOMING'
-                                    ? 'border-green-500 text-green-700'
-                                    : 'border-red-500 text-red-700'
-                                }
-                              >
-                                {tx.direction || '—'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right text-sm font-semibold">
-                              {formatCurrency(
-                                Number(tx.amount),
-                                tx.currency || selectedWallet?.currency || 'UGX',
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {tx.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs font-mono max-w-[120px] truncate">
-                              {tx.reference || '—'}
-                            </TableCell>
-                            <TableCell className="text-xs max-w-[220px] truncate">
-                              {tx.description || '—'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  {walletStatement.pagination && (
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>
-                        Page{' '}
-                        <span className="font-semibold">
-                          {walletStatement.pagination.page}
-                        </span>{' '}
-                        of{' '}
-                        <span className="font-semibold">
-                          {walletStatement.pagination.pages}
-                        </span>
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={walletStatement.pagination.page <= 1}
-                          onClick={() =>
-                            setStatementPage(
-                              Math.max(1, walletStatement.pagination.page - 1),
-                            )
-                          }
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            walletStatement.pagination.page >=
-                            walletStatement.pagination.pages
-                          }
-                          onClick={() =>
-                            setStatementPage(
-                              Math.min(
-                                walletStatement.pagination.pages,
-                                walletStatement.pagination.page + 1,
-                              ),
-                            )
-                          }
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </DialogContent>
           </Dialog>
 

@@ -922,56 +922,66 @@ export const TransactionTableRow = ({
                   })()}
                 </>
               ) : (() => {
-                // For CREDIT rows, tx.user IS the receiver — only check their own properties
+                // For CREDIT rows, tx.user IS the receiver.
+                // Decide whether to show a business (merchant) receiver or a personal subscriber
+                // based on the actual wallet type that was credited, not just whether the user
+                // happens to own one or more merchant accounts.
                 const recipientWalletType =
-                  transaction.user?.walletType ||        // set by backend when wallet data is available
                   transaction.metadata?.recipientWalletType ||
-                  transaction.metadata?.walletType;
+                  transaction.metadata?.walletType ||
+                  transaction.wallet?.walletType
 
-                const isMerchantTransaction =
-                  transaction.metadata?.merchantName ||
-                  transaction.metadata?.paymentType === 'MERCHANT_COLLECTION' ||
+                const isBusinessWallet =
                   recipientWalletType === 'BUSINESS' ||
                   recipientWalletType === 'BUSINESS_COLLECTION' ||
-                  (transaction.user?.isMerchant ||
-                  transaction.user?.merchants?.length > 0 ||
-                  transaction.user?.merchantCode ||
-                  transaction.user?.merchant?.businessTradeName);
+                  recipientWalletType === 'BUSINESS_DISBURSEMENT' ||
+                  recipientWalletType === 'BUSINESS_LIQUIDATION'
+
+                const hasMerchantMetadata =
+                  !!transaction.metadata?.merchantName ||
+                  !!transaction.metadata?.merchantCode ||
+                  transaction.metadata?.paymentType === 'MERCHANT_COLLECTION'
+
+                const isMerchantTransaction = isBusinessWallet || hasMerchantMetadata
 
                 // Prefer displayName (explicitly set by backend to wallet-linked company),
-                // then fall back to merchants[0] (now also overridden by backend to the correct company).
+                // then fall back to merchants[0] if provided for that wallet.
                 const merchantName =
                   transaction.user?.displayName ||
                   transaction.user?.merchants?.[0]?.businessTradeName ||
                   transaction.user?.merchant?.businessTradeName ||
-                  (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null);
+                  (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null)
 
                 const merchantCode =
                   transaction.metadata?.merchantCode ||
                   transaction.user?.merchants?.[0]?.merchantCode ||
-                  transaction.user?.merchantCode;
+                  transaction.user?.merchantCode
 
-                return isMerchantTransaction ? (
-                  <>
-                    <span className="font-medium">
-                      {merchantName || 'Merchant'}
-                    </span>
-                    {merchantCode && (
-                      <span className="text-xs text-gray-500">
-                        🏪 Code: {merchantCode}
+                if (isMerchantTransaction) {
+                  return (
+                    <>
+                      <span className="font-medium">
+                        {merchantName || 'Merchant'}
                       </span>
-                    )}
-                    <span className="text-xs text-blue-600 font-medium">
-                      🏦 Merchant Account
-                    </span>
-                  </>
-                ) : (
+                      {merchantCode && (
+                        <span className="text-xs text-gray-500">
+                          🏪 Code: {merchantCode}
+                        </span>
+                      )}
+                      <span className="text-xs text-blue-600 font-medium">
+                        🏦 Merchant Account
+                      </span>
+                    </>
+                  )
+                }
+
+                // Otherwise, treat as personal / subscriber receiver
+                return (
                   <>
                     <span className="font-medium">
                       {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
                         ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                        : transaction.user?.phone || transaction.user?.email || 'Unknown User'
-                      }
+                        : transaction.user?.phone || transaction.user?.email || 'Unknown User'}
                     </span>
                     <span className="text-xs text-gray-500">
                       📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
@@ -982,7 +992,7 @@ export const TransactionTableRow = ({
                       </span>
                     )}
                   </>
-                );
+                )
               })()}
             </>
           )}

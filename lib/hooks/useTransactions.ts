@@ -63,7 +63,7 @@ export interface WalletTransactionHistory {
   }
 }
 
-export const useWalletTransactions = (
+export const useWalletTransactionHistory = (
   walletId?: string,
   params?: {
     page?: number
