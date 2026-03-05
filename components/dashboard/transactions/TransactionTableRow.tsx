@@ -220,9 +220,129 @@ export const TransactionTableRow = ({
               </span>
             </>
           ) : (
-            <span className="font-medium">
-              {getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)}
-            </span>
+            (() => {
+              const isAdminFunding = transaction.type === 'DEPOSIT' && metadata.fundedByAdmin
+              const name = isAdminFunding
+                ? (metadata.adminName || 'Admin User')
+                : getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
+              const isDebit = transaction.direction === 'DEBIT'
+              const isPartnerApi = !!(
+                transaction.partner ||
+                transaction.partnerId ||
+                metadata.isApiPartnerTransaction ||
+                metadata.apiPartnerName
+              )
+              const isMerchantSender =
+                transaction.wallet?.walletType !== 'PERSONAL' &&
+                (transaction.wallet?.merchant?.businessTradeName ||
+                  transaction.user?.merchantCode ||
+                  transaction.user?.merchant?.businessTradeName ||
+                  transaction.user?.merchants?.[0] ||
+                  senderMeta.merchantName ||
+                  senderMeta.merchantCode)
+              const isQrPayment =
+                (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
+                (metadata.merchantCode || metadata.merchantName || metadata.isPublicPayment)
+
+              let contact: string | null = null
+              let merchantCode: string | null = null
+              let walletType: string | null = transaction.wallet?.walletType || metadata.senderWalletType || null
+              let badgeType: 'MERCHANT' | 'PARTNER' | 'ADMIN' | 'SUBSCRIBER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
+
+              if (transaction.type === 'REVERSAL') {
+                // already handled above
+              } else if (isAdminFunding) {
+                contact = metadata.adminPhone || metadata.adminEmail || null
+                badgeType = 'ADMIN'
+              } else if (isQrPayment && !isDebit) {
+                contact = metadata.customerPhone || metadata.phoneNumber || null
+                badgeType = 'EXTERNAL_MNO'
+              } else if (isPartnerApi) {
+                contact =
+                  transaction.partner?.contactPhone ||
+                  metadata.partnerContact ||
+                  transaction.partner?.contactEmail ||
+                  metadata.recipientPhone ||
+                  metadata.phoneNumber ||
+                  transaction.user?.phone ||
+                  null
+                badgeType = 'PARTNER'
+              } else if (isDebit) {
+                contact = !isMerchantSender
+                  ? getContactInfo(transaction.user, senderMeta, transaction.counterpartyUser)
+                  : null
+                if (contact === 'N/A') contact = null
+                merchantCode =
+                  (isMerchantSender ? senderMeta.merchantCode : null) ||
+                  transaction.wallet?.merchant?.merchantCode ||
+                  transaction.user?.merchantCode ||
+                  null
+                badgeType = isMerchantSender ? 'MERCHANT' : transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
+              } else {
+                // CREDIT - sender is counterparty or external
+                contact =
+                  transaction.counterpartyUser?.phone ||
+                  metadata.customerPhone ||
+                  metadata.phoneNumber ||
+                  metadata.recipientPhone ||
+                  null
+                if (transaction.type === 'MERCHANT_TO_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET')) {
+                  merchantCode = metadata.merchantCode || null
+                  badgeType = 'MERCHANT'
+                } else if (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) {
+                  badgeType = metadata.mnoProvider ? 'EXTERNAL_MNO' : null
+                } else if (transaction.counterpartyUser || transaction.counterpartyId) {
+                  badgeType = 'SUBSCRIBER'
+                }
+              }
+
+              const badgeLabel =
+                badgeType === 'MERCHANT'
+                  ? '🏦 Merchant Account'
+                  : badgeType === 'PARTNER'
+                    ? 'API Partner'
+                    : badgeType === 'ADMIN'
+                      ? '👨‍💼 Admin Funding'
+                      : badgeType === 'SUBSCRIBER'
+                        ? '🏦 RukaPay Subscriber'
+                        : badgeType === 'EXTERNAL_MNO'
+                          ? '📱 Mobile Money'
+                          : badgeType === 'EXTERNAL_BANK'
+                            ? '🏦 Bank'
+                            : null
+
+              return (
+                <>
+                  <span
+                    className={`font-medium capitalize ${isAdminFunding ? 'text-purple-900' : ''}`}
+                  >
+                    {name}
+                  </span>
+                  {contact && (
+                    <span className="text-xs text-gray-500">📱 {contact}</span>
+                  )}
+                  {merchantCode && (
+                    <span className="text-xs text-gray-500">🏪 Code: {merchantCode}</span>
+                  )}
+                  {walletType && (
+                    <span className="text-xs text-gray-400">
+                      {walletType.replace(/_/g, ' ')} wallet
+                    </span>
+                  )}
+                  {badgeLabel && (
+                    <span
+                      className={`text-xs font-medium ${
+                        badgeType === 'ADMIN' ? 'text-purple-600' :
+                        badgeType === 'MERCHANT' || badgeType === 'PARTNER' || badgeType === 'SUBSCRIBER' ? 'text-blue-600' :
+                        'text-gray-500'
+                      }`}
+                    >
+                      {badgeLabel}
+                    </span>
+                  )}
+                </>
+              )
+            })()
           )}
         </div>
       </TableCell>
