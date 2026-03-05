@@ -104,30 +104,42 @@ export const getStatusBadgeConfig = (status: string) => {
   return statusConfig[status as keyof typeof statusConfig] || { color: 'bg-gray-100 text-gray-800 border-gray-200', label: status || 'Unknown' }
 }
 
+/** First merchant from user.merchants (array) - backend often returns merchants[] not merchant */
+const firstMerchantName = (user: any) =>
+  user?.merchants?.[0]?.businessTradeName || user?.merchant?.businessTradeName
+
 /**
  * Get display name - shows merchant business name for merchants, user name for individuals
  */
 export const getDisplayName = (user: any, metadata?: any, counterpartyUser?: any) => {
-  // Check if it's a merchant (has merchantCode or merchant relation)
-  const isMerchant = user?.merchantCode || user?.merchant?.businessTradeName || metadata?.merchantName || metadata?.merchantCode
+  // Check if it's a merchant (has merchantCode or merchant relation or wallet belongs to a merchant)
+  const isMerchant =
+    user?.merchantCode ||
+    user?.merchant?.businessTradeName ||
+    user?.merchants?.[0] ||
+    metadata?.merchantName ||
+    metadata?.merchantCode ||
+    user?.wallet?.merchant?.businessTradeName
   
   if (isMerchant) {
-    // Show merchant business name
-    return metadata?.merchantName || 
+    return metadata?.merchantName ||
+           metadata?.senderName ||
+           firstMerchantName(user) ||
            user?.merchant?.businessTradeName ||
+           user?.wallet?.merchant?.businessTradeName ||
            user?.profile?.merchantBusinessTradeName ||
            user?.profile?.businessTradeName ||
            user?.profile?.merchant_names ||
-           (user?.merchantCode ? `Merchant (${user.merchantCode})` : 'Merchant')
+           (user?.merchantCode || metadata?.merchantCode
+             ? `Merchant (${user?.merchantCode || metadata?.merchantCode})`
+             : 'Merchant')
   } else {
-    // Show individual user name - prioritize counterpartyUser if available (for receiver in DEBIT)
     if (counterpartyUser?.profile?.firstName && counterpartyUser?.profile?.lastName) {
       return `${counterpartyUser.profile.firstName} ${counterpartyUser.profile.lastName}`
     }
     if (user?.profile?.firstName && user?.profile?.lastName) {
       return `${user.profile.firstName} ${user.profile.lastName}`
     }
-    // Fallback to metadata recipient name
     if (metadata?.recipientName) {
       return metadata.recipientName
     }

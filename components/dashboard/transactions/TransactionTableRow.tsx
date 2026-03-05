@@ -42,6 +42,18 @@ export const TransactionTableRow = ({
   const isBusinessLikeRecipientWallet =
     recipientWalletType === 'BUSINESS' || recipientWalletType === 'ESCROW' || recipientWalletType === 'PARTNER'
 
+  // For DEBIT receiver display: metadata carries sender merchant fields (merchantName,
+  // merchantCode, senderName). Strip them so getDisplayName doesn't confuse the
+  // sender's business name for the receiver.
+  const receiverMeta = (() => {
+    if (transaction.direction !== 'DEBIT') return metadata;
+    const m = { ...metadata };
+    delete m.merchantName;
+    delete m.merchantCode;
+    delete m.senderName;
+    return m;
+  })();
+
   // Resolve partner from the two places the API can return it, then fall back to metadata
   const resolvedPartner = transaction.partnerMapping?.partner || transaction.partner || null
   const resolvedPartnerCode =
@@ -230,6 +242,8 @@ export const TransactionTableRow = ({
                   {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
                   {(() => {
                     const merchantName = transaction.metadata?.merchantName ||
+                      transaction.metadata?.senderName ||
+                      transaction.user?.merchants?.[0]?.businessTradeName ||
                       transaction.user?.merchant?.businessTradeName ||
                       transaction.user?.profile?.merchantBusinessTradeName ||
                       transaction.user?.profile?.businessTradeName ||
@@ -279,6 +293,7 @@ export const TransactionTableRow = ({
                     const isMerchant =
                       transaction.user?.merchantCode ||
                       transaction.user?.merchant?.businessTradeName ||
+                      transaction.user?.merchants?.[0] ||
                       transaction.metadata?.merchantName ||
                       transaction.metadata?.merchantCode
 
@@ -506,10 +521,7 @@ export const TransactionTableRow = ({
           {transaction.type === 'REVERSAL' ? (
             <>
               <span className="font-medium text-green-600">
-                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
-                  ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                  : transaction.user?.phone || transaction.user?.email || 'Wallet Owner'
-                }
+                {getDisplayName(transaction.user, transaction.metadata) || transaction.user?.phone || transaction.user?.email || 'Wallet Owner'}
               </span>
               <span className="text-xs text-gray-500">
                 📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
@@ -526,10 +538,7 @@ export const TransactionTableRow = ({
           ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
             <>
               <span className="font-medium text-green-600">
-                {transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
-                  ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                  : transaction.user?.phone || transaction.user?.email || 'RukaPay User'
-                }
+                {getDisplayName(transaction.user, transaction.metadata) || transaction.user?.phone || transaction.user?.email || 'RukaPay User'}
               </span>
               <span className="text-xs text-gray-500">
                 📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
@@ -547,10 +556,10 @@ export const TransactionTableRow = ({
             isBusinessLikeRecipientWallet &&
             (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
             <>
-              {/* QR Code Payment - merchant is the receiver (check FIRST before DEBIT) */}
+              {/* QR Code Payment - merchant is the receiver: show business name, not owner name */}
               <span className="font-medium">
-                {transaction.user?.displayName ||
-                  transaction.metadata?.merchantName ||
+                {transaction.metadata?.merchantName ||
+                  transaction.user?.merchants?.[0]?.businessTradeName ||
                   transaction.user?.merchant?.businessTradeName ||
                   transaction.user?.profile?.merchantBusinessTradeName ||
                   transaction.user?.profile?.businessTradeName ||
@@ -640,26 +649,12 @@ export const TransactionTableRow = ({
               ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
                 <>
                   {(() => {
-                    let displayName = '';
-                    let contact = '';
-
-                    if (transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName) {
-                      displayName = `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`;
-                      contact = transaction.counterpartyUser.phone || '';
-                    } else if (transaction.metadata?.recipientName) {
-                      displayName = transaction.metadata.recipientName;
-                      contact = transaction.metadata?.recipientPhone || '';
-                    } else if (transaction.counterpartyUser?.phone) {
-                      displayName = transaction.counterpartyUser.phone;
-                      contact = transaction.counterpartyUser.phone;
-                    } else if (transaction.metadata?.recipientPhone) {
-                      displayName = transaction.metadata.recipientPhone;
-                      contact = transaction.metadata.recipientPhone;
-                    } else {
-                      displayName = 'RukaPay User';
-                      contact = '';
-                    }
-
+                    const displayName = getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user)
+                      || transaction.metadata?.recipientName
+                      || transaction.counterpartyUser?.phone
+                      || transaction.metadata?.recipientPhone
+                      || 'RukaPay User';
+                    const contact = getContactInfo(transaction.counterpartyUser, receiverMeta, transaction.user);
                     return (
                       <>
                         <span className="font-medium">
@@ -685,10 +680,7 @@ export const TransactionTableRow = ({
               ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
                 <>
                   <span className="font-medium">
-                    {transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
-                      ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
-                      : transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'RukaPay User'
-                    }
+                    {getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user) || transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'RukaPay User'}
                   </span>
                   {transaction.counterpartyUser?.phone && (
                     <span className="text-xs text-gray-500">
@@ -707,7 +699,14 @@ export const TransactionTableRow = ({
               ) : transaction.type === 'WALLET_TO_INTERNAL_MERCHANT' ? (
                 <>
                   <span className="font-medium">
-                    Merchant
+                    {transaction.metadata?.merchantName ||
+                      transaction.metadata?.counterpartyInfo?.name ||
+                      transaction.user?.merchants?.[0]?.businessTradeName ||
+                      transaction.user?.merchant?.businessTradeName ||
+                      transaction.user?.profile?.merchantBusinessTradeName ||
+                      transaction.user?.profile?.businessTradeName ||
+                      transaction.user?.profile?.merchant_names ||
+                      (transaction.metadata?.merchantCode ? `Merchant (${transaction.metadata.merchantCode})` : 'Merchant')}
                   </span>
                   {transaction.metadata?.merchantCode && (
                     <span className="text-xs text-gray-500">
@@ -718,12 +717,13 @@ export const TransactionTableRow = ({
                     🏦 Internal Account
                   </span>
                 </>
-              ) : transaction.type === 'WALLET_TO_MERCHANT' || (transaction.type?.includes('MERCHANT') && transaction.type !== 'MERCHANT_TO_WALLET') || transaction.metadata?.merchantName ? (
+              ) : transaction.type === 'WALLET_TO_MERCHANT' || (transaction.type?.includes('MERCHANT') && transaction.type !== 'MERCHANT_TO_WALLET') ? (
                 <>
                   <span className="font-medium">
                     {transaction.metadata?.merchantName ||
                       transaction.metadata?.counterpartyInfo?.name ||
                       transaction.metadata?.userName ||
+                      transaction.user?.merchants?.[0]?.businessTradeName ||
                       transaction.user?.merchant?.businessTradeName ||
                       transaction.user?.profile?.merchantBusinessTradeName ||
                       transaction.user?.profile?.businessTradeName ||
@@ -833,10 +833,10 @@ export const TransactionTableRow = ({
                 isBusinessLikeRecipientWallet &&
                 (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
-                  {/* QR Code Payment - merchant is the receiver */}
+                  {/* QR Code Payment - merchant is the receiver: show business name, not owner name */}
                   <span className="font-medium">
-                    {transaction.user?.displayName ||
-                      transaction.metadata?.merchantName ||
+                    {transaction.metadata?.merchantName ||
+                      transaction.user?.merchants?.[0]?.businessTradeName ||
                       transaction.user?.merchant?.businessTradeName ||
                       transaction.user?.profile?.merchantBusinessTradeName ||
                       transaction.user?.profile?.businessTradeName ||
