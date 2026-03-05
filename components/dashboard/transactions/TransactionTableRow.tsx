@@ -302,9 +302,6 @@ export const TransactionTableRow = ({
                   🏪 Code: {transaction.metadata.merchantCode}
                 </span>
               )}
-              <span className="text-xs text-blue-600 font-medium">
-                🏦 Merchant Account
-              </span>
             </>
           ) : isPartnerSubscriberWithdraw ? (
             <>
