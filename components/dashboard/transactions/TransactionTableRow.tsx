@@ -241,15 +241,8 @@ export const TransactionTableRow = ({
                 <>
                   {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
                   {(() => {
-                    const merchantName = transaction.metadata?.merchantName ||
-                      transaction.metadata?.senderName ||
-                      transaction.user?.merchants?.[0]?.businessTradeName ||
-                      transaction.user?.merchant?.businessTradeName ||
-                      transaction.user?.profile?.merchantBusinessTradeName ||
-                      transaction.user?.profile?.businessTradeName ||
-                      transaction.user?.profile?.merchant_names ||
-                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant');
-                    const merchantCode = transaction.metadata?.merchantCode || transaction.user?.merchantCode;
+                    const merchantName = getDisplayName(transaction.user, transaction.metadata, null, transaction.wallet);
+                    const merchantCode = transaction.metadata?.merchantCode || transaction.wallet?.merchant?.merchantCode || transaction.user?.merchantCode;
 
                     return (
                       <>
@@ -281,7 +274,8 @@ export const TransactionTableRow = ({
                     const baseDisplayName = getDisplayName(
                       transaction.user,
                       transaction.metadata,
-                      transaction.counterpartyUser
+                      transaction.counterpartyUser,
+                      transaction.wallet
                     )
 
                     const displayName = isPartnerApi
@@ -291,6 +285,7 @@ export const TransactionTableRow = ({
                       : baseDisplayName
 
                     const isMerchant =
+                      transaction.wallet?.merchant?.businessTradeName ||
                       transaction.user?.merchantCode ||
                       transaction.user?.merchant?.businessTradeName ||
                       transaction.user?.merchants?.[0] ||
