@@ -243,8 +243,8 @@ export const TransactionTableRow = ({
                 name = metadata.adminName || 'Admin User'
                 contact = metadata.adminPhone || metadata.adminEmail || null
                 badgeType = 'ADMIN'
-              } else if (transaction.type === 'DEPOSIT' && transaction.direction === 'CREDIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction)) {
-                // Partner deposit only (e.g. bank deposit): sender is the bank/partner — show name and details. Other types unchanged.
+              } else if (transaction.type === 'DEPOSIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction)) {
+                // Partner deposit (both CREDIT and DEBIT legs): sender is always the bank/partner.
                 name = resolvedPartnerName || metadata.apiPartnerName || transaction.partner?.partnerName || 'API Partner'
                 contact = resolvedPartner?.contactPhone || transaction.partner?.contactPhone || metadata.partnerContact || resolvedPartner?.contactEmail || transaction.partner?.contactEmail || null
                 badgeType = 'PARTNER'
@@ -388,9 +388,9 @@ export const TransactionTableRow = ({
                 <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
               )}
             </>
-          ) : transaction.type === 'DEPOSIT' && transaction.direction === 'CREDIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction) ? (
+          ) : transaction.type === 'DEPOSIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction) ? (
             <>
-              {/* Partner deposit only: receiver is the beneficiary — use metadata. Other transaction types use branches below. */}
+              {/* Partner deposit (both CREDIT and DEBIT legs): receiver is the beneficiary. */}
               <span className="font-medium">
                 {metadata.receiverName || metadata.recipientName || (metadata.userPhoneNumber ? 'RukaPay Subscriber' : getDisplayName(transaction.user, transaction.metadata) || 'Wallet Owner')}
               </span>
