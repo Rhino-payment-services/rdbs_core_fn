@@ -611,9 +611,8 @@ export const TransactionTableRow = ({
                       metadata.userName ||
                       (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName
                         ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
-                        : transaction.user?.phone ||
-                          transaction.user?.email) ||
-                      'RukaPay User'
+                        : null) ||
+                      'RukaPay Subscriber'
 
                     const receiverContact =
                       metadata.receiverPhone ||
