@@ -235,7 +235,7 @@ export const TransactionTableRow = ({
               let name: string
               let contact: string | null = null
               let merchantCode: string | null = null
-              let badgeType: 'MERCHANT' | 'ADMIN' | 'SUBSCRIBER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
+              let badgeType: 'MERCHANT' | 'ADMIN' | 'SUBSCRIBER' | 'PARTNER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
 
               if (transaction.type === 'REVERSAL') {
                 name = 'System'
@@ -243,6 +243,11 @@ export const TransactionTableRow = ({
                 name = metadata.adminName || 'Admin User'
                 contact = metadata.adminPhone || metadata.adminEmail || null
                 badgeType = 'ADMIN'
+              } else if (transaction.type === 'DEPOSIT' && transaction.direction === 'CREDIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction)) {
+                // Partner deposit only (e.g. bank deposit): sender is the bank/partner — show name and details. Other types unchanged.
+                name = resolvedPartnerName || metadata.apiPartnerName || transaction.partner?.partnerName || 'API Partner'
+                contact = resolvedPartner?.contactPhone || transaction.partner?.contactPhone || metadata.partnerContact || resolvedPartner?.contactEmail || transaction.partner?.contactEmail || null
+                badgeType = 'PARTNER'
               } else if (isQrPayment && !isDebit) {
                 // CREDIT: Receive from Mobile Money — sender is the customer / MNO
                 name = metadata.customerName || metadata.userName || 'Customer'
@@ -296,13 +301,15 @@ export const TransactionTableRow = ({
                   ? '🏦 Merchant Account'
                   : badgeType === 'ADMIN'
                     ? '👨‍💼 Admin Funding'
-                    : badgeType === 'SUBSCRIBER'
-                      ? '🏦 RukaPay Subscriber'
-                      : badgeType === 'EXTERNAL_MNO'
-                        ? '📱 Mobile Money'
-                        : badgeType === 'EXTERNAL_BANK'
-                          ? '🏦 Bank'
-                          : null
+                    : badgeType === 'PARTNER'
+                      ? 'API Partner'
+                      : badgeType === 'SUBSCRIBER'
+                        ? '🏦 RukaPay Subscriber'
+                        : badgeType === 'EXTERNAL_MNO'
+                          ? '📱 Mobile Money'
+                          : badgeType === 'EXTERNAL_BANK'
+                            ? '🏦 Bank'
+                            : null
 
               return (
                 <>
@@ -321,7 +328,7 @@ export const TransactionTableRow = ({
                     <span
                       className={`text-xs font-medium ${
                         badgeType === 'ADMIN' ? 'text-purple-600' :
-                        badgeType === 'MERCHANT' || badgeType === 'SUBSCRIBER' ? 'text-blue-600' :
+                        badgeType === 'MERCHANT' || badgeType === 'SUBSCRIBER' || badgeType === 'PARTNER' ? 'text-blue-600' :
                         'text-gray-500'
                       }`}
                     >
@@ -380,6 +387,17 @@ export const TransactionTableRow = ({
               {transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin && (
                 <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
               )}
+            </>
+          ) : transaction.type === 'DEPOSIT' && transaction.direction === 'CREDIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction) ? (
+            <>
+              {/* Partner deposit only: receiver is the beneficiary — use metadata. Other transaction types use branches below. */}
+              <span className="font-medium">
+                {metadata.receiverName || metadata.recipientName || (metadata.userPhoneNumber ? 'RukaPay Subscriber' : getDisplayName(transaction.user, transaction.metadata) || 'Wallet Owner')}
+              </span>
+              <span className="text-xs text-gray-500">
+                📱 {metadata.receiverPhone || metadata.userPhoneNumber || transaction.user?.phone || transaction.user?.email || 'N/A'}
+              </span>
+              <span className="text-xs text-blue-600 font-medium">🏦 RukaPay Subscriber</span>
             </>
           ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
             isBusinessLikeRecipientWallet &&
