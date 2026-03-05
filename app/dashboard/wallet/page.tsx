@@ -1109,12 +1109,12 @@ const WalletPage = () => {
                               <Badge
                                 variant="outline"
                                 className={
-                                  tx.direction === 'CREDIT'
+                                  tx.direction === 'INCOMING'
                                     ? 'border-green-500 text-green-700'
                                     : 'border-red-500 text-red-700'
                                 }
                               >
-                                {tx.direction}
+                                {tx.direction || '—'}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right text-sm font-semibold">
