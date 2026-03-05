@@ -198,11 +198,6 @@ export const TransactionTableRow = ({
               {transaction.senderInfo.merchantCode && (
                 <span className="text-xs text-gray-500">🏪 Code: {transaction.senderInfo.merchantCode}</span>
               )}
-              {transaction.senderInfo.walletType && (
-                <span className="text-xs text-gray-400">
-                  {transaction.senderInfo.walletType.replace(/_/g, ' ')} wallet
-                </span>
-              )}
               <span className={`text-xs font-medium ${
                 transaction.senderInfo.type === 'MERCHANT' ? 'text-blue-600' :
                 transaction.senderInfo.type === 'PARTNER' ? 'text-blue-600' :
@@ -222,31 +217,37 @@ export const TransactionTableRow = ({
           ) : (
             (() => {
               const isAdminFunding = transaction.type === 'DEPOSIT' && metadata.fundedByAdmin
-              const name = isAdminFunding
-                ? (metadata.adminName || 'Admin User')
-                : getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
               const isDebit = transaction.direction === 'DEBIT'
               const isPartnerApi = !!(
+                resolvedPartner ||
                 transaction.partner ||
                 transaction.partnerId ||
+                metadata.partnerId ||
                 metadata.isApiPartnerTransaction ||
-                metadata.apiPartnerName
+                metadata.apiPartnerName ||
+                metadata.partnerName
               )
-              const isMerchantSender =
-                transaction.wallet?.walletType !== 'PERSONAL' &&
-                (transaction.wallet?.merchant?.businessTradeName ||
-                  transaction.user?.merchantCode ||
-                  transaction.user?.merchant?.businessTradeName ||
-                  transaction.user?.merchants?.[0] ||
-                  senderMeta.merchantName ||
-                  senderMeta.merchantCode)
+              // Merchant sender: user or wallet has merchant association (even if API returns PERSONAL for walletType)
+              const hasMerchantAssociation =
+                transaction.wallet?.merchant?.businessTradeName ||
+                transaction.user?.merchantCode ||
+                transaction.user?.merchant?.businessTradeName ||
+                transaction.user?.merchants?.length ||
+                senderMeta.merchantName ||
+                senderMeta.merchantCode
+              const isMerchantSender = isDebit && !!hasMerchantAssociation
               const isQrPayment =
                 (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                 (metadata.merchantCode || metadata.merchantName || metadata.isPublicPayment)
 
+              const name = isAdminFunding
+                ? (metadata.adminName || 'Admin User')
+                : isPartnerApi
+                  ? (resolvedPartnerName || metadata.apiPartnerName || metadata.partnerName || 'API Partner')
+                  : getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
+
               let contact: string | null = null
               let merchantCode: string | null = null
-              let walletType: string | null = transaction.wallet?.walletType || metadata.senderWalletType || null
               let badgeType: 'MERCHANT' | 'PARTNER' | 'ADMIN' | 'SUBSCRIBER' | 'EXTERNAL_MNO' | 'EXTERNAL_BANK' | null = null
 
               if (transaction.type === 'REVERSAL') {
@@ -259,8 +260,10 @@ export const TransactionTableRow = ({
                 badgeType = 'EXTERNAL_MNO'
               } else if (isPartnerApi) {
                 contact =
+                  resolvedPartner?.contactPhone ||
                   transaction.partner?.contactPhone ||
                   metadata.partnerContact ||
+                  resolvedPartner?.contactEmail ||
                   transaction.partner?.contactEmail ||
                   metadata.recipientPhone ||
                   metadata.phoneNumber ||
@@ -324,11 +327,6 @@ export const TransactionTableRow = ({
                   {merchantCode && (
                     <span className="text-xs text-gray-500">🏪 Code: {merchantCode}</span>
                   )}
-                  {walletType && (
-                    <span className="text-xs text-gray-400">
-                      {walletType.replace(/_/g, ' ')} wallet
-                    </span>
-                  )}
                   {badgeLabel && (
                     <span
                       className={`text-xs font-medium ${
@@ -358,11 +356,6 @@ export const TransactionTableRow = ({
               <span className="text-xs text-gray-500">
                 📱 {transaction.receiverInfo?.contact || transaction.user?.phone || transaction.user?.email || 'N/A'}
               </span>
-              {transaction.receiverInfo?.walletType && (
-                <span className="text-xs text-gray-400">
-                  {transaction.receiverInfo.walletType.replace(/_/g, ' ')} wallet
-                </span>
-              )}
               <span className="text-xs text-green-600 font-medium">💰 Credited Back</span>
               {transaction.metadata?.reversalReason && (
                 <span className="text-xs text-gray-500 italic">
@@ -380,11 +373,6 @@ export const TransactionTableRow = ({
               )}
               {transaction.receiverInfo.merchantCode && (
                 <span className="text-xs text-gray-500">🏪 Code: {transaction.receiverInfo.merchantCode}</span>
-              )}
-              {transaction.receiverInfo.walletType && (
-                <span className="text-xs text-gray-400">
-                  {transaction.receiverInfo.walletType.replace(/_/g, ' ')} wallet
-                </span>
               )}
               <span className={`text-xs font-medium ${
                 transaction.receiverInfo.type === 'MERCHANT' ? 'text-blue-600' :
