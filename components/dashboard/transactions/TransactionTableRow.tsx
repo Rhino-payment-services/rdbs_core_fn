@@ -42,6 +42,22 @@ export const TransactionTableRow = ({
   const isBusinessLikeRecipientWallet =
     recipientWalletType === 'BUSINESS' || recipientWalletType === 'ESCROW' || recipientWalletType === 'PARTNER'
 
+  // For DEBIT sender display: when the source wallet is PERSONAL, merchant
+  // fields in metadata (merchantName, merchantCode) describe the business the
+  // user is associated with, not the wallet owner. Strip them so
+  // getDisplayName doesn't render a merchant when the debit is from a personal
+  // subscriber wallet.
+  const senderMeta = (() => {
+    if (transaction.direction !== 'DEBIT') return metadata
+    if (transaction.wallet?.walletType !== 'PERSONAL') return metadata
+    if (transaction.type?.includes('MERCHANT')) return metadata
+
+    const m = { ...metadata }
+    delete m.merchantName
+    delete m.merchantCode
+    return m
+  })()
+
   // For DEBIT receiver display: metadata carries sender merchant fields (merchantName,
   // merchantCode, senderName). Strip them so getDisplayName doesn't confuse the
   // sender's business name for the receiver.
@@ -273,7 +289,7 @@ export const TransactionTableRow = ({
 
                     const baseDisplayName = getDisplayName(
                       transaction.user,
-                      transaction.metadata,
+                      senderMeta,
                       transaction.counterpartyUser,
                       transaction.wallet
                     )
@@ -284,13 +300,16 @@ export const TransactionTableRow = ({
                         baseDisplayName)
                       : baseDisplayName
 
-                    const isMerchant =
-                      transaction.wallet?.merchant?.businessTradeName ||
-                      transaction.user?.merchantCode ||
-                      transaction.user?.merchant?.businessTradeName ||
-                      transaction.user?.merchants?.[0] ||
-                      transaction.metadata?.merchantName ||
-                      transaction.metadata?.merchantCode
+                    const isMerchantWalletSender =
+                      transaction.wallet?.walletType !== 'PERSONAL' &&
+                      (
+                        transaction.wallet?.merchant?.businessTradeName ||
+                        transaction.user?.merchantCode ||
+                        transaction.user?.merchant?.businessTradeName ||
+                        transaction.user?.merchants?.[0] ||
+                        senderMeta.merchantName ||
+                        senderMeta.merchantCode
+                      )
 
                     const contactForPartner =
                       transaction.partner?.contactPhone ||
@@ -312,20 +331,20 @@ export const TransactionTableRow = ({
                               📱 {contactForPartner}
                             </span>
                           )
-                        ) : !isMerchant && (
+                        ) : !isMerchantWalletSender && (
                           <span className="text-xs text-gray-500">
                             📱 {getContactInfo(
                               transaction.user,
-                              transaction.metadata,
+                              senderMeta,
                               transaction.counterpartyUser
                             )}
                           </span>
                         )}
 
                         {/* merchant code line (unchanged for non-partner merchant debits) */}
-                        {!isPartnerApi && isMerchant && transaction.metadata?.merchantCode && (
+                        {!isPartnerApi && isMerchantWalletSender && senderMeta.merchantCode && (
                           <span className="text-xs text-gray-500">
-                            🏪 Code: {transaction.metadata.merchantCode}
+                            🏪 Code: {senderMeta.merchantCode}
                           </span>
                         )}
 
@@ -334,7 +353,7 @@ export const TransactionTableRow = ({
                           <span className="text-xs text-blue-600 font-medium">
                             API Partner
                           </span>
-                        ) : isMerchant ? (
+                        ) : isMerchantWalletSender ? (
                           <span className="text-xs text-blue-600 font-medium">
                             🏦 Internal Account
                           </span>
