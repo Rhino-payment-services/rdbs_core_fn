@@ -181,350 +181,48 @@ export const TransactionTableRow = ({
         <div className="flex flex-col gap-[0.5px]">
           {transaction.type === 'REVERSAL' ? (
             <>
-              {/* Reversal transaction - sender is the system crediting back */}
-              <span className="font-medium text-orange-600">
-                System Reversal
-              </span>
+              <span className="font-medium text-orange-600">System Reversal</span>
               <span className="text-xs text-gray-500">
-                Reversing transaction {transaction.metadata?.originalTransactionReference || transaction.metadata?.originalTransactionId?.substring(0, 8) || 'N/A'}
+                Reversing {transaction.metadata?.originalTransactionReference || transaction.metadata?.originalTransactionId?.substring(0, 8) || 'N/A'}
               </span>
-              <span className="text-xs text-orange-600 font-medium">
-                🔄 Reversal
-              </span>
+              <span className="text-xs text-orange-600 font-medium">🔄 Reversal</span>
             </>
-          ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
+          ) : transaction.senderInfo ? (
             <>
-              {/* Admin funded wallet */}
-              <span className="font-medium text-purple-900">
-                {transaction.metadata.adminName || 'Admin User'}
+              <span className={`font-medium ${transaction.senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}`}>
+                {transaction.senderInfo.name}
               </span>
-              <span className="text-xs text-gray-500">
-                📱 {transaction.metadata.adminPhone || transaction.metadata.adminEmail || 'Admin'}
-              </span>
-              <span className="text-xs text-purple-600 font-medium">
-                👨‍💼 Admin Funding
-              </span>
-            </>
-          ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-            (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
-            <>
-              {/* QR Code Payment - customer is the sender (check FIRST before DEBIT) */}
-              <span className="font-medium">
-                {transaction.metadata?.customerName || 'Customer'}
-              </span>
-              <span className="text-xs text-gray-500">
-                📱 {transaction.metadata?.customerPhone || transaction.metadata?.phoneNumber || 'Mobile Money'}
-              </span>
-              <span className="text-xs text-gray-500">
-                📱 Mobile Money
-              </span>
-            </>
-          ) : isPartnerSubscriberWithdraw ? (
-            <>
-              {(() => {
-                const partnerDisplayName =
-                  transaction.partner?.partnerName ||
-                  metadata.apiPartnerName ||
-                  metadata.partnerName ||
-                  'API Partner'
-
-                const contact =
-                  transaction.partner?.contactPhone ||
-                  transaction.metadata?.partnerContact ||
-                  transaction.partner?.contactEmail
-
-                return (
-                  <>
-                    <span className="font-medium">
-                      {partnerDisplayName}
-                    </span>
-                    {contact && (
-                      <span className="text-xs text-gray-500">
-                        📱 {contact}
-                      </span>
-                    )}
-                    <span className="text-xs text-blue-600 font-medium">
-                      API Partner
-                    </span>
-                  </>
-                )
-              })()}
-            </>
-          ) : transaction.direction === 'DEBIT' ? (
-            <>
-              {/* Outgoing transaction */}
-              {transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' ? (
-                <>
-                  {/* MERCHANT_TO_WALLET DEBIT - sender is always the merchant */}
-                  {(() => {
-                    const merchantName = getDisplayName(transaction.user, transaction.metadata, null, transaction.wallet);
-                    const merchantCode = transaction.metadata?.merchantCode || transaction.wallet?.merchant?.merchantCode || transaction.user?.merchantCode;
-
-                    return (
-                      <>
-                        <span className="font-medium">
-                          {merchantName}
-                        </span>
-                        {merchantCode && (
-                          <span className="text-xs text-gray-500">
-                            🏪 Code: {merchantCode}
-                          </span>
-                        )}
-                        <span className="text-xs text-blue-600 font-medium">
-                          🏦 Internal Account
-                        </span>
-                      </>
-                    )
-                  })()}
-                </>
-              ) : (
-                <>
-                  {/* Other DEBIT transactions - sender is wallet owner OR API partner */}
-                  {(() => {
-                    const isPartnerApi =
-                      transaction.partner ||
-                      transaction.partnerId ||
-                      transaction.metadata?.isApiPartnerTransaction ||
-                      transaction.metadata?.apiPartnerName
-
-                    const baseDisplayName = getDisplayName(
-                      transaction.user,
-                      senderMeta,
-                      transaction.counterpartyUser,
-                      transaction.wallet
-                    )
-
-                    const displayName = isPartnerApi
-                      ? (transaction.partner?.partnerName ||
-                        transaction.metadata?.apiPartnerName ||
-                        baseDisplayName)
-                      : baseDisplayName
-
-                    const isMerchantWalletSender =
-                      transaction.wallet?.walletType !== 'PERSONAL' &&
-                      (
-                        transaction.wallet?.merchant?.businessTradeName ||
-                        transaction.user?.merchantCode ||
-                        transaction.user?.merchant?.businessTradeName ||
-                        transaction.user?.merchants?.[0] ||
-                        senderMeta.merchantName ||
-                        senderMeta.merchantCode
-                      )
-
-                    const contactForPartner =
-                      transaction.partner?.contactPhone ||
-                      transaction.metadata?.recipientPhone ||
-                      transaction.metadata?.phoneNumber ||
-                      transaction.user?.phone
-
-                    return (
-                      <>
-                        {/* name line */}
-                        <span className="font-medium capitalize">
-                          {displayName}
-                        </span>
-
-                        {/* phone / contact line */}
-                        {isPartnerApi ? (
-                          contactForPartner && (
-                            <span className="text-xs text-gray-500">
-                              📱 {contactForPartner}
-                            </span>
-                          )
-                        ) : !isMerchantWalletSender && (
-                          <span className="text-xs text-gray-500">
-                            📱 {getContactInfo(
-                              transaction.user,
-                              senderMeta,
-                              transaction.counterpartyUser
-                            )}
-                          </span>
-                        )}
-
-                        {/* merchant code line (unchanged for non-partner merchant debits) */}
-                        {!isPartnerApi && isMerchantWalletSender && senderMeta.merchantCode && (
-                          <span className="text-xs text-gray-500">
-                            🏪 Code: {senderMeta.merchantCode}
-                          </span>
-                        )}
-
-                        {/* badge line */}
-                        {isPartnerApi ? (
-                          <span className="text-xs text-blue-600 font-medium">
-                            API Partner
-                          </span>
-                        ) : isMerchantWalletSender ? (
-                          <span className="text-xs text-blue-600 font-medium">
-                            🏦 Internal Account
-                          </span>
-                        ) : transaction.user?.userType === 'SUBSCRIBER' && (
-                          <span className="text-xs text-blue-600 font-medium">
-                            🏦 RukaPay Subscriber
-                          </span>
-                        )}
-                      </>
-                    )
-                  })()}
-                </>
+              {transaction.senderInfo.contact && (
+                <span className="text-xs text-gray-500">📱 {transaction.senderInfo.contact}</span>
               )}
+              {transaction.senderInfo.merchantCode && (
+                <span className="text-xs text-gray-500">🏪 Code: {transaction.senderInfo.merchantCode}</span>
+              )}
+              {transaction.senderInfo.walletType && (
+                <span className="text-xs text-gray-400">
+                  {transaction.senderInfo.walletType.replace(/_/g, ' ')} wallet
+                </span>
+              )}
+              <span className={`text-xs font-medium ${
+                transaction.senderInfo.type === 'MERCHANT' ? 'text-blue-600' :
+                transaction.senderInfo.type === 'PARTNER' ? 'text-blue-600' :
+                transaction.senderInfo.type === 'ADMIN' ? 'text-purple-600' :
+                transaction.senderInfo.type === 'SUBSCRIBER' ? 'text-blue-600' :
+                'text-gray-500'
+              }`}>
+                {transaction.senderInfo.type === 'MERCHANT' ? '🏦 Merchant Account' :
+                 transaction.senderInfo.type === 'PARTNER' ? 'API Partner' :
+                 transaction.senderInfo.type === 'ADMIN' ? '👨‍💼 Admin Funding' :
+                 transaction.senderInfo.type === 'SUBSCRIBER' ? '🏦 RukaPay Subscriber' :
+                 transaction.senderInfo.type === 'EXTERNAL_MNO' ? '📱 Mobile Money' :
+                 transaction.senderInfo.type === 'EXTERNAL_BANK' ? '🏦 Bank' :
+                 'External'}
+              </span>
             </>
           ) : (
-            <>
-              {/* Incoming transaction - extract sender info */}
-              {/* Check for QR Code Payment FIRST (MNO_TO_WALLET CREDIT with merchant indicators) */}
-              {/* Also check metadata.direction as fallback for older transactions */}
-              {(transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
-                (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
-                (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
-                <>
-                  {/* QR Code Payment - customer is the sender */}
-                  {transaction.metadata?.customerPhone ? (
-                    <>
-                      <span className="font-medium">
-                        {transaction.metadata.customerName || 'Customer'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 {transaction.metadata.customerPhone}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 Mobile Money
-                      </span>
-                    </>
-                  ) : transaction.metadata?.phoneNumber ? (
-                    <>
-                      <span className="font-medium">
-                        {transaction.metadata.userName || 'Mobile Money User'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 {transaction.metadata.phoneNumber}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 Mobile Money
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">External</span>
-                  )}
-                </>
-              ) : transaction.type === 'MERCHANT_TO_WALLET' || transaction.type === 'MERCHANT_TO_INTERNAL_WALLET' || transaction.type?.includes('MERCHANT_TO_WALLET') || transaction.type?.includes('MERCHANT_TO_INTERNAL_WALLET') ? (
-                <>
-                  {(() => {
-                    const isMerchant = transaction.metadata?.merchantName || transaction.metadata?.merchantCode
-                    const displayName = transaction.metadata?.merchantName ||
-                      transaction.metadata?.counterpartyInfo?.name ||
-                      getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser)
-
-                    return (
-                      <>
-                        <span className="font-medium">
-                          {displayName}
-                        </span>
-                        {isMerchant && transaction.metadata?.merchantCode && (
-                          <span className="text-xs text-gray-500">
-                            🏪 Code: {transaction.metadata.merchantCode}
-                          </span>
-                        )}
-                        {transaction.metadata?.accountNumber && (
-                          <span className="text-xs text-gray-500">
-                            Account: {transaction.metadata.accountNumber}
-                          </span>
-                        )}
-                        {isMerchant && (
-                          <span className="text-xs text-blue-600 font-medium">
-                            🏦 Internal Account
-                          </span>
-                        )}
-                      </>
-                    )
-                  })()}
-                </>
-              ) : transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET') ? (
-                <>
-                  {/* Regular MNO_TO_WALLET (not QR code payment) */}
-                  {transaction.metadata?.mnoProvider ? (
-                    <>
-                      <span className="font-medium">
-                        {transaction.metadata.mnoProvider} Mobile Money
-                      </span>
-                      {transaction.metadata.phoneNumber && (
-                        <span className="text-xs text-gray-500">
-                          📱 {transaction.metadata.phoneNumber}
-                        </span>
-                      )}
-                      {transaction.metadata.userName && (
-                        <span className="text-xs text-gray-500">
-                          👤 {transaction.metadata.userName}
-                        </span>
-                      )}
-                      <span className="text-xs text-blue-600 font-medium">
-                        {transaction.metadata.mnoProvider} Network
-                      </span>
-                    </>
-                  ) : transaction.metadata?.phoneNumber ? (
-                    <>
-                      <span className="font-medium">
-                        {transaction.metadata.userName || 'Mobile Money User'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 {transaction.metadata.phoneNumber}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        📱 Mobile Money
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">External</span>
-                  )}
-                </>
-              ) : transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyId || transaction.counterpartyUser ? (
-                <>
-                  <span className="font-medium">
-                    {transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
-                      ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
-                      : transaction.metadata?.counterpartyInfo?.name || transaction.metadata?.userName || 'RukaPay User'
-                    }
-                  </span>
-                  {transaction.counterpartyUser?.phone && (
-                    <span className="text-xs text-gray-500">
-                      📱 {transaction.counterpartyUser.phone}
-                    </span>
-                  )}
-                  {transaction.counterpartyId && (
-                    <span className="text-xs text-gray-500">
-                      📱 RukaPay ID: {transaction.counterpartyId.slice(0, 8)}...
-                    </span>
-                  )}
-                  <span className="text-xs text-blue-600 font-medium">
-                    🏦 RukaPay Subscriber
-                  </span>
-                </>
-              ) : transaction.metadata?.counterpartyInfo ? (
-                <>
-                  <span className="font-medium">
-                    {transaction.metadata.counterpartyInfo.name}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {transaction.metadata.counterpartyInfo.type === 'USER'
-                      ? '👤 Mobile User'
-                      : transaction.metadata.counterpartyInfo.type === 'UTILITY'
-                        ? '⚡ Utility'
-                        : transaction.metadata.counterpartyInfo.type === 'MERCHANT'
-                          ? '🏪 Merchant'
-                          : transaction.metadata.counterpartyInfo.type === 'MNO'
-                            ? '📱 Mobile Money'
-                            : transaction.metadata.counterpartyInfo.type
-                    }
-                  </span>
-                  {transaction.metadata.counterpartyInfo.type === 'USER' && (
-                    <span className="text-xs text-blue-600 font-medium">
-                      🏦 RukaPay Subscriber
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className="text-gray-500">External</span>
-              )}
-            </>
+            <span className="font-medium">
+              {getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)}
+            </span>
           )}
         </div>
       </TableCell>
@@ -535,36 +233,55 @@ export const TransactionTableRow = ({
           {transaction.type === 'REVERSAL' ? (
             <>
               <span className="font-medium text-green-600">
-                {getDisplayName(transaction.user, transaction.metadata) || transaction.user?.phone || transaction.user?.email || 'Wallet Owner'}
+                {transaction.receiverInfo?.name || getDisplayName(transaction.user, transaction.metadata) || 'Wallet Owner'}
               </span>
               <span className="text-xs text-gray-500">
-                📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                📱 {transaction.receiverInfo?.contact || transaction.user?.phone || transaction.user?.email || 'N/A'}
               </span>
-              <span className="text-xs text-green-600 font-medium">
-                💰 Credited Back
-              </span>
+              {transaction.receiverInfo?.walletType && (
+                <span className="text-xs text-gray-400">
+                  {transaction.receiverInfo.walletType.replace(/_/g, ' ')} wallet
+                </span>
+              )}
+              <span className="text-xs text-green-600 font-medium">💰 Credited Back</span>
               {transaction.metadata?.reversalReason && (
                 <span className="text-xs text-gray-500 italic">
                   Reason: {transaction.metadata.reversalReason}
                 </span>
               )}
             </>
-          ) : transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? (
+          ) : transaction.receiverInfo ? (
             <>
-              <span className="font-medium text-green-600">
-                {getDisplayName(transaction.user, transaction.metadata) || transaction.user?.phone || transaction.user?.email || 'RukaPay User'}
+              <span className={`font-medium ${transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin ? 'text-green-600' : ''}`}>
+                {transaction.receiverInfo.name}
               </span>
-              <span className="text-xs text-gray-500">
-                📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
-              </span>
-              {transaction.user?.userType === 'SUBSCRIBER' && (
-                <span className="text-xs text-blue-600 font-medium">
-                  🏦 RukaPay Subscriber
+              {transaction.receiverInfo.contact && (
+                <span className="text-xs text-gray-500">📱 {transaction.receiverInfo.contact}</span>
+              )}
+              {transaction.receiverInfo.merchantCode && (
+                <span className="text-xs text-gray-500">🏪 Code: {transaction.receiverInfo.merchantCode}</span>
+              )}
+              {transaction.receiverInfo.walletType && (
+                <span className="text-xs text-gray-400">
+                  {transaction.receiverInfo.walletType.replace(/_/g, ' ')} wallet
                 </span>
               )}
-              <span className="text-xs text-green-600 font-medium">
-                💰 Wallet Credit
+              <span className={`text-xs font-medium ${
+                transaction.receiverInfo.type === 'MERCHANT' ? 'text-blue-600' :
+                transaction.receiverInfo.type === 'SUBSCRIBER' ? 'text-blue-600' :
+                transaction.receiverInfo.type === 'PARTNER' ? 'text-blue-600' :
+                'text-gray-500'
+              }`}>
+                {transaction.receiverInfo.type === 'MERCHANT' ? '🏦 Merchant Account' :
+                 transaction.receiverInfo.type === 'SUBSCRIBER' ? '🏦 RukaPay Subscriber' :
+                 transaction.receiverInfo.type === 'PARTNER' ? 'API Partner' :
+                 transaction.receiverInfo.type === 'EXTERNAL_MNO' ? '📱 Mobile Money' :
+                 transaction.receiverInfo.type === 'EXTERNAL_BANK' ? '🏦 Bank Account' :
+                 'External'}
               </span>
+              {transaction.type === 'DEPOSIT' && transaction.metadata?.fundedByAdmin && (
+                <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
+              )}
             </>
           ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
             isBusinessLikeRecipientWallet &&
@@ -847,24 +564,56 @@ export const TransactionTableRow = ({
                 isBusinessLikeRecipientWallet &&
                 (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                 <>
-                  {/* QR Code Payment - merchant is the receiver: show business name, not owner name */}
-                  <span className="font-medium">
-                    {transaction.metadata?.merchantName ||
-                      transaction.user?.merchants?.[0]?.businessTradeName ||
-                      transaction.user?.merchant?.businessTradeName ||
-                      transaction.user?.profile?.merchantBusinessTradeName ||
-                      transaction.user?.profile?.businessTradeName ||
-                      transaction.user?.profile?.merchant_names ||
-                      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
-                  </span>
-                  {transaction.metadata?.merchantCode && (
-                    <span className="text-xs text-gray-500">
-                      🏪 Code: {transaction.metadata.merchantCode}
-                    </span>
-                  )}
-                  <span className="text-xs text-blue-600 font-medium">
-                    🏦 Merchant Account
-                  </span>
+                  {(() => {
+                    const walletType =
+                      transaction.metadata?.recipientWalletType ||
+                      transaction.metadata?.walletType ||
+                      transaction.wallet?.walletType;
+                    const isBusinessWallet =
+                      walletType === 'BUSINESS' ||
+                      walletType === 'BUSINESS_COLLECTION' ||
+                      walletType === 'BUSINESS_DISBURSEMENT' ||
+                      walletType === 'BUSINESS_LIQUIDATION';
+
+                    if (isBusinessWallet || transaction.metadata?.isPublicPayment) {
+                      const businessName =
+                        transaction.metadata?.merchantName ||
+                        transaction.user?.merchants?.[0]?.businessTradeName ||
+                        transaction.user?.merchant?.businessTradeName ||
+                        (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant');
+                      return (
+                        <>
+                          <span className="font-medium">{businessName}</span>
+                          {transaction.metadata?.merchantCode && (
+                            <span className="text-xs text-gray-500">
+                              🏪 Code: {transaction.metadata.merchantCode}
+                            </span>
+                          )}
+                          <span className="text-xs text-blue-600 font-medium">
+                            🏦 Merchant Account
+                          </span>
+                        </>
+                      );
+                    }
+
+                    const personalName =
+                      (transaction.user?.profile?.firstName && transaction.user?.profile?.lastName)
+                        ? `${transaction.user.profile.firstName} ${transaction.user.profile.lastName}`
+                        : transaction.user?.phone || transaction.user?.email || 'RukaPay User';
+                    return (
+                      <>
+                        <span className="font-medium">{personalName}</span>
+                        <span className="text-xs text-gray-500">
+                          📱 {transaction.user?.phone || transaction.user?.email || 'N/A'}
+                        </span>
+                        {transaction.user?.userType === 'SUBSCRIBER' && (
+                          <span className="text-xs text-blue-600 font-medium">
+                            🏦 RukaPay Subscriber
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                 (transaction.direction === 'CREDIT' || transaction.metadata?.direction === 'CREDIT') &&
