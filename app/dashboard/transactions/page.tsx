@@ -438,7 +438,10 @@ const TransactionsPage = () => {
         'Direction',
         'Amount',
         'Currency',
-        'Fee',
+        'RukaPay Fee',
+        'Partner Fee',
+        'Government Tax',
+        'Total Fee',
         'Net Amount',
         'Sender Name',
         'Sender Contact',
@@ -484,6 +487,65 @@ const TransactionsPage = () => {
             ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
             : (tx.user?.phone || tx.user?.email || 'N/A')
         
+        // Derive fee breakdown (reuses logic from UI components)
+        const amount = Number(tx.amount) || 0
+        const feeBreakdown = tx.metadata?.feeBreakdown || {}
+
+        const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0
+        const rukapayFee = rukapayFeeFromBreakdown > 0
+          ? rukapayFeeFromBreakdown
+          : (Number(tx.rukapayFee) || 0)
+
+        const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0
+        const partnerFee = partnerFeeFromBreakdown > 0
+          ? partnerFeeFromBreakdown
+          : (Number(tx.thirdPartyFee) || 0)
+
+        const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0
+        const governmentTax = govTaxFromBreakdown > 0
+          ? govTaxFromBreakdown
+          : (Number(tx.governmentTax) || 0)
+
+        const processingFee = feeBreakdown.processingFee || Number(tx.processingFee) || 0
+        const networkFee = feeBreakdown.networkFee || Number(tx.networkFee) || 0
+        const complianceFee = feeBreakdown.complianceFee || Number(tx.complianceFee) || 0
+        const telecomBankCharge = feeBreakdown.telecomBankCharge || 0
+
+        let calculatedTotalFees =
+          rukapayFee +
+          partnerFee +
+          governmentTax +
+          processingFee +
+          networkFee +
+          complianceFee +
+          telecomBankCharge
+
+        if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
+          calculatedTotalFees = Number(feeBreakdown.totalFee)
+        }
+
+        let finalTotalFee = calculatedTotalFees
+
+        if (finalTotalFee === 0) {
+          const feeField = Number(tx.fee) || 0
+          if (feeField > 0) {
+            finalTotalFee = feeField
+          } else {
+            const netAmountValue = Number(tx.netAmount) || 0
+            if (netAmountValue > 0 && amount !== netAmountValue) {
+              finalTotalFee = Math.abs(amount - netAmountValue)
+            }
+          }
+        }
+
+        // Net Amount:
+        // - For DEBIT: amount + all fees (total debited from sender)
+        // - For CREDIT: netAmount (amount received by wallet), falling back to amount
+        const netAmountForCsv =
+          tx.direction === 'DEBIT'
+            ? amount + finalTotalFee
+            : (Number(tx.netAmount) || amount)
+
         // Format date
         const dateTime = tx.createdAt 
           ? new Date(tx.createdAt).toLocaleString('en-US', {
@@ -513,10 +575,13 @@ const TransactionsPage = () => {
           escapeCSV(getChannelDisplay(tx.channel, tx.metadata).label),
           escapeCSV(tx.status || 'N/A'),
           escapeCSV(tx.direction || 'N/A'),
-          escapeCSV(Number(tx.amount) || 0),
+          escapeCSV(amount),
           escapeCSV(tx.currency || 'UGX'),
-          escapeCSV(Number(tx.fee) || 0),
-          escapeCSV(Number(tx.netAmount) || Number(tx.amount) || 0),
+          escapeCSV(rukapayFee),
+          escapeCSV(partnerFee),
+          escapeCSV(governmentTax),
+          escapeCSV(finalTotalFee),
+          escapeCSV(netAmountForCsv),
           escapeCSV(senderName),
           escapeCSV(senderContact),
           escapeCSV(receiverName),
