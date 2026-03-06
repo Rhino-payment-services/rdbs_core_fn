@@ -31,6 +31,66 @@ interface TransactionDetailsModalProps {
   onSelectTransaction?: (transaction: any) => void
 }
 
+function normalizeFeeBreakdown(transaction: any) {
+  const feeBreakdown = transaction?.metadata?.feeBreakdown || {};
+
+  const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
+  let rukapayFee =
+    rukapayFeeFromBreakdown > 0 ? rukapayFeeFromBreakdown : (Number(transaction?.rukapayFee) || 0);
+
+  const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
+  let partnerFee =
+    partnerFeeFromBreakdown > 0 ? partnerFeeFromBreakdown : (Number(transaction?.thirdPartyFee) || 0);
+
+  const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
+  let governmentTax =
+    govTaxFromBreakdown > 0 ? govTaxFromBreakdown : (Number(transaction?.governmentTax) || 0);
+
+  const processingFee = feeBreakdown.processingFee || Number(transaction?.processingFee) || 0;
+  const networkFee = feeBreakdown.networkFee || Number(transaction?.networkFee) || 0;
+  const complianceFee = feeBreakdown.complianceFee || Number(transaction?.complianceFee) || 0;
+  const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
+
+  let totalFee: number;
+
+  if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
+    totalFee = Number(feeBreakdown.totalFee);
+  } else {
+    const calculatedTotalFees =
+      rukapayFee +
+      partnerFee +
+      governmentTax +
+      processingFee +
+      networkFee +
+      complianceFee +
+      telecomBankCharge;
+
+    totalFee =
+      calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction?.fee) || 0);
+  }
+
+  if (rukapayFee === 0 && totalFee > 0) {
+    const otherComponents =
+      partnerFee +
+      governmentTax +
+      processingFee +
+      networkFee +
+      complianceFee +
+      telecomBankCharge;
+    const remaining = totalFee - otherComponents;
+    if (remaining > 0) {
+      rukapayFee = remaining;
+    }
+  }
+
+  return {
+    rukapayFee,
+    partnerFee,
+    governmentTax,
+    totalFee,
+  };
+}
+
 export const TransactionDetailsModal = ({
   isOpen,
   onOpenChange,
@@ -39,6 +99,8 @@ export const TransactionDetailsModal = ({
   onSelectTransaction
 }: TransactionDetailsModalProps) => {
   if (!transaction) return null
+
+  const { rukapayFee, partnerFee, governmentTax, totalFee } = normalizeFeeBreakdown(transaction)
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -197,86 +259,25 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-blue-600">RukaPay Fee:</span>
                   <span className="font-medium text-blue-600">
-                    {(() => {
-                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
-                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-                      const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-                      const rukapayFee = rukapayFeeFromBreakdown > 0 
-                        ? rukapayFeeFromBreakdown 
-                        : (Number(transaction.rukapayFee) || 0);
-                      
-                      return formatAmount(rukapayFee);
-                    })()}
+                    {formatAmount(rukapayFee)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-orange-600">Partner Fee:</span>
                   <span className="font-medium text-orange-600">
-                    {(() => {
-                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
-                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-                      const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
-                      const partnerFee = partnerFeeFromBreakdown > 0 
-                        ? partnerFeeFromBreakdown 
-                        : (Number(transaction.thirdPartyFee) || 0);
-                      
-                      return formatAmount(partnerFee);
-                    })()}
+                    {formatAmount(partnerFee)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-red-600">Government Tax:</span>
                   <span className="font-medium text-red-600">
-                    {(() => {
-                      // Use feeBreakdown as source of truth if available, otherwise use transaction fields
-                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-                      const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
-                      const govTax = govTaxFromBreakdown > 0 
-                        ? govTaxFromBreakdown 
-                        : (Number(transaction.governmentTax) || 0);
-                      
-                      return formatAmount(govTax);
-                    })()}
+                    {formatAmount(governmentTax)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-yellow-600 font-semibold">Total Fees:</span>
                   <span className="font-bold text-yellow-600">
-                    {(() => {
-                      // Use feeBreakdown as source of truth if available
-                      const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-                      
-                      if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
-                        return formatAmount(Number(feeBreakdown.totalFee));
-                      }
-                      
-                      // Otherwise, calculate from displayed individual fees (must match what's shown above)
-                      const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-                      const rukapayFee = rukapayFeeFromBreakdown > 0 
-                        ? rukapayFeeFromBreakdown 
-                        : (Number(transaction.rukapayFee) || 0);
-                      
-                      const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
-                      const thirdPartyFee = partnerFeeFromBreakdown > 0 
-                        ? partnerFeeFromBreakdown 
-                        : (Number(transaction.thirdPartyFee) || 0);
-                      
-                      const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
-                      const governmentTax = govTaxFromBreakdown > 0 
-                        ? govTaxFromBreakdown 
-                        : (Number(transaction.governmentTax) || 0);
-                      
-                      const processingFee = feeBreakdown.processingFee || Number(transaction.processingFee) || 0;
-                      const networkFee = feeBreakdown.networkFee || Number(transaction.networkFee) || 0;
-                      const complianceFee = feeBreakdown.complianceFee || Number(transaction.complianceFee) || 0;
-                      const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
-                      
-                      // Sum all fees (including telecomBankCharge if present)
-                      const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee + telecomBankCharge;
-                      
-                      // Use calculated total if > 0, otherwise fall back to transaction.fee
-                      return formatAmount(calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0));
-                    })()}
+                    {formatAmount(totalFee)}
                   </span>
                 </div>
                 <div className="flex justify-between border-t-2 pt-2 mt-2">
