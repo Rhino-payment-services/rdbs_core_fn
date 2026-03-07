@@ -78,9 +78,14 @@ const CustomerSettings = ({
     reference: ''
   })
 
-  // Merchant collection fee configuration state
+  // Merchant collection fee configuration state (synced from props when merchant data is refetched)
   const [collectionMode, setCollectionMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>(collectionFeeMode)
   const [customerSharePercent, setCustomerSharePercent] = useState<number>(collectionCustomerSharePercent ?? 0)
+
+  useEffect(() => {
+    if (collectionFeeMode) setCollectionMode(collectionFeeMode)
+    if (collectionCustomerSharePercent != null) setCustomerSharePercent(Number(collectionCustomerSharePercent))
+  }, [collectionFeeMode, collectionCustomerSharePercent])
 
   // Merchant feature flags state
   const [featureFlags, setFeatureFlags] = useState({
@@ -265,7 +270,12 @@ const CustomerSettings = ({
         payload.collectionCustomerSharePercent = customerSharePercent
       }
 
-      await api.patch(`/merchant-kyc/${merchantId}/fee-mode`, payload)
+      const res = await api.patch(`/merchant-kyc/${merchantId}/fee-mode`, payload)
+      const data = res?.data
+
+      // Persist on frontend: update local state so the dropdown reflects the saved value immediately
+      if (data?.collectionFeeMode) setCollectionMode(data.collectionFeeMode)
+      if (data?.collectionCustomerSharePercent != null) setCustomerSharePercent(Number(data.collectionCustomerSharePercent))
 
       toast.success('Merchant collection fee mode updated successfully.')
       onActionComplete?.()
