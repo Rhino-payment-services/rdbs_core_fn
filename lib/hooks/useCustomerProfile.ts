@@ -4,6 +4,7 @@ import { useUsers, useWalletTransactions, useUserActivityLogs, useApiPartner } f
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import { useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useActivityLogs } from '@/lib/hooks/useActivityLogs'
+import { useWallet } from '@/lib/hooks/useWallets'
 import type { Wallet } from '@/lib/types/api'
 import api from '@/lib/axios'
 
@@ -69,6 +70,15 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     
     return merchant || null
   }, [type, merchants, id])
+
+  // User ID to fetch wallet from wallet service (same source as Wallets page) for consistent balance
+  const userIdForWallet = useMemo(() => {
+    if (type === 'merchant' && merchantData?.userId) return merchantData.userId
+    if (type !== 'partner' && id) return id as string
+    return undefined
+  }, [type, merchantData?.userId, id])
+
+  const { data: walletByUserIdData } = useWallet(userIdForWallet || '')
 
   // Determine if gateway partner
   const isGatewayPartner: boolean = useMemo(() => {
@@ -217,7 +227,13 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     return wallets.find((wallet: any) => wallet && wallet.walletType === 'BUSINESS') || null
   }, [wallets])
 
-  const walletBalance = personalWallet || businessWallet || null
+  // Prefer wallet from wallet service (GET /wallet/:userId) so balance matches Wallets page and statement
+  const walletFromApi = useMemo(() => {
+    const raw = walletByUserIdData as any
+    return raw?.data ?? raw ?? null
+  }, [walletByUserIdData])
+
+  const walletBalance = walletFromApi || personalWallet || businessWallet || null
 
   // Loading state
   const isLoading = (type === 'partner' ? (partnerLoading || customerLoading) : customerLoading) || (type === 'merchant' && merchantsLoading)
