@@ -358,6 +358,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               currency={walletBalance?.currency || 'UGX'}
               merchantId={merchantData?.id}
               merchantCode={merchantData?.merchantCode}
+              collectionFeeMode={merchantData?.collectionFeeMode ?? undefined}
+              collectionCustomerSharePercent={merchantData?.collectionCustomerSharePercent ?? undefined}
               onActionComplete={() => {
                 window.location.reload()
               }}
