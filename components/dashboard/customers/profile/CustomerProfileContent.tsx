@@ -23,6 +23,7 @@ interface CustomerProfileContentProps {
   walletBalance: any
   currentBalance: number
   suspensionFund: number
+  disbursementWalletBalance: number | null
   avgTransactionValue: number
   successRate: number
   totalTransactions: number
@@ -54,6 +55,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   walletBalance,
   currentBalance,
   suspensionFund,
+  disbursementWalletBalance,
   avgTransactionValue,
   successRate,
   totalTransactions,
@@ -221,6 +223,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           totalTransactions,
           currentBalance,
           suspensionFund,
+          disbursementWalletBalance,
           successRate,
           status: customerStatus,
           joinDate: partner?.createdAt || merchantData?.onboardedAt || customer?.createdAt || 'N/A',

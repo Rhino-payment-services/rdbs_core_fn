@@ -78,7 +78,7 @@ const CustomerProfilePage = () => {
   })
 
   // Calculate stats
-  const { currentBalance, suspensionFund, avgTransactionValue, successRate } = useCustomerStats({
+  const { currentBalance, suspensionFund, disbursementWalletBalance, avgTransactionValue, successRate } = useCustomerStats({
     type,
     transactions: transactionsData?.transactions || [],
     partnerTransactions: partnerTransactionsData?.data?.data || partnerTransactionsData?.data || partnerTransactionsData?.transactions || [],
@@ -256,6 +256,7 @@ const CustomerProfilePage = () => {
             walletBalance={walletBalance}
             currentBalance={currentBalance}
             suspensionFund={suspensionFund}
+            disbursementWalletBalance={disbursementWalletBalance}
             avgTransactionValue={avgTransactionValue}
             successRate={successRate}
             totalTransactions={totalTransactions}
