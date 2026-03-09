@@ -455,37 +455,93 @@ const TransactionsPage = () => {
       
       // Convert transactions to CSV rows
       const csvRows = transactionsToExport.map((tx: any) => {
+        const metadata = tx.metadata || {}
+
+        const isPartnerCollectMno =
+          (tx.type === 'MNO_TO_WALLET' || tx.type?.includes('MNO_TO_WALLET')) &&
+          (tx.direction === 'CREDIT' || metadata.direction === 'CREDIT') &&
+          (tx.channel === 'API' || metadata.channel === 'API') &&
+          (tx.mode === 'PARTNER_COLLECT_MNO' ||
+            metadata.transactionModeCode === 'PARTNER_COLLECT_MNO' ||
+            metadata.mode === 'PARTNER_COLLECT_MNO') &&
+          (tx.partner ||
+            tx.partnerId ||
+            metadata.isApiPartnerTransaction ||
+            metadata.isPartnerTransaction ||
+            metadata.apiPartnerName)
+
         // Get sender info
-        const senderName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.metadata.adminName || 'Admin User')
-          : tx.direction === 'DEBIT' 
-            ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-                : 'Unknown User')
-            : (tx.metadata?.counterpartyInfo?.name || 'External')
-        
-        const senderContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.metadata.adminPhone || tx.metadata.adminEmail || 'Admin')
-          : tx.direction === 'DEBIT'
-            ? (tx.user?.phone || tx.user?.email || 'N/A')
-            : (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
-        
+        let senderName: string
+        let senderContact: string
+
+        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
+          senderName = metadata.adminName || 'Admin User'
+          senderContact = metadata.adminPhone || metadata.adminEmail || 'Admin'
+        } else if (isPartnerCollectMno) {
+          senderName =
+            tx.partner?.partnerName ||
+            metadata.apiPartnerName ||
+            tx.partner?.partnerCode ||
+            'API Partner'
+          senderContact =
+            tx.partner?.contactPhone ||
+            metadata.partnerPhone ||
+            tx.partner?.contactEmail ||
+            'N/A'
+        } else if (tx.direction === 'DEBIT') {
+          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            senderName = tx.user?.phone || tx.user?.email || 'Unknown User'
+          }
+          senderContact = tx.user?.phone || tx.user?.email || 'N/A'
+        } else {
+          senderName = metadata.counterpartyInfo?.name || 'External'
+          senderContact =
+            metadata.counterpartyInfo?.accountNumber ||
+            metadata.counterpartyInfo?.phone ||
+            'N/A'
+        }
+
         // Get receiver info
-        const receiverName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-              : tx.user?.phone || tx.user?.email || 'RukaPay User')
-          : tx.direction === 'DEBIT'
-            ? (tx.metadata?.counterpartyInfo?.name || 'External')
-            : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-                : 'Unknown User')
-        
-        const receiverContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.user?.phone || tx.user?.email || 'N/A')
-          : tx.direction === 'DEBIT'
-            ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
-            : (tx.user?.phone || tx.user?.email || 'N/A')
+        let receiverName: string
+        let receiverContact: string
+
+        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
+          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
+          }
+          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
+        } else if (isPartnerCollectMno) {
+          if (metadata.receiverName) {
+            receiverName = metadata.receiverName
+          } else if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
+          }
+          receiverContact =
+            metadata.userPhoneNumber ||
+            metadata.receiverPhone ||
+            tx.user?.phone ||
+            tx.user?.email ||
+            'N/A'
+        } else if (tx.direction === 'DEBIT') {
+          receiverName = metadata.counterpartyInfo?.name || 'External'
+          receiverContact =
+            metadata.counterpartyInfo?.accountNumber ||
+            metadata.counterpartyInfo?.phone ||
+            'N/A'
+        } else {
+          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'Unknown User'
+          }
+          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
+        }
         
         // Derive fee breakdown (reuses logic from UI components)
         const amount = Number(tx.amount) || 0
