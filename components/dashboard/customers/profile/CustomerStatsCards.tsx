@@ -1,8 +1,7 @@
 "use client"
 
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { 
   CreditCard,
   TrendingUp,
@@ -20,7 +19,8 @@ interface CustomerStatsCardsProps {
   stats: {
     totalTransactions: number
     currentBalance: number
-    suspensionFund: number // Change from avgTransactionValue
+    suspensionFund: number
+    disbursementWalletBalance: number | null
     successRate: number
     status: string
     joinDate: string
@@ -61,20 +61,22 @@ const CustomerStatsCards = ({ stats }: CustomerStatsCardsProps) => {
         </CardContent>
       </Card>
 
-      {/* Suspension Fund */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Suspension Fund</p>
-              <p className="text-xl font-bold text-gray-900">
-                {(stats.suspensionFund ?? 0).toLocaleString()} {stats.currency}
-              </p>
+      {/* Disbursement Wallet (if available) */}
+      {stats.disbursementWalletBalance !== null && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Disbursement Wallet</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {(stats.disbursementWalletBalance ?? 0).toLocaleString()} {stats.currency}
+                </p>
+              </div>
+              <Shield className="h-6 w-6 text-red-600" />
             </div>
-            <Shield className="h-6 w-6 text-red-600" />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Success Rate */}
       <Card>
