@@ -550,21 +550,44 @@ const TransactionsPage = () => {
         }
 
         // Get receiver info
-        const receiverName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-              : tx.user?.phone || tx.user?.email || 'RukaPay User')
-          : tx.direction === 'DEBIT'
-            ? (tx.metadata?.counterpartyInfo?.name || 'External')
-            : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-                : 'Unknown User')
-        
-        const receiverContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
-          ? (tx.user?.phone || tx.user?.email || 'N/A')
-          : tx.direction === 'DEBIT'
-            ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
-            : (tx.user?.phone || tx.user?.email || 'N/A')
+        let receiverName: string
+        let receiverContact: string
+
+        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
+          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
+          }
+          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
+        } else if (isPartnerCollectMno) {
+          if (metadata.receiverName) {
+            receiverName = metadata.receiverName
+          } else if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
+          }
+          receiverContact =
+            metadata.userPhoneNumber ||
+            metadata.receiverPhone ||
+            tx.user?.phone ||
+            tx.user?.email ||
+            'N/A'
+        } else if (tx.direction === 'DEBIT') {
+          receiverName = metadata.counterpartyInfo?.name || 'External'
+          receiverContact =
+            metadata.counterpartyInfo?.accountNumber ||
+            metadata.counterpartyInfo?.phone ||
+            'N/A'
+        } else {
+          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
+            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+          } else {
+            receiverName = tx.user?.phone || tx.user?.email || 'Unknown User'
+          }
+          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
+        }
 
         // Wallet-to-bank specific fields from metadata
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
