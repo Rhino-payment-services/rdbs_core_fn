@@ -552,6 +552,7 @@ const TransactionsPage = () => {
         // Get receiver info
         let receiverName: string
         let receiverContact: string
+        
 
         if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
           if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
