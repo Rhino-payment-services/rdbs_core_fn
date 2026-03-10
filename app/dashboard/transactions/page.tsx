@@ -550,44 +550,24 @@ const TransactionsPage = () => {
         }
 
         // Get receiver info
-        let receiverName: string
-        let receiverContact: string
+        const receiverName = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+              ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+              : tx.user?.phone || tx.user?.email || 'RukaPay User')
+          : tx.direction === 'DEBIT'
+            ? (tx.metadata?.counterpartyInfo?.name || 'External')
+            : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
+                ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
+                : 'Unknown User')
+        
+        const receiverContact = tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin
+          ? (tx.user?.phone || tx.user?.email || 'N/A')
+          : tx.direction === 'DEBIT'
+            ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
+            : (tx.user?.phone || tx.user?.email || 'N/A')
 
-        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
-          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-          } else {
-            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
-          }
-          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
-        } else if (isPartnerCollectMno) {
-          if (metadata.receiverName) {
-            receiverName = metadata.receiverName
-          } else if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-          } else {
-            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
-          }
-          receiverContact =
-            metadata.userPhoneNumber ||
-            metadata.receiverPhone ||
-            tx.user?.phone ||
-            tx.user?.email ||
-            'N/A'
-        } else if (tx.direction === 'DEBIT') {
-          receiverName = metadata.counterpartyInfo?.name || 'External'
-          receiverContact =
-            metadata.counterpartyInfo?.accountNumber ||
-            metadata.counterpartyInfo?.phone ||
-            'N/A'
-        } else {
-          if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-          } else {
-            receiverName = tx.user?.phone || tx.user?.email || 'Unknown User'
-          }
-          receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
-        }
+        // Wallet-to-bank specific fields from metadata
+        const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         
         // Derive fee breakdown (reuses logic from UI components)
         const amount = Number(tx.amount) || 0
@@ -686,7 +666,7 @@ const TransactionsPage = () => {
           escapeCSV(netAmountForCsv),
           escapeCSV(senderName),
           escapeCSV(senderContact),
-          escapeCSV(finalReceiverName),
+          escapeCSV(walletToBankReceiverName || receiverName),
           escapeCSV(receiverContact),
           escapeCSV(bankName),
           escapeCSV(getPartnerLabel(tx)),
