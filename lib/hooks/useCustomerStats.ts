@@ -40,7 +40,7 @@ export const useCustomerStats = ({
     )
   }, [type, partnerWallets])
 
-  // Calculate suspension fund
+  // Calculate suspension fund (escrow / reserve / suspension wallets)
   const suspensionFund = useMemo(() => {
     if (type === 'partner') {
       if (Array.isArray(escrowWallets) && escrowWallets.length > 0) {
@@ -66,6 +66,26 @@ export const useCustomerStats = ({
       return 0
     }
   }, [type, escrowWallets, wallets])
+
+  // Disbursement wallet balance (BUSINESS_DISBURSEMENT or BUSINESS_LIQUIDATION)
+  const disbursementWalletBalance = useMemo(() => {
+    const sourceWallets =
+      type === 'partner'
+        ? Array.isArray(partnerWallets) ? partnerWallets : EMPTY_ARRAY
+        : Array.isArray(wallets) ? wallets : EMPTY_ARRAY
+
+    if (!Array.isArray(sourceWallets) || sourceWallets.length === 0) return null
+
+    const disbursementWallet = sourceWallets.find((w: any) =>
+      w?.walletType === 'BUSINESS_DISBURSEMENT' ||
+      w?.walletType === 'BUSINESS_LIQUIDATION'
+    )
+
+    if (!disbursementWallet) return null
+
+    const balance = disbursementWallet.balance ? parseFloat(disbursementWallet.balance.toString()) : 0
+    return isNaN(balance) ? 0 : balance
+  }, [type, partnerWallets, wallets])
 
   // Calculate current balance
   const currentBalance = useMemo(() => {
@@ -101,6 +121,7 @@ export const useCustomerStats = ({
   return {
     currentBalance,
     suspensionFund,
+    disbursementWalletBalance,
     avgTransactionValue,
     successRate
   }
