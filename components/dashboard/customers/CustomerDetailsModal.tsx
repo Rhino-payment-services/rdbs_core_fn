@@ -66,6 +66,11 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
 
   const sweepMutation = useSweepCollectionToDisbursement()
 
+  const SWEEP_FEE_PERCENT = 2.5
+  const sweepGross = parseFloat(sweepAmount) || 0
+  const sweepFee = Number((sweepGross * SWEEP_FEE_PERCENT / 100).toFixed(0))
+  const sweepNet = sweepGross - sweepFee
+
   // Check if user is admin
   const isAdmin = session?.user && (
     (session.user as any).role === 'ADMIN' || 
@@ -230,13 +235,13 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
         amount,
         merchantCode: (customer as any)?.merchantCode,
       })
-      toast.success(`Successfully liquidated ${formatCurrency(amount)} to disbursement wallet`)
+      toast.success(`Liquidated ${formatCurrency(amount)} gross → ${formatCurrency(amount - Math.round(amount * 2.5 / 100))} net to disbursement`)
       setSweepModalOpen(false)
       setSweepAmount('')
       await fetchUserWallets()
       await fetchUserTransactions()
     } catch (error: any) {
-      toast.error(error?.message || error?.data?.message || 'Failed to liquidate collections')
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to liquidate collections')
     }
   }
 
@@ -1025,26 +1030,45 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ArrowRightLeft className="h-5 w-5 text-amber-600" />
-              Liquidate collections
+              Liquidate collections → disbursement
             </DialogTitle>
             <p className="text-sm text-gray-500">
-              Transfer from collection wallet to disbursement. Available: {formatCurrency(Number(collectionWallet?.balance) || 0)}
+              Available in collection: <span className="font-semibold text-green-600">{formatCurrency(Number(collectionWallet?.balance) || 0)}</span>
             </p>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="sweep-amount">Amount (UGX)</Label>
+              <Label htmlFor="sweep-amount">Gross amount (UGX)</Label>
               <Input
                 id="sweep-amount"
                 type="number"
                 min={1}
                 max={Number(collectionWallet?.balance) || 0}
-                placeholder="Enter amount"
+                placeholder="Enter gross amount to transfer"
                 value={sweepAmount}
                 onChange={(e) => setSweepAmount(e.target.value)}
                 className="mt-2"
               />
             </div>
+
+            {/* Fee breakdown preview */}
+            {sweepGross > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1 text-sm">
+                <div className="flex justify-between text-gray-700">
+                  <span>Gross amount</span>
+                  <span className="font-medium">{formatCurrency(sweepGross)}</span>
+                </div>
+                <div className="flex justify-between text-red-600">
+                  <span>RukaPay fee ({SWEEP_FEE_PERCENT}%)</span>
+                  <span>− {formatCurrency(sweepFee)}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-green-700 border-t border-amber-200 pt-1 mt-1">
+                  <span>Net to disbursement</span>
+                  <span>{formatCurrency(sweepNet)}</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -1059,8 +1083,9 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 onClick={handleLiquidateCollections}
                 disabled={
                   !sweepAmount ||
-                  parseFloat(sweepAmount) <= 0 ||
-                  parseFloat(sweepAmount) > (Number(collectionWallet?.balance) || 0) ||
+                  sweepGross <= 0 ||
+                  sweepNet <= 0 ||
+                  sweepGross > (Number(collectionWallet?.balance) || 0) ||
                   sweepMutation.isPending
                 }
                 className="bg-amber-600 hover:bg-amber-700"
@@ -1073,7 +1098,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                 ) : (
                   <>
                     <ArrowRightLeft className="h-4 w-4 mr-2" />
-                    Liquidate {sweepAmount && parseFloat(sweepAmount) > 0 ? formatCurrency(parseFloat(sweepAmount)) : ''}
+                    Confirm {sweepGross > 0 ? `(${formatCurrency(sweepGross)} gross)` : ''}
                   </>
                 )}
               </Button>
