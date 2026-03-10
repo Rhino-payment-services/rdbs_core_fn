@@ -328,6 +328,51 @@ const TransactionsPage = () => {
     }
   }
 
+  // Helper to safely get Bank Name and Receiver Name for WALLET_TO_BANK transactions (for CSV/export)
+  const getBankAndReceiverForExport = (tx: any) => {
+    try {
+      const metadata = tx?.metadata || {}
+      const original = metadata.originalTransaction || {}
+      const mode = tx?.type || metadata.mode || original.mode
+
+      const isWalletToBank =
+        mode === 'WALLET_TO_BANK' ||
+        metadata.mode === 'WALLET_TO_BANK' ||
+        original.mode === 'WALLET_TO_BANK'
+
+      if (!isWalletToBank) {
+        return {
+          bankName: '',
+          receiverName: '',
+        }
+      }
+
+      const bankName =
+        original.bankName ||
+        metadata.bankName ||
+        original.bank ||
+        metadata.bank ||
+        metadata.counterpartyInfo?.bankName ||
+        ''
+
+      const receiverName =
+        original.recipientName ||
+        metadata.recipientName ||
+        metadata.counterpartyInfo?.name ||
+        ''
+
+      return {
+        bankName,
+        receiverName,
+      }
+    } catch {
+      return {
+        bankName: '',
+        receiverName: '',
+      }
+    }
+  }
+
   // Export transactions to CSV
   const exportTransactionsToCSV = async (exportAll: boolean = false, customStartDate?: string, customEndDate?: string) => {
     setIsExporting(true)
@@ -447,6 +492,7 @@ const TransactionsPage = () => {
         'Sender Contact',
         'Receiver Name',
         'Receiver Contact',
+        'Bank Name',
         'Partner',
         'Date & Time',
         'Description',
@@ -486,6 +532,10 @@ const TransactionsPage = () => {
           : tx.direction === 'DEBIT'
             ? (tx.metadata?.counterpartyInfo?.accountNumber || tx.metadata?.counterpartyInfo?.phone || 'N/A')
             : (tx.user?.phone || tx.user?.email || 'N/A')
+
+        // Wallet-to-bank specific fields from metadata
+        const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
+        const finalReceiverName = walletToBankReceiverName || receiverName
         
         // Derive fee breakdown (reuses logic from UI components)
         const amount = Number(tx.amount) || 0
@@ -584,8 +634,9 @@ const TransactionsPage = () => {
           escapeCSV(netAmountForCsv),
           escapeCSV(senderName),
           escapeCSV(senderContact),
-          escapeCSV(receiverName),
+          escapeCSV(finalReceiverName),
           escapeCSV(receiverContact),
+          escapeCSV(bankName),
           escapeCSV(getPartnerLabel(tx)),
           escapeCSV(dateTime),
           escapeCSV(tx.description || 'N/A'),
