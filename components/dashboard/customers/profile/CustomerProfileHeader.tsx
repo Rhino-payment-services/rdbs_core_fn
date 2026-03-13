@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { 
+import {
   ArrowLeft,
   Download,
   Edit,
@@ -18,9 +18,10 @@ import {
   Key,
   Settings,
   Crown,
-  Users
+  Users,
+  Wallet as WalletIcon,
 } from 'lucide-react'
-import { Wallet } from '@/lib/types/api'
+import type { Wallet } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from '../MerchantQRCodeDialog'
 
 interface CustomerProfileHeaderProps {
@@ -184,7 +185,7 @@ const CustomerProfileHeader = ({
                     onClick={onLiquidateToDisbursement}
                     className="flex items-center gap-2 cursor-pointer text-amber-700"
                   >
-                    <Wallet className="h-4 w-4" />
+                    <WalletIcon className="h-4 w-4" />
                     Liquidate to Disbursement
                   </DropdownMenuItem>
                 )}
