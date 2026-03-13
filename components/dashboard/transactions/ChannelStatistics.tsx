@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
-import { Calendar, Loader2, Smartphone, Phone, Code, Building2, Store, Users } from 'lucide-react'
+import { Calendar, Loader2, Smartphone, Phone, Code, Building2, Store, Users, School } from 'lucide-react'
 import { formatAmount } from '@/lib/utils/transactions'
 
 interface ChannelData {
@@ -26,7 +26,8 @@ export const ChannelStatistics = ({ channelStatsData, isLoading, startDate, endD
     { channel: 'BACKOFFICE', label: 'Back Office', icon: Building2, color: 'border-indigo-200 bg-indigo-50' },
     { channel: 'MERCHANT_PORTAL', label: 'Merchant Portal', icon: Store, color: 'border-orange-200 bg-orange-50' },
     { channel: 'AGENT_PORTAL', label: 'Agent Portal', icon: Users, color: 'border-teal-200 bg-teal-50' },
-    { channel: 'PARTNER_PORTAL', label: 'Partner Portal', icon: Users, color: 'border-pink-200 bg-pink-50' }
+    { channel: 'PARTNER_PORTAL', label: 'Partner Portal', icon: Users, color: 'border-pink-200 bg-pink-50' },
+    { channel: 'SHULE', label: 'Rukapay Shule', icon: School, color: 'border-emerald-200 bg-emerald-50' }
   ]
 
   // Backend returns channels directly, not wrapped in data property

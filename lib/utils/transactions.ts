@@ -4,7 +4,8 @@ import {
   Code,
   Building2,
   Store,
-  Users
+  Users,
+  School
 } from 'lucide-react'
 
 /**
@@ -267,7 +268,13 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       icon: Users,
       color: 'text-pink-600',
       bgColor: 'bg-pink-50 border-pink-200'
-    }
+    },
+    SHULE: {
+      label: 'Rukapay Shule',
+      icon: School,
+      color: 'text-emerald-700',
+      bgColor: 'bg-emerald-50 border-emerald-200'
+    },
   }
   
   // Find exact match or pattern match
