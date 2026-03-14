@@ -34,10 +34,13 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
     )
   }
 
+  const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
+  const creditLabel = isSweep && (metadata?.creditWalletType || 'Disbursement')
+
   if (transaction.receiverInfo) {
     return (
       <TableCell>
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-[0.5px]">
           <PartyDisplay
             info={transaction.receiverInfo}
             nameClassName={transaction.type === 'DEPOSIT' && metadata.fundedByAdmin ? 'text-green-600' : ''}
@@ -45,6 +48,9 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
               <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
             ) : undefined}
           />
+          {creditLabel && (
+            <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
+          )}
         </div>
       </TableCell>
     )
@@ -52,8 +58,11 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
 
   return (
     <TableCell>
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-[0.5px]">
         <LegacyReceiverDisplay transaction={transaction} derived={derived} />
+        {creditLabel && (
+          <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
+        )}
       </div>
     </TableCell>
   )
