@@ -371,6 +371,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               customerStatus={customer?.status || 'unknown'}
               customerPhone={customer?.profile?.phone || customer?.phone || ''}
               walletBalance={walletBalance?.balance || 0}
+              walletId={walletBalance?.id}
               currency={walletBalance?.currency || 'UGX'}
               merchantId={merchantData?.id}
               merchantCode={merchantData?.merchantCode}

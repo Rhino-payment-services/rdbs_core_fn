@@ -202,7 +202,11 @@ export interface Transaction {
   
   // Bulk transaction
   bulkTransactionId?: string | null
-  
+
+  // Wallet balance snapshot at time of transaction
+  balanceBefore?: number | null
+  balanceAfter?: number | null
+
   // Timestamps
   processedAt?: string | null
   createdAt: string
