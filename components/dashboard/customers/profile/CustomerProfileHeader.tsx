@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { 
+import {
   ArrowLeft,
   Download,
   Edit,
@@ -18,9 +18,10 @@ import {
   Key,
   Settings,
   Crown,
-  Users
+  Users,
+  Wallet as WalletIcon,
 } from 'lucide-react'
-import { Wallet } from '@/lib/types/api'
+import type { Wallet } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from '../MerchantQRCodeDialog'
 
 interface CustomerProfileHeaderProps {
@@ -60,6 +61,7 @@ interface CustomerProfileHeaderProps {
   onRevokeSuperMerchant?: () => void
   onManageChildMerchants?: () => void
   isSuperAdmin?: boolean
+  onLiquidateToDisbursement?: () => void
 }
 
 const CustomerProfileHeader = ({ 
@@ -72,7 +74,8 @@ const CustomerProfileHeader = ({
   onGrantSuperMerchant,
   onRevokeSuperMerchant,
   onManageChildMerchants,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  onLiquidateToDisbursement,
 }: CustomerProfileHeaderProps) => {
   const getCustomerTypeBadge = (type: string) => {
     switch (type) {
@@ -173,10 +176,19 @@ const CustomerProfileHeader = ({
                 Go to Settings
               </DropdownMenuItem>
             )}
-            {/* Super Merchant Actions - Only for SUPER_ADMIN on merchant profiles */}
+            {/* Admin merchant actions - Only for SUPER_ADMIN on merchant profiles */}
             {isSuperAdmin && isMerchant && (
               <>
                 <DropdownMenuSeparator />
+                {onLiquidateToDisbursement && (
+                  <DropdownMenuItem
+                    onClick={onLiquidateToDisbursement}
+                    className="flex items-center gap-2 cursor-pointer text-amber-700"
+                  >
+                    <WalletIcon className="h-4 w-4" />
+                    Liquidate to Disbursement
+                  </DropdownMenuItem>
+                )}
                 {isSuperMerchant ? (
                   <>
                     <DropdownMenuItem onClick={onManageChildMerchants} className="flex items-center gap-2 cursor-pointer text-yellow-700">

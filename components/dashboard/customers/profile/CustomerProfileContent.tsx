@@ -7,6 +7,7 @@ import CustomerOverview from './CustomerOverview'
 import CustomerTransactions from './CustomerTransactions'
 import CustomerActivity from './CustomerActivity'
 import CustomerSettings from './CustomerSettings'
+import LiquidateToDisbursementModal from './LiquidateToDisbursementModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { User, CreditCard, Activity, Settings } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -76,6 +77,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   isSuperAdmin = false
 }) => {
   const [activeTab, setActiveTab] = React.useState("overview")
+  const [liquidateOpen, setLiquidateOpen] = React.useState(false)
 
   const handleExport = () => {
     toast.success('Exporting customer data...')
@@ -216,6 +218,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
         onRevokeSuperMerchant={onRevokeSuperMerchant}
         onManageChildMerchants={onManageChildMerchants}
         isSuperAdmin={isSuperAdmin}
+        onLiquidateToDisbursement={() => setLiquidateOpen(true)}
       />
 
       <CustomerStatsCards
@@ -232,6 +235,16 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           currency: walletBalance?.currency || 'UGX'
         }}
       />
+
+      {/* Admin: liquidate collection → disbursement for merchants */}
+      {isSuperAdmin && (customer?.subscriberType === 'MERCHANT' || merchantData) && (
+        <LiquidateToDisbursementModal
+          open={liquidateOpen}
+          onOpenChange={setLiquidateOpen}
+          userId={merchantData?.userId || customer?.id || ''}
+          merchantCode={merchantData?.merchantCode || customer?.merchantCode}
+        />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">

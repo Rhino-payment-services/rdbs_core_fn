@@ -209,7 +209,7 @@ export const TransactionDetailsModal = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Type:</span>
-                  <span className="font-medium text-gray-900">{getTypeDisplay(transaction.type, transaction.direction)}</span>
+                  <span className="font-medium text-gray-900">{getTypeDisplay(transaction.type, transaction.direction, transaction)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Partner:</span>

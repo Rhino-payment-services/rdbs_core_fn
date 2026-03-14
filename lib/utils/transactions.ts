@@ -4,7 +4,8 @@ import {
   Code,
   Building2,
   Store,
-  Users
+  Users,
+  School
 } from 'lucide-react'
 
 /**
@@ -165,13 +166,25 @@ export const getContactInfo = (user: any, metadata?: any, counterpartyUser?: any
 
 /**
  * Get transaction type display name
+ * Pass optional transaction (or metadata + reference) to detect sweep/liquidation
  */
-export const getTypeDisplay = (type: string, direction?: string) => {
+export const getTypeDisplay = (
+  type: string,
+  direction?: string,
+  transactionOrMeta?: { metadata?: any; reference?: string } | null
+) => {
+  const meta = transactionOrMeta?.metadata ?? transactionOrMeta
+  const reference = transactionOrMeta && 'reference' in transactionOrMeta ? transactionOrMeta.reference : (meta as any)?.reference
+  const isSweep =
+    type === 'WALLET_TO_WALLET' &&
+    (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
+  if (isSweep) return 'Liquidate'
+
   // Special handling for MERCHANT_TO_WALLET based on direction
   if ((type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET') && direction === 'DEBIT') {
     return 'Sent from Merchant'
   }
-  
+
   const typeMap = {
     // P2P and Internal Transfers
     WALLET_TO_WALLET: 'P2P Transfer',
@@ -267,7 +280,13 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       icon: Users,
       color: 'text-pink-600',
       bgColor: 'bg-pink-50 border-pink-200'
-    }
+    },
+    SHULE: {
+      label: 'Rukapay Shule',
+      icon: School,
+      color: 'text-emerald-700',
+      bgColor: 'bg-emerald-50 border-emerald-200'
+    },
   }
   
   // Find exact match or pattern match
