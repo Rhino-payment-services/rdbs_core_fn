@@ -179,6 +179,8 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
                   <TableHead>Amount</TableHead>
                   <TableHead>Fee</TableHead>
                   <TableHead>Net Amount</TableHead>
+                  <TableHead>Bal. Before</TableHead>
+                  <TableHead>Bal. After</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Reference</TableHead>
@@ -214,6 +216,16 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
                     </TableCell>
                     <TableCell className="font-medium">
                       {formatCurrency(getDisplayNetAmount(transaction))}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-500 font-mono">
+                      {transaction.balanceBefore != null
+                        ? formatCurrency(Number(transaction.balanceBefore))
+                        : <span className="text-gray-300">—</span>}
+                    </TableCell>
+                    <TableCell className={`text-sm font-mono font-medium ${transaction.balanceAfter != null ? 'text-blue-700' : ''}`}>
+                      {transaction.balanceAfter != null
+                        ? formatCurrency(Number(transaction.balanceAfter))
+                        : <span className="text-gray-300">—</span>}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(transaction.status)}

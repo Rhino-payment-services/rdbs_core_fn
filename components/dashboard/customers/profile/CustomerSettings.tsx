@@ -33,6 +33,7 @@ interface CustomerSettingsProps {
   customerStatus: string
   customerPhone?: string
   walletBalance?: number
+  walletId?: string
   currency?: string
   merchantId?: string
   onActionComplete?: () => void
@@ -46,7 +47,8 @@ const CustomerSettings = ({
   customerId, 
   customerStatus,
   customerPhone = '',
-  walletBalance = 0, 
+  walletBalance = 0,
+  walletId,
   currency = 'UGX',
   onActionComplete,
   merchantId,
@@ -187,36 +189,46 @@ const CustomerSettings = ({
   }
 
   const handleManualTransaction = async () => {
-    if (!transactionForm.amount || !transactionForm.description) {
-      toast.error('Please fill in all required fields')
+    const parsedAmount = parseFloat(transactionForm.amount)
+    if (!transactionForm.amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error('Please enter a valid positive amount')
+      return
+    }
+    if (!transactionForm.description.trim()) {
+      toast.error('Please enter a description')
+      return
+    }
+    if (!walletId) {
+      toast.error('Wallet ID is not available for this customer. Cannot process transaction.')
       return
     }
 
+    // CREDIT → positive amount; DEBIT → negative amount (fund endpoint accepts both)
+    const signedAmount = transactionForm.type === 'DEBIT' ? -parsedAmount : parsedAmount
+
     setIsLoading(true)
     try {
-      // API call to create manual transaction
-      const response = await fetch(`/api/transactions/manual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: customerId,
-          type: transactionForm.type,
-          amount: parseFloat(transactionForm.amount),
-          description: transactionForm.description,
-          reference: transactionForm.reference || `MANUAL_${Date.now()}`
-        })
+      const res = await api.post(`/wallet/admin/${walletId}/fund`, {
+        amount: signedAmount,
+        reason: transactionForm.description.trim(),
+        reference: transactionForm.reference.trim() || `MANUAL_${Date.now()}`,
       })
 
-      if (response.ok) {
-        toast.success('Manual transaction created successfully')
-        setManualTransactionDialogOpen(false)
-        setTransactionForm({ type: 'CREDIT', amount: '', description: '', reference: '' })
-        onActionComplete?.()
-      } else {
-        throw new Error('Failed to create manual transaction')
-      }
-    } catch (error) {
-      toast.error('Failed to create manual transaction')
+      const data = res.data
+      const newBalance = data?.balanceAfter ?? data?.wallet?.balance
+      const balMsg = newBalance != null
+        ? ` New balance: ${Number(newBalance).toLocaleString()} ${currency}`
+        : ''
+
+      toast.success(
+        `${transactionForm.type === 'CREDIT' ? 'Credit' : 'Debit'} of ${parsedAmount.toLocaleString()} ${currency} applied.${balMsg}`
+      )
+      setManualTransactionDialogOpen(false)
+      setTransactionForm({ type: 'CREDIT', amount: '', description: '', reference: '' })
+      onActionComplete?.()
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Failed to create manual transaction'
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
@@ -542,10 +554,18 @@ const CustomerSettings = ({
                   <DialogHeader>
                     <DialogTitle>Create Manual Transaction</DialogTitle>
                     <DialogDescription>
-                      Create a manual transaction to credit or debit the user's account
+                      Directly credit or debit this wallet. The change is recorded in the ledger.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+                    {/* Current balance context */}
+                    <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-2 text-sm">
+                      <span className="text-gray-500">Current balance</span>
+                      <span className="font-semibold text-gray-800">
+                        {walletBalance.toLocaleString()} {currency}
+                      </span>
+                    </div>
+
                     <div>
                       <Label htmlFor="type">Transaction Type *</Label>
                       <Select value={transactionForm.type} onValueChange={(value) => setTransactionForm({...transactionForm, type: value})}>
@@ -559,20 +579,33 @@ const CustomerSettings = ({
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="amount">Amount *</Label>
+                      <Label htmlFor="amount">Amount ({currency}) *</Label>
                       <Input
                         id="amount"
                         type="number"
+                        min={1}
                         placeholder="Enter amount"
                         value={transactionForm.amount}
                         onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
                       />
+                      {/* Balance preview */}
+                      {transactionForm.amount && !Number.isNaN(parseFloat(transactionForm.amount)) && parseFloat(transactionForm.amount) > 0 && (
+                        <div className="mt-1 flex items-center justify-between rounded border border-dashed px-3 py-1.5 text-xs text-gray-600">
+                          <span>Balance after this transaction</span>
+                          <span className={`font-semibold ${transactionForm.type === 'CREDIT' ? 'text-green-700' : 'text-red-600'}`}>
+                            {(transactionForm.type === 'CREDIT'
+                              ? walletBalance + parseFloat(transactionForm.amount)
+                              : walletBalance - parseFloat(transactionForm.amount)
+                            ).toLocaleString()} {currency}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <Label htmlFor="description">Description *</Label>
+                      <Label htmlFor="description">Description / Reason *</Label>
                       <Textarea
                         id="description"
-                        placeholder="Enter transaction description..."
+                        placeholder="Enter reason for this adjustment..."
                         value={transactionForm.description}
                         onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
                       />
@@ -581,18 +614,22 @@ const CustomerSettings = ({
                       <Label htmlFor="reference">Reference (Optional)</Label>
                       <Input
                         id="reference"
-                        placeholder="Enter reference number"
+                        placeholder="Auto-generated if left blank"
                         value={transactionForm.reference}
                         onChange={(e) => setTransactionForm({...transactionForm, reference: e.target.value})}
                       />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setManualTransactionDialogOpen(false)}>
+                    <Button variant="outline" onClick={() => setManualTransactionDialogOpen(false)} disabled={isLoading}>
                       Cancel
                     </Button>
-                    <Button onClick={handleManualTransaction} disabled={isLoading}>
-                      {isLoading ? 'Creating...' : 'Create Transaction'}
+                    <Button
+                      onClick={handleManualTransaction}
+                      disabled={isLoading || !walletId}
+                      className={transactionForm.type === 'DEBIT' ? 'bg-red-600 hover:bg-red-700' : ''}
+                    >
+                      {isLoading ? 'Processing...' : transactionForm.type === 'CREDIT' ? 'Credit Wallet' : 'Debit Wallet'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
