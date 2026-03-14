@@ -44,6 +44,9 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
     )
   }
 
+  const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
+  const debitLabel = isSweep && (metadata?.debitWalletType || 'Collection')
+
   if (transaction.senderInfo) {
     return (
       <TableCell>
@@ -52,6 +55,9 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
             info={transaction.senderInfo}
             nameClassName={transaction.senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}
           />
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+          )}
         </div>
       </TableCell>
     )
@@ -61,6 +67,9 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
     <TableCell>
       <div className="flex flex-col gap-[0.5px]">
         <LegacySenderDisplay transaction={transaction} derived={derived} />
+        {debitLabel && (
+          <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+        )}
       </div>
     </TableCell>
   )

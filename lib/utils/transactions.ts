@@ -166,13 +166,25 @@ export const getContactInfo = (user: any, metadata?: any, counterpartyUser?: any
 
 /**
  * Get transaction type display name
+ * Pass optional transaction (or metadata + reference) to detect sweep/liquidation
  */
-export const getTypeDisplay = (type: string, direction?: string) => {
+export const getTypeDisplay = (
+  type: string,
+  direction?: string,
+  transactionOrMeta?: { metadata?: any; reference?: string } | null
+) => {
+  const meta = transactionOrMeta?.metadata ?? transactionOrMeta
+  const reference = transactionOrMeta && 'reference' in transactionOrMeta ? transactionOrMeta.reference : (meta as any)?.reference
+  const isSweep =
+    type === 'WALLET_TO_WALLET' &&
+    (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
+  if (isSweep) return 'Liquidate'
+
   // Special handling for MERCHANT_TO_WALLET based on direction
   if ((type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET') && direction === 'DEBIT') {
     return 'Sent from Merchant'
   }
-  
+
   const typeMap = {
     // P2P and Internal Transfers
     WALLET_TO_WALLET: 'P2P Transfer',

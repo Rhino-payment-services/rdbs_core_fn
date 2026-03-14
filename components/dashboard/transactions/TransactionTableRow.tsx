@@ -42,7 +42,7 @@ export const TransactionTableRow = ({
           <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
         )}
       </TableCell>
-      <TableCell>{getTypeDisplay(transaction.type, transaction.direction)}</TableCell>
+      <TableCell>{getTypeDisplay(transaction.type, transaction.direction, transaction)}</TableCell>
       <ChannelCell transaction={transaction} />
       <SenderCell transaction={transaction} derived={derived} />
       <ReceiverCell transaction={transaction} derived={derived} />
