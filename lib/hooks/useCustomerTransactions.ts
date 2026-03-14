@@ -48,13 +48,21 @@ function computeRunningBalance(list: any[]): any[] {
   const result = sorted.map((tx) => {
     const hasBefore = tx.balanceBefore != null && tx.balanceBefore !== ''
     const hasAfter = tx.balanceAfter != null && tx.balanceAfter !== ''
-    if (hasBefore && hasAfter) {
+    const isFailed = (tx.status || '').toUpperCase() === 'FAILED'
+
+    // For failed transactions, balance did not change — never trust API balanceAfter for running total
+    if (hasBefore && hasAfter && !isFailed) {
       running = Number(tx.balanceAfter)
       return tx
     }
+    if (hasBefore && hasAfter && isFailed) {
+      const before = Number(tx.balanceBefore)
+      running = before
+      return { ...tx, balanceBefore: before, balanceAfter: before }
+    }
+
     const net = Number(tx.netAmount) || Math.max(0, (Number(tx.amount) || 0) - (Number(tx.fee) || 0))
     const isCredit = (tx.direction || '').toUpperCase() === 'CREDIT'
-    const isFailed = (tx.status || '').toUpperCase() === 'FAILED'
     const balanceBefore = hasBefore ? Number(tx.balanceBefore) : running
     let balanceAfter = balanceBefore
     if (!isFailed) {
@@ -64,7 +72,7 @@ function computeRunningBalance(list: any[]): any[] {
     return {
       ...tx,
       balanceBefore: hasBefore ? tx.balanceBefore : balanceBefore,
-      balanceAfter: hasAfter ? tx.balanceAfter : balanceAfter
+      balanceAfter: hasAfter && !isFailed ? tx.balanceAfter : balanceAfter
     }
   })
   return result.sort(

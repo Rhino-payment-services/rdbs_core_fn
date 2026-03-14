@@ -22,6 +22,7 @@ interface CustomerProfileContentProps {
   regularPartner: any
   isGatewayPartner: boolean
   walletBalance: any
+  allUserWallets?: any[]
   currentBalance: number
   suspensionFund: number
   disbursementWalletBalance: number | null
@@ -54,6 +55,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   regularPartner,
   isGatewayPartner,
   walletBalance,
+  allUserWallets = [],
   currentBalance,
   suspensionFund,
   disbursementWalletBalance,
@@ -234,6 +236,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           riskLevel: 'low',
           currency: walletBalance?.currency || 'UGX'
         }}
+        wallets={allUserWallets}
       />
 
       {/* Admin: liquidate collection → disbursement for merchants */}
