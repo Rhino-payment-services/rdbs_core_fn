@@ -37,6 +37,7 @@ const CustomerProfilePage = () => {
     regularPartner,
     isGatewayPartner,
     walletBalance,
+    allUserWallets,
     partnerWallets,
     partnerWalletIds,
     transactionsData,
@@ -254,6 +255,7 @@ const CustomerProfilePage = () => {
             regularPartner={regularPartner}
             isGatewayPartner={!!isGatewayPartner}
             walletBalance={walletBalance}
+            allUserWallets={allUserWallets}
             currentBalance={currentBalance}
             suspensionFund={suspensionFund}
             disbursementWalletBalance={disbursementWalletBalance}

@@ -4,7 +4,7 @@ import { useUsers, useWalletTransactions, useUserActivityLogs, useApiPartner } f
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import { useAllTransactions } from '@/lib/hooks/useTransactions'
 import { useActivityLogs } from '@/lib/hooks/useActivityLogs'
-import { useWallet } from '@/lib/hooks/useWallets'
+import { useWallet, useAllWalletsByUserId } from '@/lib/hooks/useWallets'
 import type { Wallet } from '@/lib/types/api'
 import api from '@/lib/axios'
 
@@ -152,6 +152,11 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     return undefined
   }, [type, merchantData, regularPartner, id, isGatewayPartner, linkedUserByEmail])
 
+  // Fetch all wallets for this user (subscriber/merchant) so we can show each when they have multiple
+  const userIdForAllWallets = type !== 'partner' ? (transactionUserId || userIdForWallet) : undefined
+  const { data: allUserWalletsData } = useAllWalletsByUserId(userIdForAllWallets, { refetchInterval: 15 * 1000 })
+  const allUserWallets = Array.isArray(allUserWalletsData) ? allUserWalletsData : EMPTY_ARRAY
+
   // Fetch transactions (wallet-based: same API as subscriber view when linked user exists)
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
     transactionUserId, 
@@ -252,6 +257,7 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     isGatewayPartner,
     wallets,
     walletBalance,
+    allUserWallets: type === 'partner' ? partnerWallets : allUserWallets,
     partnerWallets,
     partnerWalletIds,
     

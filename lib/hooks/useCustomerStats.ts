@@ -97,12 +97,11 @@ export const useCustomerStats = ({
       }, 0)
     }
 
-    // Prefer the most recent transaction's balanceAfter — it is written atomically
-    // with the wallet update so it is always up-to-date, even if the wallet API
-    // response is still serving a cached/stale value.
+    // Prefer the most recent successful transaction's balanceAfter — it is written atomically
+    // with the wallet update. Exclude failed transactions so we don't use a wrong balance.
     const txList = Array.isArray(transactions) ? transactions : []
     const latestWithBalance = txList
-      .filter((tx: any) => tx?.balanceAfter != null)
+      .filter((tx: any) => tx?.balanceAfter != null && (tx.status || '').toUpperCase() !== 'FAILED')
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
 
     if (latestWithBalance) {

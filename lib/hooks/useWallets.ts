@@ -27,6 +27,7 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
 export const walletQueryKeys = {
   wallets: ['wallets'] as const,
   wallet: (id: string) => ['wallet', id] as const,
+  walletsByUserId: (userId: string) => ['wallet', userId, 'all'] as const,
 }
 
 // Wallet hooks
@@ -55,6 +56,22 @@ export const useWalletBalance = (id: string) => {
     queryFn: () => apiFetch(`/wallet/${id}`),
     enabled: !!id,
     staleTime: 30 * 1000, // 30 seconds
+  })
+}
+
+/** Fetch all wallets for a user (e.g. PERSONAL, BUSINESS, BUSINESS_COLLECTION, BUSINESS_DISBURSEMENT). */
+export const useAllWalletsByUserId = (userId: string | undefined, options?: { refetchInterval?: number }) => {
+  return useQuery({
+    queryKey: walletQueryKeys.walletsByUserId(userId || ''),
+    queryFn: async () => {
+      const raw = await apiFetch(`/wallet/${userId}/all`)
+      const data = (raw as any)?.data ?? raw
+      return Array.isArray(data) ? data : []
+    },
+    enabled: !!userId && userId.trim() !== '',
+    staleTime: 15 * 1000,
+    refetchOnWindowFocus: true,
+    ...options,
   })
 }
 

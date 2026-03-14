@@ -342,38 +342,45 @@ export const TransactionDetailsModal = ({
                     })()}
                   </span>
                 </div>
-                {/* Balance Information */}
-                {(transaction.balanceBefore !== null && transaction.balanceBefore !== undefined) || 
-                 (transaction.balanceAfter !== null && transaction.balanceAfter !== undefined) ? (
+                {/* Balance Information — always show for failed (balance unchanged); otherwise when we have data */}
+                {transaction.status === 'FAILED' ||
+                 (transaction.balanceBefore != null && transaction.balanceBefore !== '') ||
+                 (transaction.balanceAfter != null && transaction.balanceAfter !== '') ? (
                   <>
                     <div className="flex justify-between border-t pt-2 mt-2">
                       <span className="text-purple-600 font-semibold">Balance Before:</span>
                       <span className="font-bold text-purple-600">
-                        {transaction.balanceBefore !== null && transaction.balanceBefore !== undefined
+                        {transaction.balanceBefore != null && transaction.balanceBefore !== ''
                           ? formatAmount(Number(transaction.balanceBefore))
-                          : 'N/A'}
+                          : transaction.status === 'FAILED'
+                            ? '—'
+                            : 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-indigo-600 font-bold">Balance After:</span>
                       <span className="font-bold text-indigo-600 text-lg">
                         {(() => {
-                          // For failed transactions, no deduction occurred — Balance After = Balance Before
-                          const isFailed = transaction.status === 'FAILED'
-                          const isDebit = transaction.direction === 'DEBIT'
-                          if (isFailed && isDebit && transaction.balanceBefore != null) {
-                            return formatAmount(Number(transaction.balanceBefore))
+                          // For failed transactions, balance did not change — always show same as Balance Before
+                          const isFailed = (transaction.status || '').toUpperCase() === 'FAILED'
+                          const before = transaction.balanceBefore != null && transaction.balanceBefore !== ''
+                            ? Number(transaction.balanceBefore)
+                            : null
+                          if (isFailed) {
+                            if (before != null) return formatAmount(before)
+                            return '—'
                           }
-                          return transaction.balanceAfter !== null && transaction.balanceAfter !== undefined
+                          return transaction.balanceAfter != null && transaction.balanceAfter !== ''
                             ? formatAmount(Number(transaction.balanceAfter))
                             : 'N/A'
                         })()}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 italic">
-                      * Balance at the time of this transaction
-                      {transaction.status === 'FAILED' && transaction.direction === 'DEBIT' && (
-                        <span className="block mt-1 text-amber-600">No deduction occurred — balance unchanged</span>
+                      {transaction.status === 'FAILED' ? (
+                        <span className="text-amber-600 font-medium">No balance change — transaction failed</span>
+                      ) : (
+                        <>* Balance at the time of this transaction</>
                       )}
                     </div>
                   </>
