@@ -78,7 +78,10 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     return undefined
   }, [type, merchantData?.userId, id])
 
-  const { data: walletByUserIdData } = useWallet(userIdForWallet || '')
+  // Poll wallet balance every 15 s: top-ups are confirmed asynchronously by the backend
+  // (polling the MNO partner), so the balance updates in the background and we need to
+  // keep re-fetching to show it immediately when it changes.
+  const { data: walletByUserIdData } = useWallet(userIdForWallet || '', { refetchInterval: 15 * 1000 })
 
   // Determine if gateway partner
   const isGatewayPartner: boolean = useMemo(() => {

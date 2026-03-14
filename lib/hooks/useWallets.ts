@@ -38,11 +38,14 @@ export const useWallets = () => {
   })
 }
 
-export const useWallet = (id: string) => {
+export const useWallet = (id: string, options?: { refetchInterval?: number | false; staleTime?: number }) => {
   return useQuery({
     queryKey: walletQueryKeys.wallet(id),
     queryFn: () => apiFetch(`/wallet/${id}`),
     enabled: !!id,
+    staleTime: 10 * 1000, // 10 seconds — keeps balance reasonably fresh
+    refetchOnWindowFocus: true,
+    ...options,
   })
 }
 
@@ -88,7 +91,9 @@ export const useWalletTransactions = (userId: string | undefined, page: number =
       return apiFetch(`/wallet/${userId}/transactions?${queryParams}`)
     },
     enabled: !!userId && userId.trim() !== '',
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 seconds — transaction list should stay fresh so new top-ups appear quickly
+    refetchInterval: 15 * 1000, // Poll every 15 s while the page is open (top-ups are async)
+    refetchOnWindowFocus: true,
     retry: false, // Don't retry on invalid userId
   })
 }

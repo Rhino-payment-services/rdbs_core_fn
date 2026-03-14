@@ -96,9 +96,24 @@ export const useCustomerStats = ({
         return sum + (isNaN(balance) ? 0 : balance)
       }, 0)
     }
+
+    // Prefer the most recent transaction's balanceAfter — it is written atomically
+    // with the wallet update so it is always up-to-date, even if the wallet API
+    // response is still serving a cached/stale value.
+    const txList = Array.isArray(transactions) ? transactions : []
+    const latestWithBalance = txList
+      .filter((tx: any) => tx?.balanceAfter != null)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+
+    if (latestWithBalance) {
+      const bal = parseFloat(latestWithBalance.balanceAfter.toString())
+      if (!isNaN(bal)) return bal
+    }
+
+    // Fall back to wallet API balance (may be cached)
     const balance = walletBalance?.balance ? parseFloat(walletBalance.balance.toString()) : 0
     return isNaN(balance) ? 0 : balance
-  }, [type, partnerWallets, walletBalance])
+  }, [type, partnerWallets, walletBalance, transactions])
 
   // Calculate average transaction value
   const avgTransactionValue = useMemo(() => {
