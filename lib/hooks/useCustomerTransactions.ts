@@ -2,6 +2,76 @@ import { useMemo } from 'react'
 
 const EMPTY_ARRAY: any[] = []
 
+/** Keep one row per logical transaction (same reference). Prefer the user-facing leg (has fee or is the wallet debit/credit). */
+function deduplicateByReference(list: any[]): any[] {
+  if (!Array.isArray(list) || list.length === 0) return list
+  const byRef = new Map<string, any>()
+  // Sort by createdAt desc so we process most recent first; when we prefer "has fee", we'll overwrite with the fee leg if we see it later
+  const sorted = [...list].sort(
+    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  )
+  for (const tx of sorted) {
+    const ref = tx.reference || tx.externalReference || tx.id || ''
+    const key = ref || tx.id
+    if (!key) continue
+    const existing = byRef.get(key)
+    if (!existing) {
+      byRef.set(key, tx)
+      continue
+    }
+    // Prefer the row that has fee (customer-facing leg with net amount)
+    const hasFee = (t: any) => (Number(t?.fee) || 0) > 0
+    if (hasFee(tx) && !hasFee(existing)) {
+      byRef.set(key, tx)
+    } else if (hasFee(existing) && !hasFee(tx)) {
+      // keep existing
+    } else {
+      // Keep the one with balance info if any
+      const hasBalance = (t: any) =>
+        (t?.balanceBefore != null && t?.balanceBefore !== '') ||
+        (t?.balanceAfter != null && t?.balanceAfter !== '')
+      if (hasBalance(tx) && !hasBalance(existing)) byRef.set(key, tx)
+    }
+  }
+  return [...byRef.values()].sort(
+    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  )
+}
+
+/** Fill balanceBefore/balanceAfter when missing using running balance (chronological order). */
+function computeRunningBalance(list: any[]): any[] {
+  if (!Array.isArray(list) || list.length === 0) return list
+  const sorted = [...list].sort(
+    (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  )
+  let running = 0
+  const result = sorted.map((tx) => {
+    const hasBefore = tx.balanceBefore != null && tx.balanceBefore !== ''
+    const hasAfter = tx.balanceAfter != null && tx.balanceAfter !== ''
+    if (hasBefore && hasAfter) {
+      running = Number(tx.balanceAfter)
+      return tx
+    }
+    const net = Number(tx.netAmount) || Math.max(0, (Number(tx.amount) || 0) - (Number(tx.fee) || 0))
+    const isCredit = (tx.direction || '').toUpperCase() === 'CREDIT'
+    const isFailed = (tx.status || '').toUpperCase() === 'FAILED'
+    const balanceBefore = hasBefore ? Number(tx.balanceBefore) : running
+    let balanceAfter = balanceBefore
+    if (!isFailed) {
+      balanceAfter = isCredit ? balanceBefore + net : balanceBefore - net
+    }
+    running = balanceAfter
+    return {
+      ...tx,
+      balanceBefore: hasBefore ? tx.balanceBefore : balanceBefore,
+      balanceAfter: hasAfter ? tx.balanceAfter : balanceAfter
+    }
+  })
+  return result.sort(
+    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  )
+}
+
 export const useCustomerTransactions = ({
   type,
   isGatewayPartner,
@@ -72,13 +142,17 @@ export const useCustomerTransactions = ({
   }, [type, filteredTransactionsResult, currentPage, pageLimit])
 
   // Final transactions array: for partners use same wallet source when we have linked-user wallet tx;
-  // otherwise use system transactions filtered by this partner (partnerId or partner wallets)
+  // otherwise use system transactions filtered by this partner (partnerId or partner wallets).
+  // Deduplicate so we show one row per logical transaction (double-entry ledger) and compute balance before/after when missing.
   const transactions = useMemo(() => {
+    let list: any[]
     if (type === 'partner') {
-      if (userTxArray.length > 0) return userTxArray
-      return paginatedPartnerTransactions
+      list = userTxArray.length > 0 ? userTxArray : paginatedPartnerTransactions
+    } else {
+      list = userTxArray
     }
-    return userTxArray
+    const deduped = deduplicateByReference(list)
+    return computeRunningBalance(deduped)
   }, [type, paginatedPartnerTransactions, userTxArray])
 
   const userTxTotal = useMemo(() => {
