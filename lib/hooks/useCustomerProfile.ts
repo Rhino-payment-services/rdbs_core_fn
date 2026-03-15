@@ -156,9 +156,13 @@ export const useCustomerProfile = (
     return undefined
   }, [type, merchantData, regularPartner, id, isGatewayPartner, linkedUserByEmail])
 
-  // Fetch all wallets for this user (subscriber/merchant) so we can show each when they have multiple
+  // Fetch all wallets for this user (subscriber/merchant). When viewing a specific merchant, pass merchantId so we only get that merchant's wallets (user may have multiple merchants).
   const userIdForAllWallets = type !== 'partner' ? (transactionUserId || userIdForWallet) : undefined
-  const { data: allUserWalletsData } = useAllWalletsByUserId(userIdForAllWallets, { refetchInterval: 15 * 1000 })
+  const merchantIdForWallets = type === 'merchant' && merchantData?.id ? merchantData.id : undefined
+  const { data: allUserWalletsData } = useAllWalletsByUserId(userIdForAllWallets, {
+    refetchInterval: 15 * 1000,
+    merchantId: merchantIdForWallets,
+  })
   const allUserWallets = Array.isArray(allUserWalletsData) ? allUserWalletsData : EMPTY_ARRAY
 
   // Fetch transactions (optional walletId for single-wallet statement with consistent balances)

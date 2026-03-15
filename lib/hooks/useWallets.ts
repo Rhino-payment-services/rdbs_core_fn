@@ -27,7 +27,7 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
 export const walletQueryKeys = {
   wallets: ['wallets'] as const,
   wallet: (id: string) => ['wallet', id] as const,
-  walletsByUserId: (userId: string) => ['wallet', userId, 'all'] as const,
+  walletsByUserId: (userId: string, merchantId?: string) => ['wallet', userId, 'all', merchantId ?? ''] as const,
 }
 
 // Wallet hooks
@@ -59,19 +59,24 @@ export const useWalletBalance = (id: string) => {
   })
 }
 
-/** Fetch all wallets for a user (e.g. PERSONAL, BUSINESS, BUSINESS_COLLECTION, BUSINESS_DISBURSEMENT). */
-export const useAllWalletsByUserId = (userId: string | undefined, options?: { refetchInterval?: number }) => {
+/** Fetch all wallets for a user (e.g. PERSONAL, BUSINESS, BUSINESS_COLLECTION, BUSINESS_DISBURSEMENT). When merchantId is set (e.g. on merchant profile), only wallets for that merchant are returned. */
+export const useAllWalletsByUserId = (
+  userId: string | undefined,
+  options?: { refetchInterval?: number; merchantId?: string }
+) => {
+  const { merchantId, ...rest } = options ?? {}
   return useQuery({
-    queryKey: walletQueryKeys.walletsByUserId(userId || ''),
+    queryKey: walletQueryKeys.walletsByUserId(userId || '', merchantId),
     queryFn: async () => {
-      const raw = await apiFetch(`/wallet/user/${userId}/all`)
+      const params = merchantId ? `?merchantId=${encodeURIComponent(merchantId)}` : ''
+      const raw = await apiFetch(`/wallet/user/${userId}/all${params}`)
       const data = (raw as any)?.data ?? raw
       return Array.isArray(data) ? data : []
     },
     enabled: !!userId && userId.trim() !== '',
     staleTime: 15 * 1000,
     refetchOnWindowFocus: true,
-    ...options,
+    ...rest,
   })
 }
 
