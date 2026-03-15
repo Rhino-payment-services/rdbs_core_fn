@@ -163,7 +163,15 @@ export const useCustomerProfile = (
     refetchInterval: 15 * 1000,
     merchantId: merchantIdForWallets,
   })
-  const allUserWallets = Array.isArray(allUserWalletsData) ? allUserWalletsData : EMPTY_ARRAY
+  // When viewing a merchant profile, only show wallets for this merchant (backend may filter; client-side ensures we never show other merchants' wallets)
+  const allUserWallets = useMemo(() => {
+    const raw = Array.isArray(allUserWalletsData) ? allUserWalletsData : EMPTY_ARRAY
+    if (type === 'merchant' && merchantData?.id) {
+      const currentMerchantId = merchantData.id
+      return raw.filter((w: any) => (w?.merchantId ?? w?.merchant?.id) === currentMerchantId)
+    }
+    return raw
+  }, [allUserWalletsData, type, merchantData?.id])
 
   // Fetch transactions (optional walletId for single-wallet statement with consistent balances)
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
