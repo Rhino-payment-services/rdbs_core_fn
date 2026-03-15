@@ -40,12 +40,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const [selectedRole, setSelectedRole] = useState<string>("")
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   
-  // Form states
+  // Form states - prefer profile fields when available so names/phone prefill correctly
   const [formData, setFormData] = useState({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
+    firstName: (user as any).profile?.firstName || user.firstName || '',
+    lastName: (user as any).profile?.lastName || user.lastName || '',
     email: user.email || '',
-    phone: user.phone || '',
+    phone: (user as any).profile?.phone || user.phone || '',
     userType: user.userType || '',
     status: user.status || 'ACTIVE'
   })
