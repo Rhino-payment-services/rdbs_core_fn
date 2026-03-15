@@ -86,6 +86,14 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   const [activeTab, setActiveTab] = React.useState("overview")
   const [liquidateOpen, setLiquidateOpen] = React.useState(false)
 
+  const showActivityTab = activityLogsLoading || activities.length > 0
+
+  React.useEffect(() => {
+    if (!showActivityTab && activeTab === 'activity') {
+      setActiveTab('overview')
+    }
+  }, [showActivityTab, activeTab])
+
   const handleExport = () => {
     toast.success('Exporting customer data...')
   }
@@ -255,7 +263,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${showActivityTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Overview
@@ -264,10 +272,12 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
             <CreditCard className="h-4 w-4" />
             Transactions
           </TabsTrigger>
-          <TabsTrigger value="activity" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Activity
-          </TabsTrigger>
+          {showActivityTab && (
+            <TabsTrigger value="activity" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Activity
+            </TabsTrigger>
+          )}
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Settings
@@ -361,36 +371,28 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-6 mt-6">
-          {activityLogsLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading activity logs...</p>
-            </div>
-          ) : activityLogsError && type !== 'partner' && type !== 'merchant' ? (
-            <div className="text-center py-8">
-              <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
-              <p className="text-gray-500">Unable to retrieve activity logs for this user.</p>
-            </div>
-          ) : activities.length === 0 ? (
-            <div className="text-center py-12">
-              <Activity className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Found</h3>
-              <p className="text-gray-500">
-                {type === 'merchant' 
-                  ? 'No recent activity logs available for this merchant.' 
-                  : 'No recent activity logs available for this user.'}
-              </p>
-            </div>
-          ) : (
-            <CustomerActivity
-              activities={activities}
-              onExport={handleExport}
-              onFilter={() => toast.success('Opening activity filters...')}
-            />
-          )}
-        </TabsContent>
+        {showActivityTab && (
+          <TabsContent value="activity" className="space-y-6 mt-6">
+            {activityLogsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading activity logs...</p>
+              </div>
+            ) : activityLogsError && type !== 'partner' && type !== 'merchant' ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Activity Logs</h3>
+                <p className="text-gray-500">Unable to retrieve activity logs for this user.</p>
+              </div>
+            ) : (
+              <CustomerActivity
+                activities={activities}
+                onExport={handleExport}
+                onFilter={() => toast.success('Opening activity filters...')}
+              />
+            )}
+          </TabsContent>
+        )}
 
         <TabsContent value="settings" className="space-y-6 mt-6">
           {type === 'partner' ? (
