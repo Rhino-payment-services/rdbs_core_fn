@@ -9,7 +9,8 @@ import CustomerActivity from './CustomerActivity'
 import CustomerSettings from './CustomerSettings'
 import LiquidateToDisbursementModal from './LiquidateToDisbursementModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { User, CreditCard, Activity, Settings } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { User, CreditCard, Activity, Settings, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { WalletBalance } from '@/lib/types/api'
 
@@ -23,6 +24,8 @@ interface CustomerProfileContentProps {
   isGatewayPartner: boolean
   walletBalance: any
   allUserWallets?: any[]
+  selectedWalletId?: string
+  onWalletChange?: (walletId: string | undefined) => void
   currentBalance: number
   suspensionFund: number
   disbursementWalletBalance: number | null
@@ -56,6 +59,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   isGatewayPartner,
   walletBalance,
   allUserWallets = [],
+  selectedWalletId,
+  onWalletChange,
   currentBalance,
   suspensionFund,
   disbursementWalletBalance,
@@ -319,15 +324,40 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               </button>
             </div>
           ) : (
-            <CustomerTransactions
-              transactions={transactions}
-              onExport={handleExport}
-              onFilter={() => toast.success('Opening transaction filters...')}
-              isLoading={transactionsLoading}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={onPageChange}
-            />
+            <>
+              {type !== 'partner' && allUserWallets.length > 1 && onWalletChange && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Wallet className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Statement for:</span>
+                  <Select
+                    value={selectedWalletId ?? 'all'}
+                    onValueChange={(v) => onWalletChange(v === 'all' ? undefined : v)}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="All wallets" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All wallets</SelectItem>
+                      {allUserWallets.map((w: any) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {(w.walletType || 'Wallet').replace(/_/g, ' ')} — {Number(w.balance ?? 0).toLocaleString()} UGX
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-gray-400">Consistent balances per wallet</span>
+                </div>
+              )}
+              <CustomerTransactions
+                transactions={transactions}
+                onExport={handleExport}
+                onFilter={() => toast.success('Opening transaction filters...')}
+                isLoading={transactionsLoading}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={onPageChange}
+              />
+            </>
           )}
         </TabsContent>
 

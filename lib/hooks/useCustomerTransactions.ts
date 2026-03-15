@@ -38,43 +38,69 @@ function deduplicateByReference(list: any[]): any[] {
   )
 }
 
-/** Fill balanceBefore/balanceAfter when missing using running balance (chronological order). */
+/** Fill balanceBefore/balanceAfter when missing using running balance (chronological order), per wallet. */
 function computeRunningBalance(list: any[]): any[] {
   if (!Array.isArray(list) || list.length === 0) return list
+
   const sorted = [...list].sort(
     (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
   )
-  let running = 0
+
+  // Track a separate running balance per wallet so multiple wallets don't interfere
+  const runningByWallet = new Map<string, number>()
+
+  const getWalletKey = (tx: any): string => {
+    return (
+      tx.walletId ||
+      tx.wallet?.id ||
+      tx.sourceWalletId ||
+      tx.sourceWallet?.id ||
+      tx.fromWalletId ||
+      tx.destinationWalletId ||
+      tx.destinationWallet?.id ||
+      tx.toWalletId ||
+      'default'
+    )
+  }
+
   const result = sorted.map((tx) => {
+    const walletKey = getWalletKey(tx)
+    let running = runningByWallet.get(walletKey) ?? 0
+
     const hasBefore = tx.balanceBefore != null && tx.balanceBefore !== ''
     const hasAfter = tx.balanceAfter != null && tx.balanceAfter !== ''
     const isFailed = (tx.status || '').toUpperCase() === 'FAILED'
 
     // For failed transactions, balance did not change — never trust API balanceAfter for running total
     if (hasBefore && hasAfter && !isFailed) {
-      running = Number(tx.balanceAfter)
+      const after = Number(tx.balanceAfter)
+      runningByWallet.set(walletKey, after)
       return tx
     }
     if (hasBefore && hasAfter && isFailed) {
       const before = Number(tx.balanceBefore)
-      running = before
+      runningByWallet.set(walletKey, before)
       return { ...tx, balanceBefore: before, balanceAfter: before }
     }
 
-    const net = Number(tx.netAmount) || Math.max(0, (Number(tx.amount) || 0) - (Number(tx.fee) || 0))
+    const net =
+      Number(tx.netAmount) ||
+      Math.max(0, (Number(tx.amount) || 0) - (Number(tx.fee) || 0))
     const isCredit = (tx.direction || '').toUpperCase() === 'CREDIT'
     const balanceBefore = hasBefore ? Number(tx.balanceBefore) : running
     let balanceAfter = balanceBefore
     if (!isFailed) {
       balanceAfter = isCredit ? balanceBefore + net : balanceBefore - net
     }
-    running = balanceAfter
+    runningByWallet.set(walletKey, balanceAfter)
+
     return {
       ...tx,
       balanceBefore: hasBefore ? tx.balanceBefore : balanceBefore,
       balanceAfter: hasAfter && !isFailed ? tx.balanceAfter : balanceAfter
     }
   })
+
   return result.sort(
     (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
   )
@@ -156,9 +182,15 @@ export const useCustomerTransactions = ({
     let list: any[]
     if (type === 'partner') {
       list = userTxArray.length > 0 ? userTxArray : paginatedPartnerTransactions
-    } else {
-      list = userTxArray
+      const deduped = deduplicateByReference(list)
+      return computeRunningBalance(deduped)
     }
+
+    // For subscribers/merchants: deduplicate then compute per-wallet running balance so that
+    // when multiple wallets are mixed, each wallet's Bal. Before/After are consistent. When
+    // a single wallet is requested (walletId filter), list is one wallet and running balance
+    // matches that wallet's statement.
+    list = userTxArray
     const deduped = deduplicateByReference(list)
     return computeRunningBalance(deduped)
   }, [type, paginatedPartnerTransactions, userTxArray])

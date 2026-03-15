@@ -10,7 +10,11 @@ import api from '@/lib/axios'
 
 const EMPTY_ARRAY: any[] = []
 
-export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
+export const useCustomerProfile = (
+  currentPage: number,
+  pageLimit: number,
+  selectedWalletId?: string
+) => {
   const params = useParams()
   const router = useRouter()
   const { type, id } = params
@@ -157,11 +161,12 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
   const { data: allUserWalletsData } = useAllWalletsByUserId(userIdForAllWallets, { refetchInterval: 15 * 1000 })
   const allUserWallets = Array.isArray(allUserWalletsData) ? allUserWalletsData : EMPTY_ARRAY
 
-  // Fetch transactions (wallet-based: same API as subscriber view when linked user exists)
+  // Fetch transactions (optional walletId for single-wallet statement with consistent balances)
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
-    transactionUserId, 
-    currentPage, 
-    pageLimit
+    transactionUserId,
+    currentPage,
+    pageLimit,
+    selectedWalletId
   )
 
   // For gateway partners: always fetch system transactions so we can filter by partnerId (and/or partner wallets).

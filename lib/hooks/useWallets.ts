@@ -88,19 +88,22 @@ export const useCreateWallet = () => {
   })
 }
 
-export const useWalletTransactions = (userId: string | undefined, page: number = 1, limit: number = 10) => {
+export const useWalletTransactions = (
+  userId: string | undefined,
+  page: number = 1,
+  limit: number = 10,
+  walletId?: string
+) => {
   const queryParams = new URLSearchParams({
     page: page.toString(),
-    limit: limit.toString()
+    limit: limit.toString(),
   })
-  
-  // Add userId to query params only if it exists
-  if (userId) {
-    queryParams.set('userId', userId)
+  if (walletId && walletId.trim() !== '') {
+    queryParams.set('walletId', walletId)
   }
-  
+
   return useQuery({
-    queryKey: ['wallet', userId || 'none', 'transactions', page, limit],
+    queryKey: ['wallet', userId || 'none', 'transactions', page, limit, walletId || 'all'],
     queryFn: () => {
       if (!userId || userId.trim() === '') {
         throw new Error('User ID is required for wallet transactions')
@@ -108,10 +111,10 @@ export const useWalletTransactions = (userId: string | undefined, page: number =
       return apiFetch(`/wallet/${userId}/transactions?${queryParams}`)
     },
     enabled: !!userId && userId.trim() !== '',
-    staleTime: 30 * 1000, // 30 seconds — transaction list should stay fresh so new top-ups appear quickly
-    refetchInterval: 15 * 1000, // Poll every 15 s while the page is open (top-ups are async)
+    staleTime: 30 * 1000,
+    refetchInterval: 15 * 1000,
     refetchOnWindowFocus: true,
-    retry: false, // Don't retry on invalid userId
+    retry: false,
   })
 }
 

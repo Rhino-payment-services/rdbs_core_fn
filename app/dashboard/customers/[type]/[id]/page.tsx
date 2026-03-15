@@ -20,13 +20,13 @@ const CustomerProfilePage = () => {
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(1)
   const [pageLimit] = useState(10)
+  const [selectedWalletId, setSelectedWalletId] = useState<string | undefined>(undefined)
   const [grantModalOpen, setGrantModalOpen] = useState(false)
   const [revokeModalOpen, setRevokeModalOpen] = useState(false)
   const { user } = useAuth()
   const isSuperAdmin = (user as any)?.role === 'SUPER_ADMIN'
 
-  // Use custom hook for all data fetching
-  const profileData = useCustomerProfile(currentPage, pageLimit)
+  const profileData = useCustomerProfile(currentPage, pageLimit, selectedWalletId)
   
   const {
     type,
@@ -256,6 +256,11 @@ const CustomerProfilePage = () => {
             isGatewayPartner={!!isGatewayPartner}
             walletBalance={walletBalance}
             allUserWallets={allUserWallets}
+            selectedWalletId={selectedWalletId}
+            onWalletChange={(walletId) => {
+              setSelectedWalletId(walletId)
+              setCurrentPage(1)
+            }}
             currentBalance={currentBalance}
             suspensionFund={suspensionFund}
             disbursementWalletBalance={disbursementWalletBalance}
