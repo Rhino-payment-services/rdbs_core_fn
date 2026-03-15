@@ -191,11 +191,10 @@ export default function ActivityLogPage() {
   }
 
   const statsSummary = useMemo(() => {
-    const s = stats ?? {}
-    const totalEvents = s.totalActions ?? 0
-    const errors = s.failedCount ?? 0
-    const success = s.successCount ?? 0
-    const pending = s.pendingCount ?? 0
+    const totalEvents = stats?.totalActions ?? 0
+    const errors = stats?.failedCount ?? 0
+    const success = stats?.successCount ?? 0
+    const pending = stats?.pendingCount ?? 0
     const warnings = pending
     const info = Math.max(0, totalEvents - success - errors - pending)
     return {

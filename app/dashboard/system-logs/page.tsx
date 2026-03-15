@@ -126,7 +126,7 @@ const SystemLogsPage = () => {
   }
 
   const handleExport = () => {
-    const activeLog = activeTab === 'activity' ? (activityLogsData?.logs || []) : logs
+    const activeLog = activeTab === 'activity' ? (activityLogsData?.data?.logs ?? []) : logs
     if (!activeLog.length) {
       toast.error('No logs to export')
       return
