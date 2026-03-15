@@ -405,9 +405,10 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               customerId={customer?.id || id}
               customerStatus={customer?.status || 'unknown'}
               customerPhone={customer?.profile?.phone || customer?.phone || ''}
-              walletBalance={walletBalance?.balance || 0}
+              walletBalance={walletBalance?.balance ?? 0}
               walletId={walletBalance?.id}
               currency={walletBalance?.currency || 'UGX'}
+              allUserWallets={type !== 'partner' ? allUserWallets : undefined}
               merchantId={merchantData?.id}
               merchantCode={merchantData?.merchantCode}
               collectionFeeMode={merchantData?.collectionFeeMode ?? undefined}

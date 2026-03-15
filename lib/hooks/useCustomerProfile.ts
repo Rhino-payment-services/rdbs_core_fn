@@ -246,7 +246,18 @@ export const useCustomerProfile = (
     return raw?.data ?? raw ?? null
   }, [walletByUserIdData])
 
-  const walletBalance = walletFromApi || personalWallet || businessWallet || null
+  // For merchant/subscriber: when we have all wallets from API, use primary from that list so balances match
+  const primaryFromAllWallets = useMemo(() => {
+    if (type === 'partner' || !Array.isArray(allUserWallets) || allUserWallets.length === 0) return null
+    const order = ['BUSINESS_COLLECTION', 'PERSONAL', 'BUSINESS', 'BUSINESS_DISBURSEMENT', 'BUSINESS_LIQUIDATION']
+    for (const wt of order) {
+      const w = allUserWallets.find((x: any) => (x?.walletType || '').toUpperCase() === wt)
+      if (w) return w
+    }
+    return allUserWallets[0] || null
+  }, [type, allUserWallets])
+
+  const walletBalance = primaryFromAllWallets || walletFromApi || personalWallet || businessWallet || null
 
   // Loading state
   const isLoading = (type === 'partner' ? (partnerLoading || customerLoading) : customerLoading) || (type === 'merchant' && merchantsLoading)

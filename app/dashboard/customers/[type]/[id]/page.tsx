@@ -78,6 +78,9 @@ const CustomerProfilePage = () => {
     activityLogsData
   })
 
+  // Use wallet-service wallets for stats when available (merchant/subscriber) so balances are correct
+  const walletsForStats = type === 'partner' ? (partnerWallets || []) : (allUserWallets?.length ? allUserWallets : (customer?.wallets || []))
+
   // Calculate stats
   const { currentBalance, suspensionFund, disbursementWalletBalance, avgTransactionValue, successRate } = useCustomerStats({
     type,
@@ -86,7 +89,7 @@ const CustomerProfilePage = () => {
     partnerWallets,
     partnerWalletIds,
     partnerId: partner?.id || '',
-    wallets: customer?.wallets || [],
+    wallets: walletsForStats,
     walletBalance
   })
 

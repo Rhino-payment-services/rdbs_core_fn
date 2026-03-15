@@ -64,7 +64,7 @@ export const useAllWalletsByUserId = (userId: string | undefined, options?: { re
   return useQuery({
     queryKey: walletQueryKeys.walletsByUserId(userId || ''),
     queryFn: async () => {
-      const raw = await apiFetch(`/wallet/${userId}/all`)
+      const raw = await apiFetch(`/wallet/user/${userId}/all`)
       const data = (raw as any)?.data ?? raw
       return Array.isArray(data) ? data : []
     },

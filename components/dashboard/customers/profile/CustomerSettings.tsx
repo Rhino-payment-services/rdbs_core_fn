@@ -27,6 +27,13 @@ import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { extractErrorMessage } from '@/lib/utils'
 
+interface WalletItem {
+  id: string
+  walletType?: string
+  balance?: number | string
+  currency?: string
+}
+
 interface CustomerSettingsProps {
   type: string
   customerId: string
@@ -40,6 +47,18 @@ interface CustomerSettingsProps {
   merchantCode?: string
   collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
   collectionCustomerSharePercent?: number
+  /** All wallets for this user (from wallet service). When set, Wallet Management shows each wallet and manual tx can target a chosen wallet. */
+  allUserWallets?: WalletItem[]
+}
+
+function walletTypeLabel(wt: string | undefined): string {
+  if (!wt) return 'Wallet'
+  const t = wt.toUpperCase()
+  if (t === 'PERSONAL') return 'Personal'
+  if (t === 'BUSINESS') return 'Business'
+  if (t === 'BUSINESS_COLLECTION') return 'Collection'
+  if (t === 'BUSINESS_DISBURSEMENT' || t === 'BUSINESS_LIQUIDATION') return 'Disbursement'
+  return wt.replace(/_/g, ' ')
 }
 
 const CustomerSettings = ({ 
@@ -55,6 +74,7 @@ const CustomerSettings = ({
   merchantCode,
   collectionFeeMode = 'CUSTOMER_PAYS_NONE',
   collectionCustomerSharePercent = 0,
+  allUserWallets = [],
 }: CustomerSettingsProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
@@ -79,6 +99,20 @@ const CustomerSettings = ({
     description: '',
     reference: ''
   })
+  // When customer has multiple wallets, which wallet to credit/debit
+  const effectiveWallets = Array.isArray(allUserWallets) && allUserWallets.length > 0 ? allUserWallets : (walletId ? [{ id: walletId, walletType: undefined, balance: walletBalance, currency }] : [])
+  const defaultWalletIdForTx = walletId || effectiveWallets[0]?.id || ''
+  const [selectedWalletIdForTx, setSelectedWalletIdForTx] = useState<string>(defaultWalletIdForTx)
+  const walletIdsStr = effectiveWallets.map(w => w.id).join(',')
+  React.useEffect(() => {
+    const ids = walletIdsStr ? walletIdsStr.split(',') : []
+    if (defaultWalletIdForTx && ids.length > 0 && !ids.includes(selectedWalletIdForTx)) {
+      setSelectedWalletIdForTx(defaultWalletIdForTx)
+    }
+  }, [defaultWalletIdForTx, walletIdsStr, selectedWalletIdForTx])
+  const effectiveWalletId = selectedWalletIdForTx || walletId || effectiveWallets[0]?.id
+  const effectiveBalance = effectiveWalletId ? (effectiveWallets.find(w => w.id === effectiveWalletId)?.balance ?? walletBalance) : walletBalance
+  const effectiveBalanceNum = typeof effectiveBalance === 'number' ? effectiveBalance : parseFloat(String(effectiveBalance ?? 0)) || 0
 
   // Merchant collection fee configuration state (synced from props when merchant data is refetched)
   const [collectionMode, setCollectionMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>(collectionFeeMode)
@@ -198,7 +232,7 @@ const CustomerSettings = ({
       toast.error('Please enter a description')
       return
     }
-    if (!walletId) {
+    if (!effectiveWalletId) {
       toast.error('Wallet ID is not available for this customer. Cannot process transaction.')
       return
     }
@@ -208,7 +242,7 @@ const CustomerSettings = ({
 
     setIsLoading(true)
     try {
-      const res = await api.post(`/wallet/admin/${walletId}/fund`, {
+      const res = await api.post(`/wallet/admin/${effectiveWalletId}/fund`, {
         amount: signedAmount,
         reason: transactionForm.description.trim(),
         reference: transactionForm.reference.trim() || `MANUAL_${Date.now()}`,
@@ -520,20 +554,40 @@ const CustomerSettings = ({
             Wallet Management
           </CardTitle>
           <CardDescription>
-            Current wallet balance and manual transaction management
+            {effectiveWallets.length > 1 ? 'All wallet balances and manual transaction management' : 'Current wallet balance and manual transaction management'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-4 w-4 text-gray-500" />
-                <div>
-                  <div className="text-sm font-medium">Current Balance</div>
-                  <div className="text-sm text-gray-600">{walletBalance.toLocaleString()} {currency}</div>
+            {effectiveWallets.length > 1 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {effectiveWallets.map((w) => {
+                  const bal = w.balance != null ? Number(w.balance) : 0
+                  const curr = w.currency || currency
+                  return (
+                    <div key={w.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <div className="text-sm font-medium">{walletTypeLabel(w.walletType)}</div>
+                          <div className="text-sm text-gray-600">{Number.isNaN(bal) ? '0' : bal.toLocaleString()} {curr}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <DollarSign className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <div className="text-sm font-medium">Current Balance</div>
+                    <div className="text-sm text-gray-600">{(effectiveBalanceNum ?? 0).toLocaleString()} {currency}</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
@@ -558,11 +612,31 @@ const CustomerSettings = ({
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+                    {effectiveWallets.length > 1 && (
+                      <div>
+                        <Label>Wallet *</Label>
+                        <Select value={selectedWalletIdForTx} onValueChange={setSelectedWalletIdForTx}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select wallet" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {effectiveWallets.map((w) => {
+                              const bal = w.balance != null ? Number(w.balance) : 0
+                              return (
+                                <SelectItem key={w.id} value={w.id}>
+                                  {walletTypeLabel(w.walletType)} — {Number.isNaN(bal) ? '0' : bal.toLocaleString()} {currency}
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     {/* Current balance context */}
                     <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-2 text-sm">
-                      <span className="text-gray-500">Current balance</span>
+                      <span className="text-gray-500">Current balance{effectiveWallets.length > 1 ? ` (${walletTypeLabel(effectiveWallets.find(w => w.id === effectiveWalletId)?.walletType)})` : ''}</span>
                       <span className="font-semibold text-gray-800">
-                        {walletBalance.toLocaleString()} {currency}
+                        {effectiveBalanceNum.toLocaleString()} {currency}
                       </span>
                     </div>
 
@@ -594,8 +668,8 @@ const CustomerSettings = ({
                           <span>Balance after this transaction</span>
                           <span className={`font-semibold ${transactionForm.type === 'CREDIT' ? 'text-green-700' : 'text-red-600'}`}>
                             {(transactionForm.type === 'CREDIT'
-                              ? walletBalance + parseFloat(transactionForm.amount)
-                              : walletBalance - parseFloat(transactionForm.amount)
+                              ? effectiveBalanceNum + parseFloat(transactionForm.amount)
+                              : effectiveBalanceNum - parseFloat(transactionForm.amount)
                             ).toLocaleString()} {currency}
                           </span>
                         </div>
@@ -626,7 +700,7 @@ const CustomerSettings = ({
                     </Button>
                     <Button
                       onClick={handleManualTransaction}
-                      disabled={isLoading || !walletId}
+                      disabled={isLoading || !effectiveWalletId}
                       className={transactionForm.type === 'DEBIT' ? 'bg-red-600 hover:bg-red-700' : ''}
                     >
                       {isLoading ? 'Processing...' : transactionForm.type === 'CREDIT' ? 'Credit Wallet' : 'Debit Wallet'}
