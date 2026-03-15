@@ -321,7 +321,7 @@ const CustomersPage = () => {
     }
 
     // Define CSV headers
-    const headers = ['Name', 'Email', 'Phone', 'Status', 'Type', 'Joined', 'Location']
+    const headers = ['Name', 'Email', 'Phone', 'Status', 'Type', 'Joined']
     
     // Convert users data to CSV rows
     const csvRows = usersData.map((user: User | any) => {
@@ -342,8 +342,6 @@ const CustomersPage = () => {
             day: 'numeric'
           })
         : 'N/A'
-      const location = (user as any)?.country || user.profile?.country || 'N/A'
-      
       // Escape commas and quotes in CSV values
       const escapeCSV = (value: string) => {
         if (value.includes(',') || value.includes('"') || value.includes('\n')) {
@@ -358,8 +356,7 @@ const CustomersPage = () => {
         escapeCSV(phone),
         escapeCSV(status),
         escapeCSV(type),
-        escapeCSV(joined),
-        escapeCSV(location)
+        escapeCSV(joined)
       ].join(',')
     })
     

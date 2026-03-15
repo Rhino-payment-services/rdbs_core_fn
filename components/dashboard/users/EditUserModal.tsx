@@ -22,9 +22,10 @@ import {
   Clock
 } from 'lucide-react'
 import { useRoles, usePermissions, useUpdateUserRole, useRemoveRole, useAssignPermissions } from '@/lib/hooks/useApi'
+import { useUpdateUser } from '@/lib/hooks/useAuth'
 import type { User, Role, Permission } from '@/lib/types/api'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { PermissionGuard } from '@/components/ui/PermissionGuard'
+import { PermissionGuard, RoleGuard } from '@/components/ui/PermissionGuard'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
 
@@ -55,19 +56,30 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const updateUserRole = useUpdateUserRole()
   const removeRole = useRemoveRole()
   const assignPermissions = useAssignPermissions()
-  
+  const updateUser = useUpdateUser()
 
   // Get data arrays
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
-  const permissionsArray: Permission[] = Array.isArray(permissions) ? permissions : []
+  const permissionsArray: Permission[] = Array.isArray((permissions as any)?.permissions)
+    ? (permissions as any).permissions
+    : Array.isArray(permissions)
+      ? permissions as unknown as Permission[]
+      : []
 
-  // Initialize selected role
+  // Initialize selected role — match by roleId first, then by name (case-insensitive)
   useEffect(() => {
-    if (user.role && rolesArray.length > 0) {
-      const currentRole = rolesArray.find((role: Role) => role.name === user.role)
-      setSelectedRole(currentRole?.id || "")
+    if (rolesArray.length > 0) {
+      const userRoleId = (user as any).roleId
+      let matched: Role | undefined
+      if (userRoleId) {
+        matched = rolesArray.find((r: Role) => r.id === userRoleId)
+      }
+      if (!matched && user.role) {
+        matched = rolesArray.find((r: Role) => r.name.toLowerCase() === user.role.toLowerCase())
+      }
+      setSelectedRole(matched?.id || "")
     }
-  }, [user.role, rolesArray])
+  }, [user.role, (user as any).roleId, rolesArray])
 
   // Initialize selected permissions
   useEffect(() => {
@@ -203,10 +215,25 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }
 
+  const handlePromoteToSuperAdmin = async () => {
+    try {
+      await updateUser.mutateAsync({ id: user.id, userData: { role: 'SUPER_ADMIN' } })
+      toast.success('User promoted to Super Admin!')
+    } catch (error: unknown) {
+      const errorMessage = extractErrorMessage(error)
+      toast.error(errorMessage)
+    }
+  }
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement user profile update
-    toast.success('User profile updated successfully!')
+    try {
+      await updateUser.mutateAsync({ id: user.id, userData: formData })
+      toast.success('User profile updated successfully!')
+    } catch (error: unknown) {
+      const errorMessage = extractErrorMessage(error)
+      toast.error(errorMessage)
+    }
   }
 
   return (
@@ -500,7 +527,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                       
                       <div className="flex justify-between items-center pt-4 border-t">
                         <div className="text-sm text-gray-600">
-                          {selectedPermissions.length} permission(s) selected asdasd
+                          {selectedPermissions.length} permission(s) selected
                         </div>
                         <Button
                           onClick={handleAssignPermissions}
@@ -525,6 +552,53 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                 </CardContent>
               </Card>
             </PermissionGuard>
+
+            {/* Promote to Super Admin - only visible to Super Admins */}
+            <RoleGuard role="SUPER_ADMIN">
+              <Card className="border-red-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-700">
+                    <Shield className="h-5 w-5" />
+                    Super Admin Access
+                  </CardTitle>
+                  <CardDescription>
+                    Grant this user full Super Admin privileges. This action cannot be easily undone.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {user.role === 'SUPER_ADMIN' ? (
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">
+                      <CheckCircle className="h-4 w-4" />
+                      This user already has Super Admin access.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Current system role: <strong>{user.role || 'None'}</strong>
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        onClick={handlePromoteToSuperAdmin}
+                        disabled={updateUser.isPending}
+                      >
+                        {updateUser.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-700 mr-2"></div>
+                            Promoting...
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                            Promote to Super Admin
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </RoleGuard>
           </TabsContent>
 
           {/* Security Tab */}

@@ -173,6 +173,22 @@ export function useActivityLogs(filters: ActivityLogFilters = {}) {
   })
 }
 
+/** Fetch activity logs for a specific user (GET /activity-logs?userId=...). Use for customer profile; degrades to empty on 403. */
+export function useUserActivityLogsByUserId(
+  userId: string | undefined,
+  page: number = 1,
+  limit: number = 20
+) {
+  return useQuery({
+    queryKey: ['activity-logs', 'user', userId, page, limit],
+    queryFn: () => getActivityLogs({ userId: userId!, page, limit }),
+    enabled: !!userId && userId.trim() !== '',
+    placeholderData: { logs: [], total: 0, page: 1, limit: 20, totalPages: 0 },
+    retry: false,
+    staleTime: 30000,
+  })
+}
+
 export function useActivityStats(startDate?: string, endDate?: string) {
   return useQuery({
     queryKey: ['activity-stats', startDate, endDate],

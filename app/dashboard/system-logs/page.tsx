@@ -126,8 +126,35 @@ const SystemLogsPage = () => {
   }
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    toast.success('Export functionality coming soon')
+    const activeLog = activeTab === 'activity' ? (activityLogsData?.data?.logs ?? []) : logs
+    if (!activeLog.length) {
+      toast.error('No logs to export')
+      return
+    }
+    const headers = ['Date', 'User', 'Action', 'Category', 'Status', 'Description', 'Channel', 'IP Address']
+    const rows = activeLog.map((log: SystemLog) => [
+      new Date(log.createdAt).toLocaleString(),
+      log.userEmail || log.userPhone || log.userId || '',
+      log.action || '',
+      log.category || '',
+      log.status || '',
+      log.description || '',
+      log.channel || '',
+      log.ipAddress || '',
+    ])
+    const csvContent = [headers, ...rows]
+      .map(row => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${activeTab}-logs-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${activeLog.length} logs to CSV`)
   }
 
   return (

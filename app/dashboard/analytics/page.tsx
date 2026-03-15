@@ -717,7 +717,8 @@ const AnalyticsPage = () => {
                           <p className="text-xl font-bold text-gray-900 leading-tight">
                             {usersLoading ? '...' : (() => {
                               const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
-                              return users.length.toLocaleString()
+                              const activeCount = users.filter((user: any) => user.status === 'ACTIVE').length
+                              return activeCount.toLocaleString()
                             })()}
                           </p>
                         </div>
@@ -727,13 +728,13 @@ const AnalyticsPage = () => {
                       </div>
                       <div className="mt-0">
                         <span className="text-sm text-blue-600 font-medium">
-                          {(() => {
+                          {usersLoading ? '...' : (() => {
                             const users = Array.isArray(usersData) ? usersData : ((usersData as any)?.data || [])
-                            return users.filter((user: any) => user.status === 'ACTIVE').length || 0
+                            return users.length.toLocaleString()
                           })()}
                         </span>
                         <span className="text-sm ml-1 text-gray-500">
-                          online now
+                          total registered
                         </span>
                 </div>
               </CardContent>

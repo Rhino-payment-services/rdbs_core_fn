@@ -417,7 +417,10 @@ const SecurityPage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Security Incidents</CardTitle>
-                  <CardDescription>Active and recent security incidents</CardDescription>
+                  <CardDescription>
+                    Incidents are derived from security-related activity logs (blocks, suspensions, failed auth, etc.).
+                    Severity: high for block/suspend events, critical for brute-force or repeated failures.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {incidentsLoading ? (
@@ -430,10 +433,11 @@ const SecurityPage = () => {
                         <TableHeader>
                           <TableRow className="bg-gray-50">
                             <TableHead>Type</TableHead>
+                            <TableHead>Classification</TableHead>
                             <TableHead>Severity</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Description</TableHead>
-                            <TableHead>Affected Users</TableHead>
+                            <TableHead>Affected</TableHead>
                             <TableHead>Location</TableHead>
                             <TableHead>Time</TableHead>
                             <TableHead>Actions</TableHead>
@@ -444,7 +448,12 @@ const SecurityPage = () => {
                             <TableRow key={incident.id}>
                               <TableCell>
                                 <div className="text-sm font-medium capitalize">
-                                  {incident.type.replace(/_/g, ' ')}
+                                  {(incident as any).type?.replace?.(/_/g, ' ') ?? incident.type}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-xs text-gray-600 font-mono" title="Source of this incident">
+                                  {(incident as any).classification ?? `Activity log · ${incident.action}`}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -483,7 +492,10 @@ const SecurityPage = () => {
                     <div className="text-center py-8 text-gray-500">
                       <ShieldCheck className="h-12 w-12 mx-auto mb-4 text-green-500" />
                       <p>No security incidents</p>
-                      <p className="text-sm">All systems are operating normally</p>
+                      <p className="text-sm mt-1">All systems are operating normally.</p>
+                      <p className="text-xs text-gray-400 mt-2 max-w-md mx-auto">
+                        Incidents appear here when security-related activity is logged (e.g. user blocks, suspensions, failed logins). View Activity Log under Security for all events.
+                      </p>
                     </div>
                   )}
                 </CardContent>

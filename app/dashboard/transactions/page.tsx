@@ -590,7 +590,6 @@ const TransactionsPage = () => {
         }
         // Wallet-to-bank specific fields from metadata
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
-
         // Derive fee breakdown (reuses logic from UI components)
         const amount = Number(tx.amount) || 0
         const feeBreakdown = tx.metadata?.feeBreakdown || {}
