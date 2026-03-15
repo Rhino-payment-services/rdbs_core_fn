@@ -39,6 +39,8 @@ export interface FlaggedTransaction {
 export interface SecurityIncident {
   id: string
   type: string
+  /** Human-readable classification source, e.g. "Activity log · BLOCK_USER" */
+  classification: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: 'active' | 'investigating' | 'resolved' | 'dismissed'
   description: string
@@ -198,26 +200,34 @@ async function getSecurityIncidents(): Promise<SecurityIncident[]> {
     
     securityLogs.forEach((log: any) => {
       const key = `${log.action}_${new Date(log.createdAt).toDateString()}`
-      
+      const action = log.action || 'unknown'
+
       if (!incidentMap.has(key)) {
         let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
-        if (log.action?.includes('BLOCK') || log.action?.includes('SUSPEND')) {
+        if (action.includes('BLOCK') || action.includes('SUSPEND')) {
           severity = 'high'
         }
-        if (log.action?.includes('BRUTE_FORCE') || log.status === 'FAILED') {
+        if (action.includes('BRUTE_FORCE') || log.status === 'FAILED') {
           severity = 'critical'
         }
-        
+        if (log.category === 'SECURITY' && severity === 'medium') {
+          severity = 'high'
+        }
+
+        const typeLabel = action.replace(/_/g, ' ').toLowerCase()
+        const classification = `Activity log · ${action}`
+
         incidentMap.set(key, {
           id: log._id,
-          type: (log.action || 'unknown').toLowerCase().replace(/_/g, '_'),
+          type: typeLabel,
+          classification,
           severity,
           status: log.status === 'SUCCESS' ? 'resolved' : 'active',
           description: log.description || 'Security event',
           affectedUsers: 1,
           ipAddresses: log.ipAddress ? [log.ipAddress] : [],
           location: log.metadata?.location || 'Unknown',
-          action: log.action || 'unknown',
+          action,
           createdAt: log.createdAt,
           metadata: log.metadata
         })

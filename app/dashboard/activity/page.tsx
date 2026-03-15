@@ -1,444 +1,240 @@
 "use client"
-import React, { useState, useMemo } from 'react'
+
+import React, { useMemo, useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Search, 
-  Download, 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   RefreshCw,
+  Download,
+  Loader2,
+  TrendingUp,
+  AlertCircle,
   AlertTriangle,
   CheckCircle,
   Info,
-  User,
-  Shield,
-  Database,
-  CreditCard,
-  Settings,
-  Activity,
-  BarChart3,
-  DollarSign,
-  AlertCircle,
-  ShieldCheck,
-  ChevronDown,
-  ChevronRight,
   Users,
   Building2,
-  FileText,
-  Server,
-  Loader2
 } from 'lucide-react'
-import { useActivityLogs, useActivityStats, type ActivityLog } from '@/lib/hooks/useActivityLogs'
 import toast from 'react-hot-toast'
+import {
+  useActivityLogs,
+  useActivityStats,
+  useSearchActivityLogs,
+  type ActivityLog,
+  type ActivityLogFilters,
+} from '@/lib/hooks/useActivityLogs'
 
-const ActivityLogPage = () => {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedLevel, setSelectedLevel] = useState("all")
-  const [selectedModule, setSelectedModule] = useState("all")
-  const [timeRange, setTimeRange] = useState("24h")
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [activeTab, setActiveTab] = useState("all")
-  const [page, setPage] = useState(1)
-  const limit = 50
+const TIME_RANGES = [
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+] as const
 
-  // Calculate date range based on timeRange
-  const getDateRange = () => {
-    const now = new Date()
-    const endDate = now.toISOString()
-    let startDate: string
-    
-    switch (timeRange) {
-      case '1h':
-        startDate = new Date(now.getTime() - 60 * 60 * 1000).toISOString()
-        break
-      case '24h':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
-        break
-      case '7d':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
-        break
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        break
-      default:
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
-    }
-    
-    return { startDate, endDate }
+function getTimeRangeDates(value: string): { startDate: string; endDate: string } {
+  const end = new Date()
+  const start = new Date()
+  if (value === '24h') start.setHours(start.getHours() - 24)
+  else if (value === '7d') start.setDate(start.getDate() - 7)
+  else if (value === '30d') start.setDate(start.getDate() - 30)
+  else start.setHours(start.getHours() - 24)
+  return {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
   }
+}
 
-  const dateRange = getDateRange()
-
-  // Map frontend status to backend status
-  const getBackendStatus = (level: string) => {
-    switch (level) {
-      case 'error': return 'FAILED'
-      case 'success': return 'SUCCESS'
-      case 'warning': return 'PENDING'
-      case 'info': return undefined
-      default: return undefined
-    }
-  }
-
-  // Fetch activity logs
-  const { data: logsData, isLoading, refetch } = useActivityLogs({
-    page,
-    limit,
-    category: selectedModule !== 'all' ? selectedModule.toUpperCase() : undefined,
-    status: selectedLevel !== 'all' ? getBackendStatus(selectedLevel) : undefined,
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleString('en-UG', {
+    dateStyle: 'short',
+    timeStyle: 'short',
   })
+}
 
-  // Fetch activity stats
-  const { data: statsData } = useActivityStats(dateRange.startDate, dateRange.endDate)
-
-  // Filter logs client-side for search
-  const filteredLogs = useMemo(() => {
-    if (!logsData?.logs) return []
-    
-    let logs = logsData.logs
-    
-    // Filter by search term
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase()
-      logs = logs.filter(log => 
-        log.action.toLowerCase().includes(lowerSearch) ||
-        log.description.toLowerCase().includes(lowerSearch) ||
-        (log.userEmail && log.userEmail.toLowerCase().includes(lowerSearch)) ||
-        (log.userPhone && log.userPhone.includes(lowerSearch))
+function StatusBadge({ status }: { status: ActivityLog['status'] }) {
+  switch (status) {
+    case 'SUCCESS':
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+          <CheckCircle className="h-3 w-3" />
+          Success
+        </span>
       )
-    }
-    
-    // Filter by tab (internal vs external)
-    if (activeTab === 'customer') {
-      logs = logs.filter(log => 
-        !log.userEmail?.endsWith('@rukapay.com') && 
-        !log.userEmail?.endsWith('@system') &&
-        log.channel !== 'SYSTEM'
+    case 'FAILED':
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+          <AlertCircle className="h-3 w-3" />
+          Error
+        </span>
       )
-    } else if (activeTab === 'internal') {
-      logs = logs.filter(log => 
-        log.userEmail?.endsWith('@rukapay.com') || 
-        log.userEmail?.endsWith('@system') ||
-        log.channel === 'SYSTEM' ||
-        log.category === 'ADMIN' ||
-        log.category === 'SYSTEM'
+    case 'PENDING':
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+          <AlertTriangle className="h-3 w-3" />
+          Pending
+        </span>
       )
-    }
-    
-    return logs
-  }, [logsData?.logs, searchTerm, activeTab])
-
-  // Calculate stats from filtered logs
-  const currentStats = useMemo(() => {
-    if (statsData) {
-      return {
-        total: statsData.totalActions,
-        errors: statsData.failedCount,
-        warnings: statsData.pendingCount,
-        success: statsData.successCount,
-        info: Math.max(0, statsData.totalActions - statsData.failedCount - statsData.pendingCount - statsData.successCount)
-      }
-    }
-    
-    // Fallback to calculating from logs
-    const logs = filteredLogs
-    return {
-      total: logs.length,
-      errors: logs.filter(log => log.status === 'FAILED').length,
-      warnings: logs.filter(log => log.status === 'PENDING').length,
-      success: logs.filter(log => log.status === 'SUCCESS').length,
-      info: logs.filter(log => !['FAILED', 'PENDING', 'SUCCESS'].includes(log.status)).length
-    }
-  }, [statsData, filteredLogs])
-
-  const mapStatusToLevel = (status: string): string => {
-    switch (status) {
-      case 'FAILED': return 'error'
-      case 'SUCCESS': return 'success'
-      case 'PENDING': return 'warning'
-      default: return 'info'
-    }
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+          <Info className="h-3 w-3" />
+          {status}
+        </span>
+      )
   }
+}
 
-  const getLevelBadge = (status: string) => {
-    const level = mapStatusToLevel(status)
-    switch (level) {
-      case 'error':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Error</Badge>
-      case 'warning':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Warning</Badge>
-      case 'success':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Success</Badge>
-      case 'info':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Info</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
+export default function ActivityLogPage() {
+  const [activityTab, setActivityTab] = useState<'all' | 'customer' | 'internal'>('all')
+  const [timeRange, setTimeRange] = useState<string>('24h')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [page, setPage] = useState(1)
+  const limit = 20
 
-  const getLevelIcon = (status: string) => {
-    const level = mapStatusToLevel(status)
-    switch (level) {
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-600" />
-      case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-600" />
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
-      case 'info':
-        return <Info className="h-4 w-4 text-blue-600" />
-      default:
-        return <Activity className="h-4 w-4 text-gray-600" />
-    }
-  }
+  const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
 
-  const getModuleIcon = (category: string) => {
-    const cat = category?.toLowerCase() || ''
-    switch (cat) {
-      case 'authentication':
-      case 'auth':
-        return <Shield className="h-4 w-4" />
-      case 'transactions':
-      case 'transaction':
-        return <CreditCard className="h-4 w-4" />
-      case 'payment_processing':
-      case 'payment':
-        return <DollarSign className="h-4 w-4" />
-      case 'user_management':
-      case 'user':
-        return <User className="h-4 w-4" />
-      case 'security':
-        return <ShieldCheck className="h-4 w-4" />
-      case 'database':
-        return <Database className="h-4 w-4" />
-      case 'system':
-        return <Server className="h-4 w-4" />
-      case 'analytics':
-        return <BarChart3 className="h-4 w-4" />
-      case 'reports':
-        return <FileText className="h-4 w-4" />
-      case 'settings':
-      case 'admin':
-        return <Settings className="h-4 w-4" />
-      default:
-        return <Activity className="h-4 w-4" />
-    }
-  }
+  const filters: ActivityLogFilters = useMemo(
+    () => ({
+      page,
+      limit,
+      startDate,
+      endDate,
+      status:
+        statusFilter === 'all'
+          ? undefined
+          : (statusFilter as ActivityLogFilters['status']),
+      category: categoryFilter === 'all' ? undefined : categoryFilter,
+    }),
+    [page, limit, startDate, endDate, statusFilter, categoryFilter]
+  )
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('en-UG', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  }
+  const searchFilters: ActivityLogFilters = useMemo(
+    () => ({ ...filters, query: searchQuery || undefined }),
+    [filters, searchQuery]
+  )
 
-  const getRelativeTime = (timestamp: string) => {
-    const now = new Date()
-    const logTime = new Date(timestamp)
-    const diffInMinutes = Math.floor((now.getTime() - logTime.getTime()) / (1000 * 60))
-    
-    if (diffInMinutes < 1) return 'Just now'
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-    return `${Math.floor(diffInMinutes / 1440)}d ago`
-  }
+  const { data: listData, isLoading: listLoading, refetch: refetchList } = useActivityLogs(filters)
+  const { data: searchData, isLoading: searchLoading } = useSearchActivityLogs({
+    ...searchFilters,
+    query: searchQuery || undefined,
+  })
+  const { data: stats, refetch: refetchStats } = useActivityStats(startDate, endDate)
 
-  const toggleRowExpansion = (id: string) => {
-    const newExpandedRows = new Set(expandedRows)
-    if (newExpandedRows.has(id)) {
-      newExpandedRows.delete(id)
-    } else {
-      newExpandedRows.add(id)
-    }
-    setExpandedRows(newExpandedRows)
-  }
+  const useSearch = searchQuery.trim().length > 0
+  const data = useSearch ? searchData : listData
+  const isLoading = useSearch ? searchLoading : listLoading
+  const logs = data?.logs ?? []
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 0
 
   const handleRefresh = () => {
-    refetch()
-    toast.success('Refreshing activity logs...')
+    refetchList()
+    refetchStats()
+    toast.success('Activity log refreshed')
   }
 
   const handleExport = () => {
-    toast.success('Export functionality coming soon')
+    if (!logs.length) {
+      toast.error('No logs to export')
+      return
+    }
+    const headers = ['Date', 'User', 'Action', 'Category', 'Status', 'Description', 'Channel', 'IP Address']
+    const rows = logs.map((log: ActivityLog) => [
+      new Date(log.createdAt).toLocaleString(),
+      log.userEmail || log.userPhone || log.userId || '',
+      log.action || '',
+      log.category || '',
+      log.status || '',
+      log.description || '',
+      log.channel || '',
+      log.ipAddress || '',
+    ])
+    const csvContent = [headers, ...rows]
+      .map(row => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `activity-logs-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${logs.length} activity logs to CSV`)
   }
 
-  const renderActivityTable = (logs: ActivityLog[], isInternal: boolean = false) => (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-gray-50">
-            <TableHead className="w-12"></TableHead>
-            <TableHead className="w-20">Status</TableHead>
-            <TableHead className="w-40">Time</TableHead>
-            <TableHead className="w-40">Category</TableHead>
-            <TableHead className="w-48">{isInternal ? 'Staff Member' : 'User'}</TableHead>
-            <TableHead className="w-48">Action</TableHead>
-            <TableHead className="w-64">Description</TableHead>
-            <TableHead className="w-32">IP Address</TableHead>
-            <TableHead className="w-32">Channel</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {logs.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                {isLoading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Loading activity logs...
-                  </div>
-                ) : (
-                  'No activity logs found for the selected filters'
-                )}
-              </TableCell>
-            </TableRow>
-          ) : (
-            logs.map((log) => (
-              <React.Fragment key={log._id}>
-                <TableRow className="hover:bg-gray-50">
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleRowExpansion(log._id)}
-                      className="h-6 w-6 p-0"
-                    >
-                      {expandedRows.has(log._id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getLevelIcon(log.status)}
-                      {getLevelBadge(log.status)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium">{formatTimestamp(log.createdAt)}</div>
-                      <div className="text-xs text-gray-500">{getRelativeTime(log.createdAt)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getModuleIcon(log.category)}
-                      <span className="text-sm capitalize">{log.category?.toLowerCase().replace(/_/g, ' ') || 'General'}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div className="font-medium truncate max-w-40">
-                        {log.userDetails?.fullName || log.userEmail || log.userPhone || log.userId || 'System'}
-                      </div>
-                      {log.userDetails?.email && log.userDetails?.email !== log.userEmail && (
-                        <div className="text-xs text-gray-500 truncate">{log.userDetails.email}</div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">{log.action?.replace(/_/g, ' ') || 'Action'}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-gray-600 max-w-56 truncate" title={log.description}>
-                      {log.description}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm text-gray-600 font-mono">{log.ipAddress || 'N/A'}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {log.channel || 'WEB'}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-                {expandedRows.has(log._id) && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="bg-gray-50 p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="font-medium text-gray-700 mb-3">Technical Details</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">User Agent:</span>
-                              <span className="font-mono text-xs max-w-64 truncate">{log.userAgent || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Request ID:</span>
-                              <span className="font-mono text-xs">{log.requestId || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">IP Address:</span>
-                              <span className="font-mono text-xs">{log.ipAddress || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Channel:</span>
-                              <span className="text-xs">{log.channel || 'WEB'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">User ID:</span>
-                              <span className="font-mono text-xs">{log.userId || 'N/A'}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-700 mb-3">Metadata</h4>
-                          <div className="space-y-2 text-sm">
-                            {log.metadata && Object.keys(log.metadata).length > 0 ? (
-                              Object.entries(log.metadata).slice(0, 8).map(([key, value]) => (
-                                <div key={key} className="flex justify-between">
-                                  <span className="text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                  <span className="text-xs max-w-48 truncate">
-                                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                                  </span>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-gray-400 italic">No additional metadata</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  )
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchQuery(searchInput.trim())
+    setPage(1)
+  }
+
+  const statsSummary = useMemo(() => {
+    const s = stats ?? {}
+    const totalEvents = s.totalActions ?? 0
+    const errors = s.failedCount ?? 0
+    const success = s.successCount ?? 0
+    const pending = s.pendingCount ?? 0
+    const warnings = pending
+    const info = Math.max(0, totalEvents - success - errors - pending)
+    return {
+      totalEvents,
+      errors,
+      warnings,
+      success,
+      info,
+    }
+  }, [stats])
+
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    logs.forEach((l) => l.category && set.add(l.category))
+    return Array.from(set).sort()
+  }, [logs])
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Log</h1>
-                <p className="text-gray-600">Monitor system activities, user actions, and security events</p>
+                <p className="text-gray-600">
+                  Monitor system activities, user actions, and security events
+                </p>
               </div>
               <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleRefresh}>
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={handleRefresh}
+                  disabled={listLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 ${listLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
                 <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
@@ -449,11 +245,10 @@ const ActivityLogPage = () => {
             </div>
           </div>
 
-          {/* Activity Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={activityTab} onValueChange={(v) => setActivityTab(v as typeof activityTab)} className="mb-6">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="all" className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
+                <TrendingUp className="h-4 w-4" />
                 All Activity
               </TabsTrigger>
               <TabsTrigger value="customer" className="flex items-center gap-2">
@@ -467,166 +262,215 @@ const ActivityLogPage = () => {
             </TabsList>
           </Tabs>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{currentStats.total.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">
-                  {timeRange === '1h' ? 'Last 1 hour' : timeRange === '24h' ? 'Last 24 hours' : timeRange === '7d' ? 'Last 7 days' : 'Last 30 days'}
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <TrendingUp className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{statsSummary.totalEvents}</p>
+                    <p className="text-xs text-gray-500">Last 24 hours</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Errors</CardTitle>
-                <AlertCircle className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{currentStats.errors.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">
-                  {currentStats.errors > 0 ? 'Requires attention' : 'All clear'}
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-100">
+                    <AlertCircle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{statsSummary.errors}</p>
+                    <p className="text-xs text-gray-500">All clear</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Warnings</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{currentStats.warnings.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">
-                  Monitor closely
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-100">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{statsSummary.warnings}</p>
+                    <p className="text-xs text-gray-500">Monitor closely</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Success</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{currentStats.success.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">
-                  Operations completed
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-100">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{statsSummary.success}</p>
+                    <p className="text-xs text-gray-500">Operations completed</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Info</CardTitle>
-                <Info className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{currentStats.info.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">
-                  Informational events
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-100">
+                    <Info className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{statsSummary.info}</p>
+                    <p className="text-xs text-gray-500">Informational events</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Activity Content */}
           <Card>
-            <CardHeader>
-              <CardTitle>
-                {activeTab === 'all' ? 'All Activity' : activeTab === 'customer' ? 'Customer Activity' : 'Internal Activity'}
-              </CardTitle>
-              <CardDescription>
-                {activeTab === 'all' 
-                  ? 'All system activities and user actions'
-                  : activeTab === 'customer' 
-                    ? 'External user activities and transactions'
-                    : 'Dashboard operations and system management activities'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Filters and Search */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {activityTab === 'all' && 'All Activity'}
+                  {activityTab === 'customer' && 'Customer Activity'}
+                  {activityTab === 'internal' && 'Internal Activity'}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {activityTab === 'all' && 'All system activities and user actions'}
+                  {activityTab === 'customer' && 'Customer-facing actions and events'}
+                  {activityTab === 'internal' && 'Internal staff and system operations'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <form onSubmit={handleSearchSubmit} className="flex gap-2">
                   <Input
-                    placeholder="Search activities..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    placeholder="Search..."
+                    className="w-48"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                   />
-                </div>
-                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Status" />
+                  <Button type="submit" variant="secondary" size="sm">
+                    Search
+                  </Button>
+                </form>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="error">Failed</SelectItem>
-                    <SelectItem value="warning">Pending</SelectItem>
-                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="SUCCESS">Success</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={selectedModule} onValueChange={setSelectedModule}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Category" />
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="USER_MANAGEMENT">User Management</SelectItem>
-                    <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
-                    <SelectItem value="TRANSACTION">Transactions</SelectItem>
-                    <SelectItem value="SECURITY">Security</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                    <SelectItem value="SYSTEM">System</SelectItem>
-                    <SelectItem value="WALLET">Wallet</SelectItem>
-                    <SelectItem value="KYC">KYC</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <Select value={timeRange} onValueChange={setTimeRange}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="1h">Last 1 hour</SelectItem>
-                    <SelectItem value="24h">Last 24 hours</SelectItem>
-                    <SelectItem value="7d">Last 7 days</SelectItem>
-                    <SelectItem value="30d">Last 30 days</SelectItem>
+                    {TIME_RANGES.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Activity Table */}
-              {renderActivityTable(filteredLogs, activeTab === 'internal')}
+              <div className="rounded-md border">
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : logs.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500">
+                    No activity logs found for the selected filters
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50">
+                        <TableHead>Status</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>IP Address</TableHead>
+                        <TableHead>Channel</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log) => (
+                        <TableRow key={log._id}>
+                          <TableCell>
+                            <StatusBadge status={log.status} />
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600 whitespace-nowrap">
+                            {formatTime(log.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-sm">{log.category || '—'}</TableCell>
+                          <TableCell className="text-sm">
+                            {log.userDetails?.fullName ||
+                              log.userDetails?.email ||
+                              log.userEmail ||
+                              log.userPhone ||
+                              '—'}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {log.action?.replace(/_/g, ' ') || '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600 max-w-xs truncate">
+                            {log.description || '—'}
+                          </TableCell>
+                          <TableCell className="text-sm font-mono text-gray-500">
+                            {log.ipAddress || '—'}
+                          </TableCell>
+                          <TableCell className="text-sm">{log.channel || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
 
-              {/* Pagination */}
-              {logsData && logsData.totalPages > 1 && (
+              {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <p className="text-sm text-gray-500">
-                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, logsData.total)} of {logsData.total} entries
+                    Page {page} of {totalPages} ({total} total)
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
                     >
                       Previous
                     </Button>
-                    <span className="text-sm text-gray-600">
-                      Page {page} of {logsData.totalPages}
-                    </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage(p => Math.min(logsData.totalPages, p + 1))}
-                      disabled={page >= logsData.totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={page >= totalPages}
                     >
                       Next
                     </Button>
@@ -640,5 +484,3 @@ const ActivityLogPage = () => {
     </div>
   )
 }
-
-export default ActivityLogPage

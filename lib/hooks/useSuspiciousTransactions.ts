@@ -299,13 +299,26 @@ async function getSuspiciousUsers(): Promise<SuspiciousUser[]> {
       try {
         // Fetch all users and filter by IDs client-side
         const { data: usersData } = await api.get(`/admin/users`)
-        const userList = usersData?.data || usersData?.users || []
+        const userList = Array.isArray(usersData)
+          ? usersData
+          : usersData?.data || usersData?.users || []
         
         users.forEach(suspiciousUser => {
           const user = userList.find((u: any) => u.id === suspiciousUser.userId)
           if (user) {
             suspiciousUser.isBlocked = user.status === 'SUSPENDED'
             suspiciousUser.blockedAt = user.suspendedAt || user.blockedAt
+            // Enrich name, email, phone from user record so we don't show "Unknown"
+            if (!suspiciousUser.email && user.email) suspiciousUser.email = user.email
+            if (!suspiciousUser.phone && user.phone) suspiciousUser.phone = user.phone
+            if (!suspiciousUser.name) {
+              const fullName = user.profile?.firstName && user.profile?.lastName
+                ? `${user.profile.firstName} ${user.profile.lastName}`.trim()
+                : user.firstName && user.lastName
+                  ? `${user.firstName} ${user.lastName}`.trim()
+                  : user.profile?.firstName || user.firstName
+              if (fullName) suspiciousUser.name = fullName
+            }
           }
         })
       } catch (error) {

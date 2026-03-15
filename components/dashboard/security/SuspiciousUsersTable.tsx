@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,22 +27,32 @@ import { useSuspiciousUsers, type SuspiciousUser } from '@/lib/hooks/useSuspicio
 import { useBlockUser, useUnblockUser } from '@/lib/hooks/useUserBlocking'
 import { formatDistanceToNow } from 'date-fns'
 
+const PAGE_SIZE = 10
+
 interface SuspiciousUsersTableProps {
   limit?: number
 }
 
-export function SuspiciousUsersTable({ limit = 50 }: SuspiciousUsersTableProps) {
+export function SuspiciousUsersTable({ limit: _limit = 50 }: SuspiciousUsersTableProps) {
   const { data: suspiciousUsers, isLoading, refetch } = useSuspiciousUsers()
   const blockUserMutation = useBlockUser()
   const unblockUserMutation = useUnblockUser()
   
+  const [page, setPage] = useState(1)
   const [selectedUser, setSelectedUser] = useState<SuspiciousUser | null>(null)
   const [blockDialogOpen, setBlockDialogOpen] = useState(false)
   const [unblockDialogOpen, setUnblockDialogOpen] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
 
-  const displayedUsers = suspiciousUsers?.slice(0, limit) || []
+  const total = suspiciousUsers?.length ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const displayedUsers = suspiciousUsers?.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) ?? []
+
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) setPage(1)
+  }, [totalPages, page])
 
   const getRiskBadgeColor = (level: string) => {
     switch (level) {
@@ -117,7 +127,7 @@ export function SuspiciousUsersTable({ limit = 50 }: SuspiciousUsersTableProps) 
     )
   }
 
-  if (!displayedUsers || displayedUsers.length === 0) {
+  if (!suspiciousUsers || suspiciousUsers.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <Shield className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -169,9 +179,18 @@ export function SuspiciousUsersTable({ limit = 50 }: SuspiciousUsersTableProps) 
                     <TableCell>
                       <div>
                         <div className="font-medium">
-                          {user.name || user.email || 'Unknown'}
+                          {user.name || user.email || (user.phone ? `+${user.phone}` : null) || 'Unknown'}
                         </div>
-                        <div className="text-sm text-gray-500">{user.phone}</div>
+                        <div className="text-sm text-gray-500">
+                          {user.name
+                            ? (user.email || (user.phone ? `+${user.phone}` : '') || `ID: ${user.userId?.slice(-8) ?? ''}`)
+                            : user.email
+                              ? (user.phone ? `+${user.phone}` : `ID: ${user.userId?.slice(-8) ?? ''}`)
+                              : user.phone
+                                ? (user.email || `ID: ${user.userId?.slice(-8) ?? ''}`)
+                                : `ID: ${user.userId?.slice(-8) ?? '—'}`
+                          }
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -308,6 +327,35 @@ export function SuspiciousUsersTable({ limit = 50 }: SuspiciousUsersTableProps) 
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1 py-3">
+          <p className="text-sm text-gray-500">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, total)} of {total} users
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Block User Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>

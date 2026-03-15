@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
+import { useNavVisibility } from '@/lib/hooks/useNavVisibility'
 // import NotificationsModal from './NotificationsModal'
 
 const Navbar = () => {
@@ -31,6 +32,7 @@ const Navbar = () => {
   const settingsDropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { user, logout } = useAuth()
   const { canViewSystemLogs, hasPermission, userRole } = usePermissions()
+  const { isVisible } = useNavVisibility()
 
   console.log(isNotificationsOpen)
 
@@ -258,45 +260,49 @@ const Navbar = () => {
                 </Link>
                 
                 {/* Analytics Menu - Only show if user has analytics permissions */}
-                <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW}>
-                  <Link 
-                    href="/dashboard/analytics" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/analytics')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <BarChart3 className="nav-icon" />
-                    <span>Analytics</span>
-                  </Link>
-                </PermissionGuard>
-                
-                {/* Finance Menu - Show if user has tariff OR transaction management permissions */}
-                <PermissionGuard permissions={[
-                  PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE, PERMISSIONS.TARIFF_DELETE, PERMISSIONS.TARIFF_APPROVE, PERMISSIONS.TARIFF_REJECT,
-                  PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE,
-                  PERMISSIONS.TRANSACTION_MODES_VIEW
-                ]}>
-                  <div 
-                    ref={financeMenuRef}
-                    className="relative"
-                    onMouseEnter={handleFinanceMouseEnter}
-                    onMouseLeave={handleFinanceMouseLeave}
-                  >
+                {isVisible('analytics') && (
+                  <PermissionGuard permission={PERMISSIONS.ANALYTICS_VIEW}>
                     <Link 
-                      href="/dashboard/finance/tariffs" 
+                      href="/dashboard/analytics" 
                       className={`nav-slider-item ${
-                        (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                        isActive('/dashboard/analytics')
                           ? 'active'
                           : ''
                       }`}
                     >
-                      <DollarSign className="nav-icon" />
-                      <span>Finance</span>
+                      <BarChart3 className="nav-icon" />
+                      <span>Analytics</span>
                     </Link>
-                  </div>
-                </PermissionGuard>
+                  </PermissionGuard>
+                )}
+                
+                {/* Finance Menu - Show if user has tariff OR transaction management permissions */}
+                {isVisible('finance') && (
+                  <PermissionGuard permissions={[
+                    PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE, PERMISSIONS.TARIFF_DELETE, PERMISSIONS.TARIFF_APPROVE, PERMISSIONS.TARIFF_REJECT,
+                    PERMISSIONS.TRANSACTIONS_VIEW, PERMISSIONS.TRANSACTIONS_APPROVE, PERMISSIONS.TRANSACTIONS_REVERSE,
+                    PERMISSIONS.TRANSACTION_MODES_VIEW
+                  ]}>
+                    <div 
+                      ref={financeMenuRef}
+                      className="relative"
+                      onMouseEnter={handleFinanceMouseEnter}
+                      onMouseLeave={handleFinanceMouseLeave}
+                    >
+                      <Link 
+                        href="/dashboard/finance/tariffs" 
+                        className={`nav-slider-item ${
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                            ? 'active'
+                            : ''
+                        }`}
+                      >
+                        <DollarSign className="nav-icon" />
+                        <span>Finance</span>
+                      </Link>
+                    </div>
+                  </PermissionGuard>
+                )}
                 
                 {/* Products Menu - Commented out for now */}
                 {/* <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
@@ -314,91 +320,101 @@ const Navbar = () => {
                 </PermissionGuard> */}
                 
                 {/* Gateway Partners Menu */}
-                <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
-                  <Link 
-                    href="/dashboard/gateway-partners" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/gateway-partners')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Globe className="nav-icon" />
-                    <span>Gateway Partners</span>
-                  </Link>
-                </PermissionGuard>
+                {isVisible('gateway-partners') && (
+                  <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
+                    <Link 
+                      href="/dashboard/gateway-partners" 
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/gateway-partners')
+                          ? 'active'
+                          : ''
+                      }`}
+                    >
+                      <Globe className="nav-icon" />
+                      <span>Gateway Partners</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
                 
-                <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
-                  <Link 
-                    href="/dashboard/users" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/users')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Users className="nav-icon" />
-                    <span>Users</span>
-                  </Link>
-                </PermissionGuard>
+                {isVisible('users') && (
+                  <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
+                    <Link 
+                      href="/dashboard/users" 
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/users')
+                          ? 'active'
+                          : ''
+                      }`}
+                    >
+                      <Users className="nav-icon" />
+                      <span>Users</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
                 
-                <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
-                  <Link 
-                    href="/dashboard/customers" 
-                    className={`nav-slider-item ${
-                      isActive('/dashboard/customers')
-                        ? 'active'
-                        : ''
-                    }`}
-                  >
-                    <Users className="nav-icon" />
-                    <span>Customers</span>
-                  </Link>
-                </PermissionGuard>
+                {isVisible('customers') && (
+                  <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
+                    <Link 
+                      href="/dashboard/customers" 
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/customers')
+                          ? 'active'
+                          : ''
+                      }`}
+                    >
+                      <Users className="nav-icon" />
+                      <span>Customers</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
                 
                 {/* Security Menu with Dropdown */}
-                <PermissionGuard permissions={[PERMISSIONS.SYSTEM_CONFIGURE, PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.KYC_VIEW]} requireAll={false}>
-                  <div
-                    ref={securityMenuRef}
-                    className="relative"
-                    onMouseEnter={handleSecurityMouseEnter}
-                    onMouseLeave={handleSecurityMouseLeave}
-                  >
-                    <Link 
-                      href="/dashboard/security" 
-                      className={`nav-slider-item ${
-                        (isActive('/dashboard/security') || isActive('/dashboard/activity') || isActive('/dashboard/kyc') || isActive('/dashboard/system-logs'))
-                          ? 'active'
-                          : ''
-                      }`}
+                {isVisible('security') && (
+                  <PermissionGuard permissions={[PERMISSIONS.SYSTEM_CONFIGURE, PERMISSIONS.SYSTEM_LOGS, PERMISSIONS.KYC_VIEW]} requireAll={false}>
+                    <div
+                      ref={securityMenuRef}
+                      className="relative"
+                      onMouseEnter={handleSecurityMouseEnter}
+                      onMouseLeave={handleSecurityMouseLeave}
                     >
-                      <Shield className="nav-icon" />
-                      <span>Security</span>
-                    </Link>
-                  </div>
-                </PermissionGuard>
+                      <Link 
+                        href="/dashboard/security" 
+                        className={`nav-slider-item ${
+                          (isActive('/dashboard/security') || isActive('/dashboard/activity') || isActive('/dashboard/kyc') || isActive('/dashboard/system-logs'))
+                            ? 'active'
+                            : ''
+                        }`}
+                      >
+                        <Shield className="nav-icon" />
+                        <span>Security</span>
+                      </Link>
+                    </div>
+                  </PermissionGuard>
+                )}
                 
                 {/* Settings Menu with Dropdown */}
-                <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
-                  <div
-                    ref={settingsMenuRef}
-                    className="relative"
-                    onMouseEnter={handleSettingsMouseEnter}
-                    onMouseLeave={handleSettingsMouseLeave}
-                  >
-                    <Link 
-                      href="/dashboard/settings" 
-                      className={`nav-slider-item ${
-                        (isActive('/dashboard/settings') || isActive('/dashboard/carousel'))
-                          ? 'active'
-                          : ''
-                      }`}
+                {isVisible('settings') && (
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
+                    <div
+                      ref={settingsMenuRef}
+                      className="relative"
+                      onMouseEnter={handleSettingsMouseEnter}
+                      onMouseLeave={handleSettingsMouseLeave}
                     >
-                      <Cog className="nav-icon" />
-                      <span>Settings</span>
-                    </Link>
-                  </div>
-                </PermissionGuard>
+                      <Link 
+                        href="/dashboard/settings" 
+                        className={`nav-slider-item ${
+                          (isActive('/dashboard/settings') || isActive('/dashboard/carousel') || isActive('/dashboard/settings/nav-visibility'))
+                            ? 'active'
+                            : ''
+                        }`}
+                      >
+                        <Cog className="nav-icon" />
+                        <span>Settings</span>
+                      </Link>
+                    </div>
+                  </PermissionGuard>
+                )}
                 
                 {/* Temporarily commented out API Logs tab */}
                 {/* {canViewSystemLogs && (
@@ -415,17 +431,19 @@ const Navbar = () => {
                   </Link>
                 )} */}
                 
-                <Link 
-                  href="/dashboard/profile" 
-                  className={`nav-slider-item ${
-                    isActive('/dashboard/profile')
-                      ? 'active'
-                      : ''
-                  }`}
-                >
-                  <User className="nav-icon" />
-                  <span>Profile</span>
-                </Link>
+                {isVisible('profile') && (
+                  <Link 
+                    href="/dashboard/profile" 
+                    className={`nav-slider-item ${
+                      isActive('/dashboard/profile')
+                        ? 'active'
+                        : ''
+                    }`}
+                  >
+                    <User className="nav-icon" />
+                    <span>Profile</span>
+                  </Link>
+                )}
               </div>
             </div>
             
@@ -706,6 +724,20 @@ const Navbar = () => {
                       Carousel
                     </Link>
                   </PermissionGuard>
+                  {userRole === 'SUPER_ADMIN' && (
+                    <Link 
+                      href="/dashboard/settings/nav-visibility" 
+                      className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/settings/nav-visibility')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      <EyeOff className="h-3.5 w-3.5" />
+                      Nav Visibility
+                    </Link>
+                  )}
                 </div>
               </div>
             )}

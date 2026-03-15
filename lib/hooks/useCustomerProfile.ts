@@ -1,9 +1,9 @@
 import { useMemo, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useUsers, useWalletTransactions, useUserActivityLogs, useApiPartner } from '@/lib/hooks/useApi'
+import { useUsers, useWalletTransactions, useApiPartner } from '@/lib/hooks/useApi'
 import { useMerchants } from '@/lib/hooks/useMerchants'
 import { useAllTransactions } from '@/lib/hooks/useTransactions'
-import { useActivityLogs } from '@/lib/hooks/useActivityLogs'
+import { useActivityLogs, useUserActivityLogsByUserId } from '@/lib/hooks/useActivityLogs'
 import { useWallet, useAllWalletsByUserId } from '@/lib/hooks/useWallets'
 import type { Wallet } from '@/lib/types/api'
 import api from '@/lib/axios'
@@ -187,7 +187,7 @@ export const useCustomerProfile = (currentPage: number, pageLimit: number) => {
     return undefined
   }, [type, merchantData, regularPartner, id])
 
-  const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogs(
+  const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogsByUserId(
     activityLogUserId,
     currentPage,
     pageLimit

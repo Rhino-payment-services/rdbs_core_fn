@@ -23,7 +23,6 @@ import {
   MoreHorizontal,
   Phone,
   Mail,
-  MapPin,
   Calendar,
   DollarSign,
   Activity,
@@ -354,7 +353,6 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                 {!isMerchantTab && <TableHead>Subscriber Type</TableHead>}
                 <TableHead>Status</TableHead>
                 {!isMerchantTab && <TableHead>Wallet</TableHead>}
-                <TableHead>Location</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Activity</TableHead>
                 <TableHead>Actions</TableHead>
@@ -497,19 +495,6 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                       {getWalletBadge(customer)}
                     </TableCell>
                   )}
-                  <TableCell>
-                    {isMerchantTab ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="h-3 w-3" />
-                        {customer.businessCity || 'Unknown'}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="h-3 w-3" />
-                        {(customer as any)?.country || (customer as any)?.profile?.country || 'Unknown'}
-                      </div>
-                    )}
-                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Calendar className="h-3 w-3" />

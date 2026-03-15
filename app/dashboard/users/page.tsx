@@ -142,6 +142,37 @@ const UsersPage = () => {
     })
   }
 
+  const handleExportCSV = () => {
+    if (!staffUsersArray.length) {
+      toast.error('No users to export')
+      return
+    }
+    const headers = ['Email', 'Phone', 'Role', 'User Type', 'Status', 'KYC Status', 'Last Login', 'Created At']
+    const rows = staffUsersArray.map(u => [
+      u.email || '',
+      u.phone || '',
+      u.role || '',
+      u.userType || '',
+      u.status || '',
+      u.kycStatus || '',
+      u.lastLoginAt ? formatDate(u.lastLoginAt) : 'Never',
+      u.createdAt ? formatDate(u.createdAt) : '',
+    ])
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `staff-users-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${staffUsersArray.length} users to CSV`)
+  }
+
   return (
     <PermissionGuard 
       permission={PERMISSIONS.USERS_VIEW} 
@@ -329,9 +360,9 @@ const UsersPage = () => {
                     <Filter className="h-4 w-4" />
                     Filter
                   </Button>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2" onClick={handleExportCSV}>
                     <Download className="h-4 w-4" />
-                    Export
+                    Export CSV
                   </Button>
                 </div>
 
