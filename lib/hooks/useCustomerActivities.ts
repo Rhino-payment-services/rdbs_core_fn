@@ -15,11 +15,13 @@ export const useCustomerActivities = ({
 }) => {
   // Process activity log arrays
   const partnerLogsArray = useMemo(() => {
-    return Array.isArray(partnerActivityLogsData?.logs) ? partnerActivityLogsData.logs : EMPTY_ARRAY
+    const raw = partnerActivityLogsData?.data?.logs ?? partnerActivityLogsData?.logs
+    return Array.isArray(raw) ? raw : EMPTY_ARRAY
   }, [partnerActivityLogsData])
 
   const userLogsArray = useMemo(() => {
-    return Array.isArray(activityLogsData?.logs) ? activityLogsData.logs : EMPTY_ARRAY
+    const raw = activityLogsData?.data?.logs ?? activityLogsData?.logs
+    return Array.isArray(raw) ? raw : EMPTY_ARRAY
   }, [activityLogsData])
 
   // Filter partner activities
@@ -48,8 +50,8 @@ export const useCustomerActivities = ({
   const totalActivities = useMemo(() => {
     return type === 'partner'
       ? filteredPartnerActivities.length
-      : (activityLogsData?.total || 0)
-  }, [type, filteredPartnerActivities.length, activityLogsData?.total])
+      : (activityLogsData?.data?.total ?? activityLogsData?.total ?? 0)
+  }, [type, filteredPartnerActivities.length, activityLogsData])
 
   return {
     activities,
