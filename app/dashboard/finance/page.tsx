@@ -44,6 +44,15 @@ const FinancePage = () => {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-200'
+    },
+    {
+      title: 'Partner Reversal Requests',
+      description: 'Review and approve or reject transaction reversal requests from gateway partners',
+      icon: CreditCard,
+      href: '/dashboard/finance/reversal-requests',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+      borderColor: 'border-orange-200'
     }
   ]
 

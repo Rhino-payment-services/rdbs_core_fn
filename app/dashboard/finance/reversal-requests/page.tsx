@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import api from '@/lib/axios'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, CheckCircle2, Loader2, RotateCcw, XCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Eye, Loader2, RotateCcw, XCircle } from 'lucide-react'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 
 type ReversalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
@@ -30,7 +30,10 @@ interface PartnerReversalRequest {
     currency: string
     status: string
     type: string
+    reference?: string | null
+    mode?: string | null
     createdAt: string
+    description?: string | null
   } | null
 }
 
@@ -45,7 +48,7 @@ interface ReversalListResponse {
   }
 }
 
-export default function GatewayPartnerReversalsPage() {
+export default function FinancePartnerReversalsPage() {
   const { hasPermission } = usePermissions()
 
   const [statusFilter, setStatusFilter] = useState<'' | ReversalStatus>('PENDING')
@@ -59,6 +62,8 @@ export default function GatewayPartnerReversalsPage() {
   const [reviewNote, setReviewNote] = useState('')
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null)
+
+  const [selectedRequest, setSelectedRequest] = useState<PartnerReversalRequest | null>(null)
 
   const canReview = hasPermission(PERMISSIONS.TRANSACTIONS_REVERSE)
 
@@ -218,6 +223,7 @@ export default function GatewayPartnerReversalsPage() {
                         const created = new Date(req.createdAt).toLocaleString()
                         const amount = req.transaction?.amount ?? 0
                         const currency = req.transaction?.currency ?? ''
+                        const reference = req.transaction?.reference || '—'
 
                         const statusBadge =
                           req.status === 'PENDING'
@@ -233,7 +239,14 @@ export default function GatewayPartnerReversalsPage() {
                         return (
                           <tr key={req.id} className="border-b last:border-b-0">
                             <td className="px-3 py-2 align-top">
-                              <div className="font-mono text-xs">{req.id}</div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedRequest(req)}
+                                className="flex items-center gap-1 font-mono text-xs text-blue-600 hover:underline underline-offset-2"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>{reference}</span>
+                              </button>
                             </td>
                             <td className="px-3 py-2 align-top text-sm">
                               <div className="font-medium">
@@ -241,7 +254,7 @@ export default function GatewayPartnerReversalsPage() {
                               </div>
                             </td>
                             <td className="px-3 py-2 align-top text-xs">
-                              <div className="font-mono">{req.transactionId}</div>
+                              <div className="font-mono">{reference}</div>
                               <div className="text-[11px] text-gray-500">
                                 {req.transaction?.type} · {req.transaction?.status}
                               </div>
@@ -330,62 +343,130 @@ export default function GatewayPartnerReversalsPage() {
           </CardContent>
         </Card>
 
-        {/* Simple inline review dialog */}
-        {reviewingId && reviewAction && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                {reviewAction === 'approve' ? (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    Approve Reversal Request
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-5 h-5 text-red-600" />
-                    Reject Reversal Request
-                  </>
-                )}
-              </h2>
-              <p className="text-sm text-gray-600">
-                Request ID: <span className="font-mono text-xs">{reviewingId}</span>
-              </p>
-              <div className="flex flex-col">
-                <label className="text-xs text-gray-500 mb-1">
-                  Review note (optional, but recommended)
-                </label>
-                <textarea
-                  className="border rounded-md px-2 py-2 text-sm min-h-[80px]"
-                  placeholder={
-                    reviewAction === 'approve'
-                      ? 'Explain your verification steps and why you are approving this reversal.'
-                      : 'Explain why this reversal is being rejected.'
-                  }
-                  value={reviewNote}
-                  onChange={(e) => setReviewNote(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
+        {selectedRequest && (
+          <div className="absolute h-full w-full inset-0 z-1000 flex items-center  top-0 left-0  justify-center bg-black/60">
+            <div className="max-w-3xl max-h-[90vh] w-full mx-4 rounded-xl bg-white shadow-2xl overflow-y-auto">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h2 className="text-sm font-semibold text-gray-900">Reversal Request Details</h2>
                 <button
-                  onClick={() => {
-                    setReviewingId(null)
-                    setReviewAction(null)
-                    setReviewNote('')
-                  }}
-                  className="px-3 py-1.5 rounded-md border text-sm"
+                  type="button"
+                  onClick={() => setSelectedRequest(null)}
+                  className="text-xs text-gray-500 hover:text-gray-700"
                 >
-                  Cancel
+                  Close
                 </button>
+              </div>
+              <div className="px-4 py-3 space-y-4 text-xs text-gray-800">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Request ID</div>
+                    <div className="font-mono break-all">{selectedRequest.id}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Status</div>
+                    <div>{selectedRequest.status}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Partner</div>
+                    <div className="font-medium">
+                      {selectedRequest.partner?.partnerName || selectedRequest.partnerId}
+                    </div>
+                    <div className="font-mono text-[11px] text-gray-500">
+                      ID: {selectedRequest.partnerId}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Transaction</div>
+                    <div className="font-mono break-all mb-0.5">
+                      ID: {selectedRequest.transactionId}
+                    </div>
+                    <div className="font-mono text-[11px] text-gray-600 mb-0.5">
+                      Ref: {selectedRequest.transaction?.reference || '—'}
+                    </div>
+                    {selectedRequest.transaction && (
+                      <div className="text-[11px] text-gray-500">
+                        {selectedRequest.transaction.type} · {selectedRequest.transaction.status}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Amount</div>
+                    <div>
+                      {(selectedRequest.transaction?.amount ?? 0).toLocaleString()}{' '}
+                      {selectedRequest.transaction?.currency || ''}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500">Created At</div>
+                    <div>{new Date(selectedRequest.createdAt).toLocaleString()}</div>
+                  </div>
+                  {selectedRequest.reviewedAt && (
+                    <div>
+                      <div className="text-[11px] font-semibold text-gray-500">Reviewed At</div>
+                      <div>{new Date(selectedRequest.reviewedAt).toLocaleString()}</div>
+                    </div>
+                  )}
+                  {selectedRequest.cancelledAt && (
+                    <div>
+                      <div className="text-[11px] font-semibold text-gray-500">Cancelled At</div>
+                      <div>{new Date(selectedRequest.cancelledAt).toLocaleString()}</div>
+                    </div>
+                  )}
+                  <div className="col-span-2 border-t pt-3">
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">
+                      Transaction Mode / Status
+                    </div>
+                    <div>
+                      {selectedRequest.transaction?.type || '—'} ·{' '}
+                      {selectedRequest.transaction?.status || '—'} ·{' '}
+                      {selectedRequest.transaction?.mode || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-500 mb-1">Reason</div>
+                  <div className="rounded-md border bg-gray-50 px-2 py-1">
+                    {selectedRequest.reason}
+                  </div>
+                </div>
+
+                {selectedRequest.transaction?.description && (
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">
+                      Transaction Description
+                    </div>
+                    <div className="rounded-md border bg-gray-50 px-2 py-1 whitespace-pre-wrap break-words">
+                      {selectedRequest.transaction.description}
+                    </div>
+                  </div>
+                )}
+
+                {selectedRequest.details && (
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">Details</div>
+                    <div className="rounded-md border bg-gray-50 px-2 py-1 whitespace-pre-wrap break-words">
+                      {selectedRequest.details}
+                    </div>
+                  </div>
+                )}
+
+                {selectedRequest.reviewNote && (
+                  <div>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1">Review Note</div>
+                    <div className="rounded-md border bg-gray-50 px-2 py-1 whitespace-pre-wrap break-words">
+                      {selectedRequest.reviewNote}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-t px-4 py-3 flex justify-end">
                 <button
-                  onClick={submitReview}
-                  className={`px-3 py-1.5 rounded-md text-sm text-white inline-flex items-center gap-1 ${
-                    reviewAction === 'approve'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
+                  type="button"
+                  onClick={() => setSelectedRequest(null)}
+                  className="px-3 py-1.5 rounded-md border text-xs text-gray-700 hover:bg-gray-50"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  Confirm
+                  Close
                 </button>
               </div>
             </div>
