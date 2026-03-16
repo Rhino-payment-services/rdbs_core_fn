@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
@@ -215,6 +216,29 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }
 
+  // Helper to map a permission name (like DASHBOARD_VIEW) to its ID from the permissions list
+  const getPermissionIdByName = (permissionName: string) => {
+    const match = permissionsArray.find(
+      (p: Permission | any) => p?.name === permissionName || p?.code === permissionName
+    )
+    return (match as any)?.id || ''
+  }
+
+  // High-level navigation areas controlled via view permissions
+  const NAV_PERMISSION_NAMES: string[] = [
+    PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.ANALYTICS_VIEW,
+    PERMISSIONS.USERS_VIEW,
+    PERMISSIONS.WALLETS_VIEW,
+    PERMISSIONS.KYC_VIEW,
+    PERMISSIONS.MERCHANT_KYC_VIEW,
+    PERMISSIONS.MERCHANT_VIEW,
+    PERMISSIONS.DOCUMENTS_VIEW,
+    PERMISSIONS.TRANSACTIONS_VIEW,
+    PERMISSIONS.PRODUCTS_VIEW,
+    PERMISSIONS.PARTNERS_VIEW,
+  ]
+
   const handlePromoteToSuperAdmin = async () => {
     try {
       await updateUser.mutateAsync({ id: user.id, userData: { role: 'SUPER_ADMIN' } })
@@ -246,7 +270,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
         )}
       </DialogTrigger>
       <DialogOverlay className="z-[99998]" />
-      <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto z-[99999]">
+      <DialogContent className="w-[90vw] max-w-[1400px] max-h-[95vh] overflow-y-auto z-[99999]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
@@ -538,6 +562,51 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                       </div>
                     </>
                   )}
+                </CardContent>
+              </Card>
+            </PermissionGuard>
+
+            {/* Navigation visibility (driven by view permissions) */}
+            <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Navigation Visibility
+                  </CardTitle>
+                  <CardDescription>
+                    Control which main dashboard sections this user can see in the navigation.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {NAV_PERMISSION_NAMES.map((permName) => {
+                    const permId = getPermissionIdByName(permName)
+                    if (!permId) return null
+
+                    const label = permName
+                      .replace('_VIEW', '')
+                      .replace(/_/g, ' ')
+                      .toLowerCase()
+                      .replace(/^\w/, (c) => c.toUpperCase())
+
+                    return (
+                      <div
+                        key={permName}
+                        className="flex items-center justify-between py-2 border-b last:border-b-0"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-800">{label}</span>
+                          <span className="text-xs text-gray-500">
+                            Toggles visibility of the {label.toLowerCase()} section in the sidebar.
+                          </span>
+                        </div>
+                        <Switch
+                          checked={selectedPermissions.includes(permId)}
+                          onCheckedChange={() => handlePermissionToggle(permId)}
+                        />
+                      </div>
+                    )
+                  })}
                 </CardContent>
               </Card>
             </PermissionGuard>
