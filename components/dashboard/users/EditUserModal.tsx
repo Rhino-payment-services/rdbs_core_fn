@@ -269,7 +269,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="w-[90vw] max-w-none max-h-[95vh] overflow-y-auto z-[99999]">
+      <DialogContent
+        className="max-h-[95vh] overflow-y-auto z-[99999]"
+        style={{ width: '90vw', maxWidth: '90vw' }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserIcon className="h-5 w-5" />
@@ -427,235 +430,222 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
           </TabsContent>
 
           {/* Roles & Permissions Tab */}
-          <TabsContent value="roles" className="space-y-6">
+          <TabsContent value="roles">
             <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Role Management
+              {/* Top: Role assignment row */}
+              <Card className="mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Shield className="h-4 w-4" />
+                    Role Assignment
                   </CardTitle>
-                  <CardDescription>Assign or remove roles for this user</CardDescription>
+                  <CardDescription>Assign or remove the system role for this user</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Current Role</Label>
-                    <div className="mt-1 flex items-center gap-2">
-                      {getRoleBadge(user.role)}
-                      {user.role && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const currentRole = rolesArray.find((role: Role) => role.name === user.role)
-                            if (currentRole) {
-                              handleRoleRemove(currentRole.id)
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium">Assign New Role</Label>
-                    <div className="mt-2 flex gap-2">
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {rolesArray.map((role: Role) => (
-                            <SelectItem key={role.id} value={role.id}>
-                              {role.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        onClick={handleRoleUpdate}
-                        disabled={!selectedRole || updateUserRole.isPending}
-                        className="bg-[#08163d] hover:bg-[#0a1f4f]"
-                      >
-                        {updateUserRole.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Updating...
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Assign Role
-                          </>
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium mb-1 block">Current Role</Label>
+                      <div className="flex items-center gap-2">
+                        {getRoleBadge(user.role)}
+                        {user.role && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentRole = rolesArray.find((role: Role) => role.name === user.role)
+                              if (currentRole) handleRoleRemove(currentRole.id)
+                            }}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Remove
+                          </Button>
                         )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </PermissionGuard>
-
-            <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    Permission Management
-                  </CardTitle>
-                  <CardDescription>Assign specific permissions to this user</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isPermissionsLoading ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
-                      <p className="text-sm text-gray-600 mt-2">Loading permissions...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="max-h-60 overflow-y-auto space-y-2">
-                        {permissionsArray.map((permission: Permission) => (
-                          <div key={permission.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`permission-${permission.id}`}
-                              checked={selectedPermissions.includes(permission.id)}
-                              onCheckedChange={() => handlePermissionToggle(permission.id || '')}
-                            />
-                            <label
-                              htmlFor={`permission-${permission.id || ''}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              <div className="font-medium">{permission.name}</div>
-                              <div className="text-xs text-gray-500">
-                                {permission?.description || permission?.category || ''}
-                              </div>
-                            </label>
-                          </div>
-                        ))}
                       </div>
-                      
-                      <div className="flex justify-between items-center pt-4 border-t">
-                        <div className="text-sm text-gray-600">
-                          {selectedPermissions.length} permission(s) selected
-                        </div>
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium mb-1 block">Assign New Role</Label>
+                      <div className="flex gap-2">
+                        <Select value={selectedRole} onValueChange={setSelectedRole}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {rolesArray.map((role: Role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                {role.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button
-                          onClick={handleAssignPermissions}
-                          disabled={assignPermissions.isPending || selectedPermissions.length === 0}
-                          className="bg-[#08163d] hover:bg-[#0a1f4f]"
+                          onClick={handleRoleUpdate}
+                          disabled={!selectedRole || updateUserRole.isPending}
+                          className="bg-[#08163d] hover:bg-[#0a1f4f] whitespace-nowrap"
                         >
-                          {assignPermissions.isPending ? (
+                          {updateUserRole.isPending ? (
                             <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Assigning...
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                              Updating...
                             </>
                           ) : (
                             <>
-                              <Key className="h-4 w-4 mr-2" />
-                              Assign Permissions
+                              <Shield className="h-4 w-4 mr-2" />
+                              Assign Role
                             </>
                           )}
                         </Button>
                       </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </PermissionGuard>
-
-            {/* Navigation visibility (driven by view permissions) */}
-            <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Navigation Visibility
-                  </CardTitle>
-                  <CardDescription>
-                    Control which main dashboard sections this user can see in the navigation.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {NAV_PERMISSION_NAMES.map((permName) => {
-                    const permId = getPermissionIdByName(permName)
-                    if (!permId) return null
-
-                    const label = permName
-                      .replace('_VIEW', '')
-                      .replace(/_/g, ' ')
-                      .toLowerCase()
-                      .replace(/^\w/, (c) => c.toUpperCase())
-
-                    return (
-                      <div
-                        key={permName}
-                        className="flex items-center justify-between py-2 border-b last:border-b-0"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-800">{label}</span>
-                          <span className="text-xs text-gray-500">
-                            Toggles visibility of the {label.toLowerCase()} section in the sidebar.
-                          </span>
-                        </div>
-                        <Switch
-                          checked={selectedPermissions.includes(permId)}
-                          onCheckedChange={() => handlePermissionToggle(permId)}
-                        />
-                      </div>
-                    )
-                  })}
-                </CardContent>
-              </Card>
-            </PermissionGuard>
-
-            {/* Promote to Super Admin - only visible to Super Admins */}
-            <RoleGuard role="SUPER_ADMIN">
-              <Card className="border-red-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-700">
-                    <Shield className="h-5 w-5" />
-                    Super Admin Access
-                  </CardTitle>
-                  <CardDescription>
-                    Grant this user full Super Admin privileges. This action cannot be easily undone.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {user.role === 'SUPER_ADMIN' ? (
-                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">
-                      <CheckCircle className="h-4 w-4" />
-                      This user already has Super Admin access.
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-600">
-                        Current system role: <strong>{user.role || 'None'}</strong>
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800"
-                        onClick={handlePromoteToSuperAdmin}
-                        disabled={updateUser.isPending}
-                      >
-                        {updateUser.isPending ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-700 mr-2"></div>
-                            Promoting...
-                          </>
+
+                    <RoleGuard role="SUPER_ADMIN">
+                      <div className="flex-shrink-0">
+                        {user.role === 'SUPER_ADMIN' ? (
+                          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">
+                            <CheckCircle className="h-4 w-4" />
+                            Already Super Admin
+                          </div>
                         ) : (
-                          <>
-                            <AlertTriangle className="h-4 w-4 mr-2" />
-                            Promote to Super Admin
-                          </>
+                          <Button
+                            variant="outline"
+                            className="border-red-300 text-red-700 hover:bg-red-50 whitespace-nowrap"
+                            onClick={handlePromoteToSuperAdmin}
+                            disabled={updateUser.isPending}
+                          >
+                            {updateUser.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-700 mr-2" />
+                                Promoting...
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Promote to Super Admin
+                              </>
+                            )}
+                          </Button>
                         )}
-                      </Button>
-                    </div>
-                  )}
+                      </div>
+                    </RoleGuard>
+                  </div>
                 </CardContent>
               </Card>
-            </RoleGuard>
+
+              {/* Bottom: two-column — Nav visibility | Fine-grained permissions */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Left: Navigation Visibility */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Shield className="h-4 w-4" />
+                      Navigation Visibility
+                    </CardTitle>
+                    <CardDescription>
+                      Toggle which top-level dashboard sections this user can access.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    {NAV_PERMISSION_NAMES.map((permName) => {
+                      const permId = getPermissionIdByName(permName)
+                      if (!permId) return null
+
+                      const label = permName
+                        .replace('_VIEW', '')
+                        .replace(/_/g, ' ')
+                        .split(' ')
+                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                        .join(' ')
+
+                      return (
+                        <div
+                          key={permName}
+                          className="flex items-center justify-between py-2 border-b last:border-b-0"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{label}</p>
+                            <p className="text-xs text-gray-400">{permName}</p>
+                          </div>
+                          <Switch
+                            checked={selectedPermissions.includes(permId)}
+                            onCheckedChange={() => handlePermissionToggle(permId)}
+                          />
+                        </div>
+                      )
+                    })}
+                  </CardContent>
+                </Card>
+
+                {/* Right: Fine-grained permissions */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Key className="h-4 w-4" />
+                      Fine-grained Permissions
+                    </CardTitle>
+                    <CardDescription>
+                      Select individual actions this user is allowed to perform.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isPermissionsLoading ? (
+                      <div className="text-center py-6">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto" />
+                        <p className="text-sm text-gray-600 mt-2">Loading permissions...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 max-h-[380px] overflow-y-auto pr-1">
+                          {permissionsArray.map((permission: Permission) => (
+                            <div key={permission.id} className="flex items-start space-x-2 py-1 border-b border-gray-100 last:border-b-0">
+                              <Checkbox
+                                id={`permission-${permission.id}`}
+                                checked={selectedPermissions.includes(permission.id)}
+                                onCheckedChange={() => handlePermissionToggle(permission.id || '')}
+                                className="mt-0.5"
+                              />
+                              <label
+                                htmlFor={`permission-${permission.id || ''}`}
+                                className="text-sm cursor-pointer"
+                              >
+                                <div className="font-medium text-gray-800 leading-tight">{permission.name}</div>
+                                {(permission?.description || permission?.category) && (
+                                  <div className="text-xs text-gray-400">
+                                    {permission?.description || permission?.category}
+                                  </div>
+                                )}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center pt-4 border-t mt-4">
+                          <span className="text-sm text-gray-500">
+                            {selectedPermissions.length} permission(s) selected
+                          </span>
+                          <Button
+                            onClick={handleAssignPermissions}
+                            disabled={assignPermissions.isPending || selectedPermissions.length === 0}
+                            className="bg-[#08163d] hover:bg-[#0a1f4f]"
+                          >
+                            {assignPermissions.isPending ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                Assigning...
+                              </>
+                            ) : (
+                              <>
+                                <Key className="h-4 w-4 mr-2" />
+                                Save Permissions
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </PermissionGuard>
           </TabsContent>
 
           {/* Security Tab */}
