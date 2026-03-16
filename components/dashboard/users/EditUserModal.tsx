@@ -22,8 +22,9 @@ import {
   CheckCircle,
   Clock
 } from 'lucide-react'
-import { useRoles, usePermissions, useUpdateUserRole, useRemoveRole, useAssignPermissions } from '@/lib/hooks/useApi'
+import { useRoles, useUpdateUserRole, useRemoveRole } from '@/lib/hooks/useApi'
 import { useUpdateUser } from '@/lib/hooks/useAuth'
+import { useUserPermissions, useAllPermissions, useUpdateUserPermissions } from '@/lib/hooks/useUserPermissions'
 import type { User, Role, Permission } from '@/lib/types/api'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard, RoleGuard } from '@/components/ui/PermissionGuard'
@@ -53,19 +54,20 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
 
   // API hooks
   const { data: roles } = useRoles()
-  const { data: permissions, isLoading: isPermissionsLoading } = usePermissions()
+  // Fetch the user's actual permissions directly from /users/:id/permissions
+  const { data: userPermissionsData, isLoading: isUserPermissionsLoading } = useUserPermissions(isOpen ? user.id : '')
+  // Fetch the full list of all available permissions from /permissions
+  const { data: allPermissionsData, isLoading: isAllPermissionsLoading } = useAllPermissions()
   const updateUserRole = useUpdateUserRole()
   const removeRole = useRemoveRole()
-  const assignPermissions = useAssignPermissions()
+  const updatePermissions = useUpdateUserPermissions()
   const updateUser = useUpdateUser()
+
+  const isPermissionsLoading = isUserPermissionsLoading || isAllPermissionsLoading
 
   // Get data arrays
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
-  const permissionsArray: Permission[] = Array.isArray((permissions as any)?.permissions)
-    ? (permissions as any).permissions
-    : Array.isArray(permissions)
-      ? permissions as unknown as Permission[]
-      : []
+  const permissionsArray: any[] = allPermissionsData || []
 
   // Initialize selected role — match by roleId first, then by name (case-insensitive)
   useEffect(() => {
@@ -82,12 +84,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }, [user.role, (user as any).roleId, rolesArray])
 
-  // Initialize selected permissions
+  // Preselect permissions from the dedicated user-permissions endpoint (runs once data loads)
   useEffect(() => {
-    if (user.permissions) {
-      setSelectedPermissions(user.permissions.map((p: Permission) => p.id || p.name || ''))
+    if (userPermissionsData?.permissions) {
+      setSelectedPermissions(userPermissionsData.permissions.map((p) => p.id))
     }
-  }, [user.permissions])
+  }, [userPermissionsData])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -198,17 +200,15 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   }
 
   const handleAssignPermissions = async () => {
-    if (selectedPermissions.length === 0) {
-      toast.error('Please select at least one permission')
-      return
-    }
-
     try {
-      await assignPermissions.mutateAsync({ 
-        userId: user.id, 
-        permissions: selectedPermissions as string[]
+      await updatePermissions.mutateAsync({
+        userId: user.id,
+        data: {
+          permissionIds: selectedPermissions,
+          action: 'replace',
+        },
       })
-      toast.success('Permissions assigned successfully!')
+      toast.success('Permissions saved successfully!')
     } catch (error: unknown) {
       console.error('Permission assignment error:', error)
       const errorMessage = extractErrorMessage(error)
@@ -624,13 +624,13 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                           </span>
                           <Button
                             onClick={handleAssignPermissions}
-                            disabled={assignPermissions.isPending || selectedPermissions.length === 0}
+                            disabled={updatePermissions.isPending}
                             className="bg-[#08163d] hover:bg-[#0a1f4f]"
                           >
-                            {assignPermissions.isPending ? (
+                            {updatePermissions.isPending ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                Assigning...
+                                Saving...
                               </>
                             ) : (
                               <>
