@@ -325,35 +325,24 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="userType">User Type</Label>
-                      <Select value={formData.userType} onValueChange={(value: string) => setFormData(prev => ({ ...prev, userType: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select user type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="END_USER">End User</SelectItem>
-                          <SelectItem value="STAFF_USER">Staff User</SelectItem>
-                          <SelectItem value="PARTNER">Partner</SelectItem>
-                          <SelectItem value="AGENT">Agent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="status">Status</Label>
-                      <Select value={formData.status} onValueChange={(value: string) => setFormData(prev => ({ ...prev, status: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="INACTIVE">Inactive</SelectItem>
-                          <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                          <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value: string) =>
+                        setFormData((prev) => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                        <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="flex justify-end gap-3">

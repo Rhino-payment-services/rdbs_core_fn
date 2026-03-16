@@ -414,10 +414,6 @@ const UsersPage = () => {
                                     <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
                                         <EditUserModal user={user} />
                                     </PermissionGuard>
-                                    <Button variant="ghost" size="sm">
-                                        <Eye className="h-4 w-4" />
-                                    </Button>
-                                    
                                     <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
                                         <Button 
                                             variant="ghost" 

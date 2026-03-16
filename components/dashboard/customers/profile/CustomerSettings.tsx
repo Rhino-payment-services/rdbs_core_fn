@@ -837,7 +837,7 @@ const CustomerSettings = ({
       </Card>
 
       {/* Dashboard Feature Flags — merchants only */}
-      {type === 'merchant' && (
+      {type === 'merchant' && merchantId && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
