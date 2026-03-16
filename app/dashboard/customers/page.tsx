@@ -608,6 +608,7 @@ const CustomersPage = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+    setSelectedCustomers([])  // clear row selections when changing page
   }
 
   // Bulk action handlers
@@ -1057,20 +1058,19 @@ const CustomersPage = () => {
   const partnersCount = partnersData?.pagination?.total || partnersData?.data?.length || 0
 
   // Pagination
-  // Calculate pagination - use partnersData pagination for partners tab
+  // For partners tab we rely on backend pagination (page/limit in useApiPartners),
+  // so we do NOT slice again on the frontend — we just use transformedPartners as-is.
   const totalPages = activeTab === 'partners' && partnersData?.pagination
     ? partnersData.pagination.totalPages
     : Math.ceil(filteredUsers.length / itemsPerPage)
   
-  const paginatedUsers = activeTab === 'partners' && partnersData?.data
-    ? transformedPartners.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
-    : filteredUsers.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      )
+  const paginatedUsers =
+    activeTab === 'partners'
+      ? transformedPartners
+      : filteredUsers.slice(
+          (currentPage - 1) * itemsPerPage,
+          currentPage * itemsPerPage
+        )
 
 
   // Show loading state to prevent "Access Restricted" flash
@@ -1200,7 +1200,16 @@ const CustomersPage = () => {
           isProcessing={isProcessing}
         />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => {
+            setActiveTab(tab)
+            setCurrentPage(1)   // always start on page 1 when switching tabs
+            setSearchTerm('')    // clear search so it doesn't carry over
+            setSelectedCustomers([])
+          }}
+          className="space-y-6"
+        >
           <TabsList>
             <TabsTrigger value="subscribers" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
