@@ -67,7 +67,17 @@ export const useUpdateUserPermissions = () => {
   })
 }
 
-// Get all available permissions
+// Get all available permissions — uses /users/permissions/available which is reliable
+// Returns a flat Permission[] (not wrapped in an object).
+export const useAvailablePermissions = () => {
+  return useQuery<Permission[]>({
+    queryKey: ['available-permissions'],
+    queryFn: () => apiFetch('/users/permissions/available'),
+    staleTime: 5 * 60 * 1000, // cache for 5 minutes; catalog rarely changes
+  })
+}
+
+// Get all available permissions (legacy alias — hits /permissions which may be empty)
 export const useAllPermissions = () => {
   return useQuery<Permission[]>({
     queryKey: ['all-permissions'],

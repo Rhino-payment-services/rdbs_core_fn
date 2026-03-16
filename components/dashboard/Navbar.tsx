@@ -353,7 +353,7 @@ const Navbar = () => {
                 )}
                 
                 {isVisible('customers') && (
-                  <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
+                  <PermissionGuard permissions={[PERMISSIONS.WALLETS_VIEW, PERMISSIONS.USERS_VIEW]} requireAll={false}>
                     <Link 
                       href="/dashboard/customers" 
                       className={`nav-slider-item ${
@@ -698,6 +698,19 @@ const Navbar = () => {
                 <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent"></div>
                 
                 <div className="py-2">
+                  <PermissionGuard permission={PERMISSIONS.ROLES_VIEW}>
+                    <Link 
+                      href="/dashboard/roles" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/roles')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      Roles & Permissions
+                    </Link>
+                  </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
                     <Link 
                       href="/dashboard/settings" 

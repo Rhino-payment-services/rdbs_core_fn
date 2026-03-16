@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,14 +20,16 @@ import {
   X,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  Eye
 } from 'lucide-react'
 import { useRoles, useUpdateUserRole, useRemoveRole } from '@/lib/hooks/useApi'
 import { useUpdateUser } from '@/lib/hooks/useAuth'
-import { useUserPermissions, useAllPermissions, useUpdateUserPermissions } from '@/lib/hooks/useUserPermissions'
-import type { User, Role, Permission } from '@/lib/types/api'
+import { useUserPermissions, useUpdateUserPermissions, useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
+import type { User, Role } from '@/lib/types/api'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { PermissionGuard, RoleGuard } from '@/components/ui/PermissionGuard'
+import { NAV_PERMISSION_ITEMS as NAV_ITEMS, PERMISSION_GROUPS } from '@/lib/constants/permissionCatalog'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
 
@@ -54,20 +56,44 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
 
   // API hooks
   const { data: roles } = useRoles()
-  // Fetch the user's actual permissions directly from /users/:id/permissions
+  // User's currently assigned permissions — fetched only when modal is open
   const { data: userPermissionsData, isLoading: isUserPermissionsLoading } = useUserPermissions(isOpen ? user.id : '')
-  // Fetch the full list of all available permissions from /permissions
-  const { data: allPermissionsData, isLoading: isAllPermissionsLoading } = useAllPermissions()
+  // Full permissions catalog from the backend — used to resolve name → UUID at save-time
+  const { data: availablePermissions } = useAvailablePermissions()
   const updateUserRole = useUpdateUserRole()
   const removeRole = useRemoveRole()
   const updatePermissions = useUpdateUserPermissions()
   const updateUser = useUpdateUser()
 
-  const isPermissionsLoading = isUserPermissionsLoading || isAllPermissionsLoading
-
-  // Get data arrays
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
-  const permissionsArray: any[] = allPermissionsData || []
+
+  // Build a name→id map from every available source so we can resolve UUIDs at save-time.
+  // Priority: (1) full catalog from /users/permissions/available, (2) user's own permissions,
+  // (3) permissions embedded in roles (nested as rolePermission.permission.id from GET /roles).
+  const permNameToId = useMemo(() => {
+    const map = new Map<string, string>()
+    // Roles embed permissions as join-table rows: { permission: { id, name } }
+    rolesArray.forEach((role) => {
+      ;(role as any).permissions?.forEach((rp: any) => {
+        const p = rp.permission ?? rp
+        if (p?.name && p?.id) map.set(p.name, p.id)
+      })
+    })
+    // User's current permissions — flat objects with direct id/name
+    userPermissionsData?.permissions?.forEach((p) => {
+      if (p.name && p.id) map.set(p.name, p.id)
+    })
+    // Full catalog from /users/permissions/available — most authoritative source
+    if (Array.isArray(availablePermissions)) {
+      availablePermissions.forEach((p) => {
+        if (p.name && p.id) map.set(p.name, p.id)
+      })
+    }
+    return map
+  }, [availablePermissions, userPermissionsData, rolesArray])
+
+  // selectedPermissions stores permission NAMES (e.g. "DASHBOARD_VIEW").
+  // This makes nav switches and checkbox matching trivially simple — no ID lookups needed.
 
   // Initialize selected role — match by roleId first, then by name (case-insensitive)
   useEffect(() => {
@@ -84,11 +110,13 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }, [user.role, (user as any).roleId, rolesArray])
 
-  // Preselect permissions from the dedicated user-permissions endpoint (runs once data loads)
+  // Preselect permissions from the user's current permission list — keyed by name.
+  // This runs as soon as userPermissionsData loads; no dependency on a catalog API.
   useEffect(() => {
-    if (userPermissionsData?.permissions) {
-      setSelectedPermissions(userPermissionsData.permissions.map((p) => p.id))
-    }
+    if (!userPermissionsData?.permissions) return
+    setSelectedPermissions(
+      userPermissionsData.permissions.map((p) => p.name).filter(Boolean) as string[]
+    )
   }, [userPermissionsData])
 
   const getStatusBadge = (status: string) => {
@@ -191,53 +219,49 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }
 
-  const handlePermissionToggle = (permissionId: string) => {
-    setSelectedPermissions(prev => 
-      prev.includes(permissionId) 
-        ? prev.filter(id => id !== permissionId)
-        : [...prev, permissionId]
+  // selectedPermissions stores names — toggle by name
+  const handlePermissionToggle = (permName: string) => {
+    setSelectedPermissions(prev =>
+      prev.includes(permName)
+        ? prev.filter(n => n !== permName)
+        : [...prev, permName]
     )
   }
 
   const handleAssignPermissions = async () => {
+    // Resolve permission names → UUIDs. The backend requires UUIDs; names will 400.
+    const permissionIds: string[] = []
+    const unresolved: string[] = []
+
+    for (const name of selectedPermissions) {
+      const id = permNameToId.get(name)
+      if (id) {
+        permissionIds.push(id)
+      } else {
+        unresolved.push(name)
+      }
+    }
+
+    if (unresolved.length > 0) {
+      console.warn('Could not resolve IDs for:', unresolved)
+      toast.error(
+        `Some permissions could not be saved (IDs not found): ${unresolved.join(', ')}. ` +
+        `Run seed:permissions on the backend to add missing permissions.`
+      )
+      return
+    }
+
     try {
       await updatePermissions.mutateAsync({
         userId: user.id,
-        data: {
-          permissionIds: selectedPermissions,
-          action: 'replace',
-        },
+        data: { permissionIds, action: 'replace' },
       })
       toast.success('Permissions saved successfully!')
     } catch (error: unknown) {
       console.error('Permission assignment error:', error)
-      const errorMessage = extractErrorMessage(error)
-      toast.error(errorMessage)
+      toast.error(extractErrorMessage(error))
     }
   }
-
-  // Helper to map a permission name (like DASHBOARD_VIEW) to its ID from the permissions list
-  const getPermissionIdByName = (permissionName: string) => {
-    const match = permissionsArray.find(
-      (p: Permission | any) => p?.name === permissionName || p?.code === permissionName
-    )
-    return (match as any)?.id || ''
-  }
-
-  // High-level navigation areas controlled via view permissions
-  const NAV_PERMISSION_NAMES: string[] = [
-    PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.ANALYTICS_VIEW,
-    PERMISSIONS.USERS_VIEW,
-    PERMISSIONS.WALLETS_VIEW,
-    PERMISSIONS.KYC_VIEW,
-    PERMISSIONS.MERCHANT_KYC_VIEW,
-    PERMISSIONS.MERCHANT_VIEW,
-    PERMISSIONS.DOCUMENTS_VIEW,
-    PERMISSIONS.TRANSACTIONS_VIEW,
-    PERMISSIONS.PRODUCTS_VIEW,
-    PERMISSIONS.PARTNERS_VIEW,
-  ]
 
   const handlePromoteToSuperAdmin = async () => {
     try {
@@ -432,6 +456,17 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
           {/* Roles & Permissions Tab */}
           <TabsContent value="roles">
             <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
+              {/* Context banner */}
+              <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
+                <p className="font-medium mb-0.5">How access control works</p>
+                <p className="text-blue-700 text-xs leading-relaxed">
+                  A user&apos;s access is determined by their <strong>role</strong> (assigned below) plus any
+                  direct permission overrides in the <em>Action Permissions</em> panel.
+                  Changes take effect the next time the user logs in.
+                  Toggle the <strong>Navigation Access</strong> switches to control which dashboard sections they can visit.
+                </p>
+              </div>
+
               {/* Top: Role assignment row */}
               <Card className="mb-4">
                 <CardHeader className="pb-3">
@@ -537,41 +572,36 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <Shield className="h-4 w-4" />
-                      Navigation Visibility
+                      <Eye className="h-4 w-4" />
+                      Navigation Access
                     </CardTitle>
                     <CardDescription>
-                      Toggle which top-level dashboard sections this user can access.
+                      Control which top-level sections appear in this user&apos;s dashboard sidebar.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-1">
-                    {NAV_PERMISSION_NAMES.map((permName) => {
-                      const permId = getPermissionIdByName(permName)
-                      if (!permId) return null
-
-                      const label = permName
-                        .replace('_VIEW', '')
-                        .replace(/_/g, ' ')
-                        .split(' ')
-                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-                        .join(' ')
-
-                      return (
+                    {isUserPermissionsLoading ? (
+                      <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />
+                        Loading current access...
+                      </div>
+                    ) : (
+                      NAV_ITEMS.map(({ permName, label, desc }) => (
                         <div
                           key={permName}
                           className="flex items-center justify-between py-2 border-b last:border-b-0"
                         >
                           <div>
                             <p className="text-sm font-medium text-gray-800">{label}</p>
-                            <p className="text-xs text-gray-400">{permName}</p>
+                            <p className="text-xs text-gray-400">{desc}</p>
                           </div>
                           <Switch
-                            checked={selectedPermissions.includes(permId)}
-                            onCheckedChange={() => handlePermissionToggle(permId)}
+                            checked={selectedPermissions.includes(permName)}
+                            onCheckedChange={() => handlePermissionToggle(permName)}
                           />
                         </div>
-                      )
-                    })}
+                      ))
+                    )}
                   </CardContent>
                 </Card>
 
@@ -580,68 +610,69 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <Key className="h-4 w-4" />
-                      Fine-grained Permissions
+                      Action Permissions
                     </CardTitle>
                     <CardDescription>
-                      Select individual actions this user is allowed to perform.
+                      Granular control over what actions this user can perform in each section.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {isPermissionsLoading ? (
+                    {isUserPermissionsLoading ? (
                       <div className="text-center py-6">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto" />
                         <p className="text-sm text-gray-600 mt-2">Loading permissions...</p>
                       </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 max-h-[380px] overflow-y-auto pr-1">
-                          {permissionsArray.map((permission: Permission) => (
-                            <div key={permission.id} className="flex items-start space-x-2 py-1 border-b border-gray-100 last:border-b-0">
-                              <Checkbox
-                                id={`permission-${permission.id}`}
-                                checked={selectedPermissions.includes(permission.id)}
-                                onCheckedChange={() => handlePermissionToggle(permission.id || '')}
-                                className="mt-0.5"
-                              />
-                              <label
-                                htmlFor={`permission-${permission.id || ''}`}
-                                className="text-sm cursor-pointer"
-                              >
-                                <div className="font-medium text-gray-800 leading-tight">{permission.name}</div>
-                                {(permission?.description || permission?.category) && (
-                                  <div className="text-xs text-gray-400">
-                                    {permission?.description || permission?.category}
-                                  </div>
-                                )}
-                              </label>
+                      <div className="max-h-[420px] overflow-y-auto pr-1 space-y-4">
+                        {PERMISSION_GROUPS.map(({ group, permissions }) => (
+                          <div key={group}>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                              {group}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                              {permissions.map(({ name, label }) => (
+                                <div key={name} className="flex items-center space-x-2 py-1">
+                                  <Checkbox
+                                    id={`perm-${name}`}
+                                    checked={selectedPermissions.includes(name)}
+                                    onCheckedChange={() => handlePermissionToggle(name)}
+                                  />
+                                  <label
+                                    htmlFor={`perm-${name}`}
+                                    className="text-sm text-gray-700 cursor-pointer leading-none"
+                                  >
+                                    {label}
+                                  </label>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-
-                        <div className="flex justify-between items-center pt-4 border-t mt-4">
-                          <span className="text-sm text-gray-500">
-                            {selectedPermissions.length} permission(s) selected
-                          </span>
-                          <Button
-                            onClick={handleAssignPermissions}
-                            disabled={updatePermissions.isPending}
-                            className="bg-[#08163d] hover:bg-[#0a1f4f]"
-                          >
-                            {updatePermissions.isPending ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Key className="h-4 w-4 mr-2" />
-                                Save Permissions
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </>
+                          </div>
+                        ))}
+                      </div>
                     )}
+
+                    <div className="flex justify-between items-center pt-4 border-t mt-4">
+                      <span className="text-sm text-gray-500">
+                        {selectedPermissions.length} permission(s) selected
+                      </span>
+                      <Button
+                        onClick={handleAssignPermissions}
+                        disabled={updatePermissions.isPending}
+                        className="bg-[#08163d] hover:bg-[#0a1f4f]"
+                      >
+                        {updatePermissions.isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Key className="h-4 w-4 mr-2" />
+                            Save Permissions
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
