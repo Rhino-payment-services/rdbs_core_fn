@@ -23,7 +23,7 @@ import {
   Clock,
   Eye
 } from 'lucide-react'
-import { useRoles, useUpdateUserRole, useRemoveRole } from '@/lib/hooks/useApi'
+import { useRoles, useRemoveRole } from '@/lib/hooks/useApi'
 import { useUpdateUser } from '@/lib/hooks/useAuth'
 import { useUserPermissions, useUpdateUserPermissions, useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import type { User, Role } from '@/lib/types/api'
@@ -41,7 +41,6 @@ interface EditUserModalProps {
 export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("profile")
-  const [selectedRole, setSelectedRole] = useState<string>("")
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   
   // Form states - prefer profile fields when available so names/phone prefill correctly
@@ -60,7 +59,6 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const { data: userPermissionsData, isLoading: isUserPermissionsLoading } = useUserPermissions(isOpen ? user.id : '')
   // Full permissions catalog from the backend — used to resolve name → UUID at save-time
   const { data: availablePermissions } = useAvailablePermissions()
-  const updateUserRole = useUpdateUserRole()
   const removeRole = useRemoveRole()
   const updatePermissions = useUpdateUserPermissions()
   const updateUser = useUpdateUser()
@@ -95,29 +93,34 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   // selectedPermissions stores permission NAMES (e.g. "DASHBOARD_VIEW").
   // This makes nav switches and checkbox matching trivially simple — no ID lookups needed.
 
-  // Initialize selected role — match by roleId first, then by name (case-insensitive)
+  // Pre-fill permissions: start from the user's assigned role's permissions,
+  // then overlay any direct user-level overrides. This ensures users with custom
+  // roles see their full effective permission set when the modal opens.
   useEffect(() => {
-    if (rolesArray.length > 0) {
-      const userRoleId = (user as any).roleId
-      let matched: Role | undefined
-      if (userRoleId) {
-        matched = rolesArray.find((r: Role) => r.id === userRoleId)
-      }
-      if (!matched && user.role) {
-        matched = rolesArray.find((r: Role) => r.name.toLowerCase() === user.role.toLowerCase())
-      }
-      setSelectedRole(matched?.id || "")
-    }
-  }, [user.role, (user as any).roleId, rolesArray])
+    if (!userPermissionsData) return
 
-  // Preselect permissions from the user's current permission list — keyed by name.
-  // This runs as soon as userPermissionsData loads; no dependency on a catalog API.
-  useEffect(() => {
-    if (!userPermissionsData?.permissions) return
-    setSelectedPermissions(
-      userPermissionsData.permissions.map((p) => p.name).filter(Boolean) as string[]
+    // Direct permissions assigned to this specific user
+    const directPerms = (userPermissionsData.permissions || [])
+      .map((p) => p.name)
+      .filter(Boolean) as string[]
+
+    // Permissions inherited from the user's current role
+    const userRoleId = (user as any).roleId
+    const matchedRole = rolesArray.find(
+      (r: Role) =>
+        (userRoleId && r.id === userRoleId) ||
+        (user.role && r.name.toLowerCase() === user.role.toLowerCase())
     )
-  }, [userPermissionsData])
+    const rolePerms = ((matchedRole as any)?.permissions || [])
+      .map((rp: any) => {
+        const p = rp.permission ?? rp
+        return p?.name
+      })
+      .filter(Boolean) as string[]
+
+    // Merge, deduplicating — role perms first, then direct overrides on top
+    setSelectedPermissions(Array.from(new Set([...rolePerms, ...directPerms])))
+  }, [userPermissionsData, rolesArray, user.role, (user as any).roleId])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -191,27 +194,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     })
   }
 
-  const handleRoleUpdate = async () => {
-    if (!selectedRole) {
-      toast.error('Please select a role')
-      return
-    }
-
-    try {
-      await updateUserRole.mutateAsync({ userId: user.id, roleId: selectedRole })
-      toast.success('User role updated successfully!')
-    } catch (error: unknown) {
-      console.error('Role update error:', error)
-      const errorMessage = extractErrorMessage(error)
-      toast.error(errorMessage)
-    }
-  }
-
   const handleRoleRemove = async (roleId: string) => {
     try {
       await removeRole.mutateAsync({ userId: user.id, roleId })
       toast.success('Role removed successfully!')
-      setSelectedRole("")
     } catch (error: unknown) {
       console.error('Role removal error:', error)
       const errorMessage = extractErrorMessage(error)
@@ -460,8 +446,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
               <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
                 <p className="font-medium mb-0.5">How access control works</p>
                 <p className="text-blue-700 text-xs leading-relaxed">
-                  A user&apos;s access is determined by their <strong>role</strong> (assigned below) plus any
-                  direct permission overrides in the <em>Action Permissions</em> panel.
+                  Permissions are <strong>pre-filled from this user&apos;s current role</strong>. You can add or
+                  remove individual permissions below to customise their access without changing their role.
                   Changes take effect the next time the user logs in.
                   Toggle the <strong>Navigation Access</strong> switches to control which dashboard sections they can visit.
                 </p>
@@ -477,12 +463,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                   <CardDescription>Assign or remove the system role for this user</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-                    <div className="flex-1">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    <div>
                       <Label className="text-sm font-medium mb-1 block">Current Role</Label>
                       <div className="flex items-center gap-2">
                         {getRoleBadge(user.role)}
-                        {user.role && (
+                        {user.role && user.role !== 'SUPER_ADMIN' && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -498,43 +484,9 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                         )}
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <Label className="text-sm font-medium mb-1 block">Assign New Role</Label>
-                      <div className="flex gap-2">
-                        <Select value={selectedRole} onValueChange={setSelectedRole}>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select a role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {rolesArray.map((role: Role) => (
-                              <SelectItem key={role.id} value={role.id}>
-                                {role.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          onClick={handleRoleUpdate}
-                          disabled={!selectedRole || updateUserRole.isPending}
-                          className="bg-[#08163d] hover:bg-[#0a1f4f] whitespace-nowrap"
-                        >
-                          {updateUserRole.isPending ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                              Updating...
-                            </>
-                          ) : (
-                            <>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Assign Role
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
 
                     <RoleGuard role="SUPER_ADMIN">
-                      <div className="flex-shrink-0">
+                      <div className="ml-auto">
                         {user.role === 'SUPER_ADMIN' ? (
                           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-md">
                             <CheckCircle className="h-4 w-4" />
