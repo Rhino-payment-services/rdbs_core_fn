@@ -271,7 +271,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
       </DialogTrigger>
       <DialogContent
         className="max-h-[95vh] overflow-y-auto z-[99999]"
-        style={{ width: '90vw', maxWidth: '90vw' }}
+        style={{ width: '70vw', maxWidth: '70vw' }}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
