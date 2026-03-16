@@ -713,10 +713,6 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                       Reset Password
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
-                      <Key className="h-4 w-4 mr-2" />
-                      Generate API Key
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start">
                       <Clock className="h-4 w-4 mr-2" />
                       View Login History
                     </Button>
