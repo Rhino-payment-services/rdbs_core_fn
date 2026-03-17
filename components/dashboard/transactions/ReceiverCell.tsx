@@ -476,6 +476,7 @@ function CreditPartnerCollectReceiver({ transaction, metadata }: { transaction: 
   const partnerContact =
     transaction.partner?.contactPhone ||
     metadata.partnerPhone ||
+    transaction.partner?.partnerCode ||
     null
 
   return (
@@ -484,7 +485,6 @@ function CreditPartnerCollectReceiver({ transaction, metadata }: { transaction: 
       {partnerContact && (
         <span className="text-xs text-gray-500">📱 {partnerContact}</span>
       )}
-      <span className="text-xs text-blue-600 font-medium">API Partner</span>
     </>
   )
 }

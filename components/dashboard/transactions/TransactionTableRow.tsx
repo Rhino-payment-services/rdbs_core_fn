@@ -155,8 +155,15 @@ function useTransactionDerived(transaction: any): TransactionDerived {
   const paymentPartnerFromMnoName =
     counterpartyName.toLowerCase().includes('mobile money') ? counterpartyName : null
 
+  const normalizeMno = (label: string) =>
+    label
+      .replace(/\s*mobile money\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
   const paymentPartnerFromMno =
-    paymentPartnerFromMnoName || (rawMnoProvider ? `${rawMnoProvider} Mobile Money` : null)
+    (paymentPartnerFromMnoName ? normalizeMno(paymentPartnerFromMnoName) : null) ||
+    (rawMnoProvider ? normalizeMno(String(rawMnoProvider)) : null)
 
   const paymentPartnerFromBank =
     metadata.bankName ||
