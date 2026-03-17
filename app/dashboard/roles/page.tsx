@@ -350,6 +350,13 @@ export default function RolesPage() {
 
   const rolesArray: Role[] = Array.isArray(rolesData?.roles) ? rolesData.roles : Array.isArray(rolesData) ? (rolesData as any) : []
 
+  // Hide auto-generated per-user permission roles (e.g. USER_<uuid>_PERMISSIONS)
+  // These are not “custom roles” and should be managed from the user permissions area.
+  const displayRoles = useMemo(() => {
+    const userPermissionsRoleRegex = /^USER_[0-9a-fA-F-]{36}_PERMISSIONS$/
+    return rolesArray.filter((r) => !userPermissionsRoleRegex.test(r.name))
+  }, [rolesArray])
+
   // name→id map for saving
   const nameToId = useMemo(
     () => buildNameToId(Array.isArray(availablePermissions) ? (availablePermissions as any[]) : []),
@@ -441,7 +448,7 @@ export default function RolesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {rolesArray.map((role) => {
+                {displayRoles.map((role) => {
               const permCount = getPermCount(role)
               const userCount = getUserCount(role)
               const isBuiltIn = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT', 'MERCHANT', 'USER'].includes(role.name)
