@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react'
+import Navbar from '@/components/dashboard/Navbar'
 import { useRoles, useCreateRole, useUpdateRole, useDeleteRole } from '@/lib/hooks/useApi'
 import { useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import { PERMISSION_GROUPS } from '@/lib/constants/permissionCatalog'
@@ -387,28 +388,36 @@ export default function RolesPage() {
       permission={PERMISSIONS.ROLES_VIEW}
       showFallback
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-            <p className="text-gray-600">You don&apos;t have permission to view Roles &amp; Permissions.</p>
-          </div>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <main className="p-6">
+            <div className="max-w-7xl mx-auto flex items-center justify-center py-24">
+              <div className="text-center">
+                <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+                <p className="text-gray-600">You don&apos;t have permission to view Roles &amp; Permissions.</p>
+              </div>
+            </div>
+          </main>
         </div>
       }
     >
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-[#08163d]" />
-              Roles Management
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Create and manage custom roles. Assign permissions to control what each role can do.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <Shield className="h-6 w-6 text-[#08163d]" />
+                  Roles Management
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  Create and manage custom roles. Assign permissions to control what each role can do.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
             {!catalogReady && !permsLoading && (
               <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -421,18 +430,18 @@ export default function RolesPage() {
                 {(availablePermissions as any[]).length} permissions available
               </div>
             )}
-            <CreateRoleDialog nameToId={nameToId} onCreated={() => {}} />
-          </div>
-        </div>
+                <CreateRoleDialog nameToId={nameToId} onCreated={() => {}} />
+              </div>
+            </div>
 
-        {/* Roles grid */}
-        {rolesLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d]" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {rolesArray.map((role) => {
+            {/* Roles grid */}
+            {rolesLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d]" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {rolesArray.map((role) => {
               const permCount = getPermCount(role)
               const userCount = getUserCount(role)
               const isBuiltIn = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'SUPPORT', 'MERCHANT', 'USER'].includes(role.name)
@@ -443,82 +452,82 @@ export default function RolesPage() {
                 return p?.name ?? ''
               }).filter(Boolean)
 
-              return (
-                <Card key={role.id} className="relative">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-base font-semibold truncate">{role.name}</CardTitle>
-                          {isBuiltIn && (
-                            <Badge variant="outline" className="text-xs shrink-0">Built-in</Badge>
-                          )}
-                          {!(role as any).isActive && (
-                            <Badge className="bg-gray-100 text-gray-600 text-xs shrink-0">Inactive</Badge>
-                          )}
-                        </div>
-                        {(role as any).description && (
-                          <CardDescription className="mt-1 text-xs line-clamp-2">
-                            {(role as any).description}
-                          </CardDescription>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <EditRoleDialog role={role} nameToId={nameToId} />
-                        {!isBuiltIn && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(role)}
-                            disabled={deletingId === role.id}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            {deletingId === role.id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
+                  return (
+                    <Card key={role.id} className="relative">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <CardTitle className="text-base font-semibold truncate">{role.name}</CardTitle>
+                              {isBuiltIn && (
+                                <Badge variant="outline" className="text-xs shrink-0">Built-in</Badge>
+                              )}
+                              {!(role as any).isActive && (
+                                <Badge className="bg-gray-100 text-gray-600 text-xs shrink-0">Inactive</Badge>
+                              )}
+                            </div>
+                            {(role as any).description && (
+                              <CardDescription className="mt-1 text-xs line-clamp-2">
+                                {(role as any).description}
+                              </CardDescription>
                             )}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Stats row */}
-                    <div className="flex gap-4 text-sm">
-                      <div className="flex items-center gap-1.5 text-gray-600">
-                        <Key className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="font-medium">{permCount}</span> permissions
-                      </div>
-                      <div className="flex items-center gap-1.5 text-gray-600">
-                        <Users className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="font-medium">{userCount}</span> users
-                      </div>
-                    </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <EditRoleDialog role={role} nameToId={nameToId} />
+                            {!isBuiltIn && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(role)}
+                                disabled={deletingId === role.id}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                {deletingId === role.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex gap-4 text-sm">
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <Key className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="font-medium">{permCount}</span> permissions
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <Users className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="font-medium">{userCount}</span> users
+                          </div>
+                        </div>
 
-                    {/* Permission chips — show up to 6 */}
-                    {permNames.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {permNames.slice(0, 6).map((name) => (
-                          <Badge key={name} variant="secondary" className="text-xs px-1.5 py-0.5 font-mono">
-                            {name}
-                          </Badge>
-                        ))}
-                        {permNames.length > 6 && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-gray-500">
-                            +{permNames.length - 6} more
-                          </Badge>
+                        {permNames.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {permNames.slice(0, 6).map((name) => (
+                              <Badge key={name} variant="secondary" className="text-xs px-1.5 py-0.5 font-mono">
+                                {name}
+                              </Badge>
+                            ))}
+                            {permNames.length > 6 && (
+                              <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-gray-500">
+                                +{permNames.length - 6} more
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">No permissions assigned</p>
                         )}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 italic">No permissions assigned</p>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </main>
       </div>
     </PermissionGuard>
   )
