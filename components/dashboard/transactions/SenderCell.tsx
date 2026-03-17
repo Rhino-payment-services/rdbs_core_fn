@@ -4,6 +4,7 @@ import { TableCell } from '@/components/ui/table'
 import { getDisplayName, getContactInfo } from '@/lib/utils/transactions'
 import { PartyDisplay } from './PartyDisplay'
 import type { TransactionDerived } from './types'
+import { getPartnerRole, resolvePartnerDisplay } from './partyResolver'
 
 interface SenderCellProps {
   transaction: any
@@ -46,6 +47,24 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
 
   const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
   const debitLabel = isSweep && (metadata?.debitWalletType || 'Collection')
+
+  // If this is an API-driven transaction and the partner is the sender-side actor,
+  // always show the partner name + contact (do not fall back to subscriber phone as name).
+  if (getPartnerRole(transaction) === 'sender') {
+    const { primary, secondary } = resolvePartnerDisplay(transaction)
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <span className="font-medium">{primary}</span>
+          {secondary && <span className="text-xs text-gray-500">📱 {secondary}</span>}
+          <span className="text-xs text-blue-600 font-medium">API Partner</span>
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
 
   if (transaction.senderInfo) {
     return (
