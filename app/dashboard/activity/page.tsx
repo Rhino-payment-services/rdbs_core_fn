@@ -133,8 +133,8 @@ export default function ActivityLogPage() {
     [filters, searchQuery]
   )
 
-  const { data: listData, isLoading: listLoading, refetch: refetchList } = useActivityLogs(filters)
-  const { data: searchData, isLoading: searchLoading } = useSearchActivityLogs({
+  const { data: listData, isLoading: listLoading, isError: listError, refetch: refetchList } = useActivityLogs(filters)
+  const { data: searchData, isLoading: searchLoading, isError: searchError } = useSearchActivityLogs({
     ...searchFilters,
     query: searchQuery || undefined,
   })
@@ -143,6 +143,7 @@ export default function ActivityLogPage() {
   const useSearch = searchQuery.trim().length > 0
   const data = useSearch ? searchData : listData
   const isLoading = useSearch ? searchLoading : listLoading
+  const isError = useSearch ? searchError : listError
   const logs = data?.logs ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 0
@@ -398,6 +399,12 @@ export default function ActivityLogPage() {
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : isError ? (
+                  <div className="py-12 text-center text-red-500">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                    <p className="font-medium">Failed to load activity logs</p>
+                    <p className="text-sm text-gray-500 mt-1">Check your connection or permissions, then try refreshing</p>
                   </div>
                 ) : logs.length === 0 ? (
                   <div className="py-12 text-center text-gray-500">

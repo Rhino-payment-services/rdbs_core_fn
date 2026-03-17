@@ -337,6 +337,9 @@ export interface Wallet {
   dailyLimit?: number
   dailyUsed?: number
   lastResetDate?: string
+  monthlyLimit?: number
+  monthlyUsed?: number
+  lastMonthlyResetDate?: string
   partnerId?: string | null  // API Partner ID (from api_partners table)
   merchantId?: string | null  // Merchant ID
 }

@@ -287,6 +287,20 @@ export const useUpdateDailyLimit = () => {
   })
 }
 
+export const useUpdateMonthlyLimit = () => {
+  const queryClient = useQueryClient()
+  return useMutation<ApiResponse<any>, Error, { walletId: string; monthlyLimit: number; reason?: string }>({
+    mutationFn: ({ walletId, monthlyLimit, reason }) => apiFetch(`/wallet/admin/${walletId}/monthly-limit`, {
+      method: 'PATCH',
+      data: { monthlyLimit, reason },
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
 // System Fee Wallet hooks
 export interface CreateSystemFeeWalletRequest {
   currency?: string

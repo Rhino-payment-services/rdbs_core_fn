@@ -9,6 +9,7 @@ import { NotificationSettings } from '@/components/dashboard/settings/Notificati
 import { ApiSettings } from '@/components/dashboard/settings/ApiSettings'
 import { AdvancedSettings } from '@/components/dashboard/settings/AdvancedSettings'
 import { RolesList } from '@/components/dashboard/settings/RolesList'
+import { BackupSettings } from '@/components/dashboard/settings/BackupSettings'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +39,8 @@ import {
   DollarSign,
   ChevronDown,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Database
 } from 'lucide-react'
 
 const SettingsPage = () => {
@@ -318,7 +320,7 @@ const SettingsPage = () => {
           </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
                 General
@@ -346,6 +348,10 @@ const SettingsPage = () => {
               <TabsTrigger value="advanced" className="flex items-center gap-2">
                 <Cog className="h-4 w-4" />
                 Advanced
+              </TabsTrigger>
+              <TabsTrigger value="backups" className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Backups
               </TabsTrigger>
             </TabsList>
 
@@ -592,6 +598,10 @@ const SettingsPage = () => {
               onExportSettings={handleExportSettings}
               onImportSettings={handleImportSettings}
             />
+          </TabsContent>
+
+          <TabsContent value="backups">
+            <BackupSettings />
           </TabsContent>
         </Tabs>
         </div>

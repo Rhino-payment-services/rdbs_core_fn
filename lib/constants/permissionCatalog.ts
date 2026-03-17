@@ -150,7 +150,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { name: PERMISSIONS.ANALYTICS_VIEW,   label: 'View Analytics' },
       { name: PERMISSIONS.SYSTEM_CONFIGURE, label: 'Configure System' },
       { name: PERMISSIONS.SYSTEM_LOGS,      label: 'View System Logs' },
-      { name: PERMISSIONS.SYSTEM_BACKUP,    label: 'System Backup' },
+      { name: PERMISSIONS.SYSTEM_BACKUP,    label: 'System Backup (legacy)' },
+    ],
+  },
+  {
+    group: 'Backups',
+    permissions: [
+      { name: PERMISSIONS.BACKUP_VIEW,   label: 'View Backup Stats' },
+      { name: PERMISSIONS.BACKUP_CREATE, label: 'Run Backups & Cleanup' },
     ],
   },
 ]
