@@ -17,6 +17,10 @@ export interface TransactionDerived {
   resolvedPartner: any
   resolvedPartnerCode: string | null
   resolvedPartnerName: string | null
+  /** External payment rail partner (e.g. MTN/Airtel/ABC) for the Partner column. */
+  paymentPartnerLabel?: string
+  /** Optional tooltip for the payment partner label. */
+  paymentPartnerTitle?: string
   hasPartnerSignal: any
   isPartnerSubscriberWithdraw: boolean
 }

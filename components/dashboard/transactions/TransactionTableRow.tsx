@@ -26,8 +26,7 @@ export const TransactionTableRow = ({
   onReverseTransaction
 }: TransactionTableRowProps) => {
   const derived = useTransactionDerived(transaction)
-  const { resolvedPartnerCode, resolvedPartnerName } = derived
-  const partnerLabel = resolvedPartnerName || resolvedPartnerCode || undefined
+  const { paymentPartnerLabel, paymentPartnerTitle } = derived
 
   return (
     <TableRow key={transaction.id}>
@@ -35,16 +34,12 @@ export const TransactionTableRow = ({
         {shortenTransactionId(transaction.reference || transaction.id)}
       </TableCell>
       <TableCell>
-        {partnerLabel ? (
+        {paymentPartnerLabel ? (
           <span
             className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium"
-            title={
-              resolvedPartnerCode && resolvedPartnerName
-                ? `${resolvedPartnerName} (${resolvedPartnerCode})`
-                : (resolvedPartnerName || resolvedPartnerCode || undefined)
-            }
+            title={paymentPartnerTitle}
           >
-            {partnerLabel}
+            {paymentPartnerLabel}
           </span>
         ) : (
           <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
@@ -137,6 +132,37 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.partnerName ||
     null
 
+  // Partner column should represent the external payment rail partner (e.g. MTN/Airtel/ABC),
+  // NOT the API (gateway) partner company initiating the transaction.
+  const apiPartnerName = metadata.apiPartnerName || transaction.partner?.partnerName || null
+  const rawMnoProvider =
+    metadata.mnoProvider ||
+    metadata.network ||
+    metadata.operator ||
+    metadata.counterpartyInfo?.provider ||
+    metadata.counterpartyInfo?.providerName ||
+    null
+
+  const paymentPartnerFromMapping = transaction.partnerMapping?.partner
+    ? (transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode || null)
+    : null
+
+  const paymentPartnerFromMno = rawMnoProvider ? `${rawMnoProvider} Mobile Money` : null
+
+  const paymentPartnerFromMetadata =
+    metadata.partnerCode && metadata.partnerCode !== apiPartnerName ? String(metadata.partnerCode) : null
+
+  const paymentPartnerLabel =
+    paymentPartnerFromMapping ||
+    paymentPartnerFromMno ||
+    paymentPartnerFromMetadata ||
+    null
+
+  const paymentPartnerTitle =
+    paymentPartnerFromMapping && transaction.partnerMapping?.partner?.partnerCode
+      ? `${transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode} (${transaction.partnerMapping.partner.partnerCode})`
+      : paymentPartnerLabel || undefined
+
   const hasPartnerSignal =
     transaction.partnerId ||
     resolvedPartner ||
@@ -159,6 +185,8 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     resolvedPartner,
     resolvedPartnerCode,
     resolvedPartnerName,
+    paymentPartnerLabel: paymentPartnerLabel || undefined,
+    paymentPartnerTitle,
     hasPartnerSignal,
     isPartnerSubscriberWithdraw,
   }
