@@ -46,7 +46,17 @@ export const TransactionTableRow = ({
       <ChannelCell transaction={transaction} />
       <SenderCell transaction={transaction} derived={derived} />
       <ReceiverCell transaction={transaction} derived={derived} />
-      <TableCell className="font-medium">{formatAmount(Number(transaction.amount))}</TableCell>
+      <TableCell className="font-medium">
+        {(() => {
+          const metadata = transaction.metadata || {}
+          // For internal sweeps/liquidate, always show the GROSS amount (what user entered)
+          if (metadata.sweepToDisbursement || metadata.sweepFromCollection) {
+            const gross = (metadata.grossAmount ?? Number(transaction.amount)) || 0
+            return formatAmount(gross)
+          }
+          return formatAmount(Number(transaction.amount))
+        })()}
+      </TableCell>
       <RukapayFeeCell transaction={transaction} />
       <NetAmountCell transaction={transaction} />
       <StatusCell transaction={transaction} />
