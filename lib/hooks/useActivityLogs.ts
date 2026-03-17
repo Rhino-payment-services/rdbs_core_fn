@@ -84,7 +84,8 @@ async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<Activi
     // In that case, fall back to endpoints that accept only page/limit (and optionally userId).
     const status = err?.status ?? err?.response?.status
     const validationErrors = err?.data?.errors ?? err?.response?.data?.errors
-    const validationText = Array.isArray(validationErrors) ? validationErrors.join(' ') : String(validationErrors ?? '')
+    const validationTextFromErrors = Array.isArray(validationErrors) ? validationErrors.join(' ') : String(validationErrors ?? '')
+    const validationText = `${err?.message ?? ''} ${err?.data?.message ?? ''} ${err?.response?.data?.message ?? ''} ${validationTextFromErrors}`.trim()
 
     const looksLikeForbiddenNonWhitelisted =
       status === 400 &&

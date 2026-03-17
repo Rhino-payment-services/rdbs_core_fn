@@ -113,6 +113,18 @@ export default function ActivityLogPage() {
 
   const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
 
+  const isInternalLog = (log: ActivityLog) => {
+    const role = (log.userDetails?.role || '').toUpperCase()
+    const userType = (log.userDetails?.userType || '').toUpperCase()
+    const email = (log.userEmail || log.userDetails?.email || '').toLowerCase()
+    if (userType === 'STAFF') return true
+    if (role.includes('ADMIN')) return true
+    if (email.endsWith('@rukapay.co.ug')) return true
+    return false
+  }
+
+  const isCustomerLog = (log: ActivityLog) => !isInternalLog(log)
+
   const filters: ActivityLogFilters = useMemo(
     () => ({
       page,
@@ -151,7 +163,12 @@ export default function ActivityLogPage() {
   const isLoading = useSearch ? searchLoading : listLoading
   const isError = useSearch ? searchError : listError
   const activeError: any = useSearch ? undefined : listErrObj
-  const logs = data?.logs ?? []
+  const baseLogs = data?.logs ?? []
+  const logs = useMemo(() => {
+    if (activityTab === 'customer') return baseLogs.filter(isCustomerLog)
+    if (activityTab === 'internal') return baseLogs.filter(isInternalLog)
+    return baseLogs
+  }, [baseLogs, activityTab])
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 0
 
@@ -252,7 +269,14 @@ export default function ActivityLogPage() {
             </div>
           </div>
 
-          <Tabs value={activityTab} onValueChange={(v) => setActivityTab(v as typeof activityTab)} className="mb-6">
+          <Tabs
+            value={activityTab}
+            onValueChange={(v) => {
+              setActivityTab(v as typeof activityTab)
+              setPage(1)
+            }}
+            className="mb-6"
+          >
             <TabsList className="grid w-full max-w-md grid-cols-3">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
