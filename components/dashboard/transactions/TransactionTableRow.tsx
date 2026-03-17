@@ -132,30 +132,43 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.partnerName ||
     null
 
-  // Partner column should represent the external payment rail partner (e.g. MTN/Airtel/ABC),
+  // Partner column must represent the external payment rail (e.g. MTN/Airtel/ABC),
   // NOT the API (gateway) partner company initiating the transaction.
-  const apiPartnerName = metadata.apiPartnerName || transaction.partner?.partnerName || null
+  //
+  // So we only derive it from:
+  // - partnerMapping.partner (external payment partners like ABC, Pegasus, etc)
+  // - MNO/bank metadata for MNO/BANK transactions
   const rawMnoProvider =
     metadata.mnoProvider ||
     metadata.network ||
     metadata.operator ||
     metadata.counterpartyInfo?.provider ||
     metadata.counterpartyInfo?.providerName ||
+    metadata.counterpartyInfo?.mnoProvider ||
     null
 
   const paymentPartnerFromMapping = transaction.partnerMapping?.partner
     ? (transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode || null)
     : null
 
-  const paymentPartnerFromMno = rawMnoProvider ? `${rawMnoProvider} Mobile Money` : null
+  const counterpartyName = String(metadata.counterpartyInfo?.name || '')
+  const paymentPartnerFromMnoName =
+    counterpartyName.toLowerCase().includes('mobile money') ? counterpartyName : null
 
-  const paymentPartnerFromMetadata =
-    metadata.partnerCode && metadata.partnerCode !== apiPartnerName ? String(metadata.partnerCode) : null
+  const paymentPartnerFromMno =
+    paymentPartnerFromMnoName || (rawMnoProvider ? `${rawMnoProvider} Mobile Money` : null)
+
+  const paymentPartnerFromBank =
+    metadata.bankName ||
+    metadata.bank ||
+    metadata.counterpartyInfo?.bankName ||
+    metadata.counterpartyInfo?.bank ||
+    null
 
   const paymentPartnerLabel =
     paymentPartnerFromMapping ||
     paymentPartnerFromMno ||
-    paymentPartnerFromMetadata ||
+    paymentPartnerFromBank ||
     null
 
   const paymentPartnerTitle =
