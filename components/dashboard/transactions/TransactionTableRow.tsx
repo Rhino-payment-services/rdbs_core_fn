@@ -27,6 +27,7 @@ export const TransactionTableRow = ({
 }: TransactionTableRowProps) => {
   const derived = useTransactionDerived(transaction)
   const { resolvedPartnerCode, resolvedPartnerName } = derived
+  const partnerLabel = resolvedPartnerName || resolvedPartnerCode || undefined
 
   return (
     <TableRow key={transaction.id}>
@@ -34,9 +35,16 @@ export const TransactionTableRow = ({
         {shortenTransactionId(transaction.reference || transaction.id)}
       </TableCell>
       <TableCell>
-        {resolvedPartnerCode ? (
-          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium" title={resolvedPartnerName || resolvedPartnerCode}>
-            {resolvedPartnerCode}
+        {partnerLabel ? (
+          <span
+            className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium"
+            title={
+              resolvedPartnerCode && resolvedPartnerName
+                ? `${resolvedPartnerName} (${resolvedPartnerCode})`
+                : (resolvedPartnerName || resolvedPartnerCode || undefined)
+            }
+          >
+            {partnerLabel}
           </span>
         ) : (
           <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-medium">Direct</span>
