@@ -75,8 +75,38 @@ async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<Activi
   if (filters.startDate) params.append('startDate', filters.startDate)
   if (filters.endDate) params.append('endDate', filters.endDate)
 
-  const { data } = await api.get(`/activity-logs?${params.toString()}`)
-  return data
+  try {
+    const { data } = await api.get(`/activity-logs?${params.toString()}`)
+    return data
+  } catch (err: any) {
+    // Backwards-compatibility fallback:
+    // Some deployments reject pagination/date params due to strict validation (forbidNonWhitelisted).
+    // In that case, fall back to endpoints that accept only page/limit (and optionally userId).
+    const status = err?.status ?? err?.response?.status
+    const validationErrors = err?.data?.errors ?? err?.response?.data?.errors
+    const validationText = Array.isArray(validationErrors) ? validationErrors.join(' ') : String(validationErrors ?? '')
+
+    const looksLikeForbiddenNonWhitelisted =
+      status === 400 &&
+      (validationText.includes('property page should not exist') ||
+        validationText.includes('property limit should not exist') ||
+        validationText.includes('property startDate should not exist') ||
+        validationText.includes('property endDate should not exist') ||
+        validationText.includes('should not exist'))
+
+    if (!looksLikeForbiddenNonWhitelisted) throw err
+
+    const page = filters.page ?? 1
+    const limit = filters.limit ?? 20
+
+    if (filters.userId) {
+      const { data } = await api.get(`/activity-logs/user/${encodeURIComponent(filters.userId)}?page=${page}&limit=${limit}`)
+      return data
+    }
+
+    const { data } = await api.get(`/activity-logs/system?page=${page}&limit=${limit}`)
+    return data
+  }
 }
 
 // Fetch activity stats
