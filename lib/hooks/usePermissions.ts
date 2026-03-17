@@ -102,6 +102,10 @@ export const PERMISSIONS = {
   SYSTEM_CONFIGURE: 'SYSTEM_CONFIG',
   SYSTEM_LOGS: 'SYSTEM_LOGS',
   SYSTEM_BACKUP: 'SYSTEM_BACKUP',
+
+  // Backup Management (granular)
+  BACKUP_VIEW: 'BACKUP_VIEW',
+  BACKUP_CREATE: 'BACKUP_CREATE',
 } as const
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]

@@ -65,30 +65,18 @@ export interface ActivityLogFilters {
 
 // Fetch all activity logs with filters
 async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
-  try {
-    const params = new URLSearchParams()
-    if (filters.page) params.append('page', String(filters.page))
-    if (filters.limit) params.append('limit', String(filters.limit))
-    if (filters.userId) params.append('userId', filters.userId)
-    if (filters.action) params.append('action', filters.action)
-    if (filters.category) params.append('category', filters.category)
-    if (filters.status) params.append('status', filters.status)
-    if (filters.startDate) params.append('startDate', filters.startDate)
-    if (filters.endDate) params.append('endDate', filters.endDate)
-    
-    const { data } = await api.get(`/activity-logs?${params.toString()}`)
-    return data
-  } catch (error: any) {
-    // Silently handle permission errors (403) - user may not have access
-    if (error?.response?.status === 403 || error?.response?.status === 401) {
-      return { logs: [], total: 0, page: 1, limit: 20, totalPages: 0 }
-    }
-    // Only log non-permission errors
-    if (error?.response?.status && error.response.status >= 500) {
-      console.error('Failed to fetch activity logs:', error?.message || error)
-    }
-    return { logs: [], total: 0, page: 1, limit: 20, totalPages: 0 }
-  }
+  const params = new URLSearchParams()
+  if (filters.page) params.append('page', String(filters.page))
+  if (filters.limit) params.append('limit', String(filters.limit))
+  if (filters.userId) params.append('userId', filters.userId)
+  if (filters.action) params.append('action', filters.action)
+  if (filters.category) params.append('category', filters.category)
+  if (filters.status) params.append('status', filters.status)
+  if (filters.startDate) params.append('startDate', filters.startDate)
+  if (filters.endDate) params.append('endDate', filters.endDate)
+
+  const { data } = await api.get(`/activity-logs?${params.toString()}`)
+  return data
 }
 
 // Fetch activity stats
@@ -137,29 +125,19 @@ async function getRecentActivity(limit: number = 10): Promise<ActivityLog[]> {
 
 // Search activity logs
 async function searchActivityLogs(filters: ActivityLogFilters): Promise<ActivityLogListResponse> {
-  try {
-    const params = new URLSearchParams()
-    if (filters.query) params.append('query', filters.query)
-    if (filters.page) params.append('page', String(filters.page))
-    if (filters.limit) params.append('limit', String(filters.limit))
-    if (filters.userId) params.append('userId', filters.userId)
-    if (filters.action) params.append('action', filters.action)
-    if (filters.category) params.append('category', filters.category)
-    if (filters.status) params.append('status', filters.status)
-    if (filters.startDate) params.append('startDate', filters.startDate)
-    if (filters.endDate) params.append('endDate', filters.endDate)
-    
-    const { data } = await api.get(`/activity-logs/search?${params.toString()}`)
-    return data
-  } catch (error: any) {
-    // Silently handle permission errors
-    if (error?.response?.status !== 403 && error?.response?.status !== 401) {
-      if (error?.response?.status >= 500) {
-        console.error('Failed to search activity logs:', error?.message || error)
-      }
-    }
-    return { logs: [], total: 0, page: 1, limit: 20, totalPages: 0 }
-  }
+  const params = new URLSearchParams()
+  if (filters.query) params.append('query', filters.query)
+  if (filters.page) params.append('page', String(filters.page))
+  if (filters.limit) params.append('limit', String(filters.limit))
+  if (filters.userId) params.append('userId', filters.userId)
+  if (filters.action) params.append('action', filters.action)
+  if (filters.category) params.append('category', filters.category)
+  if (filters.status) params.append('status', filters.status)
+  if (filters.startDate) params.append('startDate', filters.startDate)
+  if (filters.endDate) params.append('endDate', filters.endDate)
+
+  const { data } = await api.get(`/activity-logs/search?${params.toString()}`)
+  return data
 }
 
 // Hooks
@@ -168,7 +146,7 @@ export function useActivityLogs(filters: ActivityLogFilters = {}) {
     queryKey: ['activity-logs', filters],
     queryFn: () => getActivityLogs(filters),
     placeholderData: { logs: [], total: 0, page: 1, limit: 20, totalPages: 0 },
-    retry: false,
+    retry: 1,
     staleTime: 30000, // 30 seconds
   })
 }

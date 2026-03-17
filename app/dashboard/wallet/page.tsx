@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { useAdminWallets, useUpdateWalletBalance, useSuspendWallet, useFundWallet, useUpdateDailyLimit } from '@/lib/hooks/useWallets'
+import { useAdminWallets, useUpdateWalletBalance, useSuspendWallet, useFundWallet, useUpdateDailyLimit, useUpdateMonthlyLimit } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -31,6 +31,7 @@ const WalletPage = () => {
   const [showCreateWallet, setShowCreateWallet] = useState(false)
   const [showFundWallet, setShowFundWallet] = useState(false)
   const [showIncreaseLimit, setShowIncreaseLimit] = useState(false)
+  const [showMonthlyLimit, setShowMonthlyLimit] = useState(false)
   const [showWalletDetails, setShowWalletDetails] = useState(false)
   const [selectedWallet, setSelectedWallet] = useState<any>(null)
   const [isCreating, setIsCreating] = useState(false)
@@ -45,6 +46,10 @@ const WalletPage = () => {
   })
   const [limitForm, setLimitForm] = useState({
     dailyLimit: '',
+    reason: ''
+  })
+  const [monthlyLimitForm, setMonthlyLimitForm] = useState({
+    monthlyLimit: '',
     reason: ''
   })
   type WalletFilters = {
@@ -72,6 +77,7 @@ const WalletPage = () => {
   const suspendWallet = useSuspendWallet()
   const fundWallet = useFundWallet()
   const updateDailyLimit = useUpdateDailyLimit()
+  const updateMonthlyLimit = useUpdateMonthlyLimit()
   const { handleError } = useErrorHandler()
   const router = useRouter()
 
@@ -247,12 +253,6 @@ const WalletPage = () => {
       return
     }
 
-    const currentLimit = selectedWallet.dailyLimit || 0
-    if (newLimit <= currentLimit) {
-      toast.error(`New daily limit must be greater than current limit: ${formatCurrency(currentLimit, selectedWallet.currency)}`)
-      return
-    }
-
     try {
       await updateDailyLimit.mutateAsync({
         walletId: selectedWallet.id,
@@ -267,6 +267,32 @@ const WalletPage = () => {
       refetch()
     } catch (error) {
       handleError(error, 'Failed to update daily limit')
+    }
+  }
+
+  const handleUpdateMonthlyLimit = async () => {
+    if (!selectedWallet) return
+
+    const newLimit = parseFloat(monthlyLimitForm.monthlyLimit)
+    if (isNaN(newLimit) || newLimit <= 0) {
+      toast.error('Please enter a valid monthly limit')
+      return
+    }
+
+    try {
+      await updateMonthlyLimit.mutateAsync({
+        walletId: selectedWallet.id,
+        monthlyLimit: newLimit,
+        reason: monthlyLimitForm.reason || undefined,
+      })
+
+      toast.success(`Monthly limit updated to ${formatCurrency(newLimit, selectedWallet.currency)}`)
+      setMonthlyLimitForm({ monthlyLimit: '', reason: '' })
+      setShowMonthlyLimit(false)
+      setSelectedWallet(null)
+      refetch()
+    } catch (error) {
+      handleError(error, 'Failed to update monthly limit')
     }
   }
 
@@ -657,6 +683,8 @@ const WalletPage = () => {
                       <TableHead>Type</TableHead>
                       <TableHead>Currency</TableHead>
                       <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">Daily Limit</TableHead>
+                      <TableHead className="text-right">Monthly Limit</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Owner</TableHead>
                       <TableHead className="font-mono text-xs">ID</TableHead>
@@ -695,6 +723,46 @@ const WalletPage = () => {
                           <TableCell>{getCurrencyBadge(wallet.currency)}</TableCell>
                           <TableCell className="text-right font-semibold text-[#08163d]">
                             {formatCurrency(wallet.balance, wallet.currency)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {wallet.dailyLimit != null ? (
+                              <div>
+                                <p className="text-sm font-medium">{formatCurrency(wallet.dailyLimit, wallet.currency)}</p>
+                                {wallet.dailyUsed != null && (
+                                  <div className="mt-1">
+                                    <div className="w-24 bg-gray-200 rounded-full h-1.5 ml-auto">
+                                      <div
+                                        className="bg-blue-500 h-1.5 rounded-full"
+                                        style={{ width: `${Math.min(100, wallet.dailyLimit > 0 ? (wallet.dailyUsed / wallet.dailyLimit) * 100 : 0)}%` }}
+                                      />
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                      {formatCurrency(wallet.dailyUsed, wallet.currency)} used
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : <span className="text-gray-400">—</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(wallet as any).monthlyLimit != null ? (
+                              <div>
+                                <p className="text-sm font-medium">{formatCurrency((wallet as any).monthlyLimit, wallet.currency)}</p>
+                                {(wallet as any).monthlyUsed != null && (
+                                  <div className="mt-1">
+                                    <div className="w-24 bg-gray-200 rounded-full h-1.5 ml-auto">
+                                      <div
+                                        className="bg-purple-500 h-1.5 rounded-full"
+                                        style={{ width: `${Math.min(100, (wallet as any).monthlyLimit > 0 ? ((wallet as any).monthlyUsed / (wallet as any).monthlyLimit) * 100 : 0)}%` }}
+                                      />
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                      {formatCurrency((wallet as any).monthlyUsed, wallet.currency)} used
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : <span className="text-gray-400">—</span>}
                           </TableCell>
                           <TableCell className="text-gray-500">
                             {formatDateShort(wallet.createdAt)}
@@ -751,24 +819,32 @@ const WalletPage = () => {
                                 <Plus className="w-4 h-4 mr-1" strokeWidth={2.5} />
                                 Fund
                               </Button>
-                              {(wallet.dailyLimit !== undefined && wallet.dailyLimit !== null) && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                                  onClick={() => {
-                                    setSelectedWallet(wallet)
-                                    setLimitForm({
-                                      dailyLimit: wallet.dailyLimit?.toString() || '',
-                                      reason: ''
-                                    })
-                                    setShowIncreaseLimit(true)
-                                  }}
-                                >
-                                  <TrendingUp className="w-4 h-4 mr-1" />
-                                  Limit
-                                </Button>
-                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  setSelectedWallet(wallet)
+                                  setLimitForm({ dailyLimit: wallet.dailyLimit?.toString() || '', reason: '' })
+                                  setShowIncreaseLimit(true)
+                                }}
+                              >
+                                <TrendingUp className="w-4 h-4 mr-1" />
+                                Daily
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-purple-500 text-purple-600 hover:bg-purple-50"
+                                onClick={() => {
+                                  setSelectedWallet(wallet)
+                                  setMonthlyLimitForm({ monthlyLimit: (wallet as any).monthlyLimit?.toString() || '', reason: '' })
+                                  setShowMonthlyLimit(true)
+                                }}
+                              >
+                                <TrendingUp className="w-4 h-4 mr-1" />
+                                Monthly
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -923,7 +999,7 @@ const WalletPage = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Increase Daily Limit Dialog */}
+          {/* Update Daily Limit Dialog */}
           <Dialog open={showIncreaseLimit} onOpenChange={(open) => {
             setShowIncreaseLimit(open)
             if (!open) {
@@ -933,81 +1009,134 @@ const WalletPage = () => {
           }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Increase Daily Limit</DialogTitle>
+                <DialogTitle>Edit Daily Limit</DialogTitle>
                 <DialogDescription>
                   {selectedWallet && (
-                    <>
-                      Update daily transaction limit for{' '}
-                      {(selectedWallet as any).ownerName || 
-                       ((selectedWallet as any).user?.profile ? 
-                         `${(selectedWallet as any).user.profile.firstName} ${(selectedWallet as any).user.profile.lastName}` : 
-                         'this wallet')}
-                      's wallet
-                    </>
+                    <>Update daily transaction limit for <strong>{(selectedWallet as any).ownerName || 'this wallet'}</strong></>
                   )}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Current Daily Limit</label>
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="bg-blue-50 rounded-lg p-3">
+                  <p className="text-xs text-blue-600 font-medium mb-1">Current Daily Limit</p>
+                  <p className="text-2xl font-bold text-blue-800">
                     {formatCurrency(selectedWallet?.dailyLimit || 0, selectedWallet?.currency || 'UGX')}
                   </p>
-                  {selectedWallet?.dailyUsed !== undefined && selectedWallet?.dailyUsed !== null && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Used: {formatCurrency(selectedWallet.dailyUsed, selectedWallet.currency)} today
-                    </p>
+                  {selectedWallet?.dailyUsed != null && selectedWallet?.dailyLimit != null && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-blue-600 mb-1">
+                        <span>Used today: {formatCurrency(selectedWallet.dailyUsed, selectedWallet.currency)}</span>
+                        <span>{selectedWallet.dailyLimit > 0 ? Math.round((selectedWallet.dailyUsed / selectedWallet.dailyLimit) * 100) : 0}%</span>
+                      </div>
+                      <div className="w-full bg-blue-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${Math.min(100, selectedWallet.dailyLimit > 0 ? (selectedWallet.dailyUsed / selectedWallet.dailyLimit) * 100 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
                 <div>
-                  <label htmlFor="dailyLimit" className="text-sm font-medium">
-                    New Daily Limit <span className="text-red-500">*</span>
-                  </label>
+                  <Label htmlFor="dailyLimit">New Daily Limit <span className="text-red-500">*</span></Label>
                   <Input
                     id="dailyLimit"
-                    name="dailyLimit"
                     type="number"
                     placeholder="Enter new daily limit"
                     value={limitForm.dailyLimit}
                     onChange={(e) => setLimitForm(prev => ({ ...prev, dailyLimit: e.target.value }))}
                     className="mt-1"
-                    min={selectedWallet?.dailyLimit || 0}
+                    min={1}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Must be greater than current limit: {formatCurrency(selectedWallet?.dailyLimit || 0, selectedWallet?.currency || 'UGX')}
-                  </p>
                 </div>
                 <div>
-                  <label htmlFor="limitReason" className="text-sm font-medium">
-                    Reason (Optional)
-                  </label>
+                  <Label htmlFor="limitReason">Reason (Optional)</Label>
                   <Input
                     id="limitReason"
-                    name="reason"
                     placeholder="e.g., Business needs, KYC upgrade"
                     value={limitForm.reason}
                     onChange={(e) => setLimitForm(prev => ({ ...prev, reason: e.target.value }))}
                     className="mt-1"
                   />
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowIncreaseLimit(false)
-                      setSelectedWallet(null)
-                      setLimitForm({ dailyLimit: '', reason: '' })
-                    }}
-                    className="flex-1"
-                  >
+                <div className="flex gap-3 pt-2">
+                  <Button variant="outline" onClick={() => { setShowIncreaseLimit(false); setSelectedWallet(null); setLimitForm({ dailyLimit: '', reason: '' }) }} className="flex-1">
                     Cancel
                   </Button>
-                  <Button
-                    onClick={handleIncreaseLimit}
-                    disabled={updateDailyLimit.isPending}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {updateDailyLimit.isPending ? 'Updating...' : 'Update Limit'}
+                  <Button onClick={handleIncreaseLimit} disabled={updateDailyLimit.isPending} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                    {updateDailyLimit.isPending ? 'Updating...' : 'Update Daily Limit'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Update Monthly Limit Dialog */}
+          <Dialog open={showMonthlyLimit} onOpenChange={(open) => {
+            setShowMonthlyLimit(open)
+            if (!open) {
+              setSelectedWallet(null)
+              setMonthlyLimitForm({ monthlyLimit: '', reason: '' })
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Monthly Limit</DialogTitle>
+                <DialogDescription>
+                  {selectedWallet && (
+                    <>Update monthly transaction limit for <strong>{(selectedWallet as any).ownerName || 'this wallet'}</strong></>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="bg-purple-50 rounded-lg p-3">
+                  <p className="text-xs text-purple-600 font-medium mb-1">Current Monthly Limit</p>
+                  <p className="text-2xl font-bold text-purple-800">
+                    {formatCurrency((selectedWallet as any)?.monthlyLimit || 0, selectedWallet?.currency || 'UGX')}
+                  </p>
+                  {(selectedWallet as any)?.monthlyUsed != null && (selectedWallet as any)?.monthlyLimit != null && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-purple-600 mb-1">
+                        <span>Used this month: {formatCurrency((selectedWallet as any).monthlyUsed, selectedWallet.currency)}</span>
+                        <span>{(selectedWallet as any).monthlyLimit > 0 ? Math.round(((selectedWallet as any).monthlyUsed / (selectedWallet as any).monthlyLimit) * 100) : 0}%</span>
+                      </div>
+                      <div className="w-full bg-purple-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full"
+                          style={{ width: `${Math.min(100, (selectedWallet as any).monthlyLimit > 0 ? ((selectedWallet as any).monthlyUsed / (selectedWallet as any).monthlyLimit) * 100 : 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="monthlyLimit">New Monthly Limit <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="monthlyLimit"
+                    type="number"
+                    placeholder="Enter new monthly limit"
+                    value={monthlyLimitForm.monthlyLimit}
+                    onChange={(e) => setMonthlyLimitForm(prev => ({ ...prev, monthlyLimit: e.target.value }))}
+                    className="mt-1"
+                    min={1}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="monthlyLimitReason">Reason (Optional)</Label>
+                  <Input
+                    id="monthlyLimitReason"
+                    placeholder="e.g., Business needs, KYC upgrade"
+                    value={monthlyLimitForm.reason}
+                    onChange={(e) => setMonthlyLimitForm(prev => ({ ...prev, reason: e.target.value }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button variant="outline" onClick={() => { setShowMonthlyLimit(false); setSelectedWallet(null); setMonthlyLimitForm({ monthlyLimit: '', reason: '' }) }} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleUpdateMonthlyLimit} disabled={updateMonthlyLimit.isPending} className="flex-1 bg-purple-600 hover:bg-purple-700">
+                    {updateMonthlyLimit.isPending ? 'Updating...' : 'Update Monthly Limit'}
                   </Button>
                 </div>
               </div>
@@ -1067,6 +1196,59 @@ const WalletPage = () => {
                     <div>
                       <label className="text-sm font-medium text-gray-500">Description</label>
                       <p className="text-sm text-gray-900 mt-1">{selectedWallet.description}</p>
+                    </div>
+                  )}
+
+                  {/* Transaction Limits */}
+                  {(selectedWallet.dailyLimit != null || (selectedWallet as any).monthlyLimit != null) && (
+                    <div className="border-t pt-4">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Transaction Limits</h3>
+                      <div className="grid grid-cols-1 gap-4">
+                        {selectedWallet.dailyLimit != null && (
+                          <div className="bg-blue-50 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-blue-700">Daily Limit</span>
+                              <span className="text-sm font-bold text-blue-900">{formatCurrency(selectedWallet.dailyLimit, selectedWallet.currency)}</span>
+                            </div>
+                            {selectedWallet.dailyUsed != null && (
+                              <>
+                                <div className="w-full bg-blue-200 rounded-full h-2 mb-1">
+                                  <div
+                                    className="bg-blue-600 h-2 rounded-full"
+                                    style={{ width: `${Math.min(100, selectedWallet.dailyLimit > 0 ? (selectedWallet.dailyUsed / selectedWallet.dailyLimit) * 100 : 0)}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs text-blue-600">
+                                  <span>Used: {formatCurrency(selectedWallet.dailyUsed, selectedWallet.currency)}</span>
+                                  <span>Remaining: {formatCurrency(Math.max(0, selectedWallet.dailyLimit - selectedWallet.dailyUsed), selectedWallet.currency)}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {(selectedWallet as any).monthlyLimit != null && (
+                          <div className="bg-purple-50 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-purple-700">Monthly Limit</span>
+                              <span className="text-sm font-bold text-purple-900">{formatCurrency((selectedWallet as any).monthlyLimit, selectedWallet.currency)}</span>
+                            </div>
+                            {(selectedWallet as any).monthlyUsed != null && (
+                              <>
+                                <div className="w-full bg-purple-200 rounded-full h-2 mb-1">
+                                  <div
+                                    className="bg-purple-600 h-2 rounded-full"
+                                    style={{ width: `${Math.min(100, (selectedWallet as any).monthlyLimit > 0 ? ((selectedWallet as any).monthlyUsed / (selectedWallet as any).monthlyLimit) * 100 : 0)}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs text-purple-600">
+                                  <span>Used: {formatCurrency((selectedWallet as any).monthlyUsed, selectedWallet.currency)}</span>
+                                  <span>Remaining: {formatCurrency(Math.max(0, (selectedWallet as any).monthlyLimit - (selectedWallet as any).monthlyUsed), selectedWallet.currency)}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 

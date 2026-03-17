@@ -99,6 +99,15 @@ export {
   useUserActivityLogs
 } from './useSystem'
 
+// Backup hooks
+export {
+  useBackupStats,
+  useBackupMongo,
+  useBackupPostgres,
+  useBackupBoth,
+  useBackupCleanup,
+} from './useBackup'
+
 // Legacy hooks that might still be needed
 export const useCustomers = (filters?: any) => {
   // This can be implemented later or removed if not needed
