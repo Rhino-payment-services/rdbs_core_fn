@@ -22,12 +22,14 @@ import {
   Plus,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { useUsers, useRoles, useAssignRole } from '@/lib/hooks/useApi'
 import type { User, Role } from '@/lib/types/api'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
+import Link from 'next/link'
 
 const PermissionsPage = () => {
   const { data: users, isLoading: isUsersLoading } = useUsers()
@@ -272,6 +274,7 @@ const PermissionsPage = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Last Login</TableHead>
                       <TableHead>Assign Role</TableHead>
+                      <TableHead>Nav Visibility</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -368,6 +371,15 @@ const PermissionsPage = () => {
                               </div>
                             </DialogContent>
                           </Dialog>
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/dashboard/users/${encodeURIComponent(user.id)}/nav-visibility`}
+                            className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            <EyeOff className="h-4 w-4 mr-2" />
+                            Configure
+                          </Link>
                         </TableCell>
                       </TableRow>
                     ))}

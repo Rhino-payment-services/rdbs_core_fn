@@ -737,20 +737,7 @@ const Navbar = () => {
                       Carousel
                     </Link>
                   </PermissionGuard>
-                  {userRole === 'SUPER_ADMIN' && (
-                    <Link 
-                      href="/dashboard/settings/nav-visibility" 
-                      className={`flex items-center gap-2 px-4 py-2 text-sm transition-colors ${
-                        isActive('/dashboard/settings/nav-visibility')
-                          ? 'text-[#08163d] bg-[#08163d]/10'
-                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
-                      }`}
-                      onClick={() => setIsSettingsDropdownOpen(false)}
-                    >
-                      <EyeOff className="h-3.5 w-3.5" />
-                      Nav Visibility
-                    </Link>
-                  )}
+                  {/* Nav Visibility moved to per-user configuration under Users → Permissions */}
                 </div>
               </div>
             )}

@@ -15,14 +15,17 @@ export const NAV_ITEMS = [
 
 export type NavItemKey = typeof NAV_ITEMS[number]['key']
 
-const STORAGE_KEY = 'rdbs_nav_visibility'
+function storageKeyFor(userId?: string) {
+  // Per-user storage (requested). Falls back to a global key when userId is not provided.
+  return userId && userId.trim() !== '' ? `rdbs_nav_visibility:${userId}` : 'rdbs_nav_visibility'
+}
 
-function loadVisibility(): Record<NavItemKey, boolean> {
+function loadVisibility(userId?: string): Record<NavItemKey, boolean> {
   if (typeof window === 'undefined') {
     return NAV_ITEMS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {} as Record<NavItemKey, boolean>)
   }
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(storageKeyFor(userId))
     if (stored) {
       const parsed = JSON.parse(stored)
       // Merge with defaults so newly added nav items default to visible
@@ -37,13 +40,13 @@ function loadVisibility(): Record<NavItemKey, boolean> {
   return NAV_ITEMS.reduce((acc, item) => ({ ...acc, [item.key]: true }), {} as Record<NavItemKey, boolean>)
 }
 
-export function useNavVisibility() {
-  const [visibility, setVisibility] = useState<Record<NavItemKey, boolean>>(loadVisibility)
+export function useNavVisibility(userId?: string) {
+  const [visibility, setVisibility] = useState<Record<NavItemKey, boolean>>(() => loadVisibility(userId))
 
   // Re-read from storage when component mounts (handles SSR)
   useEffect(() => {
-    setVisibility(loadVisibility())
-  }, [])
+    setVisibility(loadVisibility(userId))
+  }, [userId])
 
   const isVisible = useCallback(
     (key: NavItemKey): boolean => visibility[key] ?? true,
@@ -54,13 +57,13 @@ export function useNavVisibility() {
     setVisibility(prev => {
       const updated = { ...prev, [key]: visible }
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(storageKeyFor(userId), JSON.stringify(updated))
       } catch {
         // Ignore storage errors
       }
       return updated
     })
-  }, [])
+  }, [userId])
 
   const resetToDefaults = useCallback(() => {
     const defaults = NAV_ITEMS.reduce(
@@ -68,12 +71,12 @@ export function useNavVisibility() {
       {} as Record<NavItemKey, boolean>
     )
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(storageKeyFor(userId))
     } catch {
       // Ignore storage errors
     }
     setVisibility(defaults)
-  }, [])
+  }, [userId])
 
   return { visibility, isVisible, setItemVisible, resetToDefaults }
 }

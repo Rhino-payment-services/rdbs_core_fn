@@ -24,7 +24,7 @@ import { useRoles, useCreateRole, useUpdateRole, useDeleteRole } from '@/lib/hoo
 import { useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import { PERMISSION_GROUPS } from '@/lib/constants/permissionCatalog'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { RoleGuard } from '@/components/ui/PermissionGuard'
+import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import type { Role } from '@/lib/types/api'
 import toast from 'react-hot-toast'
 import { extractErrorMessage } from '@/lib/utils'
@@ -383,7 +383,19 @@ export default function RolesPage() {
   }
 
   return (
-    <RoleGuard role="SUPER_ADMIN">
+    <PermissionGuard
+      permission={PERMISSIONS.ROLES_VIEW}
+      showFallback
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-600">You don&apos;t have permission to view Roles &amp; Permissions.</p>
+          </div>
+        </div>
+      }
+    >
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -508,6 +520,6 @@ export default function RolesPage() {
           </div>
         )}
       </div>
-    </RoleGuard>
+    </PermissionGuard>
   )
 }
