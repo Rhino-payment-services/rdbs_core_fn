@@ -467,15 +467,20 @@ function CreditPartnerCollectReceiver({ transaction, metadata }: { transaction: 
     )
   }
 
+  // For API partner collections, the receiver is the API partner's wallet.
+  // Show the API partner company name first, and the partner number below.
   const displayName =
-    transaction.partner?.partnerName ||
     metadata.apiPartnerName ||
+    transaction.partner?.partnerName ||
     transaction.partner?.partnerCode ||
     'API Partner'
 
   const partnerContact =
-    transaction.partner?.contactPhone ||
+    transaction.user?.phone ||
+    metadata.userPhoneNumber ||
+    metadata.receiverPhone ||
     metadata.partnerPhone ||
+    transaction.partner?.contactPhone ||
     transaction.partner?.partnerCode ||
     null
 

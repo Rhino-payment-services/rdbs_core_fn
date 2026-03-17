@@ -76,7 +76,7 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
 }
 
 function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
-  const { metadata, senderMeta, resolvedPartner, resolvedPartnerName } = derived
+  const { metadata, senderMeta, resolvedPartner, resolvedPartnerName, isPartnerSubscriberWithdraw, hasPartnerSignal } = derived
 
   const isAdminFunding = transaction.type === 'DEPOSIT' && metadata.fundedByAdmin
   const isDebit = transaction.direction === 'DEBIT'
@@ -103,6 +103,21 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
     name = metadata.adminName || 'Admin User'
     contact = metadata.adminPhone || metadata.adminEmail || null
     badgeType = 'ADMIN'
+  } else if (isPartnerSubscriberWithdraw && hasPartnerSignal) {
+    // Partner-initiated subscriber withdrawal: sender is the API partner company.
+    name =
+      metadata.apiPartnerName ||
+      resolvedPartnerName ||
+      transaction.partner?.partnerName ||
+      transaction.partner?.partnerCode ||
+      'API Partner'
+    contact =
+      transaction.partner?.contactPhone ||
+      metadata.partnerPhone ||
+      metadata.partnerContact ||
+      transaction.partner?.partnerCode ||
+      null
+    badgeType = 'PARTNER'
   } else if (transaction.type === 'DEPOSIT' && (resolvedPartner || transaction.partner || metadata.apiPartnerName || metadata.isApiPartnerTransaction)) {
     name = resolvedPartnerName || metadata.apiPartnerName || transaction.partner?.partnerName || 'API Partner'
     contact = resolvedPartner?.contactPhone || transaction.partner?.contactPhone || metadata.partnerContact || resolvedPartner?.contactEmail || transaction.partner?.contactEmail || null
