@@ -55,17 +55,29 @@ function getTimeRangeDates(value: string): { startDate: string; endDate: string 
   else if (value === '7d') start.setDate(start.getDate() - 7)
   else if (value === '30d') start.setDate(start.getDate() - 30)
   else start.setHours(start.getHours() - 24)
-  return {
-    startDate: start.toISOString(),
-    endDate: end.toISOString(),
-  }
+  return { startDate: start.toISOString(), endDate: end.toISOString() }
 }
 
 function formatTime(iso: string) {
-  return new Date(iso).toLocaleString('en-UG', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
+  return new Date(iso).toLocaleString('en-UG', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function ChannelBadge({ channel }: { channel: string }) {
+  const ch = (channel || '').toUpperCase()
+  const classes: Record<string, string> = {
+    BACKOFFICE: 'bg-purple-100 text-purple-800',
+    APP: 'bg-blue-100 text-blue-800',
+    WEB: 'bg-cyan-100 text-cyan-800',
+    USSD: 'bg-orange-100 text-orange-800',
+    MERCHANT_PORTAL: 'bg-teal-100 text-teal-800',
+    PARTNER_PORTAL: 'bg-indigo-100 text-indigo-800',
+    API: 'bg-gray-100 text-gray-800',
+  }
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${classes[ch] ?? 'bg-gray-100 text-gray-700'}`}>
+      {channel || '—'}
+    </span>
+  )
 }
 
 function StatusBadge({ status }: { status: ActivityLog['status'] }) {
@@ -73,41 +85,43 @@ function StatusBadge({ status }: { status: ActivityLog['status'] }) {
     case 'SUCCESS':
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-          <CheckCircle className="h-3 w-3" />
-          Success
+          <CheckCircle className="h-3 w-3" /> Success
         </span>
       )
     case 'FAILED':
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-          <AlertCircle className="h-3 w-3" />
-          Error
+          <AlertCircle className="h-3 w-3" /> Error
         </span>
       )
     case 'PENDING':
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-          <AlertTriangle className="h-3 w-3" />
-          Pending
+          <AlertTriangle className="h-3 w-3" /> Pending
         </span>
       )
     default:
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-          <Info className="h-3 w-3" />
-          {status}
+          <Info className="h-3 w-3" /> {status}
         </span>
       )
   }
 }
 
-export default function ActivityLogPage() {
-  const [activityTab, setActivityTab] = useState<'all' | 'customer' | 'internal'>('all')
-  const [timeRange, setTimeRange] = useState<string>('24h')
+// ─── shared log table ─────────────────────────────────────────────────────────
+
+interface LogTableProps {
+  tab: 'all' | 'customer' | 'internal'
+  timeRange: string
+  onTimeRangeChange: (v: string) => void
+}
+
+function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const limit = 20
 
@@ -115,58 +129,51 @@ export default function ActivityLogPage() {
 
   const filters: ActivityLogFilters = useMemo(
     () => ({
-      tab: activityTab,
+      tab,
       page,
       limit,
       startDate,
       endDate,
-      status:
-        statusFilter === 'all'
-          ? undefined
-          : (statusFilter as ActivityLogFilters['status']),
+      status: statusFilter === 'all' ? undefined : (statusFilter as ActivityLogFilters['status']),
       category: categoryFilter === 'all' ? undefined : categoryFilter,
     }),
-    [activityTab, page, limit, startDate, endDate, statusFilter, categoryFilter]
+    [tab, page, limit, startDate, endDate, statusFilter, categoryFilter],
   )
 
   const searchFilters: ActivityLogFilters = useMemo(
     () => ({ ...filters, query: searchQuery || undefined }),
-    [filters, searchQuery]
+    [filters, searchQuery],
   )
 
-  const {
-    data: listData,
-    isLoading: listLoading,
-    isError: listError,
-    error: listErrObj,
-    refetch: refetchList
-  } = useActivityLogs(filters)
-  const { data: searchData, isLoading: searchLoading, isError: searchError } = useSearchActivityLogs({
-    ...searchFilters,
-    query: searchQuery || undefined,
-  })
-  const { data: stats, refetch: refetchStats } = useActivityStats(startDate, endDate)
+  const { data: listData, isLoading: listLoading, isError: listError, error: listErrObj } =
+    useActivityLogs(filters)
+  const { data: searchData, isLoading: searchLoading, isError: searchError } =
+    useSearchActivityLogs({ ...searchFilters, query: searchQuery || undefined })
 
   const useSearch = searchQuery.trim().length > 0
   const data = useSearch ? searchData : listData
   const isLoading = useSearch ? searchLoading : listLoading
   const isError = useSearch ? searchError : listError
   const activeError: any = useSearch ? undefined : listErrObj
+
   const logs = data?.logs ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 0
 
-  const handleRefresh = () => {
-    refetchList()
-    refetchStats()
-    toast.success('Activity log refreshed')
+  const categories = useMemo(() => {
+    const set = new Set<string>()
+    logs.forEach((l) => l.category && set.add(l.category))
+    return Array.from(set).sort()
+  }, [logs])
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchQuery(searchInput.trim())
+    setPage(1)
   }
 
   const handleExport = () => {
-    if (!logs.length) {
-      toast.error('No logs to export')
-      return
-    }
+    if (!logs.length) { toast.error('No logs to export'); return }
     const headers = ['Date', 'User', 'Action', 'Category', 'Status', 'Description', 'Channel', 'IP Address']
     const rows = logs.map((log: ActivityLog) => [
       new Date(log.createdAt).toLocaleString(),
@@ -185,7 +192,7 @@ export default function ActivityLogPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `activity-logs-${new Date().toISOString().split('T')[0]}.csv`
+    link.download = `activity-logs-${tab}-${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -193,75 +200,226 @@ export default function ActivityLogPage() {
     toast.success(`Exported ${logs.length} activity logs to CSV`)
   }
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSearchQuery(searchInput.trim())
-    setPage(1)
-  }
+  return (
+    <Card>
+      <CardContent className="p-6">
+        {/* filters row */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
+            <Input
+              placeholder="Search..."
+              className="w-48"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <Button type="submit" variant="secondary" size="sm">
+              Search
+            </Button>
+          </form>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="All Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="SUCCESS">Success</SelectItem>
+              <SelectItem value="FAILED">Failed</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(1) }}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="All Categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={timeRange} onValueChange={(v) => { onTimeRangeChange(v); setPage(1) }}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {TIME_RANGES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-1" /> Export
+          </Button>
+        </div>
+
+        {/* table */}
+        <div className="rounded-md border">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : isError ? (
+            <div className="py-12 text-center text-red-500">
+              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+              <p className="font-medium">Failed to load activity logs</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {activeError?.status
+                  ? `API Error ${activeError.status}: ${activeError.message || 'Request failed'}`
+                  : 'Check your connection or permissions, then try refreshing'}
+              </p>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="py-12 text-center text-gray-500">
+              No activity logs found for the selected filters
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead>Status</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>User</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>IP Address</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.map((log) => (
+                  <TableRow key={log._id}>
+                    <TableCell><StatusBadge status={log.status} /></TableCell>
+                    <TableCell className="text-sm text-gray-600 whitespace-nowrap">
+                      {formatTime(log.createdAt)}
+                    </TableCell>
+                    <TableCell><ChannelBadge channel={log.channel} /></TableCell>
+                    <TableCell className="text-sm">{log.category || '—'}</TableCell>
+                    <TableCell className="text-sm">
+                      {log.userDetails?.fullName || log.userDetails?.email || log.userEmail || log.userPhone || '—'}
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {log.action?.replace(/_/g, ' ') || '—'}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600 max-w-xs truncate">
+                      {log.description || '—'}
+                    </TableCell>
+                    <TableCell className="text-sm font-mono text-gray-500">
+                      {log.ipAddress || '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        {/* pagination */}
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-gray-500">
+            {total > 0 ? `Page ${page} of ${totalPages} (${total} total)` : ''}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || isLoading}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages || isLoading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── page ─────────────────────────────────────────────────────────────────────
+
+export default function ActivityLogPage() {
+  const [activityTab, setActivityTab] = useState<'all' | 'customer' | 'internal'>('all')
+  const [timeRange, setTimeRange] = useState<string>('24h')
+
+  const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
+  const { data: stats, refetch: refetchStats } = useActivityStats(startDate, endDate)
 
   const statsSummary = useMemo(() => {
     const totalEvents = stats?.totalActions ?? 0
     const errors = stats?.failedCount ?? 0
     const success = stats?.successCount ?? 0
     const pending = stats?.pendingCount ?? 0
-    const warnings = pending
-    const info = Math.max(0, totalEvents - success - errors - pending)
-    return {
-      totalEvents,
-      errors,
-      warnings,
-      success,
-      info,
-    }
+    return { totalEvents, errors, warnings: pending, success, info: Math.max(0, totalEvents - success - errors - pending) }
   }, [stats])
 
-  const categories = useMemo(() => {
-    const set = new Set<string>()
-    logs.forEach((l) => l.category && set.add(l.category))
-    return Array.from(set).sort()
-  }, [logs])
+  const handleTabChange = (v: string) => {
+    setActivityTab(v as typeof activityTab)
+    // Broaden default window when switching to filtered tabs so data is visible
+    if (v !== 'all' && timeRange === '24h') setTimeRange('7d')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Activity Log</h1>
-                <p className="text-gray-600">
-                  Monitor system activities, user actions, and security events
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                  onClick={handleRefresh}
-                  disabled={listLoading}
-                >
-                  <RefreshCw className={`h-4 w-4 ${listLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-                <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </div>
+          {/* header */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Activity Log</h1>
+              <p className="text-gray-600">Monitor system activities, user actions, and security events</p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => refetchStats()}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
           </div>
 
-          <Tabs
-            value={activityTab}
-            onValueChange={(v) => {
-              setActivityTab(v as typeof activityTab)
-              setPage(1)
-            }}
-            className="mb-6"
-          >
-            <TabsList className="grid w-full max-w-md grid-cols-3">
+          {/* stats strip */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gray-100"><TrendingUp className="h-5 w-5 text-gray-600" /></div>
+                <div><p className="text-2xl font-bold">{statsSummary.totalEvents}</p><p className="text-xs text-gray-500">Last 24 h</p></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-100"><AlertCircle className="h-5 w-5 text-red-600" /></div>
+                <div><p className="text-2xl font-bold">{statsSummary.errors}</p><p className="text-xs text-gray-500">Errors</p></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-100"><AlertTriangle className="h-5 w-5 text-amber-600" /></div>
+                <div><p className="text-2xl font-bold">{statsSummary.warnings}</p><p className="text-xs text-gray-500">Pending</p></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-100"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+                <div><p className="text-2xl font-bold">{statsSummary.success}</p><p className="text-xs text-gray-500">Successful</p></div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-100"><Info className="h-5 w-5 text-blue-600" /></div>
+                <div><p className="text-2xl font-bold">{statsSummary.info}</p><p className="text-xs text-gray-500">Informational</p></div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* full-width tabs */}
+          <Tabs value={activityTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="w-full grid grid-cols-3 mb-4">
               <TabsTrigger value="all" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 All Activity
@@ -275,235 +433,19 @@ export default function ActivityLogPage() {
                 Internal Activity
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="all" className="mt-0">
+              <LogTable tab="all" timeRange={timeRange} onTimeRangeChange={setTimeRange} />
+            </TabsContent>
+
+            <TabsContent value="customer" className="mt-0">
+              <LogTable tab="customer" timeRange={timeRange} onTimeRangeChange={setTimeRange} />
+            </TabsContent>
+
+            <TabsContent value="internal" className="mt-0">
+              <LogTable tab="internal" timeRange={timeRange} onTimeRangeChange={setTimeRange} />
+            </TabsContent>
           </Tabs>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-gray-100">
-                    <TrendingUp className="h-5 w-5 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{statsSummary.totalEvents}</p>
-                    <p className="text-xs text-gray-500">Last 24 hours</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-red-100">
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{statsSummary.errors}</p>
-                    <p className="text-xs text-gray-500">All clear</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{statsSummary.warnings}</p>
-                    <p className="text-xs text-gray-500">Monitor closely</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{statsSummary.success}</p>
-                    <p className="text-xs text-gray-500">Operations completed</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <Info className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{statsSummary.info}</p>
-                    <p className="text-xs text-gray-500">Informational events</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {activityTab === 'all' && 'All Activity'}
-                  {activityTab === 'customer' && 'Customer Activity'}
-                  {activityTab === 'internal' && 'Internal Activity'}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {activityTab === 'all' && 'All system activities and user actions'}
-                  {activityTab === 'customer' && 'Customer-facing actions and events'}
-                  {activityTab === 'internal' && 'Internal staff and system operations'}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <form onSubmit={handleSearchSubmit} className="flex gap-2">
-                  <Input
-                    placeholder="Search..."
-                    className="w-48"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                  />
-                  <Button type="submit" variant="secondary" size="sm">
-                    Search
-                  </Button>
-                </form>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="SUCCESS">Success</SelectItem>
-                    <SelectItem value="FAILED">Failed</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={timeRange} onValueChange={setTimeRange}>
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_RANGES.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="rounded-md border">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                  </div>
-                ) : isError ? (
-                  <div className="py-12 text-center text-red-500">
-                    <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                    <p className="font-medium">Failed to load activity logs</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {activeError?.status
-                        ? `API Error ${activeError.status}: ${activeError.message || 'Request failed'}`
-                        : 'Check your connection or permissions, then try refreshing'}
-                    </p>
-                  </div>
-                ) : logs.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500">
-                    No activity logs found for the selected filters
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead>Status</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>IP Address</TableHead>
-                        <TableHead>Channel</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {logs.map((log) => (
-                        <TableRow key={log._id}>
-                          <TableCell>
-                            <StatusBadge status={log.status} />
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-600 whitespace-nowrap">
-                            {formatTime(log.createdAt)}
-                          </TableCell>
-                          <TableCell className="text-sm">{log.category || '—'}</TableCell>
-                          <TableCell className="text-sm">
-                            {log.userDetails?.fullName ||
-                              log.userDetails?.email ||
-                              log.userEmail ||
-                              log.userPhone ||
-                              '—'}
-                          </TableCell>
-                          <TableCell className="text-sm font-medium">
-                            {log.action?.replace(/_/g, ' ') || '—'}
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-600 max-w-xs truncate">
-                            {log.description || '—'}
-                          </TableCell>
-                          <TableCell className="text-sm font-mono text-gray-500">
-                            {log.ipAddress || '—'}
-                          </TableCell>
-                          <TableCell className="text-sm">{log.channel || '—'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-gray-500">
-                    Page {page} of {totalPages} ({total} total)
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => p + 1)}
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </main>
     </div>
