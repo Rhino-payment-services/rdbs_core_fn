@@ -113,20 +113,9 @@ export default function ActivityLogPage() {
 
   const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
 
-  const isInternalLog = (log: ActivityLog) => {
-    const role = (log.userDetails?.role || '').toUpperCase()
-    const userType = (log.userDetails?.userType || '').toUpperCase()
-    const email = (log.userEmail || log.userDetails?.email || '').toLowerCase()
-    if (userType === 'STAFF') return true
-    if (role.includes('ADMIN')) return true
-    if (email.endsWith('@rukapay.co.ug')) return true
-    return false
-  }
-
-  const isCustomerLog = (log: ActivityLog) => !isInternalLog(log)
-
   const filters: ActivityLogFilters = useMemo(
     () => ({
+      tab: activityTab,
       page,
       limit,
       startDate,
@@ -137,7 +126,7 @@ export default function ActivityLogPage() {
           : (statusFilter as ActivityLogFilters['status']),
       category: categoryFilter === 'all' ? undefined : categoryFilter,
     }),
-    [page, limit, startDate, endDate, statusFilter, categoryFilter]
+    [activityTab, page, limit, startDate, endDate, statusFilter, categoryFilter]
   )
 
   const searchFilters: ActivityLogFilters = useMemo(
@@ -163,12 +152,7 @@ export default function ActivityLogPage() {
   const isLoading = useSearch ? searchLoading : listLoading
   const isError = useSearch ? searchError : listError
   const activeError: any = useSearch ? undefined : listErrObj
-  const baseLogs = data?.logs ?? []
-  const logs = useMemo(() => {
-    if (activityTab === 'customer') return baseLogs.filter(isCustomerLog)
-    if (activityTab === 'internal') return baseLogs.filter(isInternalLog)
-    return baseLogs
-  }, [baseLogs, activityTab])
+  const logs = data?.logs ?? []
   const total = data?.total ?? 0
   const totalPages = data?.totalPages ?? 0
 

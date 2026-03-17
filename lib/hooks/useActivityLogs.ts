@@ -52,6 +52,8 @@ export interface ActivityStatsResponse {
 }
 
 export interface ActivityLogFilters {
+  /** UI tab selection. Used client-side for backward-compatible filtering when backend can't filter. */
+  tab?: 'all' | 'customer' | 'internal'
   page?: number
   limit?: number
   userId?: string
@@ -63,8 +65,43 @@ export interface ActivityLogFilters {
   query?: string
 }
 
+function isInternalLog(log: ActivityLog) {
+  const role = (log.userDetails?.role || '').toUpperCase()
+  const userType = (log.userDetails?.userType || '').toUpperCase()
+  const email = (log.userEmail || log.userDetails?.email || '').toLowerCase()
+  const channel = (log.channel || '').toUpperCase()
+
+  if (userType === 'STAFF') return true
+  if (role.includes('ADMIN')) return true
+  if (email.endsWith('@rukapay.co.ug')) return true
+  if (channel === 'BACKOFFICE') return true
+  return false
+}
+
+function matchesTab(log: ActivityLog, tab: ActivityLogFilters['tab']) {
+  if (!tab || tab === 'all') return true
+  const internal = isInternalLog(log)
+  return tab === 'internal' ? internal : !internal
+}
+
+function inTimeRange(log: ActivityLog, startDate?: string, endDate?: string) {
+  if (!startDate && !endDate) return true
+  const t = new Date(log.createdAt).getTime()
+  if (Number.isNaN(t)) return false
+  if (startDate) {
+    const s = new Date(startDate).getTime()
+    if (!Number.isNaN(s) && t < s) return false
+  }
+  if (endDate) {
+    const e = new Date(endDate).getTime()
+    if (!Number.isNaN(e) && t > e) return false
+  }
+  return true
+}
+
 // Fetch all activity logs with filters
 async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
+  const tab = filters.tab || 'all'
   const params = new URLSearchParams()
   if (filters.page) params.append('page', String(filters.page))
   if (filters.limit) params.append('limit', String(filters.limit))
@@ -77,7 +114,10 @@ async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<Activi
 
   try {
     const { data } = await api.get(`/activity-logs?${params.toString()}`)
-    return data
+    // If backend supports filtering/pagination, still apply tab/time filtering client-side
+    // so Customer/Internal tabs behave consistently.
+    const filtered = (data.logs || []).filter((l: ActivityLog) => matchesTab(l, tab) && inTimeRange(l, filters.startDate, filters.endDate))
+    return { ...data, logs: filtered }
   } catch (err: any) {
     // Backwards-compatibility fallback:
     // Some deployments reject pagination/date params due to strict validation (forbidNonWhitelisted).
@@ -100,13 +140,46 @@ async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<Activi
     const page = filters.page ?? 1
     const limit = filters.limit ?? 20
 
-    if (filters.userId) {
-      const { data } = await api.get(`/activity-logs/user/${encodeURIComponent(filters.userId)}?page=${page}&limit=${limit}`)
-      return data
+    // If we need Customer/Internal and backend can't filter, we must fetch enough rows and filter client-side.
+    // We do a bounded scan across system pages to populate the requested UI page.
+    const desiredStart = (page - 1) * limit
+    const desiredEnd = desiredStart + limit
+    const rawPageSize = 100
+    const maxPagesToScan = 25 // safety cap to avoid excessive calls
+
+    const fetchSystemPage = async (p: number) => {
+      const { data } = await api.get(`/activity-logs/system?page=${p}&limit=${rawPageSize}`)
+      return data as ActivityLogListResponse
     }
 
-    const { data } = await api.get(`/activity-logs/system?page=${page}&limit=${limit}`)
-    return data
+    if (filters.userId) {
+      // User-specific endpoint supports page/limit only; apply tab/time range filtering.
+      const { data } = await api.get(`/activity-logs/user/${encodeURIComponent(filters.userId)}?page=${page}&limit=${rawPageSize}`)
+      const logs = (data.logs || []).filter((l: ActivityLog) => matchesTab(l, tab) && inTimeRange(l, filters.startDate, filters.endDate))
+      return { ...data, logs: logs.slice(0, limit), page, limit }
+    }
+
+    const collected: ActivityLog[] = []
+    let total = 0
+    let totalPages = 0
+    for (let p = 1; p <= maxPagesToScan; p++) {
+      const resp = await fetchSystemPage(p)
+      total = resp.total
+      totalPages = resp.totalPages
+      const pageLogs = (resp.logs || []).filter((l: ActivityLog) => matchesTab(l, tab) && inTimeRange(l, filters.startDate, filters.endDate))
+      collected.push(...pageLogs)
+      if (collected.length >= desiredEnd) break
+      if (totalPages && p >= totalPages) break
+    }
+
+    const sliced = collected.slice(desiredStart, desiredEnd)
+    return {
+      logs: sliced,
+      total,
+      page,
+      limit,
+      totalPages: totalPages || Math.ceil(total / limit),
+    }
   }
 }
 
