@@ -148,7 +148,20 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     null
 
   const paymentPartnerFromMapping = transaction.partnerMapping?.partner
-    ? (transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode || null)
+    ? (() => {
+        const p = transaction.partnerMapping.partner
+        if (p?.partnerCode) return String(p.partnerCode)
+        const name = String(p?.partnerName || '').trim()
+        if (!name) return null
+        // Prefer a short label in the table (e.g. "ABC Payment Services" -> "ABC")
+        const upperName = name.toUpperCase()
+        if (upperName.includes('ABC')) return 'ABC'
+        if (upperName.includes('PEGASUS')) return 'PEGASUS'
+        if (upperName.includes('AIRTEL')) return 'AIRTEL'
+        if (upperName.includes('MTN')) return 'MTN'
+        const firstToken = name.split(/\s+/)[0]
+        return firstToken ? firstToken.toUpperCase() : name
+      })()
     : null
 
   const counterpartyName = String(metadata.counterpartyInfo?.name || '')
