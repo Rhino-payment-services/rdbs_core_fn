@@ -34,6 +34,7 @@ import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
 import ChannelStatsCard from '@/components/dashboard/ChannelStatsCard'
+import { formatCompactUgx } from '@/lib/utils/transactions'
 
 const DashboardPage = () => {
   const { hasPermission } = usePermissions()
@@ -239,7 +240,7 @@ const DashboardPage = () => {
                         Total Volume
                       </p>
                       <p className="text-xl font-bold text-gray-900">
-                        {statsLoading ? '...' : `UGX ${((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M`}
+                        {statsLoading ? '...' : formatCompactUgx(transactionStats?.totalVolume || 0)}
                       </p>
                     </div>
                     <div className="w-8 h-8 flex items-center justify-center">
