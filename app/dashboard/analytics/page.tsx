@@ -47,6 +47,7 @@ import { useKycStats } from '@/lib/hooks/useKyc'
 import { useSystemStats } from '@/lib/hooks/useSystem'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useSession } from 'next-auth/react'
+import { formatCompactUgx } from '@/lib/utils/transactions'
 
 const AnalyticsPage = () => {
   const { hasPermission } = usePermissions()
@@ -689,7 +690,7 @@ const AnalyticsPage = () => {
                             Total Volume
                           </p>
                           <p className="text-xl font-bold text-gray-900 leading-tight">
-                            {transactionLoading ? '...' : `UGX ${((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M`}
+                            {transactionLoading ? '...' : formatCompactUgx(transactionStats?.totalVolume || 0)}
                           </p>
                         </div>
                         <div className="w-8 h-8 flex items-center justify-center ml-2">
@@ -988,7 +989,7 @@ const AnalyticsPage = () => {
                           </div>
                           <div className="text-center p-4 bg-gray-50 rounded-lg">
                             <p className="text-2xl font-bold text-green-600">
-                              UGX {((transactionStats?.totalVolume || 0) / 1000000).toFixed(1)}M
+                              {formatCompactUgx(transactionStats?.totalVolume || 0)}
                             </p>
                             <p className="text-sm text-gray-600">Total Volume</p>
                             </div>

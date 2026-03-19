@@ -77,6 +77,28 @@ export const formatAmount = (amount: number) => {
 }
 
 /**
+ * Format UGX using compact suffixes (K, M, B, T).
+ * Example: 1233900000 -> "UGX 1.2B"
+ */
+export const formatCompactUgx = (amount: number) => {
+  const value = Number(amount || 0)
+  const abs = Math.abs(value)
+
+  const withSuffix = (divisor: number, suffix: 'K' | 'M' | 'B' | 'T') => {
+    const compact = value / divisor
+    const formatted = Number(compact.toFixed(1)).toString()
+    return `UGX ${formatted}${suffix}`
+  }
+
+  if (abs >= 1_000_000_000_000) return withSuffix(1_000_000_000_000, 'T')
+  if (abs >= 1_000_000_000) return withSuffix(1_000_000_000, 'B')
+  if (abs >= 1_000_000) return withSuffix(1_000_000, 'M')
+  if (abs >= 1_000) return withSuffix(1_000, 'K')
+
+  return `UGX ${value.toLocaleString()}`
+}
+
+/**
  * Format date string
  */
 export const formatDate = (dateString: string) => {

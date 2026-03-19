@@ -10,7 +10,7 @@ import CustomerSettings from './CustomerSettings'
 import LiquidateToDisbursementModal from './LiquidateToDisbursementModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { User, CreditCard, Activity, Settings, Wallet } from 'lucide-react'
+import { User, CreditCard, Activity, Settings, Wallet, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { WalletBalance } from '@/lib/types/api'
 
@@ -263,7 +263,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${showActivityTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${showActivityTab ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Overview
@@ -281,6 +281,10 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Settings
+          </TabsTrigger>
+          <TabsTrigger value="etranzactKyc" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            ETRANZACT KYC
           </TabsTrigger>
         </TabsList>
 
@@ -418,6 +422,34 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               }}
             />
           )}
+        </TabsContent>
+
+        <TabsContent value="etranzactKyc" className="mt-6">
+          <div className="w-full rounded-xl overflow-hidden border bg-white">
+            <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">ETRANZACT KYC</div>
+                <div className="text-xs text-gray-500">
+                  Embedded onboarding page from Xcel
+                </div>
+              </div>
+              <a
+                href="https://onboard.xcelapp.com/onboard/rukapay"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Open in new tab
+              </a>
+            </div>
+            <div className="w-full" style={{ height: '75vh' }}>
+              <iframe
+                title="ETRANZACT KYC"
+                src="https://onboard.xcelapp.com/onboard/rukapay"
+                className="w-full h-full"
+              />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </>

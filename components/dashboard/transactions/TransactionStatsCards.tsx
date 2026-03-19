@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { CreditCard, DollarSign, TrendingUp, Activity } from 'lucide-react'
-import { formatAmount } from '@/lib/utils/transactions'
+import { formatAmount, formatCompactUgx } from '@/lib/utils/transactions'
 
 interface TransactionStats {
   totalTransactions: number
@@ -60,7 +60,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
                 Total Volume
               </p>
               <p className="text-xl font-bold text-gray-900 leading-tight">
-                {isLoading ? '...' : `UGX ${(totalVolume / 1000000).toFixed(1)}M`}
+                {isLoading ? '...' : formatCompactUgx(totalVolume)}
               </p>
             </div>
             <div className="w-8 h-8 flex items-center justify-center ml-2">

@@ -12,6 +12,7 @@ import {
   Activity,
   BarChart3
 } from 'lucide-react'
+import { formatCompactUgx } from '@/lib/utils/transactions'
 
 interface CustomerStatsProps {
   stats: {
@@ -30,13 +31,7 @@ interface CustomerStatsProps {
 
 export const CustomerStats: React.FC<CustomerStatsProps> = ({ stats }) => {
   const formatCurrency = (amount: number) => {
-    // Format for display in millions if amount is large
-    if (amount >= 1000000) {
-      return `UGX ${(amount / 1000000).toFixed(1)}M`
-    } else if (amount >= 1000) {
-      return `UGX ${(amount / 1000).toFixed(1)}K`
-    }
-    return `UGX ${amount.toLocaleString()}`
+    return formatCompactUgx(amount)
   }
 
   const formatPercentage = (value: number) => {
