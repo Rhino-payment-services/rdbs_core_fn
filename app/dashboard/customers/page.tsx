@@ -749,6 +749,7 @@ const CustomersPage = () => {
       updatedAt: partner.updatedAt,
       // Keep wallet data for Wallet column (if backend includes it)
       wallets: partner.wallets ?? [],
+      user: partner.user,
       // Add partner-specific fields (extended properties)
       partnerName: partner.partnerName,
       partnerType: partner.partnerType,

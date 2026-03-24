@@ -106,9 +106,20 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   const formatLastLogin = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never'
     const d = new Date(dateString)
+    if (Number.isNaN(d.getTime())) return 'Never'
     const today = new Date()
     if (d.toDateString() === today.toDateString()) return 'Today'
     return formatDate(dateString)
+  }
+
+  const resolveLastActivity = (customer: User | any): string | null => {
+    return (
+      customer?.lastLoginAt ||
+      customer?.user?.lastLoginAt ||
+      customer?.lastLogin ||
+      customer?.lastSeenAt ||
+      null
+    )
   }
 
   const formatCurrency = (amount: number) => {
@@ -505,7 +516,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
                         <Activity className="h-3 w-3 text-gray-400" />
-                        {formatLastLogin(customer.lastLoginAt)}
+                        {formatLastLogin(resolveLastActivity(customer))}
                       </div>
                       {(customer as any)?.totalTransactions && (
                         <div className="flex items-center gap-2 text-sm text-gray-500">
