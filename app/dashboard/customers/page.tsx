@@ -23,6 +23,19 @@ import { Users, Building2, Handshake, Plus, Crown } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 
+type PartnerCustomerRow = User & {
+  partnerName?: string
+  partnerType?: string
+  tier?: string
+  country?: string
+  isActive?: boolean
+  isSuspended?: boolean
+  user?: {
+    id?: string
+    lastLoginAt?: string | null
+  }
+}
+
 const CustomersPage = () => {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -770,7 +783,7 @@ const CustomersPage = () => {
       country: partner.country,
       isActive: partner.isActive,
       isSuspended: partner.isSuspended,
-    } as User & { partnerName?: string; partnerType?: string; tier?: string; country?: string; isActive?: boolean; isSuspended?: boolean })
+    } as PartnerCustomerRow)
     })
   }, [activeTab, partnersData])
 
