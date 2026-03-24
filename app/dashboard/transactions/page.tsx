@@ -596,9 +596,17 @@ const TransactionsPage = () => {
         const feeBreakdown = tx.metadata?.feeBreakdown || {}
 
         const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0
+        const isSweepTransaction = Boolean(
+          metadata?.sweepToDisbursement || metadata?.sweepFromCollection,
+        )
+        const isLiquidationLike =
+          isSweepTransaction ||
+          (tx?.channel === 'BACKOFFICE' &&
+            tx?.type === 'WALLET_TO_WALLET' &&
+            /liquidate:/i.test(String(tx?.description || '')))
         const rukapayFee = rukapayFeeFromBreakdown > 0
           ? rukapayFeeFromBreakdown
-          : (Number(tx.rukapayFee) || 0)
+          : (Number(tx.rukapayFee) || (isLiquidationLike ? Number(tx.fee) || 0 : 0))
 
         const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0
         const partnerFee = partnerFeeFromBreakdown > 0
@@ -732,9 +740,20 @@ const TransactionsPage = () => {
   // Count fees from ALL transactions (fees are charged regardless of status)
   // Only count volume from SUCCESS transactions
   const pageStats = transactions.reduce((acc: any, tx: any) => {
+    const isSweepTransaction = Boolean(
+      tx?.metadata?.sweepToDisbursement || tx?.metadata?.sweepFromCollection,
+    )
+    const isLiquidationLike =
+      isSweepTransaction ||
+      (tx?.channel === 'BACKOFFICE' &&
+        tx?.type === 'WALLET_TO_WALLET' &&
+        /liquidate:/i.test(String(tx?.description || '')))
+    const effectiveRukapayFee =
+      Number(tx.rukapayFee) || (isLiquidationLike ? Number(tx.fee) || 0 : 0)
+
     // Fees are charged regardless of transaction status
     acc.totalFees += Number(tx.fee) || 0
-    acc.rukapayFees += Number(tx.rukapayFee) || 0
+    acc.rukapayFees += effectiveRukapayFee
     acc.partnerFees += Number(tx.thirdPartyFee) || 0
     acc.governmentTaxes += Number(tx.governmentTax) || 0
     
