@@ -23,6 +23,7 @@ export function isMeaningfulLabel(primary: string | null | undefined, secondary?
   if (!p) return false
   const s = String(secondary ?? '').trim()
   if (s && p === s) return false
+  if (/^\+?\d[\d\s-]{5,}$/.test(p)) return false
   // UUID-ish / reference-ish
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p)) return false
   if (/^(TXN|GW)\w{6,}/i.test(p)) return false
@@ -76,13 +77,18 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
     m?.partnerContact ||
     undefined
 
-  const candidatePrimary =
-    partner?.partnerName ||
-    m?.apiPartnerName ||
-    partner?.partnerCode ||
-    null
-
-  const primary = isMeaningfulLabel(candidatePrimary, secondary) ? String(candidatePrimary) : 'API Partner'
+  const candidates = [
+    partner?.partnerName,
+    partner?.businessName,
+    partner?.name,
+    m?.apiPartnerBusinessName,
+    m?.partnerBusinessName,
+    m?.apiPartnerName,
+    m?.partnerName,
+    partner?.partnerCode,
+  ]
+  const candidatePrimary = candidates.find((c) => isMeaningfulLabel(c, secondary)) || null
+  const primary = candidatePrimary ? String(candidatePrimary) : 'API Partner'
 
   return { primary, secondary: secondary ? String(secondary) : undefined }
 }
@@ -118,6 +124,8 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   const metadata = tx?.metadata || {}
   const contact = String(info?.contact ?? '').trim() || null
   const partnerDisplay = resolvePartnerDisplay(tx)
+  const partnerRole = getPartnerRole(tx)
+  const isPartnerSide = partnerRole === side
   const userProfileName = fullNameFromProfile(tx?.user?.profile)
   const counterpartyProfileName = fullNameFromProfile(tx?.counterpartyUser?.profile)
 
@@ -141,18 +149,23 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   const partnerCandidates = [
     partnerDisplay.primary,
     metadata.apiPartnerName,
+    metadata.partnerBusinessName,
+    metadata.apiPartnerBusinessName,
     tx?.partner?.partnerName,
+    tx?.partner?.businessName,
+    tx?.partner?.name,
     metadata.partnerName,
     tx?.partnerMapping?.partner?.partnerName,
+    tx?.partnerMapping?.partner?.businessName,
   ]
 
   const normalizedName =
-    (info?.type === 'PARTNER'
+    ((info?.type === 'PARTNER' || isPartnerSide)
       ? firstMeaningfulName(partnerCandidates, contact)
       : null) ||
     firstMeaningfulName([info?.name], contact) ||
     firstMeaningfulName(roleSpecificCandidates, contact) ||
-    (info?.type === 'PARTNER' ? 'API Partner' : null) ||
+    (info?.type === 'PARTNER' || isPartnerSide ? 'API Partner' : null) ||
     info?.name
 
   return {
