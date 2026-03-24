@@ -168,8 +168,11 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     (info?.type === 'PARTNER' || isPartnerSide ? 'API Partner' : null) ||
     info?.name
 
+  const normalizedType = isPartnerSide ? 'PARTNER' : info?.type
+
   return {
     ...info,
+    type: normalizedType,
     name: normalizedName,
   }
 }

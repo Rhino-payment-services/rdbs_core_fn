@@ -124,7 +124,7 @@ export const TransactionDetailsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[70vw] max-w-[70vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="w-[80vw] max-w-[80vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
