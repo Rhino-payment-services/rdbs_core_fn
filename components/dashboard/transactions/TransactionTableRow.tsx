@@ -99,6 +99,12 @@ function StatusCell({ transaction }: { transaction: any }) {
 
 function useTransactionDerived(transaction: any): TransactionDerived {
   const metadata = transaction.metadata || {}
+  const isNumericLikePartnerCode = (value: any): boolean => {
+    const s = String(value || '').trim()
+    if (!s) return false
+    // Phone-like / numeric identifiers should not be preferred as a partner label.
+    return /^\+?\d[\d\s-]{5,}$/.test(s)
+  }
 
   const recipientWalletType =
     transaction.wallet?.walletType ||
@@ -160,15 +166,16 @@ function useTransactionDerived(transaction: any): TransactionDerived {
   const paymentPartnerFromMapping = transaction.partnerMapping?.partner
     ? (() => {
         const p = transaction.partnerMapping.partner
-        if (p?.partnerCode) return String(p.partnerCode)
         const name = String(p?.partnerName || '').trim()
-        if (!name) return null
+        const code = String(p?.partnerCode || '').trim()
+        if (!name) return code && !isNumericLikePartnerCode(code) ? code : null
         // Prefer a short label in the table (e.g. "ABC Payment Services" -> "ABC")
         const upperName = name.toUpperCase()
         if (upperName.includes('ABC')) return 'ABC'
         if (upperName.includes('PEGASUS')) return 'PEGASUS'
         if (upperName.includes('AIRTEL')) return 'AIRTEL'
         if (upperName.includes('MTN')) return 'MTN'
+        if (code && !isNumericLikePartnerCode(code)) return code
         const firstToken = name.split(/\s+/)[0]
         return firstToken ? firstToken.toUpperCase() : name
       })()

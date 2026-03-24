@@ -448,13 +448,24 @@ const TransactionsPage = () => {
 
       // Helper: get partner label for CSV/export
       const getPartnerLabel = (tx: any) => {
+        const isNumericLikeCode = (value: any) => {
+          const s = String(value || '').trim()
+          if (!s) return false
+          return /^\+?\d[\d\s-]{5,}$/.test(s)
+        }
+
         // 1) External payment partners (ABC, PEGASUS, etc.) via PartnerMapping
-        if (tx.partnerMapping?.partner?.partnerCode) {
-          return tx.partnerMapping.partner.partnerCode
+        const mappingName = tx.partnerMapping?.partner?.partnerName
+        const mappingCode = tx.partnerMapping?.partner?.partnerCode
+        if (mappingName) {
+          return mappingName
+        }
+        if (mappingCode && !isNumericLikeCode(mappingCode)) {
+          return mappingCode
         }
 
         // 2) API partners (gateway partners) – baseTransactionService adds apiPartnerName into metadata
-        if (tx.metadata?.apiPartnerName) {
+        if (tx.metadata?.apiPartnerName && !isNumericLikeCode(tx.metadata.apiPartnerName)) {
           return tx.metadata.apiPartnerName
         }
 
@@ -462,9 +473,12 @@ const TransactionsPage = () => {
         if (tx.partner?.partnerName) {
           return tx.partner.partnerName
         }
+        if (tx.partner?.partnerCode && !isNumericLikeCode(tx.partner.partnerCode)) {
+          return tx.partner.partnerCode
+        }
 
         // 4) Any other metadata-based partner name
-        if (tx.metadata?.partnerName) {
+        if (tx.metadata?.partnerName && !isNumericLikeCode(tx.metadata.partnerName)) {
           return tx.metadata.partnerName
         }
 
