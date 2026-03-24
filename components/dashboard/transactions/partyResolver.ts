@@ -122,12 +122,50 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   if (!info) return info
 
   const metadata = tx?.metadata || {}
+  const type = upper(tx?.type)
+  const direction = upper(tx?.direction || metadata?.direction)
   const contact = String(info?.contact ?? '').trim() || null
   const partnerDisplay = resolvePartnerDisplay(tx)
   const partnerRole = getPartnerRole(tx)
   const isPartnerSide = partnerRole === side
   const userProfileName = fullNameFromProfile(tx?.user?.profile)
   const counterpartyProfileName = fullNameFromProfile(tx?.counterpartyUser?.profile)
+
+  const isMerchantCollectionFlow =
+    type.includes('MNO_TO_WALLET') &&
+    direction === 'CREDIT' &&
+    !!(metadata?.merchantCode || metadata?.merchantName || metadata?.isPublicPayment)
+
+  // For merchant collections, sender is always the paying customer (not merchant account).
+  if (side === 'sender' && isMerchantCollectionFlow) {
+    const customerName =
+      firstMeaningfulName(
+        [
+          metadata?.customerName,
+          metadata?.senderName,
+          metadata?.userName,
+          metadata?.counterpartyInfo?.name,
+          counterpartyProfileName,
+        ],
+        contact
+      ) || 'Customer'
+    const customerContact =
+      contact ||
+      String(
+        metadata?.customerPhone ||
+          metadata?.phoneNumber ||
+          metadata?.counterpartyInfo?.phone ||
+          ''
+      ).trim() ||
+      null
+
+    return {
+      ...info,
+      type: 'EXTERNAL_MNO',
+      name: customerName,
+      contact: customerContact,
+    }
+  }
 
   const roleSpecificCandidates = side === 'sender'
     ? [
