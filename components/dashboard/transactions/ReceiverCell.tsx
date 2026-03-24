@@ -4,7 +4,7 @@ import { TableCell } from '@/components/ui/table'
 import { getDisplayName, getContactInfo } from '@/lib/utils/transactions'
 import { PartyDisplay } from './PartyDisplay'
 import type { TransactionDerived } from './types'
-import { getPartnerRole, resolvePartnerDisplay } from './partyResolver'
+import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
 
 interface ReceiverCellProps {
   transaction: any
@@ -40,11 +40,12 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
 
   // Prefer API-provided receiverInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.receiverInfo) {
+    const receiverInfo = normalizePartyInfoForDisplay(transaction.receiverInfo, transaction, 'receiver')
     return (
       <TableCell>
         <div className="flex flex-col gap-[0.5px]">
           <PartyDisplay
-            info={transaction.receiverInfo}
+            info={receiverInfo}
             nameClassName={transaction.type === 'DEPOSIT' && metadata.fundedByAdmin ? 'text-green-600' : ''}
             extras={transaction.type === 'DEPOSIT' && metadata.fundedByAdmin ? (
               <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>

@@ -1,4 +1,5 @@
 export type PartnerRole = 'sender' | 'receiver'
+export type PartySide = 'sender' | 'receiver'
 
 function upper(v: any) {
   return String(v ?? '').toUpperCase()
@@ -84,5 +85,79 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
   const primary = isMeaningfulLabel(candidatePrimary, secondary) ? String(candidatePrimary) : 'API Partner'
 
   return { primary, secondary: secondary ? String(secondary) : undefined }
+}
+
+function isNumericLikeLabel(value: any): boolean {
+  const s = String(value ?? '').trim()
+  if (!s) return false
+  return /^\+?\d[\d\s-]{5,}$/.test(s)
+}
+
+function fullNameFromProfile(profile: any): string | null {
+  if (profile?.firstName && profile?.lastName) {
+    return `${profile.firstName} ${profile.lastName}`.trim()
+  }
+  return null
+}
+
+function firstMeaningfulName(candidates: any[], secondary?: string | null): string | null {
+  const sec = String(secondary ?? '').trim()
+  for (const candidate of candidates) {
+    const value = String(candidate ?? '').trim()
+    if (!value) continue
+    if (sec && value === sec) continue
+    if (isNumericLikeLabel(value)) continue
+    return value
+  }
+  return null
+}
+
+export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide): any {
+  if (!info) return info
+
+  const metadata = tx?.metadata || {}
+  const contact = String(info?.contact ?? '').trim() || null
+  const partnerDisplay = resolvePartnerDisplay(tx)
+  const userProfileName = fullNameFromProfile(tx?.user?.profile)
+  const counterpartyProfileName = fullNameFromProfile(tx?.counterpartyUser?.profile)
+
+  const roleSpecificCandidates = side === 'sender'
+    ? [
+        metadata.senderName,
+        metadata.userName,
+        metadata.counterpartyInfo?.name,
+        counterpartyProfileName,
+        userProfileName,
+      ]
+    : [
+        metadata.receiverName,
+        metadata.recipientName,
+        metadata.userName,
+        userProfileName,
+        counterpartyProfileName,
+        metadata.counterpartyInfo?.name,
+      ]
+
+  const partnerCandidates = [
+    partnerDisplay.primary,
+    metadata.apiPartnerName,
+    tx?.partner?.partnerName,
+    metadata.partnerName,
+    tx?.partnerMapping?.partner?.partnerName,
+  ]
+
+  const normalizedName =
+    (info?.type === 'PARTNER'
+      ? firstMeaningfulName(partnerCandidates, contact)
+      : null) ||
+    firstMeaningfulName([info?.name], contact) ||
+    firstMeaningfulName(roleSpecificCandidates, contact) ||
+    (info?.type === 'PARTNER' ? 'API Partner' : null) ||
+    info?.name
+
+  return {
+    ...info,
+    name: normalizedName,
+  }
 }
 

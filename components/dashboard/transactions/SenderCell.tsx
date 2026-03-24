@@ -4,7 +4,7 @@ import { TableCell } from '@/components/ui/table'
 import { getDisplayName, getContactInfo } from '@/lib/utils/transactions'
 import { PartyDisplay } from './PartyDisplay'
 import type { TransactionDerived } from './types'
-import { getPartnerRole, resolvePartnerDisplay } from './partyResolver'
+import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
 
 interface SenderCellProps {
   transaction: any
@@ -50,12 +50,13 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
 
   // Prefer API-provided senderInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.senderInfo) {
+    const senderInfo = normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
     return (
       <TableCell>
         <div className="flex flex-col gap-[0.5px]">
           <PartyDisplay
-            info={transaction.senderInfo}
-            nameClassName={transaction.senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}
+            info={senderInfo}
+            nameClassName={senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}
           />
           {debitLabel && (
             <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
