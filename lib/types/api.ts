@@ -95,6 +95,19 @@ export interface ApiPartner {
   tier: string
   isActive: boolean
   isSuspended: boolean
+  lastLoginAt?: string | null
+  wallets?: Array<{
+    id: string
+    walletType: string
+    currency: string
+    balance: number
+    isActive: boolean
+    isSuspended?: boolean
+  }>
+  user?: {
+    id?: string
+    lastLoginAt?: string | null
+  }
   createdAt: string
   updatedAt: string
 }

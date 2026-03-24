@@ -743,8 +743,12 @@ const CustomersPage = () => {
       kycStatus: 'APPROVED', // Required User property
       verificationLevel: 'ENHANCED', // Required User property
       canHaveWallet: true, // Required User property
+      // Keep partner login signal for Activity column
+      lastLoginAt: partner.lastLoginAt ?? partner.user?.lastLoginAt ?? null,
       createdAt: partner.createdAt,
       updatedAt: partner.updatedAt,
+      // Keep wallet data for Wallet column (if backend includes it)
+      wallets: partner.wallets ?? [],
       // Add partner-specific fields (extended properties)
       partnerName: partner.partnerName,
       partnerType: partner.partnerType,
