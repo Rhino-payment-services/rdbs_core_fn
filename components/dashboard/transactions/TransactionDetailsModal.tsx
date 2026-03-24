@@ -22,6 +22,7 @@ import {
   shortenTransactionId
 } from '@/lib/utils/transactions'
 import toast from 'react-hot-toast'
+import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
 
 interface TransactionDetailsModalProps {
   isOpen: boolean
@@ -101,10 +102,29 @@ export const TransactionDetailsModal = ({
   if (!transaction) return null
 
   const { rukapayFee, partnerFee, governmentTax, totalFee } = normalizeFeeBreakdown(transaction)
+  const partnerRole = getPartnerRole(transaction)
+  const senderInfo = transaction.senderInfo
+    ? normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
+    : null
+  const receiverInfo = transaction.receiverInfo
+    ? normalizePartyInfoForDisplay(transaction.receiverInfo, transaction, 'receiver')
+    : null
+  const partnerDisplay = resolvePartnerDisplay(transaction)
+  const basicPartnerLabel =
+    transaction.partnerMapping?.partner?.partnerName ||
+    transaction.partnerMapping?.partner?.partnerCode ||
+    transaction.metadata?.apiPartnerBusinessName ||
+    transaction.metadata?.partnerBusinessName ||
+    transaction.metadata?.apiPartnerName ||
+    transaction.partner?.partnerName ||
+    transaction.partner?.businessName ||
+    transaction.metadata?.partnerName ||
+    partnerDisplay.primary ||
+    'Direct'
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[60vw] max-w-[60vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="w-[70vw] max-w-[70vw] max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
@@ -214,7 +234,7 @@ export const TransactionDetailsModal = ({
                 <div className="flex justify-between">
                   <span className="text-gray-600">Partner:</span>
                   <span className="font-medium text-gray-900">
-                    {transaction.partnerMapping?.partner?.partnerCode || 'Direct'}
+                    {basicPartnerLabel}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -478,6 +498,32 @@ export const TransactionDetailsModal = ({
                     </div>
                     <Badge className="bg-purple-600 text-white">Admin Funding</Badge>
                   </>
+                ) : senderInfo ? (
+                  <>
+                    <div>
+                      <span className="text-blue-600">Name:</span>
+                      <p className="font-medium text-blue-900">
+                        {senderInfo.name || 'API Partner'}
+                      </p>
+                    </div>
+                    {senderInfo.contact && (
+                      <div>
+                        <span className="text-blue-600">Contact:</span>
+                        <p className="font-medium text-blue-900">
+                          {senderInfo.contact}
+                        </p>
+                      </div>
+                    )}
+                    <Badge className="bg-blue-600 text-white">
+                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                    </Badge>
+                    {transaction.direction === 'DEBIT' && (
+                      <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
+                    )}
+                    {transaction.direction !== 'DEBIT' && (
+                      <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
+                    )}
+                  </>
                 ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                     (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
                   <>
@@ -696,6 +742,31 @@ export const TransactionDetailsModal = ({
                       </p>
                     </div>
                     <Badge className="bg-green-600 text-white">💰 Credited Back</Badge>
+                  </>
+                ) : receiverInfo ? (
+                  <>
+                    <div>
+                      <span className="text-green-600">Name:</span>
+                      <p className="font-medium text-green-900">
+                        {receiverInfo.name || 'API Partner'}
+                      </p>
+                    </div>
+                    {receiverInfo.contact && (
+                      <div>
+                        <span className="text-green-600">Contact:</span>
+                        <p className="font-medium text-green-900">
+                          {receiverInfo.contact}
+                        </p>
+                      </div>
+                    )}
+                    <Badge className="bg-green-600 text-white">
+                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                    </Badge>
+                    {transaction.direction === 'DEBIT' ? (
+                      <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
+                    ) : (
+                      <Badge className="bg-green-500 text-white ml-1">CREDIT</Badge>
+                    )}
                   </>
                 ) : (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) &&
                     (transaction.metadata?.merchantCode || transaction.metadata?.merchantName || transaction.metadata?.isPublicPayment) ? (
