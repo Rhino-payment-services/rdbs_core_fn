@@ -729,7 +729,20 @@ const CustomersPage = () => {
       return []
     }
     
-    return partnersData.data.map((partner: ApiPartner) => ({
+    return partnersData.data.map((partner: ApiPartner) => {
+      const normalizedWallets = (partner.wallets ?? []).map(wallet => ({
+        id: wallet.id,
+        balance: wallet.balance,
+        currency: wallet.currency,
+        walletType: wallet.walletType,
+        isActive: wallet.isActive,
+        isSuspended: wallet.isSuspended ?? false,
+        // Partner wallet payload does not include wallet.updatedAt.
+        // Reuse partner.updatedAt for compatibility with User wallet shape.
+        updatedAt: partner.updatedAt,
+      }))
+
+      return ({
       id: partner.id,
       email: partner.contactEmail,
       phone: partner.contactPhone,
@@ -748,7 +761,7 @@ const CustomersPage = () => {
       createdAt: partner.createdAt,
       updatedAt: partner.updatedAt,
       // Keep wallet data for Wallet column (if backend includes it)
-      wallets: partner.wallets ?? [],
+      wallets: normalizedWallets,
       user: partner.user,
       // Add partner-specific fields (extended properties)
       partnerName: partner.partnerName,
@@ -757,7 +770,8 @@ const CustomersPage = () => {
       country: partner.country,
       isActive: partner.isActive,
       isSuspended: partner.isSuspended,
-    } as User & { partnerName?: string; partnerType?: string; tier?: string; country?: string; isActive?: boolean; isSuspended?: boolean }))
+    } as User & { partnerName?: string; partnerType?: string; tier?: string; country?: string; isActive?: boolean; isSuspended?: boolean })
+    })
   }, [activeTab, partnersData])
 
   // Filter and sort users based on subscriberType (exclude STAFF users)
