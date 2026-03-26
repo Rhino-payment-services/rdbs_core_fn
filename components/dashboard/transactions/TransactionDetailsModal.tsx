@@ -949,14 +949,22 @@ export const TransactionDetailsModal = ({
                 Additional Information
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {transaction.metadata.mode && (
+                {(() => {
+                  const modeRaw =
+                    transaction.metadata?.mode ||
+                    transaction.mode ||
+                    transaction.metadata?.transactionModeCode ||
+                    null
+                  if (!modeRaw) return null
+                  return (
                   <div className="bg-white p-3 rounded-lg border border-gray-200">
                     <span className="text-xs text-gray-500 block mb-1">Transaction Mode</span>
                     <p className="font-medium text-gray-900">
-                      {transaction.metadata.mode.replace(/_/g, ' ')}
+                      {String(modeRaw).replace(/_/g, ' ')}
                     </p>
                   </div>
-                )}
+                  )
+                })()}
                 {transaction.metadata.narration && (
                   <div className="bg-white p-3 rounded-lg border border-gray-200">
                     <span className="text-xs text-gray-500 block mb-1">Narration</span>
@@ -969,12 +977,20 @@ export const TransactionDetailsModal = ({
                     <p className="font-medium text-gray-900">{transaction.metadata.tariffName}</p>
                   </div>
                 )}
-                {transaction.metadata.walletType && (
+                {(() => {
+                  const walletTypeRaw =
+                    transaction.metadata?.walletType ||
+                    transaction.metadata?.recipientWalletType ||
+                    transaction.wallet?.walletType ||
+                    null
+                  if (!walletTypeRaw) return null
+                  return (
                   <div className="bg-white p-3 rounded-lg border border-gray-200">
                     <span className="text-xs text-gray-500 block mb-1">Wallet Type</span>
-                    <p className="font-medium text-gray-900">{transaction.metadata.walletType}</p>
+                    <p className="font-medium text-gray-900">{String(walletTypeRaw)}</p>
                   </div>
-                )}
+                  )
+                })()}
                 {transaction.metadata.externalTransactionId && (
                   <div className="bg-white p-3 rounded-lg border border-gray-200">
                     <span className="text-xs text-gray-500 block mb-1">External Transaction ID</span>
@@ -1021,7 +1037,25 @@ export const TransactionDetailsModal = ({
                           {key.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
                         <p className="font-medium text-gray-900">
-                          {typeof value === 'number' ? formatAmount(value) : value}
+                          {(() => {
+                            if (typeof value === 'number') return formatAmount(value)
+                            if (typeof value === 'string') return value
+                            if (typeof value === 'boolean') return String(value)
+                            if (value == null) return '-'
+                            try {
+                              if (
+                                typeof value === 'object' &&
+                                value &&
+                                typeof (value as any).companyPercentage === 'number' &&
+                                typeof (value as any).partnerPercentage === 'number'
+                              ) {
+                                return `Company: ${(value as any).companyPercentage}% · Partner: ${(value as any).partnerPercentage}%`
+                              }
+                              return JSON.stringify(value)
+                            } catch {
+                              return String(value)
+                            }
+                          })()}
                         </p>
                       </div>
                     ))}

@@ -16,6 +16,8 @@ interface TransactionFiltersProps {
   onStatusFilterChange: (value: string) => void
   typeFilter: string
   onTypeFilterChange: (value: string) => void
+  channelFilter: string
+  onChannelFilterChange: (value: string) => void
   pageSize: number
   onPageSizeChange: (value: number) => void
   onResetFilters: () => void
@@ -33,6 +35,8 @@ export const TransactionFilters = ({
   onStatusFilterChange,
   typeFilter,
   onTypeFilterChange,
+  channelFilter,
+  onChannelFilterChange,
   pageSize,
   onPageSizeChange,
   onResetFilters,
@@ -79,13 +83,46 @@ export const TransactionFilters = ({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Types</SelectItem>
-          <SelectItem value="WALLET_TO_WALLET">P2P Transfer</SelectItem>
-          <SelectItem value="WALLET_TO_MNO">Mobile Money</SelectItem>
-          <SelectItem value="WALLET_TO_BANK">Bank Transfer</SelectItem>
-          <SelectItem value="WALLET_TO_UTILITY">Utility Payment</SelectItem>
-          <SelectItem value="BILL_PAYMENT">Bill Payment</SelectItem>
           <SelectItem value="DEPOSIT">Deposit</SelectItem>
           <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
+          <SelectItem value="WALLET_TO_WALLET">P2P Transfer</SelectItem>
+          <SelectItem value="MNO_TO_WALLET">Mobile Money → Wallet</SelectItem>
+          <SelectItem value="WALLET_TO_MNO">Wallet → Mobile Money</SelectItem>
+          <SelectItem value="BANK_TO_WALLET">Bank → Wallet</SelectItem>
+          <SelectItem value="WALLET_TO_BANK">Wallet → Bank</SelectItem>
+          <SelectItem value="CARD_TO_WALLET">Card → Wallet</SelectItem>
+          <SelectItem value="WALLET_TO_UTILITY">Utility Payment</SelectItem>
+          <SelectItem value="BILL_PAYMENT">Bill Payment</SelectItem>
+          <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
+          <SelectItem value="WALLET_TO_MERCHANT">Merchant</SelectItem>
+          <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Internal Merchant</SelectItem>
+          <SelectItem value="WALLET_TO_EXTERNAL_MERCHANT">External Merchant</SelectItem>
+          <SelectItem value="MERCHANT_TO_WALLET">Merchant → Wallet</SelectItem>
+          <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
+          <SelectItem value="REVERSAL">Reversal</SelectItem>
+          <SelectItem value="FEE_CHARGE">Fee Charge</SelectItem>
+          <SelectItem value="WALLET_CREATION">Wallet Creation</SelectItem>
+          <SelectItem value="WALLET_INIT">Wallet Init</SelectItem>
+          <SelectItem value="CUSTOM">Custom</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={channelFilter || "all"} onValueChange={(value) => {
+        onChannelFilterChange(value === "all" ? "" : value)
+      }}>
+        <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectValue placeholder="Channel" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Channels</SelectItem>
+          <SelectItem value="USSD">USSD</SelectItem>
+          <SelectItem value="APP">Mobile App</SelectItem>
+          <SelectItem value="BACKOFFICE">Admin Portal</SelectItem>
+          <SelectItem value="MERCHANT_PORTAL">Merchant Portal</SelectItem>
+          <SelectItem value="AGENT_PORTAL">Agent Portal</SelectItem>
+          <SelectItem value="PARTNER_PORTAL">Partner Portal</SelectItem>
+          <SelectItem value="API">API</SelectItem>
+          <SelectItem value="SHULE">RukaPay Shule</SelectItem>
         </SelectContent>
       </Select>
 
