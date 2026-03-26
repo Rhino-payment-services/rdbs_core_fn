@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { 
   CreditCard,
   TrendingUp,
-  DollarSign,
   Shield,
   Wallet as WalletIcon,
 } from 'lucide-react'
@@ -51,7 +50,7 @@ const CustomerStatsCards = ({ stats, wallets = [] }: CustomerStatsCardsProps) =>
 
   return (
     <div className="space-y-6 mb-8">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Total Transactions */}
       <Card>
         <CardContent className="p-4">
@@ -61,21 +60,6 @@ const CustomerStatsCards = ({ stats, wallets = [] }: CustomerStatsCardsProps) =>
               <p className="text-xl font-bold text-gray-900">{stats.totalTransactions}</p>
             </div>
             <CreditCard className="h-6 w-6 text-blue-600" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Current Balance */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Current Balance</p>
-              <p className="text-xl font-bold text-gray-900">
-                {(stats.currentBalance ?? 0).toLocaleString()} {currency}
-              </p>
-            </div>
-            <DollarSign className="h-6 w-6 text-green-600" />
           </div>
         </CardContent>
       </Card>
