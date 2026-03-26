@@ -47,6 +47,7 @@ interface CustomerStatsCardsProps {
 const CustomerStatsCards = ({ stats, wallets = [] }: CustomerStatsCardsProps) => {
   const currency = stats.currency || 'UGX'
   const hasMultipleWallets = Array.isArray(wallets) && wallets.length > 1
+  const hasWallets = Array.isArray(wallets) && wallets.length > 0
 
   return (
     <div className="space-y-6 mb-8">
@@ -95,8 +96,8 @@ const CustomerStatsCards = ({ stats, wallets = [] }: CustomerStatsCardsProps) =>
       </Card>
     </div>
 
-    {/* All wallets when user has multiple */}
-    {hasMultipleWallets && (
+    {/* Wallets list (show when at least one wallet exists) */}
+    {hasWallets && (
       <div>
         <p className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
           <WalletIcon className="h-4 w-4" />
