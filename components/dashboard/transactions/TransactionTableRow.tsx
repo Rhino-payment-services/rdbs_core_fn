@@ -27,11 +27,27 @@ export const TransactionTableRow = ({
 }: TransactionTableRowProps) => {
   const derived = useTransactionDerived(transaction)
   const { paymentPartnerLabel, paymentPartnerTitle } = derived
+  const txMeta = transaction.metadata || {}
+  const bulkQueuePosition =
+    txMeta.bulkQueuePosition ??
+    txMeta.queuePosition ??
+    txMeta.queueIndex
+  const hasDebitAudit = txMeta.debitAppliedAt || txMeta.debitAmount != null
+  const hasRefundAudit = txMeta.refundAppliedAt || txMeta.refundAmount != null
 
   return (
     <TableRow key={transaction.id}>
       <TableCell className="font-medium font-mono text-sm" title={transaction.reference || transaction.id}>
-        {shortenTransactionId(transaction.reference || transaction.id)}
+        <div className="flex flex-col">
+          <span>{shortenTransactionId(transaction.reference || transaction.id)}</span>
+          {(bulkQueuePosition != null || hasDebitAudit || hasRefundAudit) && (
+            <span className="text-[10px] text-gray-500 mt-0.5">
+              {bulkQueuePosition != null ? `Q#${String(bulkQueuePosition)} ` : ''}
+              {hasDebitAudit ? 'Debited ' : ''}
+              {hasRefundAudit ? 'Refunded' : ''}
+            </span>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         {paymentPartnerLabel ? (

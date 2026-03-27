@@ -241,7 +241,26 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
                       {formatDate(transaction.createdAt)}
                     </TableCell>
                     <TableCell className="text-xs font-mono text-gray-500">
-                      {transaction.reference || transaction.externalReference || '-'}
+                      <div className="flex flex-col">
+                        <span>{transaction.reference || transaction.externalReference || '-'}</span>
+                        {(() => {
+                          const meta = (transaction as any)?.metadata || {}
+                          const queue =
+                            meta.bulkQueuePosition ??
+                            meta.queuePosition ??
+                            meta.queueIndex
+                          const debited = meta.debitAppliedAt || meta.debitAmount != null
+                          const refunded = meta.refundAppliedAt || meta.refundAmount != null
+                          if (queue == null && !debited && !refunded) return null
+                          return (
+                            <span className="text-[10px] text-gray-400 mt-0.5">
+                              {queue != null ? `Q#${String(queue)} ` : ''}
+                              {debited ? 'Debited ' : ''}
+                              {refunded ? 'Refunded' : ''}
+                            </span>
+                          )
+                        })()}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm">

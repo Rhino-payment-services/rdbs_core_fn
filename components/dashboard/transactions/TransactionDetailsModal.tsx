@@ -121,6 +121,21 @@ export const TransactionDetailsModal = ({
     transaction.metadata?.partnerName ||
     partnerDisplay.primary ||
     'Direct'
+  const metadata = transaction.metadata || {}
+  const bulkQueuePosition =
+    metadata.bulkQueuePosition ??
+    metadata.queuePosition ??
+    metadata.queueIndex ??
+    null
+  const hasBulkAuditTrail =
+    bulkQueuePosition != null ||
+    metadata.debitAppliedAt ||
+    metadata.debitAmount != null ||
+    metadata.walletBalanceBeforeDebit != null ||
+    metadata.walletBalanceAfterDebit != null ||
+    metadata.refundAppliedAt ||
+    metadata.refundAmount != null ||
+    metadata.walletBalanceAfterRefund != null
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -984,6 +999,69 @@ export const TransactionDetailsModal = ({
                   </div>
                 )}
               </div>
+
+              {/* Bulk Audit Trail */}
+              {hasBulkAuditTrail && (
+                <div className="mt-4">
+                  <h5 className="text-sm font-semibold text-gray-700 mb-2">Bulk Audit Trail</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {bulkQueuePosition != null && (
+                      <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                        <span className="text-xs text-indigo-600 block mb-1">Queue Position</span>
+                        <p className="font-semibold text-indigo-900">#{String(bulkQueuePosition)}</p>
+                      </div>
+                    )}
+                    {metadata.debitAppliedAt && (
+                      <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                        <span className="text-xs text-amber-700 block mb-1">Debit Applied At</span>
+                        <p className="font-medium text-amber-900">{formatDate(metadata.debitAppliedAt)}</p>
+                      </div>
+                    )}
+                    {metadata.debitAmount != null && (
+                      <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                        <span className="text-xs text-amber-700 block mb-1">Debit Amount</span>
+                        <p className="font-medium text-amber-900">{formatAmount(Number(metadata.debitAmount))}</p>
+                      </div>
+                    )}
+                    {metadata.walletBalanceBeforeDebit != null && (
+                      <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                        <span className="text-xs text-amber-700 block mb-1">Wallet Before Debit</span>
+                        <p className="font-medium text-amber-900">{formatAmount(Number(metadata.walletBalanceBeforeDebit))}</p>
+                      </div>
+                    )}
+                    {metadata.walletBalanceAfterDebit != null && (
+                      <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                        <span className="text-xs text-amber-700 block mb-1">Wallet After Debit</span>
+                        <p className="font-medium text-amber-900">{formatAmount(Number(metadata.walletBalanceAfterDebit))}</p>
+                      </div>
+                    )}
+                    {metadata.refundAppliedAt && (
+                      <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <span className="text-xs text-green-700 block mb-1">Refund Applied At</span>
+                        <p className="font-medium text-green-900">{formatDate(metadata.refundAppliedAt)}</p>
+                      </div>
+                    )}
+                    {metadata.refundAmount != null && (
+                      <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <span className="text-xs text-green-700 block mb-1">Refund Amount</span>
+                        <p className="font-medium text-green-900">{formatAmount(Number(metadata.refundAmount))}</p>
+                      </div>
+                    )}
+                    {metadata.walletBalanceAfterRefund != null && (
+                      <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <span className="text-xs text-green-700 block mb-1">Wallet After Refund</span>
+                        <p className="font-medium text-green-900">{formatAmount(Number(metadata.walletBalanceAfterRefund))}</p>
+                      </div>
+                    )}
+                    {metadata.refundFailureStage && (
+                      <div className="bg-green-50 p-3 rounded-lg border border-green-200 md:col-span-2">
+                        <span className="text-xs text-green-700 block mb-1">Refund Failure Stage</span>
+                        <p className="font-medium text-green-900">{String(metadata.refundFailureStage)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Partner Response Details */}
               {transaction.metadata.partnerResponse && (
