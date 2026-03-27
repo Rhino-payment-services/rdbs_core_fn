@@ -179,7 +179,23 @@ export interface Transaction {
   id: string
   userId: string
   walletId?: string | null
-  type: 'DEPOSIT' | 'WITHDRAWAL' | 'WALLET_TO_WALLET' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'BILL_PAYMENT' | 'MERCHANT_WITHDRAWAL'
+  type:
+    | 'DEPOSIT'
+    | 'WITHDRAWAL'
+    | 'WALLET_TO_WALLET'
+    | 'WALLET_TO_EXTERNAL_MERCHANT'
+    | 'BILL_PAYMENT'
+    | 'MERCHANT_WITHDRAWAL'
+    | 'MNO_TO_WALLET'
+    | 'WALLET_TO_MNO'
+    | 'WALLET_TO_BANK'
+    | 'BANK_TO_WALLET'
+    | 'MERCHANT_TO_WALLET'
+    | 'MERCHANT_TO_INTERNAL_WALLET'
+    | 'WALLET_TO_MERCHANT'
+    | 'WALLET_TO_INTERNAL_MERCHANT'
+    | 'REVERSAL'
+    | string
   mode?: string | null
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
   direction?: 'INCOMING' | 'OUTGOING' | null
