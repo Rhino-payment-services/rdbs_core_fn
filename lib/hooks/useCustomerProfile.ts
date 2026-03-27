@@ -173,12 +173,35 @@ export const useCustomerProfile = (
     return raw
   }, [allUserWalletsData, type, merchantData?.id])
 
-  // Fetch transactions (optional walletId for single-wallet statement with consistent balances)
+  // For merchant profiles, default to this merchant's primary wallet when no wallet is explicitly selected.
+  // This prevents showing transactions from other businesses that share the same owner profile/user.
+  const effectiveWalletId = useMemo(() => {
+    if (selectedWalletId && selectedWalletId.trim() !== '') return selectedWalletId
+    if (type !== 'merchant') return undefined
+    if (!Array.isArray(allUserWallets) || allUserWallets.length === 0) return undefined
+
+    const priority = [
+      'BUSINESS_COLLECTION',
+      'BUSINESS',
+      'BUSINESS_DISBURSEMENT',
+      'BUSINESS_LIQUIDATION',
+      'PERSONAL',
+    ]
+
+    for (const walletType of priority) {
+      const wallet = allUserWallets.find((w: any) => (w?.walletType || '').toUpperCase() === walletType)
+      if (wallet?.id) return wallet.id as string
+    }
+
+    return allUserWallets[0]?.id
+  }, [selectedWalletId, type, allUserWallets])
+
+  // Fetch transactions (wallet-scoped when selected/effective walletId is present)
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
     transactionUserId,
     currentPage,
     pageLimit,
-    selectedWalletId
+    effectiveWalletId
   )
 
   // For gateway partners: always fetch system transactions so we can filter by partnerId (and/or partner wallets).
