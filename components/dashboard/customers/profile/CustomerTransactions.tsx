@@ -108,6 +108,13 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
     const amount = Number(transaction.amount) || 0
     const fee = Number(transaction.fee) || 0
     const net = Number(transaction.netAmount)
+    const isWalletToMnoDebit =
+      transaction.type === 'WALLET_TO_MNO' &&
+      String(transaction.direction || '').toUpperCase() === 'DEBIT'
+
+    // WALLET_TO_MNO debit should display total debited.
+    if (isWalletToMnoDebit) return amount + fee
+
     if (Number.isFinite(net) && (fee === 0 || net !== amount)) return net
     return Math.max(0, amount - fee)
   }

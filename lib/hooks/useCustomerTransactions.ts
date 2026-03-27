@@ -6,10 +6,13 @@ const EMPTY_ARRAY: any[] = []
 function deduplicateByReference(list: any[]): any[] {
   if (!Array.isArray(list) || list.length === 0) return list
   const byRef = new Map<string, any>()
-  // Sort by createdAt desc so we process most recent first; when we prefer "has fee", we'll overwrite with the fee leg if we see it later
-  const sorted = [...list].sort(
-    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-  )
+  const toTs = (v: any) => new Date(v || 0).getTime()
+  const descByLatest = (a: any, b: any) =>
+    toTs(b.updatedAt || b.createdAt) - toTs(a.updatedAt || a.createdAt) ||
+    toTs(b.createdAt) - toTs(a.createdAt) ||
+    String(b.id || '').localeCompare(String(a.id || ''))
+  // Process newest updates first so latest final status/refunds appear first in list.
+  const sorted = [...list].sort(descByLatest)
   for (const tx of sorted) {
     const ref = tx.reference || tx.externalReference || tx.id || ''
     const key = ref || tx.id
@@ -33,18 +36,24 @@ function deduplicateByReference(list: any[]): any[] {
       if (hasBalance(tx) && !hasBalance(existing)) byRef.set(key, tx)
     }
   }
-  return [...byRef.values()].sort(
-    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-  )
+  return [...byRef.values()].sort(descByLatest)
 }
 
 /** Fill balanceBefore/balanceAfter when missing using running balance (chronological order), per wallet. */
 function computeRunningBalance(list: any[]): any[] {
   if (!Array.isArray(list) || list.length === 0) return list
 
-  const sorted = [...list].sort(
-    (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
-  )
+  const toTs = (v: any) => new Date(v || 0).getTime()
+  const ascByLatest = (a: any, b: any) =>
+    toTs(a.updatedAt || a.createdAt) - toTs(b.updatedAt || b.createdAt) ||
+    toTs(a.createdAt) - toTs(b.createdAt) ||
+    String(a.id || '').localeCompare(String(b.id || ''))
+  const descByLatest = (a: any, b: any) =>
+    toTs(b.updatedAt || b.createdAt) - toTs(a.updatedAt || a.createdAt) ||
+    toTs(b.createdAt) - toTs(a.createdAt) ||
+    String(b.id || '').localeCompare(String(a.id || ''))
+
+  const sorted = [...list].sort(ascByLatest)
 
   // Track a separate running balance per wallet so multiple wallets don't interfere
   const runningByWallet = new Map<string, number>()
@@ -101,9 +110,7 @@ function computeRunningBalance(list: any[]): any[] {
     }
   })
 
-  return result.sort(
-    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-  )
+  return result.sort(descByLatest)
 }
 
 export const useCustomerTransactions = ({
