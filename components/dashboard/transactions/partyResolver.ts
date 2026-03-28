@@ -67,27 +67,33 @@ export function getPartnerRole(tx: any): PartnerRole | null {
 
 export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: string } {
   const m = tx?.metadata || {}
-  // Prefer partnerMapping.partner (external payment partner record) over the
-  // direct tx.partner relation (API gateway partner), mirroring TransactionTableRow.
-  const partner = tx?.partnerMapping?.partner || tx?.partner || null
+  // tx.partner = ApiPartner (the API caller / business) — preferred for display
+  // tx.partnerMapping.partner = ExternalPaymentPartner (MNO gateway) — fallback only
+  const apiPartner = tx?.partner || null
+  const extPartner = tx?.partnerMapping?.partner || null
 
   const secondary =
-    partner?.contactPhone ||
-    partner?.contactEmail ||
+    apiPartner?.contactPhone ||
+    apiPartner?.contactEmail ||
+    extPartner?.contactPhone ||
+    extPartner?.contactEmail ||
     m?.partnerPhone ||
     m?.partnerEmail ||
     m?.partnerContact ||
     undefined
 
   const candidates = [
-    partner?.partnerName,
-    partner?.businessName,
-    partner?.name,
+    m?.apiPartnerName,
     m?.apiPartnerBusinessName,
     m?.partnerBusinessName,
-    m?.apiPartnerName,
+    apiPartner?.partnerName,
+    apiPartner?.businessName,
+    apiPartner?.name,
+    extPartner?.partnerName,
+    extPartner?.businessName,
     m?.partnerName,
-    partner?.partnerCode,
+    apiPartner?.partnerCode,
+    extPartner?.partnerCode,
   ]
   const candidatePrimary = candidates.find((c) => isMeaningfulLabel(c, secondary)) || null
   const primary = candidatePrimary ? String(candidatePrimary) : 'API Partner'
