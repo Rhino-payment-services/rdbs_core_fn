@@ -67,7 +67,9 @@ export function getPartnerRole(tx: any): PartnerRole | null {
 
 export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: string } {
   const m = tx?.metadata || {}
-  const partner = tx?.partner || null
+  // Prefer partnerMapping.partner (external payment partner record) over the
+  // direct tx.partner relation (API gateway partner), mirroring TransactionTableRow.
+  const partner = tx?.partnerMapping?.partner || tx?.partner || null
 
   const secondary =
     partner?.contactPhone ||
