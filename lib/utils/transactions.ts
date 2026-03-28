@@ -234,6 +234,7 @@ export const getTypeDisplay = (
     // Utility and Bill Payments
     WALLET_TO_UTILITY: 'Utility Payment',
     BILL_PAYMENT: 'Bill Payment',
+    SCHOOL_FEES: 'School Fees',
     
     // Wallet Operations
     DEPOSIT: 'Wallet Deposit',

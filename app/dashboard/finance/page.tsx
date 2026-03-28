@@ -6,12 +6,15 @@ import { Button } from '@/components/ui/button'
 import { 
   ArrowRight, 
   DollarSign,
-  CreditCard,
   ArrowLeftRight,
-  Settings,
-  Building2
+  Building2,
+  FileSearch,
+  Wallet,
+  BookOpen,
+  BarChart3,
+  Layers,
+  Settings2
 } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 const FinancePage = () => {
@@ -28,6 +31,51 @@ const FinancePage = () => {
       borderColor: 'border-blue-200'
     },
     {
+      title: 'Ledgers (Transactions)',
+      description: 'Browse and investigate internal transactions and ledger activity',
+      icon: BookOpen,
+      href: '/dashboard/transactions',
+      color: 'text-slate-700',
+      bgColor: 'bg-slate-50',
+      borderColor: 'border-slate-200'
+    },
+    {
+      title: 'Reports',
+      description: 'View downloadable reports and system finance summaries',
+      icon: BarChart3,
+      href: '/dashboard/reports',
+      color: 'text-indigo-700',
+      bgColor: 'bg-indigo-50',
+      borderColor: 'border-indigo-200'
+    },
+    {
+      title: 'Wallets',
+      description: 'View and manage customer and merchant wallets',
+      icon: Wallet,
+      href: '/dashboard/wallet',
+      color: 'text-emerald-700',
+      bgColor: 'bg-emerald-50',
+      borderColor: 'border-emerald-200'
+    },
+    {
+      title: 'System Wallets',
+      description: 'Inspect platform system wallets and balances',
+      icon: Layers,
+      href: '/dashboard/system-wallets',
+      color: 'text-teal-700',
+      bgColor: 'bg-teal-50',
+      borderColor: 'border-teal-200'
+    },
+    {
+      title: 'OVA Accounts',
+      description: 'Manage OVA accounts and related finance configuration',
+      icon: Settings2,
+      href: '/dashboard/finance/ova',
+      color: 'text-cyan-700',
+      bgColor: 'bg-cyan-50',
+      borderColor: 'border-cyan-200'
+    },
+    {
       title: 'External Payment Partners',
       description: 'Manage external payment partners (ABC, Pegasus, etc.) and their configurations',
       icon: Building2,
@@ -37,6 +85,15 @@ const FinancePage = () => {
       borderColor: 'border-green-200'
     },
     {
+      title: 'Transaction Modes',
+      description: 'Configure and manage transaction modes available in the system',
+      icon: Settings2,
+      href: '/dashboard/transaction-modes',
+      color: 'text-fuchsia-700',
+      bgColor: 'bg-fuchsia-50',
+      borderColor: 'border-fuchsia-200'
+    },
+    {
       title: 'Transaction Mapping',
       description: 'Configure transaction type mappings and routing rules',
       icon: ArrowLeftRight,
@@ -44,21 +101,30 @@ const FinancePage = () => {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-200'
+    },
+    {
+      title: 'Provider Reconciliation',
+      description: 'Ingest settlement files, auto-match rows, and review matched/unmatched records',
+      icon: FileSearch,
+      href: '/dashboard/finance/reconciliation',
+      color: 'text-amber-700',
+      bgColor: 'bg-amber-50',
+      borderColor: 'border-amber-200'
     }
   ]
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Finance</h1>
-          <p className="text-gray-600">Manage tariffs, partners, and transaction configurations</p>
+          <p className="text-gray-600">Manage all finance tools from one place</p>
         </div>
 
         {/* Finance Sections Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {financeSections.map((section) => {
             const Icon = section.icon
             return (
@@ -105,25 +171,8 @@ const FinancePage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-1">Tariff Management</h3>
-                  <p className="text-sm text-gray-600">
-                    Configure fees, charges, and pricing rules for all transaction types
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-1">Payment Partners</h3>
-                  <p className="text-sm text-gray-600">
-                    Manage external payment gateway partners and their settings
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold text-gray-900 mb-1">Transaction Mapping</h3>
-                  <p className="text-sm text-gray-600">
-                    Set up routing rules and transaction type mappings
-                  </p>
-                </div>
+              <div className="text-sm text-gray-600">
+                Use the quick links above to jump directly to any Finance section (the same destinations available in the Finance dropdown).
               </div>
             </CardContent>
           </Card>

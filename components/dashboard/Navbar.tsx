@@ -290,9 +290,9 @@ const Navbar = () => {
                       onMouseLeave={handleFinanceMouseLeave}
                     >
                       <Link 
-                        href="/dashboard/finance/tariffs" 
+                        href="/dashboard/finance" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/reconciliation') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
                             ? 'active'
                             : ''
                         }`}
@@ -571,6 +571,19 @@ const Navbar = () => {
                       onClick={() => setIsFinanceDropdownOpen(false)}
                     >
                       OVA Accounts
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
+                    <Link 
+                      href="/dashboard/finance/reconciliation" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/finance/reconciliation')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Reconciliation
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.TRANSACTION_MODES_VIEW}>

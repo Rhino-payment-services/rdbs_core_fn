@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useTransactionSystemStats, useAllTransactions, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck, type ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
+import { useTransactionSystemStats, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck, type ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
+import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
 // Import extracted components
 import { TransactionStatsCards } from '@/components/dashboard/transactions/TransactionStatsCards'
@@ -24,8 +25,17 @@ const TransactionsPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [searchTerm, setSearchTerm] = useState("")
+  // Debounce q for typeahead
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
+  const isSearching = debouncedSearch.trim().length >= 2
+
   const [statusFilter, setStatusFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
+  const [channelFilter, setChannelFilter] = useState("")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   
@@ -73,19 +83,21 @@ const TransactionsPage = () => {
     endDate || undefined
   )
 
-  // Fetch paginated transactions
-  const { 
-    data: transactionsData, 
-    isLoading: transactionsLoading, 
-    error: transactionsError 
-  } = useAllTransactions({
+  // Use ops search for ALL listing + searching + filters
+  const opsSearch = useOpsTransactionSearch({
+    q: debouncedSearch || undefined,
     page: currentPage,
     limit: pageSize,
     status: statusFilter || undefined,
     type: typeFilter || undefined,
+    channel: channelFilter || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined
   })
+
+  const opsResults = opsSearch.data?.results ?? []
+  const opsResultIds = useMemo(() => opsResults.map((r) => r.id).filter(Boolean), [opsResults])
+  const opsResultIdsKey = useMemo(() => opsResultIds.join(','), [opsResultIds])
   
   // Get stats data
   const stats = transactionStats || {
@@ -102,92 +114,48 @@ const TransactionsPage = () => {
     transactionsByCurrency: {}
   }
 
-  // Get transactions data and filter out WALLET_INIT
-  const allTransactions = (transactionsData as any)?.transactions || []
-  const transactionsWithoutInit = allTransactions.filter((tx: any) => tx.type !== 'WALLET_INIT')
-  
-  // Filter transactions by search term (sender name, receiver name, transaction ID)
-  const filteredTransactions = searchTerm ? transactionsWithoutInit.filter((tx: any) => {
-    try {
-      const searchLower = searchTerm.toLowerCase().trim()
-      
-      if (!searchLower) return true
-      
-      // Search by transaction ID
-      const matchesId = (tx?.id?.toLowerCase().includes(searchLower) || false) || 
-                        (tx?.reference?.toLowerCase().includes(searchLower) || false)
-      
-      if (matchesId) return true
-      
-      // Get sender name - for DEBIT (outgoing), sender is the wallet owner
-      let senderName = ''
-      // Check if admin funded the wallet
-      if (tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin) {
-        senderName = (tx.metadata?.adminName?.toLowerCase() || 'admin')
-      } else if (tx.direction === 'DEBIT') {
-        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
-          senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-        } else if (tx.user) {
-          senderName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || '')
-        }
-      } else {
-        // For INCOMING transactions, sender is the external party
-        senderName = (
-          tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-          tx.metadata?.merchantName?.toLowerCase() || 
-          tx.metadata?.userName?.toLowerCase() || 
-          tx.metadata?.mnoProvider?.toLowerCase() || 
-          (tx.counterpartyUser && tx.counterpartyUser.profile && tx.counterpartyUser.profile.firstName && tx.counterpartyUser.profile.lastName
-            ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-            : '')
+  // Render results in the same table: ops search -> fetch full transaction objects by id
+  const [searchTableTransactions, setSearchTableTransactions] = useState<any[]>([])
+  const [searchTableLoading, setSearchTableLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (!opsResultIdsKey) {
+        setSearchTableTransactions([])
+        setSearchTableLoading(false)
+        return
+      }
+      setSearchTableLoading(true)
+      try {
+        const items = await Promise.all(
+          opsResultIds.map(async (id) => {
+            const res = await api.get(`/transactions/${id}`)
+            return res.data
+          }),
         )
+        if (!cancelled) {
+          setSearchTableTransactions(items.filter((tx: any) => tx?.type !== 'WALLET_INIT'))
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSearchTableTransactions([])
+        }
+      } finally {
+        if (!cancelled) setSearchTableLoading(false)
       }
-      
-      // Get receiver name - for DEPOSIT, receiver is the RukaPay user; for DEBIT (outgoing), receiver is the external party
-      let receiverName = ''
-      if (tx.type === 'DEPOSIT' && tx.metadata?.fundedByAdmin) {
-        // For admin-funded deposits, receiver is the RukaPay user receiving funds
-        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
-          receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-        } else if (tx.user) {
-          receiverName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || 'rukapay user')
-        }
-      } else if (tx.direction === 'DEBIT') {
-        // For outgoing, receiver could be counterparty user, merchant, or external
-        if (tx.counterpartyUser && tx.counterpartyUser.profile && tx.counterpartyUser.profile.firstName && tx.counterpartyUser.profile.lastName) {
-          receiverName = `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-        } else {
-          receiverName = (
-            tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-            tx.metadata?.merchantName?.toLowerCase() || 
-            tx.metadata?.userName?.toLowerCase() || 
-            tx.metadata?.recipientName?.toLowerCase() || 
-            ''
-          )
-        }
-      } else {
-        // For INCOMING transactions, receiver is the wallet owner
-        if (tx.user && tx.user.profile && tx.user.profile.firstName && tx.user.profile.lastName) {
-          receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-        } else if (tx.user) {
-          receiverName = (tx.user.phone?.toLowerCase() || tx.user.email?.toLowerCase() || '')
-        }
-      }
-      
-      // Check if search term matches any of these
-      return senderName.includes(searchLower) || receiverName.includes(searchLower)
-    } catch (error) {
-      // If there's an error accessing properties, include the transaction if ID matches
-      console.error('Error filtering transaction:', error, tx)
-      const searchLower = searchTerm.toLowerCase().trim()
-      return (tx?.id?.toLowerCase().includes(searchLower) || false) || 
-             (tx?.reference?.toLowerCase().includes(searchLower) || false)
     }
-  }) : transactionsWithoutInit
-  
-  const transactions = filteredTransactions
-  const totalTransactions = (transactionsData as any)?.total || 0
-  const totalPages = (transactionsData as any)?.totalPages || 1
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [opsResultIdsKey])
+
+  const transactions = searchTableTransactions
+  const totalTransactions = opsSearch.data?.total || 0
+  const totalPages = opsSearch.data?.totalPages || 1
+  const transactionsError = opsSearch.error
+  const transactionsLoading = opsSearch.isLoading || searchTableLoading
 
   // Fetch API logs when logs modal is open and a transaction is selected
   const {
@@ -201,6 +169,7 @@ const TransactionsPage = () => {
     setSearchTerm("")
     setStatusFilter("")
     setTypeFilter("")
+    setChannelFilter("")
     setStartDate("")
     setEndDate("")
     setCurrentPage(1)
@@ -838,10 +807,7 @@ const TransactionsPage = () => {
               <CardDescription>
                 {searchTerm ? (
                   <span>
-                    Showing {transactions.length} result{transactions.length !== 1 ? 's' : ''} for "{searchTerm}" 
-                    {transactions.length === 0 && transactionsWithoutInit.length > 0 && (
-                      <span className="text-orange-600"> (search limited to current page)</span>
-                    )}
+                    Searching for "{searchTerm}" (results shown above). Table below remains paginated.
                   </span>
                 ) : (
                   'View and manage different types of transactions'
@@ -862,6 +828,11 @@ const TransactionsPage = () => {
                   setTypeFilter(value)
                   handleFilterChange()
                 }}
+                channelFilter={channelFilter}
+                onChannelFilterChange={(value) => {
+                  setChannelFilter(value)
+                  handleFilterChange()
+                }}
                 pageSize={pageSize}
                 onPageSizeChange={(value) => {
                   setPageSize(value)
@@ -875,9 +846,16 @@ const TransactionsPage = () => {
                 transactionsCount={transactions.length}
               />
 
+              {isSearching && (
+                <div className="mb-3 -mt-2 text-xs text-gray-600">
+                  Showing server-side search results in the table below.
+                  {searchTableLoading || opsSearch.isLoading ? ' Searching…' : ''}
+                </div>
+              )}
+
               <TransactionTable
                 transactions={transactions}
-                isLoading={transactionsLoading}
+                isLoading={isSearching ? (searchTableLoading || opsSearch.isLoading) : transactionsLoading}
                 error={transactionsError}
                 pageStats={pageStats}
                 currentPage={currentPage}
