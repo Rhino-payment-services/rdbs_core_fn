@@ -14,6 +14,11 @@ import { useCustomerActivities } from '@/lib/hooks/useCustomerActivities'
 import { useAuth } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
+import {
+  downloadTextFile,
+  fetchAllWalletTransactionsForUser,
+  transactionsToCsv,
+} from '@/lib/utils/exportWalletTransactions'
 
 const CustomerProfilePage = () => {
   const router = useRouter()
@@ -55,7 +60,9 @@ const CustomerProfilePage = () => {
     customerLoading,
     merchantsLoading,
     partnerError,
-    customerError
+    customerError,
+    transactionUserId,
+    effectiveWalletId,
   } = profileData
 
   // Process transactions (pass full transactionsData so hook can read total/limit for pagination)
@@ -173,6 +180,29 @@ const CustomerProfilePage = () => {
     router.push('/dashboard/customers/super-merchants')
   }
 
+  const handleExportWalletTransactions = async (walletId: string | undefined, label: string) => {
+    if (type === 'partner') {
+      toast.error('Wallet export is not available for this profile type.')
+      return
+    }
+    if (!transactionUserId) {
+      toast.error('Unable to resolve user for export.')
+      return
+    }
+
+    const toastId = toast.loading('Fetching transactions for export…')
+    try {
+      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, walletId)
+      const csv = transactionsToCsv(rows)
+      const safeLabel = label.replace(/[^\w\s-]+/g, '').replace(/\s+/g, '_').slice(0, 48) || 'wallet'
+      downloadTextFile(`transactions_${safeLabel}_${Date.now()}.csv`, csv)
+      toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'}`, { id: toastId })
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Export failed'
+      toast.error(msg, { id: toastId })
+    }
+  }
+
   // Handle loading state
   if (isLoading) {
     return <CustomerProfileLoading />
@@ -276,6 +306,9 @@ const CustomerProfilePage = () => {
             totalPages={totalPages}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
+            transactionUserId={type !== 'partner' ? transactionUserId : undefined}
+            effectiveWalletId={type !== 'partner' ? effectiveWalletId : undefined}
+            onExportWalletTransactions={handleExportWalletTransactions}
             activities={activities}
             activityLogsLoading={finalActivityLogsLoading}
             activityLogsError={activityLogsError}
