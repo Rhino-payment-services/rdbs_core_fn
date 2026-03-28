@@ -24,6 +24,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import type { Transaction } from '@/lib/types/api'
+import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
@@ -135,21 +136,6 @@ const CustomerTransactions = ({
     if (type?.includes('WALLET_TO_BANK')) return 'Wallet to Bank'
     if (type?.includes('WALLET_TO_MERCHANT') || type?.includes('MERCHANT')) return type.includes('TO_WALLET') ? 'Merchant to Wallet' : 'Wallet to Merchant'
     return type || 'Transaction'
-  }
-
-  const getDisplayNetAmount = (transaction: Transaction) => {
-    const amount = Number(transaction.amount) || 0
-    const fee = Number(transaction.fee) || 0
-    const net = Number(transaction.netAmount)
-    const isWalletToMnoDebit =
-      transaction.type === 'WALLET_TO_MNO' &&
-      String(transaction.direction || '').toUpperCase() === 'DEBIT'
-
-    // WALLET_TO_MNO debit should display total debited.
-    if (isWalletToMnoDebit) return amount + fee
-
-    if (Number.isFinite(net) && (fee === 0 || net !== amount)) return net
-    return Math.max(0, amount - fee)
   }
 
   const canExportByWallet =
@@ -284,7 +270,9 @@ const CustomerTransactions = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((transaction) => (
+                {transactions.map((transaction) => {
+                  const netDisplay = getDisplayNetAmount(transaction)
+                  return (
                   <TableRow key={transaction.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -311,7 +299,11 @@ const CustomerTransactions = ({
                       {transaction.fee > 0 ? formatCurrency(transaction.fee) : '-'}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {formatCurrency(getDisplayNetAmount(transaction))}
+                      {netDisplay == null ? (
+                        <span className="text-gray-300">—</span>
+                      ) : (
+                        formatCurrency(netDisplay)
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-gray-500 font-mono">
                       {transaction.balanceBefore != null
@@ -357,7 +349,8 @@ const CustomerTransactions = ({
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
 

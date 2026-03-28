@@ -1,4 +1,5 @@
 import api from '@/lib/axios'
+import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 function unwrapResponse(data: unknown): any {
   return data && typeof data === 'object' && 'data' in (data as object)
@@ -70,7 +71,7 @@ export function transactionsToCsv(transactions: any[]): string {
     'Direction',
     'Amount',
     'Fee',
-    'Net Amount',
+    'Net amount (wallet impact)',
     'Balance Before',
     'Balance After',
     'Status',
@@ -86,12 +87,13 @@ export function transactionsToCsv(transactions: any[]): string {
       string,
       unknown
     >
+    const netForDisplay = getDisplayNetAmount(tx)
     return [
       tx.type,
       tx.direction,
       tx.amount,
       tx.fee,
-      tx.netAmount,
+      netForDisplay == null ? '' : netForDisplay,
       tx.balanceBefore,
       tx.balanceAfter,
       tx.status,
