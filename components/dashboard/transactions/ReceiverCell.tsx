@@ -11,6 +11,27 @@ interface ReceiverCellProps {
   derived: TransactionDerived
 }
 
+function getPreferredRecipientName(transaction: any, metadata: any): string | null {
+  const explicit = [
+    metadata?.recipientName,
+    metadata?.receiverName,
+    metadata?.counterpartyInfo?.name,
+    metadata?.userName,
+    metadata?.accountName,
+    metadata?.customerName,
+  ]
+    .map((v: any) => String(v || '').trim())
+    .find((v: string) => v.length > 0)
+
+  if (explicit) return explicit
+
+  if (transaction?.counterpartyUser?.profile?.firstName && transaction?.counterpartyUser?.profile?.lastName) {
+    return `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`.trim()
+  }
+
+  return null
+}
+
 export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
 
@@ -233,8 +254,8 @@ function DebitPartnerDepositReceiver({ transaction, metadata }: { transaction: a
 }
 
 function DebitMerchantToWalletReceiver({ transaction, receiverMeta, metadata }: { transaction: any; receiverMeta: any; metadata: any }) {
-  const displayName = getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user)
-    || metadata.recipientName
+  const displayName = getPreferredRecipientName(transaction, metadata)
+    || getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user)
     || transaction.counterpartyUser?.phone
     || metadata.recipientPhone
     || 'RukaPay User'
@@ -255,10 +276,11 @@ function DebitMerchantToWalletReceiver({ transaction, receiverMeta, metadata }: 
 }
 
 function DebitWalletToWalletReceiver({ transaction, receiverMeta, metadata }: { transaction: any; receiverMeta: any; metadata: any }) {
+  const preferredRecipientName = getPreferredRecipientName(transaction, metadata)
   return (
     <>
       <span className="font-medium">
-        {getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user) || metadata.counterpartyInfo?.name || metadata.userName || 'RukaPay User'}
+        {preferredRecipientName || getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user) || 'RukaPay User'}
       </span>
       {transaction.counterpartyUser?.phone && (
         <span className="text-xs text-gray-500">📱 {transaction.counterpartyUser.phone}</span>
@@ -343,11 +365,12 @@ function CounterpartyInfoReceiver({ transaction, metadata }: { transaction: any;
 }
 
 function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; metadata: any }) {
+  const preferredRecipientName = getPreferredRecipientName(transaction, metadata)
   if (metadata.mnoProvider) {
     return (
       <>
         <span className="font-medium">
-          {metadata.userName || metadata.recipientName || `${metadata.mnoProvider} Mobile Money`}
+          {preferredRecipientName || `${metadata.mnoProvider} Mobile Money`}
         </span>
         {metadata.phoneNumber && (
           <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
@@ -360,7 +383,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.phoneNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'Mobile Money User'}</span>
+        <span className="font-medium">{preferredRecipientName || 'Mobile Money User'}</span>
         <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
         {(transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO')) && (
           <span className="text-xs text-gray-500">📱 Mobile Money</span>
@@ -372,7 +395,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.accountNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'External Account'}</span>
+        <span className="font-medium">{preferredRecipientName || 'External Account'}</span>
         <span className="text-xs text-gray-500">
           {transaction.type?.includes('BANK')
             ? `🏦 Bank: ${metadata.accountNumber}`

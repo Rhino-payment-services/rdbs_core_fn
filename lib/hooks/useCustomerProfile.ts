@@ -301,6 +301,8 @@ export const useCustomerProfile = (
     // Data
     type: type as string,
     id: id as string,
+    transactionUserId,
+    effectiveWalletId,
     customer,
     merchantData,
     partner,

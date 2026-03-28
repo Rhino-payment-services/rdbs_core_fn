@@ -5,6 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { 
   Download,
   Filter,
@@ -12,7 +20,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ExternalLink,
-  Eye
+  Eye,
+  ChevronDown,
 } from 'lucide-react'
 import type { Transaction } from '@/lib/types/api'
 
@@ -24,9 +33,33 @@ interface CustomerTransactionsProps {
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
+  /** When provided with onExportWalletTransactions, Export downloads CSV per wallet via admin API. */
+  allUserWallets?: any[]
+  statementWalletId?: string
+  transactionUserId?: string
+  onExportWalletTransactions?: (walletId: string | undefined, label: string) => Promise<void>
 }
 
-const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, currentPage, totalPages, onPageChange }: CustomerTransactionsProps) => {
+function walletRowLabel(w: any): string {
+  const type = String(w?.walletType || 'Wallet').replace(/_/g, ' ')
+  const bal = Number(w?.balance ?? 0).toLocaleString()
+  const cur = w?.currency ? String(w.currency) : 'UGX'
+  return `${type} — ${bal} ${cur}`
+}
+
+const CustomerTransactions = ({
+  transactions,
+  onExport,
+  onFilter,
+  isLoading,
+  currentPage,
+  totalPages,
+  onPageChange,
+  allUserWallets = [],
+  statementWalletId,
+  transactionUserId,
+  onExportWalletTransactions,
+}: CustomerTransactionsProps) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
@@ -119,6 +152,12 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
     return Math.max(0, amount - fee)
   }
 
+  const canExportByWallet =
+    !!transactionUserId &&
+    !!onExportWalletTransactions &&
+    Array.isArray(allUserWallets) &&
+    allUserWallets.length > 0
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       day: '2-digit',
@@ -158,15 +197,65 @@ const CustomerTransactions = ({ transactions, onExport, onFilter, isLoading, cur
         <CardDescription>
           Complete transaction history for this customer
         </CardDescription>
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4 flex-wrap items-center">
           <Button variant="outline" size="sm" onClick={onFilter}>
             <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
-          <Button variant="outline" size="sm" onClick={onExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          {canExportByWallet ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[min(100vw-2rem,22rem)]">
+                <DropdownMenuLabel>Choose wallet for CSV</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {statementWalletId && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onExportWalletTransactions!(
+                        statementWalletId,
+                        `statement_table_${statementWalletId.slice(0, 8)}`,
+                      )
+                    }
+                  >
+                    Current statement (matches table)
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => onExportWalletTransactions!(undefined, 'all_wallets_combined')}
+                >
+                  All wallets (combined)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {allUserWallets.map((w: any) => {
+                  if (!w?.id) return null
+                  const label = walletRowLabel(w)
+                  const isStatement = statementWalletId === w.id
+                  return (
+                    <DropdownMenuItem
+                      key={w.id}
+                      onClick={() => onExportWalletTransactions!(w.id, label)}
+                    >
+                      <span className={isStatement ? 'font-medium' : undefined}>
+                        {label}
+                        {isStatement ? ' — same as table' : ''}
+                      </span>
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button variant="outline" size="sm" onClick={onExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>

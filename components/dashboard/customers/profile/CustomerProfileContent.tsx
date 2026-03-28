@@ -38,6 +38,10 @@ interface CustomerProfileContentProps {
   totalPages: number
   currentPage: number
   onPageChange: (page: number) => void
+  /** When set, Export becomes a menu to download CSV per wallet (admin wallet API). */
+  transactionUserId?: string
+  effectiveWalletId?: string
+  onExportWalletTransactions?: (walletId: string | undefined, label: string) => Promise<void>
   activities: any[]
   activityLogsLoading: boolean
   activityLogsError: any
@@ -73,6 +77,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   totalPages,
   currentPage,
   onPageChange,
+  transactionUserId,
+  effectiveWalletId,
+  onExportWalletTransactions,
   activities,
   activityLogsLoading,
   activityLogsError,
@@ -94,7 +101,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     }
   }, [showActivityTab, activeTab])
 
-  const handleExport = () => {
+  const handleExportLegacy = () => {
     toast.success('Exporting customer data...')
   }
 
@@ -225,7 +232,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           isSuperMerchant: merchantData?.isSuperMerchant || false  // ✅ Merchant-level super merchant status
         }}
         onBack={onBack}
-        onExport={handleExport}
+        onExport={handleExportLegacy}
         onEdit={() => toast.success('Opening edit form...')}
         onResetPin={onResetPin}
         onGoToSettings={handleGoToSettings}
@@ -364,12 +371,16 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               )}
               <CustomerTransactions
                 transactions={transactions}
-                onExport={handleExport}
+                onExport={handleExportLegacy}
                 onFilter={() => toast.success('Opening transaction filters...')}
                 isLoading={transactionsLoading}
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={onPageChange}
+                allUserWallets={allUserWallets}
+                statementWalletId={effectiveWalletId}
+                transactionUserId={transactionUserId}
+                onExportWalletTransactions={onExportWalletTransactions}
               />
             </>
           )}
@@ -391,7 +402,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
             ) : (
               <CustomerActivity
                 activities={activities}
-                onExport={handleExport}
+                onExport={handleExportLegacy}
                 onFilter={() => toast.success('Opening activity filters...')}
               />
             )}
