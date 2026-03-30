@@ -157,17 +157,30 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
     contact = metadata.customerPhone || metadata.phoneNumber || null
     badgeType = 'EXTERNAL_MNO'
   } else if (isDebit) {
-    name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
-    contact = !isMerchantSender
-      ? getContactInfo(transaction.user, senderMeta, transaction.counterpartyUser)
-      : null
-    if (contact === 'N/A') contact = null
-    merchantCode =
-      (isMerchantSender ? senderMeta.merchantCode : null) ||
-      transaction.wallet?.merchant?.merchantCode ||
-      transaction.user?.merchantCode ||
-      null
-    badgeType = isMerchantSender ? 'MERCHANT' : transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
+    if (isPersonalWallet) {
+      // Personal wallet: always use the user's personal (subscriber) identity.
+      // getDisplayName() checks user.merchantCode and would return the business name for
+      // users who also own a merchant account — bypass it entirely here.
+      const p = transaction.user?.profile
+      name = (p?.firstName && p?.lastName)
+        ? `${p.firstName} ${p.lastName}`
+        : transaction.user?.phone || transaction.user?.email || 'RukaPay User'
+      contact = transaction.user?.phone || null
+      if (contact === 'N/A') contact = null
+      badgeType = transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
+    } else {
+      name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
+      contact = !isMerchantSender
+        ? getContactInfo(transaction.user, senderMeta, transaction.counterpartyUser)
+        : null
+      if (contact === 'N/A') contact = null
+      merchantCode =
+        (isMerchantSender ? senderMeta.merchantCode : null) ||
+        transaction.wallet?.merchant?.merchantCode ||
+        transaction.user?.merchantCode ||
+        null
+      badgeType = isMerchantSender ? 'MERCHANT' : transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
+    }
   } else {
     contact =
       transaction.counterpartyUser?.phone ||
