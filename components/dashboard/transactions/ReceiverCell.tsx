@@ -233,12 +233,19 @@ function DebitPartnerDepositReceiver({ transaction, metadata }: { transaction: a
 }
 
 function DebitMerchantToWalletReceiver({ transaction, receiverMeta, metadata }: { transaction: any; receiverMeta: any; metadata: any }) {
-  const displayName = getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user)
+  // Receiver is always transaction.counterpartyUser (the subscriber), NOT transaction.user (the merchant).
+  // Do not pass transaction.user as a fallback here — getDisplayName's third param is also called
+  // counterpartyUser and would be returned as the display name, showing the merchant owner instead.
+  const cp = transaction.counterpartyUser
+  const displayName =
+    (cp?.profile?.firstName && cp?.profile?.lastName
+      ? `${cp.profile.firstName} ${cp.profile.lastName}`
+      : null)
     || metadata.recipientName
-    || transaction.counterpartyUser?.phone
+    || cp?.phone
     || metadata.recipientPhone
     || 'RukaPay User'
-  const contact = getContactInfo(transaction.counterpartyUser, receiverMeta, transaction.user)
+  const contact = cp?.phone || metadata.recipientPhone || null
 
   return (
     <>

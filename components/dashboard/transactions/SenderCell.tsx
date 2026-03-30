@@ -102,11 +102,20 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
   const isAdminFunding = transaction.type === 'DEPOSIT' && metadata.fundedByAdmin
   const isDebit = transaction.direction === 'DEBIT'
 
+  // A subscriber who also owns a merchant account has user-level merchant associations
+  // (merchantCode, merchant, merchants). When they transact from their PERSONAL wallet
+  // those associations must NOT cause the row to show the merchant as the sender.
+  // senderMeta already strips merchantName/merchantCode from metadata for PERSONAL wallets,
+  // but the user-level checks below would still fire. Guard against that explicitly.
+  const walletType = (transaction.wallet?.walletType || '').toUpperCase()
+  const isPersonalWallet = walletType === 'PERSONAL'
   const hasMerchantAssociation =
-    transaction.wallet?.merchant?.businessTradeName ||
-    transaction.user?.merchantCode ||
-    transaction.user?.merchant?.businessTradeName ||
-    transaction.user?.merchants?.length ||
+    (!isPersonalWallet && (
+      transaction.wallet?.merchant?.businessTradeName ||
+      transaction.user?.merchantCode ||
+      transaction.user?.merchant?.businessTradeName ||
+      (transaction.user?.merchants?.length > 0)
+    )) ||
     senderMeta.merchantName ||
     senderMeta.merchantCode
   const isMerchantSender = isDebit && !!hasMerchantAssociation
