@@ -7,6 +7,7 @@ import CustomerOverview from './CustomerOverview'
 import CustomerTransactions from './CustomerTransactions'
 import CustomerActivity from './CustomerActivity'
 import CustomerSettings from './CustomerSettings'
+import PartnerSettings from './PartnerSettings'
 import LiquidateToDisbursementModal from './LiquidateToDisbursementModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -271,7 +272,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full grid-cols-${
-          3 + (showActivityTab ? 1 : 0) + (type !== 'partner' ? 1 : 0)
+          3 + (showActivityTab ? 1 : 0) + (type !== 'partner' || isGatewayPartner ? 1 : 0)
         }`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -287,7 +288,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               Activity
             </TabsTrigger>
           )}
-          {type !== 'partner' && (
+          {(type !== 'partner' || isGatewayPartner) && (
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
@@ -414,11 +415,14 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
         )}
 
         <TabsContent value="settings" className="space-y-6 mt-6">
-          {type === 'partner' ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600">Settings are not available for partners.</p>
-            </div>
-          ) : (
+          {type === 'partner' && isGatewayPartner ? (
+            <PartnerSettings
+              partnerId={partner?.id || id}
+              partnerName={partner?.partnerName || 'Partner'}
+              isSuperAdmin={isSuperAdmin}
+              onActionComplete={() => window.location.reload()}
+            />
+          ) : type !== 'partner' ? (
             <CustomerSettings
               type={type}
               customerId={customer?.id || id}
@@ -436,7 +440,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
                 window.location.reload()
               }}
             />
-          )}
+          ) : null}
         </TabsContent>
 
         <TabsContent value="etranzactKyc" className="mt-6">
