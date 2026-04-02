@@ -9,15 +9,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Wallet, TrendingUp, RefreshCw, PlusCircle, Loader2 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
+interface PartnerWalletRow {
+  id: string
+  walletType?: string
+  balance?: number | string
+  currency?: string
+}
+
 interface PartnerSettingsProps {
   partnerId: string
   partnerName: string
-  isSuperAdmin?: boolean
+  /** Wallets from finance API — same source as profile; used to fund via /wallet/admin/:id/fund like customers */
+  partnerWallets?: PartnerWalletRow[]
   onActionComplete?: () => void
 }
 
@@ -45,10 +52,20 @@ function usePartnerWalletBalance(partnerId: string, walletType: 'ESCROW' | 'COMM
   })
 }
 
+function findPartnerWalletId(
+  partnerWallets: PartnerWalletRow[] | undefined,
+  walletType: 'ESCROW' | 'COMMISSION',
+): string | undefined {
+  if (!partnerWallets?.length) return undefined
+  const t = walletType.toUpperCase()
+  const row = partnerWallets.find((w) => (w.walletType || '').toUpperCase() === t)
+  return row?.id
+}
+
 const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   partnerId,
   partnerName,
-  isSuperAdmin = false,
+  partnerWallets = [],
   onActionComplete,
 }) => {
   const queryClient = useQueryClient()
@@ -67,6 +84,13 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const escrowBalance = escrowData?.wallet
   const commissionBalance = commissionData?.wallet
+
+  const resolveWalletId = (wt: 'ESCROW' | 'COMMISSION'): string | undefined => {
+    const fromList = findPartnerWalletId(partnerWallets, wt)
+    if (fromList) return fromList
+    const fromApi = wt === 'ESCROW' ? escrowBalance?.walletId : commissionBalance?.walletId
+    return fromApi || undefined
+  }
 
   const handleRefresh = () => {
     refetchEscrow()
@@ -94,16 +118,31 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
       return
     }
 
+    const walletId = resolveWalletId(form.walletType)
+    const reason =
+      form.description.trim() || `Manual funding (${form.walletType}) — ${partnerName}`
+    const reference = form.reference.trim()
+
     setIsLoading(true)
     try {
-      await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
-        partnerId,
-        amount: parsedAmount,
-        currency: 'UGX',
-        walletType: form.walletType,
-        reference: form.reference.trim(),
-        description: form.description.trim() || `Manual top-up for ${partnerName}`,
-      })
+      if (walletId) {
+        // Same path as CustomerSettings manual credit — admin wallet fund
+        await api.post(`/wallet/admin/${walletId}/fund`, {
+          amount: parsedAmount,
+          reason,
+          reference,
+        })
+      } else {
+        // No wallet row yet — gateway flow creates ESCROW/COMMISSION wallet if missing
+        await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
+          partnerId,
+          amount: parsedAmount,
+          currency: 'UGX',
+          walletType: form.walletType,
+          reference,
+          description: reason,
+        })
+      }
 
       toast.success(`${form.walletType} wallet funded with ${parsedAmount.toLocaleString()} UGX`)
       setFundDialogOpen(false)
@@ -140,6 +179,10 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     const bg = color === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
     const textColor = color === 'blue' ? 'text-blue-700' : 'text-green-700'
     const badgeClass = color === 'blue' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+    const btnOutline =
+      color === 'blue'
+        ? 'mt-4 w-full gap-1.5 border-blue-300 hover:bg-blue-100'
+        : 'mt-4 w-full gap-1.5 border-green-300 hover:bg-green-100'
 
     return (
       <div className={`rounded-lg border p-5 ${bg}`}>
@@ -168,33 +211,28 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             )}
           </>
         )}
-        {isSuperAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            className={`mt-4 w-full gap-1.5 border-${color === 'blue' ? 'blue' : 'green'}-300 hover:bg-${color === 'blue' ? 'blue' : 'green'}-100`}
-            onClick={() => handleOpenFund(type)}
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            Fund Wallet
-          </Button>
-        )}
+        <Button size="sm" variant="outline" className={btnOutline} onClick={() => handleOpenFund(type)}>
+          <PlusCircle className="h-3.5 w-3.5" />
+          Fund Wallet
+        </Button>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Wallet Balances */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUp className="h-4 w-4 text-blue-600" />
-                Partner Wallet Balances
+                Partner wallets &amp; manual funding
               </CardTitle>
-              <CardDescription>Current balances for ESCROW and COMMISSION wallets</CardDescription>
+              <CardDescription>
+                Add money to ESCROW or COMMISSION the same way as manual transactions on customer profiles (admin wallet
+                fund when a wallet exists).
+              </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh} className="gap-1.5">
               <RefreshCw className="h-3.5 w-3.5" />
@@ -219,15 +257,9 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               color="green"
             />
           </div>
-          {!isSuperAdmin && (
-            <p className="text-xs text-gray-500 mt-4">
-              Only Super Admins can fund partner wallets.
-            </p>
-          )}
         </CardContent>
       </Card>
 
-      {/* Fund Wallet Dialog */}
       <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -238,6 +270,15 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             <DialogDescription>
               Add funds to the {form.walletType.toLowerCase()} wallet for{' '}
               <span className="font-medium">{partnerName}</span>.
+              {resolveWalletId(form.walletType) ? (
+                <span className="block mt-1 text-xs text-muted-foreground">
+                  Uses admin wallet funding (same as customer manual credit).
+                </span>
+              ) : (
+                <span className="block mt-1 text-xs text-amber-700">
+                  Wallet will be created on first funding if it does not exist yet.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -295,9 +336,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm">
                 <p className="text-blue-800 font-medium">
                   Funding {form.walletType} with{' '}
-                  <span className="font-bold">
-                    {parseFloat(form.amount).toLocaleString('en-UG')} UGX
-                  </span>
+                  <span className="font-bold">{parseFloat(form.amount).toLocaleString('en-UG')} UGX</span>
                 </p>
               </div>
             )}

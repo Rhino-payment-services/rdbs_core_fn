@@ -52,6 +52,8 @@ interface CustomerProfileContentProps {
   onRevokeSuperMerchant?: () => void
   onManageChildMerchants?: () => void
   isSuperAdmin?: boolean
+  /** Gateway partner wallets from finance API (ESCROW/COMMISSION, etc.) — used for Settings → manual fund same as customers */
+  partnerWallets?: any[]
 }
 
 export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
@@ -89,7 +91,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   onGrantSuperMerchant,
   onRevokeSuperMerchant,
   onManageChildMerchants,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  partnerWallets = [],
 }) => {
   const [activeTab, setActiveTab] = React.useState("overview")
   const [liquidateOpen, setLiquidateOpen] = React.useState(false)
@@ -419,7 +422,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
             <PartnerSettings
               partnerId={partner?.id || id}
               partnerName={partner?.partnerName || 'Partner'}
-              isSuperAdmin={isSuperAdmin}
+              partnerWallets={partnerWallets}
               onActionComplete={() => window.location.reload()}
             />
           ) : type !== 'partner' ? (

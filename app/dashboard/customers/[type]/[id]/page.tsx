@@ -318,6 +318,7 @@ const CustomerProfilePage = () => {
             onRevokeSuperMerchant={handleRevokeSuperMerchant}
             onManageChildMerchants={handleManageChildMerchants}
             isSuperAdmin={isSuperAdmin}
+            partnerWallets={partnerWallets || []}
           />
         </div>
       </main>
