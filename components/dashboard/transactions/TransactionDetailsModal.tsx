@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { 
   CreditCard, 
   Users, 
@@ -11,7 +13,9 @@ import {
   Download, 
   CheckCircle, 
   XCircle, 
-  AlertTriangle 
+  AlertTriangle,
+  ShieldAlert,
+  Loader2,
 } from 'lucide-react'
 import { 
   formatAmount, 
@@ -23,6 +27,7 @@ import {
 } from '@/lib/utils/transactions'
 import toast from 'react-hot-toast'
 import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
+import { usePermissions } from '@/lib/hooks/usePermissions'
 
 interface TransactionDetailsModalProps {
   isOpen: boolean
@@ -30,6 +35,7 @@ interface TransactionDetailsModalProps {
   transaction: any | null
   transactions?: any[] // For finding original transaction in reversals
   onSelectTransaction?: (transaction: any) => void
+  onTransactionUpdated?: (updatedTransaction: any) => void
 }
 
 function normalizeFeeBreakdown(transaction: any) {
@@ -97,8 +103,52 @@ export const TransactionDetailsModal = ({
   onOpenChange,
   transaction,
   transactions = [],
-  onSelectTransaction
+  onSelectTransaction,
+  onTransactionUpdated,
 }: TransactionDetailsModalProps) => {
+  const { hasRole } = usePermissions()
+  const isSuperAdmin = hasRole('SUPER_ADMIN')
+
+  const [showOverrideSection, setShowOverrideSection] = useState(false)
+  const [overrideReason, setOverrideReason] = useState('')
+  const [overrideProcessing, setOverrideProcessing] = useState(false)
+
+  const handleStatusOverride = async () => {
+    if (!overrideReason.trim()) {
+      toast.error('Please provide a reason for the status override')
+      return
+    }
+
+    setOverrideProcessing(true)
+    try {
+      const res = await fetch('/api/transactions/status-override', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: transaction.id, reason: overrideReason.trim() }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to override status')
+        return
+      }
+
+      toast.success('Transaction status overridden to SUCCESS')
+      setShowOverrideSection(false)
+      setOverrideReason('')
+
+      if (onTransactionUpdated && data.transaction) {
+        onTransactionUpdated({ ...transaction, ...data.transaction, status: 'SUCCESS' })
+      } else {
+        onOpenChange(false)
+      }
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setOverrideProcessing(false)
+    }
+  }
+
   if (!transaction) return null
 
   const { rukapayFee, partnerFee, governmentTax, totalFee } = normalizeFeeBreakdown(transaction)
@@ -224,6 +274,78 @@ export const TransactionDetailsModal = ({
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Super-admin status override */}
+            {isSuperAdmin && transaction.status === 'FAILED' && (
+              <div className="mt-4">
+                {!showOverrideSection ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50 hover:text-amber-800 gap-1.5"
+                    onClick={() => setShowOverrideSection(true)}
+                  >
+                    <ShieldAlert className="h-4 w-4" />
+                    Mark as Successful
+                  </Button>
+                ) : (
+                  <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="h-5 w-5 text-amber-600" />
+                      <p className="font-semibold text-amber-900 text-sm">
+                        Override Transaction Status
+                      </p>
+                    </div>
+                    <p className="text-amber-800 text-xs">
+                      This will force-mark the transaction as <strong>SUCCESS</strong>. This action is
+                      logged and cannot be undone. Only use when you have confirmed with the payment
+                      partner that the transaction was actually completed.
+                    </p>
+                    <Textarea
+                      placeholder="Reason for override (e.g. confirmed successful by MTN ops team, ref: INC-1234)"
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      className="text-sm resize-none bg-white border-amber-300 focus-visible:ring-amber-400"
+                      rows={3}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setShowOverrideSection(false); setOverrideReason('') }}
+                        disabled={overrideProcessing}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                        onClick={handleStatusOverride}
+                        disabled={overrideProcessing || !overrideReason.trim()}
+                      >
+                        {overrideProcessing ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Processing…</>
+                        ) : (
+                          <><CheckCircle className="h-4 w-4" /> Confirm Override</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Override audit trail badge — visible to all when override was applied */}
+            {transaction.metadata?.statusOverride && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 space-y-1">
+                <p className="font-semibold flex items-center gap-1">
+                  <ShieldAlert className="h-3.5 w-3.5" /> Status was manually overridden
+                </p>
+                <p>By: {transaction.metadata.statusOverride.overriddenBy?.email || 'Admin'}</p>
+                <p>At: {formatDate(transaction.metadata.statusOverride.overriddenAt)}</p>
+                <p>Reason: {transaction.metadata.statusOverride.reason}</p>
               </div>
             )}
           </div>

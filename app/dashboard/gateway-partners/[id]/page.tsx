@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { 
   ArrowLeft, 
   Key,
@@ -28,13 +29,18 @@ import {
   RefreshCw,
   ChevronRight,
   DollarSign,
-  Trash2
+  Trash2,
+  Wallet,
+  Loader2,
+  TrendingUp,
 } from 'lucide-react'
 import {
   useGatewayPartner,
   useGenerateApiKey,
   useSuspendGatewayPartner,
   useRevokeApiKey,
+  usePartnerWalletBalance,
+  useTopUpPartnerWallet,
 } from '@/lib/hooks/useGatewayPartners'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -52,10 +58,59 @@ const GatewayPartnerDetailsPage = () => {
   const [showRevokeDialog, setShowRevokeDialog] = useState(false)
   const [keyToRevoke, setKeyToRevoke] = useState('')
 
+  const [showFundWalletDialog, setShowFundWalletDialog] = useState(false)
+  const [fundWalletType, setFundWalletType] = useState<'ESCROW' | 'COMMISSION'>('ESCROW')
+  const [fundAmount, setFundAmount] = useState('')
+  const [fundReference, setFundReference] = useState('')
+  const [fundDescription, setFundDescription] = useState('')
+
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
   const suspendPartner = useSuspendGatewayPartner()
   const revokeKey = useRevokeApiKey()
+  const topUpWallet = useTopUpPartnerWallet()
+
+  const { data: escrowBalance, refetch: refetchBalance } = usePartnerWalletBalance(
+    partnerId,
+    'UGX',
+    'ESCROW',
+  )
+  const { data: commissionBalance } = usePartnerWalletBalance(
+    partnerId,
+    'UGX',
+    'COMMISSION',
+  )
+
+  const handleFundWallet = async () => {
+    const amount = parseFloat(fundAmount)
+    if (!amount || amount < 1000) {
+      toast.error('Minimum top-up amount is UGX 1,000')
+      return
+    }
+    if (!fundReference.trim()) {
+      toast.error('Reference is required')
+      return
+    }
+
+    try {
+      await topUpWallet.mutateAsync({
+        partnerId,
+        amount,
+        currency: 'UGX',
+        walletType: fundWalletType,
+        reference: fundReference.trim(),
+        description: fundDescription.trim() || undefined,
+      })
+      setShowFundWalletDialog(false)
+      setFundAmount('')
+      setFundReference('')
+      setFundDescription('')
+      refetchBalance()
+      refetch()
+    } catch {
+      // error handled in mutation onError
+    }
+  }
 
   const handleGenerateKeyClick = () => {
     // Check if there's an active production key
@@ -285,6 +340,84 @@ const GatewayPartnerDetailsPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Wallet Balances */}
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-blue-600" />
+                    Partner Wallets
+                  </CardTitle>
+                  <CardDescription>Current balances for ESCROW and COMMISSION wallets</CardDescription>
+                </div>
+                <Button onClick={() => setShowFundWalletDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Fund Wallet
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* ESCROW */}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-blue-600" />
+                      <span className="font-semibold text-blue-900">ESCROW Wallet</span>
+                    </div>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                      Disbursements
+                    </Badge>
+                  </div>
+                  <p className="text-3xl font-bold text-blue-900">
+                    {escrowBalance?.wallet
+                      ? `UGX ${Number(escrowBalance.wallet.balance).toLocaleString()}`
+                      : escrowBalance?.message?.includes('not found') || !escrowBalance
+                      ? 'UGX 0'
+                      : '…'}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {escrowBalance?.wallet?.isActive
+                      ? escrowBalance.wallet.isSuspended
+                        ? '⚠ Suspended'
+                        : '● Active'
+                      : escrowBalance
+                      ? '○ Inactive / not created'
+                      : 'Not yet funded'}
+                  </p>
+                </div>
+
+                {/* COMMISSION */}
+                <div className="rounded-lg border border-green-200 bg-green-50 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <span className="font-semibold text-green-900">COMMISSION Wallet</span>
+                    </div>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                      Earnings
+                    </Badge>
+                  </div>
+                  <p className="text-3xl font-bold text-green-900">
+                    {commissionBalance?.wallet
+                      ? `UGX ${Number(commissionBalance.wallet.balance).toLocaleString()}`
+                      : commissionBalance?.message?.includes('not found') || !commissionBalance
+                      ? 'UGX 0'
+                      : '…'}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {commissionBalance?.wallet?.isActive
+                      ? commissionBalance.wallet.isSuspended
+                        ? '⚠ Suspended'
+                        : '● Active'
+                      : '○ Credited automatically on transactions'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Contact Information */}
@@ -729,6 +862,139 @@ const GatewayPartnerDetailsPage = () => {
               disabled={revokeKey.isPending}
             >
               {revokeKey.isPending ? 'Revoking...' : 'Revoke Key'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fund Wallet Dialog */}
+      <Dialog
+        open={showFundWalletDialog}
+        onOpenChange={(open) => {
+          if (!topUpWallet.isPending) {
+            setShowFundWalletDialog(open)
+            if (!open) {
+              setFundAmount('')
+              setFundReference('')
+              setFundDescription('')
+            }
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-blue-600" />
+              Fund Partner Wallet
+            </DialogTitle>
+            <DialogDescription>
+              Add funds to {partner.partnerName}&apos;s wallet. The transaction is recorded
+              immediately and the balance is updated atomically.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Wallet type selector */}
+            <div>
+              <Label htmlFor="walletType">Wallet Type *</Label>
+              <Select
+                value={fundWalletType}
+                onValueChange={(v) => setFundWalletType(v as 'ESCROW' | 'COMMISSION')}
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ESCROW">ESCROW — used for disbursements</SelectItem>
+                  <SelectItem value="COMMISSION">COMMISSION — partner earnings</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <Label htmlFor="fundAmount">Amount (UGX) *</Label>
+              <Input
+                id="fundAmount"
+                type="number"
+                min="1000"
+                step="1000"
+                placeholder="e.g. 10,000,000"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                className="mt-1.5"
+              />
+              {fundAmount && parseFloat(fundAmount) < 1000 && (
+                <p className="text-xs text-red-500 mt-1">Minimum amount is UGX 1,000</p>
+              )}
+            </div>
+
+            {/* Reference */}
+            <div>
+              <Label htmlFor="fundReference">Reference *</Label>
+              <Input
+                id="fundReference"
+                placeholder="e.g. TOPUP-2024-001"
+                value={fundReference}
+                onChange={(e) => setFundReference(e.target.value)}
+                className="mt-1.5"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Must be unique — used for idempotency (re-sending the same reference won&apos;t double-credit)
+              </p>
+            </div>
+
+            {/* Description */}
+            <div>
+              <Label htmlFor="fundDescription">Description (optional)</Label>
+              <Textarea
+                id="fundDescription"
+                placeholder="e.g. Initial wallet funding for Q1 operations"
+                value={fundDescription}
+                onChange={(e) => setFundDescription(e.target.value)}
+                className="mt-1.5 resize-none"
+                rows={2}
+              />
+            </div>
+
+            {/* Summary */}
+            {fundAmount && parseFloat(fundAmount) >= 1000 && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm space-y-1">
+                <p className="font-semibold text-blue-900">Summary</p>
+                <div className="flex justify-between text-blue-800">
+                  <span>Wallet:</span>
+                  <span>{fundWalletType}</span>
+                </div>
+                <div className="flex justify-between text-blue-800">
+                  <span>Amount:</span>
+                  <span className="font-bold">UGX {parseFloat(fundAmount).toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowFundWalletDialog(false)}
+              disabled={topUpWallet.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFundWallet}
+              disabled={
+                topUpWallet.isPending ||
+                !fundAmount ||
+                parseFloat(fundAmount) < 1000 ||
+                !fundReference.trim()
+              }
+            >
+              {topUpWallet.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
+              ) : (
+                <><DollarSign className="h-4 w-4 mr-2" /> Confirm Funding</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

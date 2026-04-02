@@ -282,3 +282,68 @@ export const useRevokeApiKey = () => {
   });
 };
 
+// Hook: Get partner wallet balance
+export const usePartnerWalletBalance = (
+  partnerId: string,
+  currency = 'UGX',
+  walletType: 'ESCROW' | 'COMMISSION' = 'ESCROW',
+) => {
+  return useQuery({
+    queryKey: ['gateway-partner-wallet', partnerId, currency, walletType],
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/v1/admin/gateway-partners/wallets/${partnerId}/balance?currency=${currency}&walletType=${walletType}`,
+      );
+      return response.data;
+    },
+    enabled: !!partnerId,
+    staleTime: 15000,
+  });
+};
+
+export interface TopUpPartnerWalletRequest {
+  partnerId: string;
+  amount: number;
+  currency?: string;
+  walletType?: 'ESCROW' | 'COMMISSION';
+  reference: string;
+  description?: string;
+  approvedBy?: string;
+}
+
+// Hook: Top up partner wallet
+export const useTopUpPartnerWallet = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: TopUpPartnerWalletRequest) => {
+      const response = await api.post(
+        '/api/v1/admin/gateway-partners/wallets/top-up',
+        {
+          ...data,
+          currency: data.currency || 'UGX',
+          walletType: data.walletType || 'ESCROW',
+        },
+      );
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallet', variables.partnerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner', variables.partnerId],
+      });
+      toast.success('Partner wallet funded successfully!');
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to fund partner wallet';
+      toast.error(message);
+    },
+  });
+};
+

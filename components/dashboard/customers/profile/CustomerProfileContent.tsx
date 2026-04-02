@@ -270,7 +270,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${showActivityTab ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <TabsList className={`grid w-full grid-cols-${
+          3 + (showActivityTab ? 1 : 0) + (type !== 'partner' ? 1 : 0)
+        }`}>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Overview
@@ -285,10 +287,12 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               Activity
             </TabsTrigger>
           )}
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </TabsTrigger>
+          {type !== 'partner' && (
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
+          )}
           <TabsTrigger value="etranzactKyc" className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4" />
             ETRANZACT KYC
