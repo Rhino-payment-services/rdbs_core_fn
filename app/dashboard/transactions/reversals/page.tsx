@@ -13,7 +13,7 @@ import { formatAmount, formatDate, getStatusBadgeConfig, shortenTransactionId } 
 import { PERMISSIONS, usePermissions } from "@/lib/hooks/usePermissions"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import toast from "react-hot-toast"
-import { CheckCircle, Loader2, RotateCcw, XCircle } from "lucide-react"
+import { CheckCircle, Eye, Loader2, RotateCcw, XCircle } from "lucide-react"
 
 type AnyRecord = Record<string, any>
 
@@ -25,6 +25,14 @@ function normalizePendingReversalsPayload(payload: any): AnyRecord[] {
   if (Array.isArray(payload.items)) return payload.items
   if (payload.data && Array.isArray(payload.data.reversals)) return payload.data.reversals
   return []
+}
+
+function firstNonEmptyString(...values: any[]): string {
+  for (const v of values) {
+    const s = typeof v === "string" ? v : v == null ? "" : String(v)
+    if (s.trim() !== "") return s.trim()
+  }
+  return ""
 }
 
 export default function TransactionReversalsPage() {
@@ -44,6 +52,9 @@ export default function TransactionReversalsPage() {
   const [rejectTarget, setRejectTarget] = useState<AnyRecord | null>(null)
   const [rejectReason, setRejectReason] = useState("")
 
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [detailsTarget, setDetailsTarget] = useState<AnyRecord | null>(null)
+
   const filteredCount = items.length
   const showActionButtons = statusFilter === "PENDING"
 
@@ -52,11 +63,15 @@ export default function TransactionReversalsPage() {
     setLoading(true)
     setError(null)
     try {
+      const limitParam = `limit=${encodeURIComponent(String(limit))}`
       const base =
         statusFilter === "PENDING"
-          ? `/api/transactions/reversals/pending?limit=${encodeURIComponent(String(limit))}`
-          : `/api/transactions/reversals?limit=${encodeURIComponent(String(limit))}`
-      const res = await fetch(base)
+          ? `/api/transactions/reversals/pending?${limitParam}`
+          : statusFilter === "ALL"
+            ? `/api/transactions/reversals?${limitParam}`
+            : `/api/transactions/reversals?${limitParam}&status=${encodeURIComponent(statusFilter)}`
+
+      const res = await fetch(base, { cache: "no-store" })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setItems([])
@@ -64,11 +79,7 @@ export default function TransactionReversalsPage() {
         return
       }
       const all = normalizePendingReversalsPayload(data)
-      if (statusFilter === "ALL") {
-        setItems(all)
-      } else {
-        setItems(all.filter((x) => String(x?.status || "PENDING").toUpperCase() === String(statusFilter).toUpperCase()))
-      }
+      setItems(all)
     } catch (e: any) {
       setItems([])
       setError(e?.message || "Failed to load reversals")
@@ -122,6 +133,11 @@ export default function TransactionReversalsPage() {
     setRejectOpen(true)
   }, [])
 
+  const openDetails = useCallback((reversal: AnyRecord) => {
+    setDetailsTarget(reversal)
+    setDetailsOpen(true)
+  }, [])
+
   const handleReject = useCallback(async () => {
     if (!canApprove) {
       toast.error("You don't have permission to approve/reject reversals")
@@ -165,20 +181,58 @@ export default function TransactionReversalsPage() {
     return items.map((r) => {
       const id = String(r?.id || r?.reversalId || r?._id || "")
       const createdAt = r?.createdAt || r?.requestedAt || r?.created_at || null
-      const amount = Number(r?.amount ?? r?.transactionAmount ?? r?.totalAmount ?? 0)
-      const currency = String(r?.currency || "UGX")
+      const currency = String(r?.transaction?.currency || r?.currency || "UGX")
       const originalRef = r?.transactionReference || r?.originalTransactionReference || r?.transactionId || r?.originalTransactionId || r?.reference || ""
       const reason = r?.reason || r?.reversalReason || r?.requestReason || ""
       const status = String(r?.status || "PENDING")
 
+      const originalAmount = Number(r?.originalAmount ?? r?.transaction?.amount ?? 0)
+      const originalFee = Number(r?.originalFee ?? r?.transaction?.fee ?? 0)
+      const totalRefund = originalAmount + originalFee
+
+      const requestedByUser = r?.requestedByUser || null
+      const requesterName =
+        requestedByUser?.profile?.firstName || requestedByUser?.profile?.lastName
+          ? `${requestedByUser?.profile?.firstName || ""} ${requestedByUser?.profile?.lastName || ""}`.trim()
+          : (requestedByUser?.email || requestedByUser?.phone || "")
+
+      const transactionPartnerLabel =
+        r?.transaction?.partnerMapping?.partner?.partnerName ||
+        r?.transaction?.partnerMapping?.partner?.partnerCode ||
+        r?.transaction?.partner?.partnerName ||
+        r?.transaction?.partner?.businessName ||
+        r?.transaction?.partner?.partnerCode ||
+        r?.transaction?.metadata?.apiPartnerBusinessName ||
+        r?.transaction?.metadata?.partnerBusinessName ||
+        r?.transaction?.metadata?.apiPartnerName ||
+        r?.transaction?.metadata?.partnerName ||
+        "Direct"
+
+      const requesterPartnerLabel = firstNonEmptyString(
+        r?.requestedByPartner?.partnerName,
+        r?.requestedByPartner?.businessName,
+        r?.requestedByPartner?.partnerCode,
+        r?.requestedByPartnerMapping?.partner?.partnerName,
+        r?.requestedByPartnerMapping?.partner?.partnerCode,
+        requestedByUser?.partner?.partnerName,
+        requestedByUser?.partner?.businessName,
+        requestedByUser?.partner?.partnerCode,
+      )
+
       return {
         id,
         createdAt,
-        amount,
+        originalAmount,
+        originalFee,
+        totalRefund,
         currency,
         originalRef,
         reason,
         status,
+        requesterName,
+        requesterContact: requestedByUser?.email || requestedByUser?.phone || "",
+        requesterPartnerLabel,
+        transactionPartnerLabel,
         raw: r,
       }
     })
@@ -262,16 +316,19 @@ export default function TransactionReversalsPage() {
                       <TableHead>Requested</TableHead>
                       <TableHead>Reversal ID</TableHead>
                       <TableHead>Original Tx</TableHead>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Requester Partner</TableHead>
+                      <TableHead>Tx Partner</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Status</TableHead>
-                      {showActionButtons && <TableHead className="text-right">Actions</TableHead>}
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading && (
                       <TableRow>
-                        <TableCell colSpan={showActionButtons ? 7 : 6} className="py-10 text-center text-gray-600">
+                        <TableCell colSpan={10} className="py-10 text-center text-gray-600">
                           <Loader2 className="h-5 w-5 inline-block mr-2 animate-spin" />
                           Loading reversals…
                         </TableCell>
@@ -280,7 +337,7 @@ export default function TransactionReversalsPage() {
 
                     {!loading && rows.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={showActionButtons ? 7 : 6} className="py-10 text-center text-gray-600">
+                        <TableCell colSpan={10} className="py-10 text-center text-gray-600">
                           No reversal requests found.
                         </TableCell>
                       </TableRow>
@@ -299,8 +356,23 @@ export default function TransactionReversalsPage() {
                             <TableCell className="font-mono text-xs" title={String(row.originalRef || "")}>
                               {row.originalRef ? shortenTransactionId(String(row.originalRef)) : "—"}
                             </TableCell>
+                            <TableCell className="max-w-[220px] whitespace-normal">
+                              {row.requesterName || "—"}
+                              {row.requesterContact ? (
+                                <div className="text-xs text-gray-500">{row.requesterContact}</div>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] whitespace-normal">
+                              {row.requesterPartnerLabel || "—"}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] whitespace-normal">
+                              {row.transactionPartnerLabel || "—"}
+                            </TableCell>
                             <TableCell className="font-semibold">
-                              {formatAmount(row.amount)} {row.currency}
+                              {formatAmount(row.totalRefund)} {row.currency}
+                              <div className="text-xs text-gray-500">
+                                Amount {formatAmount(row.originalAmount)} + Fee {formatAmount(row.originalFee)}
+                              </div>
                             </TableCell>
                             <TableCell className="max-w-[340px] whitespace-normal">
                               {row.reason ? String(row.reason) : "—"}
@@ -308,33 +380,43 @@ export default function TransactionReversalsPage() {
                             <TableCell>
                               <Badge className={`${statusConfig.color} border`}>{statusConfig.label}</Badge>
                             </TableCell>
-                            {showActionButtons && (
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                    disabled={!canApprove || busy || !row.id}
-                                    onClick={() => handleApprove(row.raw)}
-                                    title={!canApprove ? "Missing permission" : "Approve reversal"}
-                                  >
-                                    {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
-                                    disabled={!canApprove || busy || !row.id}
-                                    onClick={() => openReject(row.raw)}
-                                    title={!canApprove ? "Missing permission" : "Reject reversal"}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            )}
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openDetails(row.raw)}
+                                  title="View details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {showActionButtons && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                      disabled={!canApprove || busy || !row.id}
+                                      onClick={() => handleApprove(row.raw)}
+                                      title={!canApprove ? "Missing permission" : "Approve reversal"}
+                                    >
+                                      {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
+                                      disabled={!canApprove || busy || !row.id}
+                                      onClick={() => openReject(row.raw)}
+                                      title={!canApprove ? "Missing permission" : "Reject reversal"}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-2" />
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
                           </TableRow>
                         )
                       })}
@@ -384,6 +466,129 @@ export default function TransactionReversalsPage() {
                 {processingId != null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Reject
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reversal details</DialogTitle>
+            <DialogDescription>Reversal request + linked transaction information.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3 rounded border bg-gray-50">
+                <div className="text-xs text-gray-500 mb-1">Reversal</div>
+                <div><span className="text-gray-600">ID:</span> <span className="font-mono text-xs">{String(detailsTarget?.id || "—")}</span></div>
+                <div><span className="text-gray-600">Status:</span> <span className="font-medium">{String(detailsTarget?.status || "—")}</span></div>
+                <div><span className="text-gray-600">Reason:</span> <span className="font-medium">{String(detailsTarget?.reason || "—")}</span></div>
+                <div><span className="text-gray-600">Details:</span> <span className="font-medium">{String(detailsTarget?.details || "—")}</span></div>
+                <div><span className="text-gray-600">Ticket Ref:</span> <span className="font-medium">{String(detailsTarget?.ticketReference || "—")}</span></div>
+                <div><span className="text-gray-600">Created:</span> <span className="font-medium">{detailsTarget?.createdAt ? formatDate(detailsTarget.createdAt) : "—"}</span></div>
+              </div>
+
+              <div className="p-3 rounded border bg-gray-50">
+                <div className="text-xs text-gray-500 mb-1">Requested By</div>
+                <div className="font-medium">
+                  {(() => {
+                    const u = detailsTarget?.requestedByUser
+                    if (!u) return "—"
+                    const name = u?.profile?.firstName || u?.profile?.lastName ? `${u?.profile?.firstName || ""} ${u?.profile?.lastName || ""}`.trim() : ""
+                    return name || u?.email || u?.phone || "—"
+                  })()}
+                </div>
+                <div className="text-xs text-gray-600">{detailsTarget?.requestedByUser?.email || detailsTarget?.requestedByUser?.phone || ""}</div>
+                <div className="mt-2 text-xs text-gray-500 mb-1">Requester partner</div>
+                <div className="font-medium">
+                  {firstNonEmptyString(
+                    detailsTarget?.requestedByPartner?.partnerName,
+                    detailsTarget?.requestedByPartner?.businessName,
+                    detailsTarget?.requestedByPartner?.partnerCode,
+                    detailsTarget?.requestedByPartnerMapping?.partner?.partnerName,
+                    detailsTarget?.requestedByPartnerMapping?.partner?.partnerCode,
+                    detailsTarget?.requestedByUser?.partner?.partnerName,
+                    detailsTarget?.requestedByUser?.partner?.businessName,
+                    detailsTarget?.requestedByUser?.partner?.partnerCode,
+                    "—",
+                  )}
+                </div>
+                {detailsTarget?.rejectionReason ? (
+                  <div className="mt-2">
+                    <div className="text-xs text-gray-500 mb-1">Rejection reason</div>
+                    <div className="font-medium">{String(detailsTarget.rejectionReason)}</div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="p-3 rounded border bg-gray-50">
+                <div className="text-xs text-gray-500 mb-1">Transaction</div>
+                <div>
+                  <span className="text-gray-600">Reference:</span>{" "}
+                  <span className="font-mono text-xs">
+                    {firstNonEmptyString(
+                      detailsTarget?.transaction?.reference,
+                      detailsTarget?.transaction?.transactionReference,
+                      detailsTarget?.transactionReference,
+                      detailsTarget?.originalTransactionReference,
+                      detailsTarget?.transactionId,
+                      detailsTarget?.originalTransactionId,
+                      "—",
+                    )}
+                  </span>
+                </div>
+                <div><span className="text-gray-600">Status:</span> <span className="font-medium">{String(detailsTarget?.transaction?.status || "—")}</span></div>
+                <div>
+                  <span className="text-gray-600">Amount:</span>{" "}
+                  <span className="font-medium">
+                    {formatAmount(Number(detailsTarget?.transaction?.amount ?? detailsTarget?.originalAmount ?? 0))}{" "}
+                    {String(detailsTarget?.transaction?.currency || detailsTarget?.currency || "UGX")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Fee:</span>{" "}
+                  <span className="font-medium">{formatAmount(Number(detailsTarget?.transaction?.fee ?? detailsTarget?.originalFee ?? 0))}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Tx Partner:</span>{" "}
+                  <span className="font-medium">
+                    {firstNonEmptyString(
+                      detailsTarget?.transaction?.partnerMapping?.partner?.partnerName,
+                      detailsTarget?.transaction?.partnerMapping?.partner?.partnerCode,
+                      detailsTarget?.transaction?.partner?.partnerName,
+                      detailsTarget?.transaction?.partner?.businessName,
+                      detailsTarget?.transaction?.partner?.partnerCode,
+                      detailsTarget?.transaction?.metadata?.apiPartnerBusinessName,
+                      detailsTarget?.transaction?.metadata?.partnerBusinessName,
+                      detailsTarget?.transaction?.metadata?.apiPartnerName,
+                      detailsTarget?.transaction?.metadata?.partnerName,
+                      "—",
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Created:</span>{" "}
+                  <span className="font-medium">
+                    {detailsTarget?.transaction?.createdAt ? formatDate(detailsTarget.transaction.createdAt) : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded border">
+              <div className="text-xs text-gray-500 mb-2">Linked transaction (raw)</div>
+              <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
+                {JSON.stringify(detailsTarget?.transaction || null, null, 2)}
+              </pre>
+            </div>
+
+            <div className="p-3 rounded border">
+              <div className="text-xs text-gray-500 mb-2">Reversal (raw)</div>
+              <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
+                {JSON.stringify(detailsTarget || null, null, 2)}
+              </pre>
             </div>
           </div>
         </DialogContent>
