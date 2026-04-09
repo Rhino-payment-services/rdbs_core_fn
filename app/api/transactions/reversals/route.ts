@@ -15,11 +15,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit')
     const userId = searchParams.get('userId')
+    const status = searchParams.get('status')
 
     const response = await axios.get(`${API_URL}/transactions/reversals`, {
       params: {
         ...(limit ? { limit } : {}),
         ...(userId ? { userId } : {}),
+        ...(status ? { status } : {}),
       },
       headers: {
         Authorization: `Bearer ${session.accessToken}`,
