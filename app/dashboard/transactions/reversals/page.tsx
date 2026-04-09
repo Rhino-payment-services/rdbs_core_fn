@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatAmount, formatDate, getStatusBadgeConfig, shortenTransactionId } from "@/lib/utils/transactions"
 import { PERMISSIONS, usePermissions } from "@/lib/hooks/usePermissions"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import toast from "react-hot-toast"
 import { CheckCircle, Loader2, RotateCcw, XCircle } from "lucide-react"
 
@@ -32,6 +33,7 @@ export default function TransactionReversalsPage() {
   const canApprove = hasPermission(PERMISSIONS.TRANSACTION_REVERSAL_APPROVE)
 
   const [limit, setLimit] = useState(50)
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING")
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<AnyRecord[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -42,28 +44,38 @@ export default function TransactionReversalsPage() {
   const [rejectTarget, setRejectTarget] = useState<AnyRecord | null>(null)
   const [rejectReason, setRejectReason] = useState("")
 
-  const pendingCount = items.length
+  const filteredCount = items.length
+  const showActionButtons = statusFilter === "PENDING"
 
   const load = useCallback(async () => {
     if (!canView) return
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/transactions/reversals/pending?limit=${encodeURIComponent(String(limit))}`)
+      const base =
+        statusFilter === "PENDING"
+          ? `/api/transactions/reversals/pending?limit=${encodeURIComponent(String(limit))}`
+          : `/api/transactions/reversals?limit=${encodeURIComponent(String(limit))}`
+      const res = await fetch(base)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setItems([])
-        setError(data?.error || "Failed to load pending reversals")
+        setError(data?.error || "Failed to load reversals")
         return
       }
-      setItems(normalizePendingReversalsPayload(data))
+      const all = normalizePendingReversalsPayload(data)
+      if (statusFilter === "ALL") {
+        setItems(all)
+      } else {
+        setItems(all.filter((x) => String(x?.status || "PENDING").toUpperCase() === String(statusFilter).toUpperCase()))
+      }
     } catch (e: any) {
       setItems([])
-      setError(e?.message || "Failed to load pending reversals")
+      setError(e?.message || "Failed to load reversals")
     } finally {
       setLoading(false)
     }
-  }, [canView, limit])
+  }, [canView, limit, statusFilter])
 
   useEffect(() => {
     load()
@@ -181,10 +193,23 @@ export default function TransactionReversalsPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Transaction Reversals</h1>
-              <p className="mt-2 text-gray-600">Review and approve/reject pending reversal requests.</p>
+              <p className="mt-2 text-gray-600">Review reversal requests (pending, completed, cancelled, rejected).</p>
             </div>
 
             <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="ALL">All</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="w-40">
                 <Input
                   type="number"
@@ -215,11 +240,13 @@ export default function TransactionReversalsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  Pending Requests
-                  <Badge className="bg-gray-900 text-white">{pendingCount}</Badge>
+                  {statusFilter === "ALL" ? "Reversal Requests" : `${statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase()} Requests`}
+                  <Badge className="bg-gray-900 text-white">{filteredCount}</Badge>
                 </CardTitle>
                 <CardDescription>
-                  Approve or reject reversal requests. Reject requires a reason.
+                  {showActionButtons
+                    ? "Approve or reject reversal requests. Reject requires a reason."
+                    : "Viewing reversals in the selected status. Approve/Reject is only available for Pending."}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -238,23 +265,23 @@ export default function TransactionReversalsPage() {
                       <TableHead>Amount</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      {showActionButtons && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading && (
                       <TableRow>
-                        <TableCell colSpan={7} className="py-10 text-center text-gray-600">
+                        <TableCell colSpan={showActionButtons ? 7 : 6} className="py-10 text-center text-gray-600">
                           <Loader2 className="h-5 w-5 inline-block mr-2 animate-spin" />
-                          Loading pending reversals…
+                          Loading reversals…
                         </TableCell>
                       </TableRow>
                     )}
 
                     {!loading && rows.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="py-10 text-center text-gray-600">
-                          No pending reversal requests.
+                        <TableCell colSpan={showActionButtons ? 7 : 6} className="py-10 text-center text-gray-600">
+                          No reversal requests found.
                         </TableCell>
                       </TableRow>
                     )}
@@ -281,31 +308,33 @@ export default function TransactionReversalsPage() {
                             <TableCell>
                               <Badge className={`${statusConfig.color} border`}>{statusConfig.label}</Badge>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700 text-white"
-                                  disabled={!canApprove || busy || !row.id}
-                                  onClick={() => handleApprove(row.raw)}
-                                  title={!canApprove ? "Missing permission" : "Approve reversal"}
-                                >
-                                  {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
-                                  disabled={!canApprove || busy || !row.id}
-                                  onClick={() => openReject(row.raw)}
-                                  title={!canApprove ? "Missing permission" : "Reject reversal"}
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Reject
-                                </Button>
-                              </div>
-                            </TableCell>
+                            {showActionButtons && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                    disabled={!canApprove || busy || !row.id}
+                                    onClick={() => handleApprove(row.raw)}
+                                    title={!canApprove ? "Missing permission" : "Approve reversal"}
+                                  >
+                                    {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
+                                    disabled={!canApprove || busy || !row.id}
+                                    onClick={() => openReject(row.raw)}
+                                    title={!canApprove ? "Missing permission" : "Reject reversal"}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
                           </TableRow>
                         )
                       })}
