@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Wallet, TrendingUp, RefreshCw, PlusCircle, Loader2 } from 'lucide-react'
+import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -74,6 +74,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const [form, setForm] = useState({
     walletType: 'ESCROW' as 'ESCROW' | 'COMMISSION',
+    actionType: 'CREDIT' as 'CREDIT' | 'DEBIT',
     amount: '',
     reference: '',
     description: '',
@@ -97,11 +98,15 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     refetchCommission()
   }
 
-  const handleOpenFund = (walletType: 'ESCROW' | 'COMMISSION') => {
+  const handleOpenAdjustment = (
+    walletType: 'ESCROW' | 'COMMISSION',
+    actionType: 'CREDIT' | 'DEBIT',
+  ) => {
     setForm({
       walletType,
+      actionType,
       amount: '',
-      reference: `TOPUP_${walletType}_${Date.now()}`,
+      reference: `${actionType === 'DEBIT' ? 'DEBIT' : 'TOPUP'}_${walletType}_${Date.now()}`,
       description: '',
     })
     setFundDialogOpen(true)
@@ -110,7 +115,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const handleFundWallet = async () => {
     const parsedAmount = parseFloat(form.amount)
     if (!form.amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error('Please enter a valid positive amount')
+      toast.error('Amount must be a positive number')
       return
     }
     if (!form.reference.trim()) {
@@ -118,9 +123,11 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
       return
     }
 
+    const signedAmount = form.actionType === 'DEBIT' ? -parsedAmount : parsedAmount
     const walletId = resolveWalletId(form.walletType)
     const reason =
-      form.description.trim() || `Manual funding (${form.walletType}) — ${partnerName}`
+      form.description.trim() ||
+      `Manual ${form.actionType === 'DEBIT' ? 'debit' : 'funding'} (${form.walletType}) — ${partnerName}`
     const reference = form.reference.trim()
 
     setIsLoading(true)
@@ -128,11 +135,14 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
       if (walletId) {
         // Same path as CustomerSettings manual credit — admin wallet fund
         await api.post(`/wallet/admin/${walletId}/fund`, {
-          amount: parsedAmount,
+          amount: signedAmount,
           reason,
           reference,
         })
       } else {
+        if (form.actionType === 'DEBIT') {
+          throw new Error(`Cannot deduct: ${form.walletType} wallet does not exist yet.`)
+        }
         // No wallet row yet — gateway flow creates ESCROW/COMMISSION wallet if missing
         await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
           partnerId,
@@ -144,7 +154,9 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         })
       }
 
-      toast.success(`${form.walletType} wallet funded with ${parsedAmount.toLocaleString()} UGX`)
+      toast.success(
+        `${form.walletType} wallet ${form.actionType === 'DEBIT' ? 'debited' : 'funded'} with ${parsedAmount.toLocaleString()} UGX`,
+      )
       setFundDialogOpen(false)
 
       queryClient.invalidateQueries({ queryKey: ['partner-wallet-balance', partnerId] })
@@ -211,10 +223,16 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             )}
           </>
         )}
-        <Button size="sm" variant="outline" className={btnOutline} onClick={() => handleOpenFund(type)}>
-          <PlusCircle className="h-3.5 w-3.5" />
-          Fund Wallet
-        </Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+            <PlusCircle className="h-3.5 w-3.5" />
+            Fund
+          </Button>
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+            <MinusCircle className="h-3.5 w-3.5" />
+            Deduct
+          </Button>
+        </div>
       </div>
     )
   }
@@ -265,10 +283,10 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-blue-600" />
-              Fund {form.walletType} Wallet
+              {form.actionType === 'DEBIT' ? 'Deduct from' : 'Fund'} {form.walletType} Wallet
             </DialogTitle>
             <DialogDescription>
-              Add funds to the {form.walletType.toLowerCase()} wallet for{' '}
+              {form.actionType === 'DEBIT' ? 'Remove funds from' : 'Add funds to'} the {form.walletType.toLowerCase()} wallet for{' '}
               <span className="font-medium">{partnerName}</span>.
               {resolveWalletId(form.walletType) ? (
                 <span className="block mt-1 text-xs text-muted-foreground">
@@ -300,10 +318,27 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             </div>
 
             <div>
+              <Label>Action</Label>
+              <Select
+                value={form.actionType}
+                onValueChange={(v) => setForm((f) => ({ ...f, actionType: v as 'CREDIT' | 'DEBIT' }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CREDIT">Fund (Add Money)</SelectItem>
+                  <SelectItem value="DEBIT">Deduct (Remove Money)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Amount (UGX)</Label>
               <Input
                 type="number"
-                min="1"
+                min="500"
+                step="1"
                 placeholder="e.g. 1000000"
                 className="mt-1"
                 value={form.amount}
@@ -333,9 +368,9 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             </div>
 
             {form.amount && !Number.isNaN(parseFloat(form.amount)) && (
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm">
-                <p className="text-blue-800 font-medium">
-                  Funding {form.walletType} with{' '}
+              <div className={`rounded-md p-3 text-sm border ${form.actionType === 'DEBIT' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                <p className={`font-medium ${form.actionType === 'DEBIT' ? 'text-amber-800' : 'text-blue-800'}`}>
+                  {form.actionType === 'DEBIT' ? 'Debiting' : 'Funding'} {form.walletType} with{' '}
                   <span className="font-bold">{parseFloat(form.amount).toLocaleString('en-UG')} UGX</span>
                 </p>
               </div>
@@ -354,8 +389,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 </>
               ) : (
                 <>
-                  <PlusCircle className="h-4 w-4" />
-                  Confirm Funding
+                  {form.actionType === 'DEBIT' ? <MinusCircle className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+                  {form.actionType === 'DEBIT' ? 'Confirm Deduction' : 'Confirm Funding'}
                 </>
               )}
             </Button>
