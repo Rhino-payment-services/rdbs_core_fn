@@ -202,6 +202,13 @@ export const getTypeDisplay = (
     (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
   if (isSweep) return 'Liquidate'
 
+  if (type === 'BILL_PAYMENT') {
+    const util = meta?.utilityProvider
+    const pt = meta?.payment_type
+    if (pt === 'airtime' || util === 'AIRTIME') return 'Airtime (bill)'
+    if (pt === 'mobile_data' || util === 'DATA_BUNDLES') return 'Mobile data (bill)'
+  }
+
   // Special handling for MERCHANT_TO_WALLET based on direction
   if ((type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET') && direction === 'DEBIT') {
     return 'Sent from Merchant'

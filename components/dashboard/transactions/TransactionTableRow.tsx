@@ -182,16 +182,15 @@ function useTransactionDerived(transaction: any): TransactionDerived {
   const paymentPartnerFromMapping = transaction.partnerMapping?.partner
     ? (() => {
         const p = transaction.partnerMapping.partner
-        const name = String(p?.partnerName || '').trim()
         const code = String(p?.partnerCode || '').trim()
-        if (!name) return code && !isNumericLikePartnerCode(code) ? code : null
-        // Prefer a short label in the table (e.g. "ABC Payment Services" -> "ABC")
+        if (code && !isNumericLikePartnerCode(code)) return code.toUpperCase()
+        const name = String(p?.partnerName || '').trim()
+        if (!name) return null
         const upperName = name.toUpperCase()
         if (upperName.includes('ABC')) return 'ABC'
         if (upperName.includes('PEGASUS')) return 'PEGASUS'
         if (upperName.includes('AIRTEL')) return 'AIRTEL'
         if (upperName.includes('MTN')) return 'MTN'
-        if (code && !isNumericLikePartnerCode(code)) return code
         const firstToken = name.split(/\s+/)[0]
         return firstToken ? firstToken.toUpperCase() : name
       })()
@@ -218,16 +217,56 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.bank ||
     null
 
+  /** Bill payments where the executing partner is on metadata (e.g. Africa's Talking airtime). */
+  const paymentPartnerFromExecutedBillMetadata = (() => {
+    if (transaction.type !== 'BILL_PAYMENT') return null
+    const code = String(metadata.partnerCode || '').trim()
+    const atRef =
+      String(transaction.externalReference || '').startsWith('ATQid_') ||
+      String(transaction.externalReference || '').startsWith('ATPid_')
+    if ((!code || isNumericLikePartnerCode(code)) && !atRef) return null
+    const util = metadata.utilityProvider
+    const pt = metadata.payment_type
+    const isAirtimeOrData =
+      util === 'AIRTIME' ||
+      util === 'DATA_BUNDLES' ||
+      pt === 'airtime' ||
+      pt === 'mobile_data'
+    if (!isAirtimeOrData) return null
+
+    const codeUpper = (code || (atRef ? 'AFRICASTALKING' : '')).toUpperCase()
+    if (!codeUpper || isNumericLikePartnerCode(codeUpper)) return null
+    return codeUpper
+  })()
+
   const paymentPartnerLabel =
+    paymentPartnerFromExecutedBillMetadata ||
     paymentPartnerFromMapping ||
     paymentPartnerFromMno ||
     paymentPartnerFromBank ||
     null
 
-  const paymentPartnerTitle =
-    paymentPartnerFromMapping && transaction.partnerMapping?.partner?.partnerCode
-      ? `${transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode} (${transaction.partnerMapping.partner.partnerCode})`
-      : paymentPartnerLabel || undefined
+  const paymentPartnerTitle = (() => {
+    if (paymentPartnerFromExecutedBillMetadata) {
+      const code = String(metadata.partnerCode || '').trim()
+      const name = String(metadata.partnerName || '').trim()
+      const pt = metadata.payment_type
+      const util = metadata.utilityProvider
+      const product =
+        pt === 'airtime' || util === 'AIRTIME'
+          ? 'Airtime'
+          : pt === 'mobile_data' || util === 'DATA_BUNDLES'
+            ? 'Mobile data'
+            : ''
+      const codeDisp = (code || paymentPartnerFromExecutedBillMetadata).toUpperCase()
+      const base = name ? `${name} (${codeDisp})` : codeDisp
+      return [base, product].filter(Boolean).join(' · ')
+    }
+    if (paymentPartnerFromMapping && transaction.partnerMapping?.partner?.partnerCode) {
+      return `${transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode} (${transaction.partnerMapping.partner.partnerCode})`
+    }
+    return paymentPartnerLabel || undefined
+  })()
 
   const hasPartnerSignal =
     transaction.partnerId ||
