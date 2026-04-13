@@ -213,19 +213,20 @@ export const useCustomerProfile = (
       : undefined
   )
 
-  // Determine activity log user ID
+  // Activity logs are stored per User. Mirror transaction user resolution for partners
+  // (regular partner row id, or gateway linked user by email, or ApiPartner.user.id).
   const activityLogUserId = useMemo(() => {
     if (type === 'merchant' && merchantData?.userId) {
       return merchantData.userId
     }
-    if (type === 'partner' && regularPartner?.id) {
-      return regularPartner.id
+    if (type === 'partner') {
+      if (regularPartner?.id) return regularPartner.id
+      if (isGatewayPartner && linkedUserByEmail?.id) return linkedUserByEmail.id
+      if (isGatewayPartner && partner?.user?.id) return partner.user.id
+      return undefined
     }
-    if (type !== 'partner') {
-      return id as string
-    }
-    return undefined
-  }, [type, merchantData, regularPartner, id])
+    return id as string
+  }, [type, merchantData?.userId, regularPartner?.id, id, isGatewayPartner, linkedUserByEmail?.id, partner?.user?.id])
 
   const { data: activityLogsData, isLoading: activityLogsLoading, error: activityLogsError } = useUserActivityLogsByUserId(
     activityLogUserId,

@@ -251,7 +251,8 @@ const CustomerProfilePage = () => {
 
   // Determine transaction loading state
   const finalTransactionsLoading = type === 'partner' ? partnerTransactionsLoading : transactionsLoading
-  const finalActivityLogsLoading = type === 'partner' ? partnerActivityLogsLoading : activityLogsLoading
+  const finalActivityLogsLoading =
+    type === 'partner' ? activityLogsLoading || partnerActivityLogsLoading : activityLogsLoading
 
   const merchantName = merchantData?.businessTradeName || 'This merchant'
   const ownerName = merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined

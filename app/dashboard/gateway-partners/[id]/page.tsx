@@ -45,6 +45,20 @@ import {
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
+function formatGatewayLimit(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return '—'
+  return num.toLocaleString()
+}
+
+function formatMillionsUgx(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '—'
+  const num = Number(value)
+  if (Number.isNaN(num)) return '—'
+  return `${(num / 1_000_000).toFixed(0)}M UGX`
+}
+
 const GatewayPartnerDetailsPage = () => {
   const params = useParams()
   const router = useRouter()
@@ -475,19 +489,27 @@ const GatewayPartnerDetailsPage = () => {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Per Second:</span>
-                        <span className="font-medium ml-2">{partner.rateLimits.requests_per_second}</span>
+                        <span className="font-medium ml-2">
+                          {formatGatewayLimit(partner.rateLimits?.requests_per_second)}
+                        </span>
                       </div>
                       <div className="bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Per Minute:</span>
-                        <span className="font-medium ml-2">{partner.rateLimits.requests_per_minute}</span>
+                        <span className="font-medium ml-2">
+                          {formatGatewayLimit(partner.rateLimits?.requests_per_minute)}
+                        </span>
                       </div>
                       <div className="bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Per Hour:</span>
-                        <span className="font-medium ml-2">{partner.rateLimits.requests_per_hour.toLocaleString()}</span>
+                        <span className="font-medium ml-2">
+                          {formatGatewayLimit(partner.rateLimits?.requests_per_hour)}
+                        </span>
                       </div>
                       <div className="bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Per Day:</span>
-                        <span className="font-medium ml-2">{partner.rateLimits.requests_per_day.toLocaleString()}</span>
+                        <span className="font-medium ml-2">
+                          {formatGatewayLimit(partner.rateLimits?.requests_per_day)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -497,15 +519,21 @@ const GatewayPartnerDetailsPage = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Daily Transactions:</span>
-                        <span className="font-medium">{partner.usageQuotas.daily_transactions.toLocaleString()}</span>
+                        <span className="font-medium">
+                          {formatGatewayLimit(partner.usageQuotas?.daily_transactions)}
+                        </span>
                       </div>
                       <div className="flex justify-between bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Daily Volume:</span>
-                        <span className="font-medium">{(partner.usageQuotas.daily_volume_ugx / 1000000).toFixed(0)}M UGX</span>
+                        <span className="font-medium">
+                          {formatMillionsUgx(partner.usageQuotas?.daily_volume_ugx)}
+                        </span>
                       </div>
                       <div className="flex justify-between bg-gray-50 p-2 rounded">
                         <span className="text-gray-600">Max per Transaction:</span>
-                        <span className="font-medium">{(partner.usageQuotas.max_transaction_amount / 1000000).toFixed(0)}M UGX</span>
+                        <span className="font-medium">
+                          {formatMillionsUgx(partner.usageQuotas?.max_transaction_amount)}
+                        </span>
                       </div>
                     </div>
                   </div>

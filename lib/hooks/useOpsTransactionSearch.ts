@@ -24,6 +24,12 @@ export interface OpsTransactionSearchResult {
   processedAt?: string
   counterpartyName?: string
   counterpartyPhone?: string
+  counterpartyId?: string
+  metadata?: Record<string, unknown>
+  direction?: string
+  /** Set by core enrichment — drives Sender/Receiver columns when present */
+  senderInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
+  receiverInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
 }
 
 export interface OpsTransactionSearchResponse {

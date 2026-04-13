@@ -87,6 +87,7 @@ export interface User {
 // API Partner types
 export interface ApiPartner {
   id: string
+  userId?: string
   partnerName: string
   partnerType: string
   contactEmail: string
