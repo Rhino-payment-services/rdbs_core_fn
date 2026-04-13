@@ -493,7 +493,19 @@ export const TransactionDetailsModal = ({
                         
                         return formatAmount(amount + totalFee);
                       } else {
-                        // For CREDIT transactions, show netAmount (amount received)
+                        // For collection CREDIT transactions, net should be amount minus charges.
+                        const isCollectionCredit =
+                          transaction.type === 'MNO_TO_WALLET' ||
+                          transaction.type === 'WALLET_TOPUP_PULL' ||
+                          String(transaction.metadata?.mode || '').toUpperCase() === 'PARTNER_COLLECT_MNO';
+                        if (isCollectionCredit) {
+                          const amount = Number(transaction.amount) || 0;
+                          const net = Number(transaction.netAmount) || 0;
+                          // Trust persisted netAmount when it already reflects deductions; otherwise compute.
+                          const effectiveNet = net > 0 && net !== amount ? net : Math.max(0, amount - totalFee);
+                          return formatAmount(effectiveNet);
+                        }
+                        // For other CREDIT transactions, show netAmount (amount received)
                         return formatAmount(Number(transaction.netAmount));
                       }
                     })()}
