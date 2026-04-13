@@ -44,13 +44,12 @@ export function getDisplayNetAmount(transaction: {
       ? aggregateFeeComponents
       : fee
 
-  const isWalletToMnoDebit =
-    transaction.type === 'WALLET_TO_MNO' &&
-    String(transaction.direction ?? '').toUpperCase() === 'DEBIT'
-  const isDebit = String(transaction.direction ?? '').toUpperCase() === 'DEBIT'
+  const direction = String(transaction.direction ?? '').toUpperCase()
+  const isWalletToMnoDebit = transaction.type === 'WALLET_TO_MNO' && direction === 'DEBIT'
+  const isDebit = direction === 'DEBIT'
   const isCollectionCredit =
     (transaction.type === 'MNO_TO_WALLET' || transaction.type === 'WALLET_TOPUP_PULL') &&
-    String(transaction.direction ?? '').toUpperCase() !== 'DEBIT'
+    direction !== 'DEBIT'
 
   if (isWalletToMnoDebit || isDebit) {
     const totalDebit = amount + totalCharges
