@@ -47,11 +47,12 @@ export function getDisplayNetAmount(transaction: {
   const isWalletToMnoDebit =
     transaction.type === 'WALLET_TO_MNO' &&
     String(transaction.direction ?? '').toUpperCase() === 'DEBIT'
+  const isDebit = String(transaction.direction ?? '').toUpperCase() === 'DEBIT'
   const isCollectionCredit =
     (transaction.type === 'MNO_TO_WALLET' || transaction.type === 'WALLET_TOPUP_PULL') &&
     String(transaction.direction ?? '').toUpperCase() !== 'DEBIT'
 
-  if (isWalletToMnoDebit) {
+  if (isWalletToMnoDebit || isDebit) {
     const totalDebit = amount + totalCharges
     if (Number.isFinite(net) && Math.abs(net - totalDebit) < 0.01) {
       return net
