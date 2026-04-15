@@ -7,6 +7,7 @@ import { useTransactionSystemStats, useChannelStatistics, useTransactionLogs, us
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
+import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
 // Import extracted components
@@ -633,13 +634,14 @@ const TransactionsPage = () => {
           }
         }
 
-        // Net Amount:
-        // - For DEBIT: amount + all fees (total debited from sender)
-        // - For CREDIT: netAmount (amount received by wallet), falling back to amount
-        const netAmountForCsv =
-          tx.direction === 'DEBIT'
-            ? amount + finalTotalFee
-            : (Number(tx.netAmount) || amount)
+        // Net Amount: must match TransactionTable NetAmountCell (getDisplayNetAmount + sweep rows)
+        const netAmountForCsv = (() => {
+          if (metadata.sweepToDisbursement || metadata.sweepFromCollection) {
+            return (metadata.netToDisbursement ?? Number(tx.netAmount)) || 0
+          }
+          const n = getDisplayNetAmount(tx)
+          return n == null ? '-' : n
+        })()
 
         // Format date
         const dateTime = tx.createdAt 
