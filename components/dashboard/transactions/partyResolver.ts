@@ -67,6 +67,25 @@ export function getPartnerRole(tx: any): PartnerRole | null {
 
 export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: string } {
   const m = tx?.metadata || {}
+  const codeUpper = String(m.partnerCode || '').toUpperCase()
+  const isAfricaTalkingRail =
+    codeUpper === 'AFRICASTALKING' ||
+    String(tx?.externalReference || '').startsWith('ATQid_') ||
+    String(tx?.externalReference || '').startsWith('ATPid_')
+  const isBillUtilitySubtype =
+    m.payment_type === 'airtime' ||
+    m.payment_type === 'mobile_data' ||
+    m.utilityProvider === 'AIRTIME' ||
+    m.utilityProvider === 'DATA_BUNDLES'
+  // Executing partner is stamped on metadata (e.g. Africa's Talking) while partnerMapping
+  // may still point at the default bill partner (e.g. Pegasus) — prefer metadata for display.
+  if (isAfricaTalkingRail && isBillUtilitySubtype) {
+    const primary =
+      String(m.partnerName || '').trim() || "Africa's Talking"
+    // Omit external partner refs here — they are long (e.g. ATQid_…) and clutter the table.
+    return { primary }
+  }
+
   // tx.partner = ApiPartner (the API caller / business) — preferred for display
   // tx.partnerMapping.partner = ExternalPaymentPartner (MNO gateway) — fallback only
   const apiPartner = tx?.partner || null
@@ -99,6 +118,57 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
   const primary = candidatePrimary ? String(candidatePrimary) : 'API Partner'
 
   return { primary, secondary: secondary ? String(secondary) : undefined }
+}
+
+/**
+ * Partner line in transaction details (and similar): for utility bill payments the executing
+ * rail is on metadata while partnerMapping may still be the default (e.g. Pegasus).
+ */
+export function getBasicPartnerDisplayLabel(tx: any): string {
+  const m = tx?.metadata || {}
+
+  if (upper(tx?.type) === 'BILL_PAYMENT') {
+    const pt = m.payment_type
+    const util = m.utilityProvider
+    const isUtilityAirtimeOrData =
+      pt === 'airtime' ||
+      pt === 'mobile_data' ||
+      util === 'AIRTIME' ||
+      util === 'DATA_BUNDLES'
+    if (isUtilityAirtimeOrData) {
+      const codeRaw = String(m.partnerCode || '').trim()
+      const atRef =
+        String(tx?.externalReference || '').startsWith('ATQid_') ||
+        String(tx?.externalReference || '').startsWith('ATPid_')
+      const codeDisp =
+        codeRaw && !isNumericLikeLabel(codeRaw)
+          ? codeRaw.toUpperCase()
+          : atRef
+            ? 'AFRICASTALKING'
+            : ''
+      const name = String(m.partnerName || '').trim()
+      if (codeDisp || name) {
+        if (name && codeDisp) return `${name} (${codeDisp})`
+        return name || codeDisp
+      }
+    }
+  }
+
+  const mapping = tx?.partnerMapping?.partner
+  const pd = resolvePartnerDisplay(tx).primary
+
+  return (
+    mapping?.partnerName ||
+    mapping?.partnerCode ||
+    m.apiPartnerBusinessName ||
+    m.partnerBusinessName ||
+    m.apiPartnerName ||
+    tx?.partner?.partnerName ||
+    tx?.partner?.businessName ||
+    m.partnerName ||
+    pd ||
+    'Direct'
+  )
 }
 
 function isNumericLikeLabel(value: any): boolean {
