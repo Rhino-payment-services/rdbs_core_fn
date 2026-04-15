@@ -74,7 +74,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const [form, setForm] = useState({
     walletType: 'ESCROW' as 'ESCROW' | 'COMMISSION',
-    actionType: 'CREDIT' as 'CREDIT' | 'DEBIT',
+    transactionType: 'CREDIT' as 'CREDIT' | 'DEBIT',
     amount: '',
     reference: '',
     description: '',
@@ -100,13 +100,13 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const handleOpenAdjustment = (
     walletType: 'ESCROW' | 'COMMISSION',
-    actionType: 'CREDIT' | 'DEBIT',
+    transactionType: 'CREDIT' | 'DEBIT',
   ) => {
     setForm({
       walletType,
-      actionType,
+      transactionType,
       amount: '',
-      reference: `${actionType === 'DEBIT' ? 'DEBIT' : 'TOPUP'}_${walletType}_${Date.now()}`,
+      reference: `${transactionType === 'DEBIT' ? 'DEBIT' : 'TOPUP'}_${walletType}_${Date.now()}`,
       description: '',
     })
     setFundDialogOpen(true)
@@ -123,27 +123,32 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
       return
     }
 
-    const signedAmount = form.actionType === 'DEBIT' ? -parsedAmount : parsedAmount
     const walletId = resolveWalletId(form.walletType)
+    if (form.transactionType === 'DEBIT' && !walletId) {
+      toast.error('Debit is only available after the wallet exists. Use credit first to create the wallet, or wait for balances to load.')
+      return
+    }
+
     const reason =
       form.description.trim() ||
-      `Manual ${form.actionType === 'DEBIT' ? 'debit' : 'funding'} (${form.walletType}) — ${partnerName}`
+      (form.transactionType === 'DEBIT'
+        ? `Manual debit (${form.walletType}) — ${partnerName}`
+        : `Manual funding (${form.walletType}) — ${partnerName}`)
     const reference = form.reference.trim()
+    // Same as CustomerSettings: fund API accepts positive (credit) or negative (debit)
+    const signedAmount = form.transactionType === 'DEBIT' ? -parsedAmount : parsedAmount
 
     setIsLoading(true)
     try {
       if (walletId) {
-        // Same path as CustomerSettings manual credit — admin wallet fund
         await api.post(`/wallet/admin/${walletId}/fund`, {
           amount: signedAmount,
           reason,
           reference,
         })
       } else {
-        if (form.actionType === 'DEBIT') {
-          throw new Error(`Cannot deduct: ${form.walletType} wallet does not exist yet.`)
-        }
-        // No wallet row yet — gateway flow creates ESCROW/COMMISSION wallet if missing
+        // Top-up flow only supports adding funds (creates wallet if needed)
+        // Top-up flow only supports adding funds (creates wallet if needed)
         await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
           partnerId,
           amount: parsedAmount,
@@ -154,8 +159,9 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         })
       }
 
+      const action = form.transactionType === 'CREDIT' ? 'Credit' : 'Debit'
       toast.success(
-        `${form.walletType} wallet ${form.actionType === 'DEBIT' ? 'debited' : 'funded'} with ${parsedAmount.toLocaleString()} UGX`,
+        `${action}: ${parsedAmount.toLocaleString()} UGX on ${form.walletType} wallet for ${partnerName}`,
       )
       setFundDialogOpen(false)
 
@@ -168,7 +174,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         error?.message ||
-        'Failed to fund wallet'
+        'Failed to apply wallet adjustment'
       toast.error(msg)
     } finally {
       setIsLoading(false)
@@ -248,8 +254,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 Partner wallets &amp; manual funding
               </CardTitle>
               <CardDescription>
-                Add money to ESCROW or COMMISSION the same way as manual transactions on customer profiles (admin wallet
-                fund when a wallet exists).
+                Credit or debit ESCROW and COMMISSION wallets using the same admin wallet fund API as merchant/customer
+                profiles when a wallet exists; first-time credit can use gateway top-up to create the wallet.
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh} className="gap-1.5">
@@ -283,18 +289,19 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-blue-600" />
-              {form.actionType === 'DEBIT' ? 'Deduct from' : 'Fund'} {form.walletType} Wallet
+              Manual transaction — {form.walletType}
             </DialogTitle>
             <DialogDescription>
-              {form.actionType === 'DEBIT' ? 'Remove funds from' : 'Add funds to'} the {form.walletType.toLowerCase()} wallet for{' '}
+              Credit or debit the {form.walletType.toLowerCase()} wallet for{' '}
               <span className="font-medium">{partnerName}</span>.
               {resolveWalletId(form.walletType) ? (
                 <span className="block mt-1 text-xs text-muted-foreground">
-                  Uses admin wallet funding (same as customer manual credit).
+                  Uses admin wallet fund (positive = credit, negative = debit), same as customer/merchant settings.
                 </span>
               ) : (
                 <span className="block mt-1 text-xs text-amber-700">
-                  Wallet will be created on first funding if it does not exist yet.
+                  Wallet not loaded yet: only credit is available; gateway top-up will create the wallet if needed. Debit
+                  requires an existing wallet.
                 </span>
               )}
             </DialogDescription>
@@ -318,17 +325,17 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             </div>
 
             <div>
-              <Label>Action</Label>
+              <Label>Transaction type</Label>
               <Select
-                value={form.actionType}
-                onValueChange={(v) => setForm((f) => ({ ...f, actionType: v as 'CREDIT' | 'DEBIT' }))}
+                value={form.transactionType}
+                onValueChange={(v) => setForm((f) => ({ ...f, transactionType: v as 'CREDIT' | 'DEBIT' }))}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CREDIT">Fund (Add Money)</SelectItem>
-                  <SelectItem value="DEBIT">Deduct (Remove Money)</SelectItem>
+                  <SelectItem value="CREDIT">Credit (add money)</SelectItem>
+                  <SelectItem value="DEBIT">Debit (remove money)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -367,12 +374,36 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               />
             </div>
 
-            {form.amount && !Number.isNaN(parseFloat(form.amount)) && (
-              <div className={`rounded-md p-3 text-sm border ${form.actionType === 'DEBIT' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
-                <p className={`font-medium ${form.actionType === 'DEBIT' ? 'text-amber-800' : 'text-blue-800'}`}>
-                  {form.actionType === 'DEBIT' ? 'Debiting' : 'Funding'} {form.walletType} with{' '}
+            {form.amount && !Number.isNaN(parseFloat(form.amount)) && parseFloat(form.amount) > 0 && (
+              <div
+                className={`rounded-md border p-3 text-sm ${
+                  form.transactionType === 'CREDIT'
+                    ? 'bg-green-50 border-green-200 text-green-900'
+                    : 'bg-red-50 border-red-200 text-red-900'
+                }`}
+              >
+                <p className="font-medium">
+                  {form.transactionType === 'CREDIT' ? 'Credit' : 'Debit'}{' '}
                   <span className="font-bold">{parseFloat(form.amount).toLocaleString('en-UG')} UGX</span>
+                  {` on ${form.walletType}`}
                 </p>
+                {(() => {
+                  const bal =
+                    form.walletType === 'ESCROW'
+                      ? escrowBalance?.balance
+                      : commissionBalance?.balance
+                  const n = bal != null ? Number(bal) : NaN
+                  if (Number.isNaN(n)) return null
+                  const amt = parseFloat(form.amount)
+                  const after =
+                    form.transactionType === 'CREDIT' ? n + amt : n - amt
+                  return (
+                    <p className="mt-1 text-xs opacity-90">
+                      Balance after: <span className="font-semibold">{after.toLocaleString('en-UG')} UGX</span>
+                      {after < 0 ? ' (invalid — insufficient balance)' : ''}
+                    </p>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -381,7 +412,11 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             <Button variant="outline" onClick={() => setFundDialogOpen(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={handleFundWallet} disabled={isLoading} className="gap-1.5">
+            <Button
+              onClick={handleFundWallet}
+              disabled={isLoading}
+              className={`gap-1.5 ${form.transactionType === 'DEBIT' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -389,8 +424,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 </>
               ) : (
                 <>
-                  {form.actionType === 'DEBIT' ? <MinusCircle className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-                  {form.actionType === 'DEBIT' ? 'Confirm Deduction' : 'Confirm Funding'}
+                  <PlusCircle className="h-4 w-4" />
+                  {form.transactionType === 'CREDIT' ? 'Credit wallet' : 'Debit wallet'}
                 </>
               )}
             </Button>

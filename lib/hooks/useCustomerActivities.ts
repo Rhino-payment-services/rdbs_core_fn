@@ -39,19 +39,25 @@ export const useCustomerActivities = ({
     })
   }, [type, partnerWalletIds, partnerLogsArray])
 
-  // Final activities array
+  // Partners: prefer user-scoped logs (same as merchants). Wallet-id substring filter on
+  // global logs rarely matches and was hiding real activity.
   const activities = useMemo(() => {
     if (type === 'partner') {
+      if (userLogsArray.length > 0) return userLogsArray
       return filteredPartnerActivities
     }
     return userLogsArray
-  }, [type, filteredPartnerActivities, userLogsArray])
+  }, [type, userLogsArray, filteredPartnerActivities])
 
   const totalActivities = useMemo(() => {
-    return type === 'partner'
-      ? filteredPartnerActivities.length
-      : (activityLogsData?.data?.total ?? activityLogsData?.total ?? 0)
-  }, [type, filteredPartnerActivities.length, activityLogsData])
+    if (type === 'partner') {
+      if (userLogsArray.length > 0) {
+        return activityLogsData?.data?.total ?? activityLogsData?.total ?? userLogsArray.length
+      }
+      return filteredPartnerActivities.length
+    }
+    return activityLogsData?.data?.total ?? activityLogsData?.total ?? 0
+  }, [type, userLogsArray.length, filteredPartnerActivities.length, activityLogsData])
 
   return {
     activities,
