@@ -195,6 +195,19 @@ interface VerifyKycRequest {
   collectionCustomerSharePercent?: number
 }
 
+interface KycUserDocument {
+  id: string
+  documentType: string
+  documentNumber?: string | null
+  documentUrl?: string | null
+  status: string
+  rejectionReason?: string | null
+  verifiedBy?: string | null
+  verifiedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 const KycPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -221,6 +234,9 @@ const KycPage = () => {
   const [collectionCustomerSharePercent, setCollectionCustomerSharePercent] = useState<number>(0)
   // Tab state for KYC vs Business Approvals
   const [activeTab, setActiveTab] = useState<'kyc' | 'business'>('kyc')
+  const [showDocumentsDialog, setShowDocumentsDialog] = useState(false)
+  const [selectedDocumentsUserId, setSelectedDocumentsUserId] = useState<string | null>(null)
+  const [selectedUserDocuments, setSelectedUserDocuments] = useState<KycUserDocument[]>([])
 
   const queryClient = useQueryClient()
 
@@ -292,6 +308,19 @@ const KycPage = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to process KYC request')
+    },
+  })
+
+  const fetchUserDocumentsMutation = useMutation<KycUserDocument[], Error, string>({
+    mutationFn: async (userId) => {
+      const response = await api.get(`/admin/kyc/users/${userId}/documents`)
+      return response.data || []
+    },
+    onSuccess: (data) => {
+      setSelectedUserDocuments(data)
+    },
+    onError: () => {
+      setSelectedUserDocuments([])
     },
   })
 
@@ -373,6 +402,18 @@ const KycPage = () => {
     setShowKycDetails(true)
   }
 
+  const handleOpenDocumentsModal = (userId: string) => {
+    setSelectedDocumentsUserId(userId)
+    setSelectedUserDocuments([])
+    setShowDocumentsDialog(true)
+    fetchUserDocumentsMutation.mutate(userId)
+  }
+
+  const handleRetryFetchDocuments = () => {
+    if (!selectedDocumentsUserId) return
+    fetchUserDocumentsMutation.mutate(selectedDocumentsUserId)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'APPROVED': return 'bg-green-100 text-green-800'
@@ -400,6 +441,14 @@ const KycPage = () => {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const formatDocumentType = (documentType: string) => {
+    return documentType
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   const pendingKycRequests = pendingKycData || []
@@ -803,12 +852,15 @@ const KycPage = () => {
                                   {formatDate(kyc.submittedAt)}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center space-x-1">
-                                    <FileText className="h-4 w-4 text-gray-400" />
-                                    <span className="text-sm text-gray-600">
-                                      {kyc.documents.length}
-                                    </span>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenDocumentsModal(kyc.userId)}
+                                    className="inline-flex items-center space-x-1 text-sm text-gray-400 font-medium disabled:text-gray-400 disabled:no-underline"
+                                    disabled={fetchUserDocumentsMutation.isPending && selectedDocumentsUserId === kyc.userId}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    <span>{kyc.documents.length}</span>
+                                  </button>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center space-x-2">
@@ -1277,6 +1329,90 @@ const KycPage = () => {
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Documents Dialog */}
+        <Dialog
+          open={showDocumentsDialog}
+          onOpenChange={(open) => {
+            setShowDocumentsDialog(open)
+            if (!open) {
+              setSelectedDocumentsUserId(null)
+              setSelectedUserDocuments([])
+              fetchUserDocumentsMutation.reset()
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>KYC Documents</DialogTitle>
+              <DialogDescription>
+                Review uploaded KYC documents for the selected user.
+              </DialogDescription>
+            </DialogHeader>
+
+            {fetchUserDocumentsMutation.isPending ? (
+              <div className="flex items-center justify-center py-10">
+                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                <span>Loading documents...</span>
+              </div>
+            ) : fetchUserDocumentsMutation.isError ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
+                <p className="text-sm text-gray-700 mb-4">
+                  Failed to load KYC documents. Please try again.
+                </p>
+                <Button variant="outline" onClick={handleRetryFetchDocuments}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            ) : selectedUserDocuments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <FileText className="h-10 w-10 text-gray-400 mb-3" />
+                <p className="text-sm text-gray-600">No documents found for this user.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedUserDocuments.map((doc) => (
+                  <div key={doc.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {formatDocumentType(doc.documentType)}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Number: {doc.documentNumber || 'N/A'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Uploaded: {formatDate(doc.createdAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(doc.status)}>
+                          {doc.status}
+                        </Badge>
+                        {doc.documentUrl ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(doc.documentUrl as string, '_blank')}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Open
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" disabled>
+                            No file
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </DialogContent>
