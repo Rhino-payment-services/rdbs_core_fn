@@ -53,7 +53,13 @@ const WalletPage = () => {
     reason: ''
   })
   type WalletFilters = {
-    category?: 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER'
+    category?:
+      | 'PERSONAL'
+      | 'BUSINESS'
+      | 'BUSINESS_COLLECTION'
+      | 'BUSINESS_DISBURSEMENT'
+      | 'SYSTEM'
+      | 'OTHER'
     search?: string
     currency?: string
     isActive?: boolean
@@ -303,7 +309,13 @@ const WalletPage = () => {
   const handleCategoryChange = (value: string) => {
     const categoryValue = value === '' || value === 'all' 
       ? undefined 
-      : (value as 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER')
+      : (value as
+          | 'PERSONAL'
+          | 'BUSINESS'
+          | 'BUSINESS_COLLECTION'
+          | 'BUSINESS_DISBURSEMENT'
+          | 'SYSTEM'
+          | 'OTHER')
     setFilters(prev => ({ ...prev, category: categoryValue, page: 1 }))
   }
 
@@ -335,6 +347,14 @@ const WalletPage = () => {
     acc[wallet.walletType] = (acc[wallet.walletType] || 0) + 1
     return acc
   }, {} as Record<string, number>)
+
+  const sortedWalletsArray = React.useMemo(() => {
+    const toNum = (v: any) => {
+      const n = Number(v)
+      return Number.isNaN(n) ? 0 : n
+    }
+    return [...walletsArray].sort((a, b) => toNum(b.balance) - toNum(a.balance))
+  }, [walletsArray])
   const hasMultipleSameType = Object.values(walletsByType).some(count => count > 1)
   const multipleWalletTypes = Object.entries(walletsByType)
     .filter(([, count]) => count > 1)
@@ -463,6 +483,8 @@ const WalletPage = () => {
                   <SelectItem value="all">All Categories</SelectItem>
                   <SelectItem value="PERSONAL">Personal</SelectItem>
                   <SelectItem value="BUSINESS">Business</SelectItem>
+                  <SelectItem value="BUSINESS_COLLECTION">Business Collection</SelectItem>
+                  <SelectItem value="BUSINESS_DISBURSEMENT">Business Disbursement</SelectItem>
                   <SelectItem value="SYSTEM">System</SelectItem>
                   <SelectItem value="OTHER">Other</SelectItem>
                 </SelectContent>
@@ -692,8 +714,8 @@ const WalletPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {walletsArray.map((wallet) => {
-                      const sameTypeWallets = walletsArray.filter(w => w.walletType === wallet.walletType)
+                    {sortedWalletsArray.map((wallet) => {
+                      const sameTypeWallets = sortedWalletsArray.filter(w => w.walletType === wallet.walletType)
                       const walletNumber = sameTypeWallets.findIndex(w => w.id === wallet.id) + 1
                       const showWalletNumber = sameTypeWallets.length > 1
                       const ownerName = (wallet as any).ownerName ||

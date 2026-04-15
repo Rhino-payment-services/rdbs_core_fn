@@ -125,7 +125,13 @@ export const useWalletTransactions = (
 
 // Admin wallet hooks - Get all wallets for admin view with filtering and search
 export const useAdminWallets = (filters?: {
-  category?: 'PERSONAL' | 'BUSINESS' | 'SYSTEM' | 'OTHER'
+  category?:
+    | 'PERSONAL'
+    | 'BUSINESS'
+    | 'BUSINESS_COLLECTION'
+    | 'BUSINESS_DISBURSEMENT'
+    | 'SYSTEM'
+    | 'OTHER'
   search?: string
   walletType?: string
   currency?: string
