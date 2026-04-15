@@ -26,9 +26,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import api from '@/lib/axios'
-import { useUserSearch } from '@/lib/hooks/useUserSearch'
+import { useUserSearch, type UserSearchResult } from '@/lib/hooks/useUserSearch'
 import toast from 'react-hot-toast'
-import type { User } from '@/lib/types/api'
 
 interface MergeUsersModalProps {
   isOpen: boolean
@@ -38,7 +37,7 @@ interface MergeUsersModalProps {
 
 type Step = 'search-keep' | 'search-merge' | 'confirm' | 'done'
 
-function UserCard({ user, label, variant }: { user: User; label: string; variant: 'keep' | 'retire' }) {
+function UserCard({ user, label, variant }: { user: UserSearchResult; label: string; variant: 'keep' | 'retire' }) {
   const name =
     user.profile?.firstName
       ? `${user.profile.firstName} ${user.profile.lastName ?? ''}`.trim()
@@ -104,7 +103,7 @@ function SearchStep({
 }: {
   label: string
   placeholder: string
-  onFound: (user: User) => void
+  onFound: (user: UserSearchResult) => void
   excludeId?: string
 }) {
   const [input, setInput] = useState('')
@@ -179,8 +178,8 @@ function SearchStep({
 
 export const MergeUsersModal: React.FC<MergeUsersModalProps> = ({ isOpen, onClose, onMerged }) => {
   const [step, setStep] = useState<Step>('search-keep')
-  const [keepUser, setKeepUser] = useState<User | null>(null)
-  const [mergeUser, setMergeUser] = useState<User | null>(null)
+  const [keepUser, setKeepUser] = useState<UserSearchResult | null>(null)
+  const [mergeUser, setMergeUser] = useState<UserSearchResult | null>(null)
   const [isMerging, setIsMerging] = useState(false)
   const [result, setResult] = useState<{ mergedMerchants: number; mergedWallets: number; mergedTeamMemberships: number } | null>(null)
 
@@ -193,12 +192,12 @@ export const MergeUsersModal: React.FC<MergeUsersModalProps> = ({ isOpen, onClos
     onClose()
   }
 
-  const handleKeepFound = (user: User) => {
+  const handleKeepFound = (user: UserSearchResult) => {
     setKeepUser(user)
     setStep('search-merge')
   }
 
-  const handleMergeFound = (user: User) => {
+  const handleMergeFound = (user: UserSearchResult) => {
     setMergeUser(user)
     setStep('confirm')
   }
