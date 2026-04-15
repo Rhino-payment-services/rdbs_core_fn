@@ -394,7 +394,7 @@ const Navbar = () => {
                 
                 {/* Settings Menu with Dropdown */}
                 {isVisible('settings') && (
-                  <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
+                  <PermissionGuard permissions={[PERMISSIONS.SYSTEM_CONFIGURE, PERMISSIONS.BACKUP_VIEW]} requireAll={false}>
                     <div
                       ref={settingsMenuRef}
                       className="relative"
@@ -404,7 +404,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/settings" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/settings') || isActive('/dashboard/carousel') || isActive('/dashboard/settings/nav-visibility'))
+                          (isActive('/dashboard/settings') || isActive('/dashboard/backups') || isActive('/dashboard/carousel') || isActive('/dashboard/settings/nav-visibility'))
                             ? 'active'
                             : ''
                         }`}
@@ -748,6 +748,19 @@ const Navbar = () => {
                       onClick={() => setIsSettingsDropdownOpen(false)}
                     >
                       System Settings
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.BACKUP_VIEW}>
+                    <Link 
+                      href="/dashboard/backups" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/backups')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      Backups
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.PRODUCTS_VIEW}>
