@@ -96,6 +96,22 @@ const CustomerTransactions = ({
   }
 
   const getPartnerBadge = (transaction: Transaction) => {
+    const txAny = transaction as any
+    const metadataPartnerName = txAny?.metadata?.partnerName || txAny?.metadata?.apiPartnerName
+    const apiPartnerName = txAny?.partner?.partnerName
+    const reasonText = String(txAny?.metadata?.reason || transaction.description || '')
+    const reasonMatch = reasonText.match(/—\s*(.+)$/)
+    const partnerNameFromReason = reasonMatch?.[1]?.trim()
+
+    const partnerName = apiPartnerName || metadataPartnerName || partnerNameFromReason
+    if (partnerName) {
+      return (
+        <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+          {partnerName}
+        </Badge>
+      )
+    }
+
     if (!transaction.partnerMapping?.partner) {
       return <Badge variant="outline">Direct</Badge>
     }

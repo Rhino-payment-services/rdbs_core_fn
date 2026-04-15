@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Wallet, TrendingUp, RefreshCw, PlusCircle, Loader2 } from 'lucide-react'
+import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -98,12 +98,15 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     refetchCommission()
   }
 
-  const handleOpenFund = (walletType: 'ESCROW' | 'COMMISSION') => {
+  const handleOpenAdjustment = (
+    walletType: 'ESCROW' | 'COMMISSION',
+    transactionType: 'CREDIT' | 'DEBIT',
+  ) => {
     setForm({
       walletType,
-      transactionType: 'CREDIT',
+      transactionType,
       amount: '',
-      reference: `TOPUP_${walletType}_${Date.now()}`,
+      reference: `${transactionType === 'DEBIT' ? 'DEBIT' : 'TOPUP'}_${walletType}_${Date.now()}`,
       description: '',
     })
     setFundDialogOpen(true)
@@ -112,7 +115,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const handleFundWallet = async () => {
     const parsedAmount = parseFloat(form.amount)
     if (!form.amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error('Please enter a valid positive amount')
+      toast.error('Amount must be a positive number')
       return
     }
     if (!form.reference.trim()) {
@@ -144,6 +147,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           reference,
         })
       } else {
+        // Top-up flow only supports adding funds (creates wallet if needed)
         // Top-up flow only supports adding funds (creates wallet if needed)
         await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
           partnerId,
@@ -225,10 +229,16 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             )}
           </>
         )}
-        <Button size="sm" variant="outline" className={btnOutline} onClick={() => handleOpenFund(type)}>
-          <PlusCircle className="h-3.5 w-3.5" />
-          Credit / Debit
-        </Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+            <PlusCircle className="h-3.5 w-3.5" />
+            Fund
+          </Button>
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+            <MinusCircle className="h-3.5 w-3.5" />
+            Deduct
+          </Button>
+        </div>
       </div>
     )
   }
@@ -334,7 +344,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               <Label>Amount (UGX)</Label>
               <Input
                 type="number"
-                min="1"
+                min="500"
+                step="1"
                 placeholder="e.g. 1000000"
                 className="mt-1"
                 value={form.amount}
