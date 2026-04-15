@@ -63,6 +63,8 @@ export interface BouMonthlyReport {
     cashOut: { count: number; volume: number }
     p2p: { count: number; volume: number }
     walletToBank: { count: number; volume: number }
+    /** Per destination bank from transaction metadata (UNKNOWN when missing) */
+    walletToBankByBank?: Array<{ bank: string; transactionCount: number; volume: number }>
     merchantToWallet: { count: number; volume: number }
     personalToBusiness: { count: number; volume: number }
     personalToMerchant: { count: number; volume: number }
@@ -96,6 +98,31 @@ export interface BouMonthlyReport {
   }
   wallets: {
     totalActiveBalance: number
+    activeNonMerchantLinked?: {
+      walletCount: number
+      totalBalance: number
+    }
+    activeMerchantLinked?: {
+      walletCount: number
+      totalBalance: number
+    }
+    blocked?: {
+      walletCount: number
+      totalBalance: number
+    }
+    dormant?: {
+      walletCount: number
+      totalBalance: number
+      inactiveDaysThreshold?: number
+      asOf?: string
+    }
+  }
+  accounts?: {
+    userSuspended?: {
+      userCount: number
+      walletCount: number
+      totalWalletBalance: number
+    }
   }
   generatedAt: string | Date
 }
