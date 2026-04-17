@@ -30,6 +30,10 @@ export interface OpsTransactionSearchResult {
   /** Set by core enrichment — drives Sender/Receiver columns when present */
   senderInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
   receiverInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
+  /** External payment rail partner (e.g. ABC, Pegasus, MTN gateway). Drives the Partner column. */
+  partnerMapping?: { id: string; partner?: { id: string; partnerName: string; partnerCode: string } | null } | null
+  /** API / business partner that initiated the transaction (no partnerCode — ApiPartner model) */
+  partner?: { id: string; partnerName: string; partnerType?: string } | null
 }
 
 export interface OpsTransactionSearchResponse {

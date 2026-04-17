@@ -31,6 +31,55 @@ const formatDateShort = (dateString: string) => {
   return `${month} ${day}, ${year}`
 }
 
+/**
+ * Resolve the external payment rail label for a transaction.
+ * Checks (in priority order):
+ *  1. partnerMapping.partner.partnerCode  → ExternalPaymentPartner (ABC, Pegasus…)
+ *  2. metadata MNO fields                 → MTN, Airtel…
+ *  3. metadata bank fields                → bank name
+ * Returns null when no external rail is identifiable (direct / API-only transactions).
+ */
+function getPaymentRailLabel(tx: any): string | null {
+  const meta = tx?.metadata || {}
+
+  // External payment partner (e.g. ABC bank gateway, Pegasus)
+  const extPartner = tx?.partnerMapping?.partner
+  if (extPartner) {
+    const code = String(extPartner.partnerCode || '').trim()
+    if (code) return code.toUpperCase()
+    const name = String(extPartner.partnerName || '').trim()
+    if (name) return name.split(/\s+/)[0].toUpperCase()
+  }
+
+  // MNO / mobile-money provider from metadata
+  const mno =
+    meta.mnoProvider ||
+    meta.network ||
+    meta.operator ||
+    meta.counterpartyInfo?.provider ||
+    meta.counterpartyInfo?.providerName ||
+    meta.counterpartyInfo?.mnoProvider ||
+    null
+  if (mno) {
+    return String(mno)
+      .replace(/\s*mobile money\s*/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase() || null
+  }
+
+  // Bank
+  const bank =
+    meta.bankName ||
+    meta.bank ||
+    meta.counterpartyInfo?.bankName ||
+    meta.counterpartyInfo?.bank ||
+    null
+  if (bank) return String(bank).trim().toUpperCase()
+
+  return null
+}
+
 const WalletStatementPage = () => {
   const params = useParams<{ walletId: string }>()
   const walletId = params.walletId
@@ -141,6 +190,7 @@ const WalletStatementPage = () => {
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Payment Rail</TableHead>
                         <TableHead>Direction</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Status</TableHead>
@@ -155,6 +205,18 @@ const WalletStatementPage = () => {
                             {formatDateShort(tx.createdAt as any)}
                           </TableCell>
                           <TableCell className="text-xs font-mono">{tx.type}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const rail = getPaymentRailLabel(tx)
+                              return rail ? (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-medium">
+                                  {rail}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )
+                            })()}
+                          </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
