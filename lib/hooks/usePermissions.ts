@@ -219,9 +219,12 @@ export const usePermissions = (): UsePermissionsReturn => {
   
   // Get permissions from session - now using the new backend format
   const userPermissions = useMemo(() => {
-    // If permissions are already in session, use them directly
-    if ((currentUser as { permissions?: string[] })?.permissions) {
-      return (currentUser as { permissions?: string[] }).permissions || []
+    // Only use session permissions when the array is non-empty.
+    // An empty array [] means the backend returned no explicit grants —
+    // fall through to role-based defaults so DASHBOARD_VIEW etc. still apply.
+    const sessionPerms = (currentUser as { permissions?: string[] })?.permissions
+    if (sessionPerms && sessionPerms.length > 0) {
+      return sessionPerms
     }
     
     // Fallback: Generate permissions based on role (using new format)
