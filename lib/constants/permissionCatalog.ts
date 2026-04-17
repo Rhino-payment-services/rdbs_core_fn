@@ -10,9 +10,10 @@ export interface PermissionGroup {
   permissions: PermissionItem[]
 }
 
-// All dashboard sections whose VIEW permission gates the navbar link.
-// Must stay in sync with PermissionGuard wrappers in Navbar.tsx.
+// All dashboard section permissions exposed in user access management.
+// Keep aligned with route/page permission checks and Navbar visibility rules.
 export const NAV_PERMISSION_ITEMS: { permName: string; label: string; desc: string }[] = [
+  { permName: PERMISSIONS.DASHBOARD_VIEW,    label: 'Dashboard',              desc: 'Dashboard home and overview widgets' },
   { permName: PERMISSIONS.ANALYTICS_VIEW,    label: 'Analytics',              desc: 'Analytics & reports tab' },
   { permName: PERMISSIONS.TRANSACTIONS_VIEW, label: 'Finance / Transactions',  desc: 'Tariffs, transactions, wallets dropdown' },
   { permName: PERMISSIONS.PARTNERS_VIEW,     label: 'Gateway Partners',        desc: 'Payment gateway partner management' },
@@ -23,6 +24,12 @@ export const NAV_PERMISSION_ITEMS: { permName: string; label: string; desc: stri
 ]
 
 export const PERMISSION_GROUPS: PermissionGroup[] = [
+  {
+    group: 'Dashboard',
+    permissions: [
+      { name: PERMISSIONS.DASHBOARD_VIEW, label: 'View Dashboard' },
+    ],
+  },
   {
     group: 'User Management',
     permissions: [
