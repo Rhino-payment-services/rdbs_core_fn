@@ -73,8 +73,6 @@ export const RukapayFeeCell = ({ transaction }: FeeCellProps) => {
       ? Number(metadata.sweepFeeAmount) || 0
       : 0
 
-  const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0
-
   // Only show the sweep fee on the DEBIT leg for sweeps; CREDIT leg shows 0 in the RukaPay fee column
   const effectiveSweepFee =
     sweepFee > 0 && transaction.direction === 'DEBIT' ? sweepFee : 0
