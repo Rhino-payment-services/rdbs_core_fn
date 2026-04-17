@@ -275,15 +275,19 @@ export const usePermissions = (): UsePermissionsReturn => {
     ],
   }
 
-  // Merge role defaults (floor) with any explicit session permissions.
-  // Session permissions come from the user's assigned roles/temp-role in the DB
-  // and are baked into the JWT at login. We union them so that:
-  //   • A user always keeps at minimum their role's defaults (e.g. DASHBOARD_VIEW)
-  //   • Extra permissions granted via the user-permissions modal are also honoured.
+  // Compute effective permissions:
+  // • If the session has explicit permissions (saved via the permissions modal and
+  //   baked into the JWT at login) → use ONLY those. This is the authoritative set
+  //   and respects any restrictions the admin configured.
+  // • If the session has NO explicit permissions (empty array / first-time user who
+  //   was never configured) → fall back to the role-based defaults so the user is
+  //   not locked out of the platform entirely.
   const userPermissions = useMemo(() => {
-    const rolePerms: string[] = (roleDefaults[userRole] || []) as string[]
     const sessionPerms: string[] = (currentUser as { permissions?: string[] })?.permissions || []
-    return Array.from(new Set([...rolePerms, ...sessionPerms]))
+    if (sessionPerms.length > 0) {
+      return sessionPerms
+    }
+    return (roleDefaults[userRole] || []) as string[]
   }, [currentUser, userRole])
   
   // Check if user has specific permission
