@@ -350,11 +350,21 @@ function CounterpartyInfoReceiver({ transaction, metadata }: { transaction: any;
 }
 
 function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; metadata: any }) {
+  const resolvedMobileName =
+    metadata.customerName ||
+    metadata.receiverName ||
+    metadata.recipientName ||
+    metadata.userName ||
+    metadata?.validationResult?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.name ||
+    null
+
   if (metadata.mnoProvider) {
     return (
       <>
         <span className="font-medium">
-          {metadata.userName || metadata.recipientName || `${metadata.mnoProvider} Mobile Money`}
+          {resolvedMobileName || `${metadata.mnoProvider} Mobile Money`}
         </span>
         {metadata.phoneNumber && (
           <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
@@ -367,7 +377,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.phoneNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'Mobile Money User'}</span>
+        <span className="font-medium">{resolvedMobileName || 'Mobile Money User'}</span>
         <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
         {(transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO')) && (
           <span className="text-xs text-gray-500">📱 Mobile Money</span>
@@ -379,7 +389,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.accountNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'External Account'}</span>
+        <span className="font-medium">{resolvedMobileName || 'External Account'}</span>
         <span className="text-xs text-gray-500">
           {transaction.type?.includes('BANK')
             ? `🏦 Bank: ${metadata.accountNumber}`

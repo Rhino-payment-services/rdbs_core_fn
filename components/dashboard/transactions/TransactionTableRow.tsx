@@ -223,26 +223,32 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.bank ||
     null
 
-  /** Bill payments where the executing partner is on metadata (e.g. Africa's Talking airtime). */
+  /** Bill/utility rows where executing rail is on metadata (e.g. Africa's Talking airtime/data). */
   const paymentPartnerFromExecutedBillMetadata = (() => {
-    if (transaction.type !== 'BILL_PAYMENT') return null
+    const utilUpper = String(metadata.utilityProvider || '').toUpperCase()
+    const ptLower = String(metadata.payment_type || '').toLowerCase()
+    const modeUpper = String(
+      metadata.transactionModeCode || metadata.mode || transaction.mode || ''
+    ).toUpperCase()
+    const isAirtimeOrData =
+      utilUpper === 'AIRTIME' ||
+      utilUpper === 'DATA_BUNDLES' ||
+      ptLower === 'airtime' ||
+      ptLower === 'mobile_data' ||
+      modeUpper.includes('AIRTIME') ||
+      modeUpper.includes('DATA_BUNDLES')
+    if (!isAirtimeOrData) return null
+
     const code = String(metadata.partnerCode || '').trim()
     const atRef =
       String(transaction.externalReference || '').startsWith('ATQid_') ||
       String(transaction.externalReference || '').startsWith('ATPid_')
-    if ((!code || isNumericLikePartnerCode(code)) && !atRef) return null
-    const util = metadata.utilityProvider
-    const pt = metadata.payment_type
-    const isAirtimeOrData =
-      util === 'AIRTIME' ||
-      util === 'DATA_BUNDLES' ||
-      pt === 'airtime' ||
-      pt === 'mobile_data'
-    if (!isAirtimeOrData) return null
 
     const codeUpper = (code || (atRef ? 'AFRICASTALKING' : '')).toUpperCase()
-    if (!codeUpper || isNumericLikePartnerCode(codeUpper)) return null
-    return codeUpper
+    if (codeUpper && !isNumericLikePartnerCode(codeUpper)) return codeUpper
+    // Some failed AT bill rows do not have partnerCode/externalReference yet.
+    // Use utility subtype as deterministic fallback.
+    return isAirtimeOrData ? 'AFRICASTALKING' : null
   })()
 
   const paymentPartnerLabel =
