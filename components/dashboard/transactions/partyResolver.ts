@@ -37,6 +37,22 @@ export function getPartnerRole(tx: any): PartnerRole | null {
   const type = upper(tx?.type)
   const mode = upper(tx?.mode || m?.mode || m?.transactionModeCode)
   const direction = upper(tx?.direction || m?.direction)
+  const util = upper(m?.utilityProvider)
+  const pt = String(m?.payment_type || '').toLowerCase()
+  const isAirtimeOrDataBill =
+    (type === 'BILL_PAYMENT' ||
+      mode.includes('AIRTIME') ||
+      mode.includes('DATA_BUNDLES')) &&
+    (util === 'AIRTIME' ||
+      util === 'DATA_BUNDLES' ||
+      pt === 'airtime' ||
+      pt === 'mobile_data' ||
+      mode.includes('AIRTIME') ||
+      mode.includes('DATA_BUNDLES'))
+
+  // For airtime/data bill rails, partner should be shown in "Partner" column only;
+  // sender/receiver should remain merchant <-> mobile user, not partner actor.
+  if (isAirtimeOrDataBill) return null
 
   const isInbound =
     type.includes('MNO_TO_WALLET') ||
@@ -254,8 +270,12 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
+        metadata.customerName,
         metadata.receiverName,
         metadata.recipientName,
+        metadata?.validationResult?.customerName,
+        metadata?.mnoReceiverValidation?.data?.customerName,
+        metadata?.mnoReceiverValidation?.data?.name,
         metadata.userName,
         userProfileName,
         counterpartyProfileName,
@@ -279,8 +299,8 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     ((info?.type === 'PARTNER' || isPartnerSide)
       ? firstMeaningfulName(partnerCandidates, contact)
       : null) ||
-    firstMeaningfulName([info?.name], contact) ||
     firstMeaningfulName(roleSpecificCandidates, contact) ||
+    firstMeaningfulName([info?.name], contact) ||
     (info?.type === 'PARTNER' || isPartnerSide ? 'API Partner' : null) ||
     info?.name
 
