@@ -534,6 +534,19 @@ const Navbar = () => {
                       Reversal Approvals
                     </Link>
                   </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
+                    <Link
+                      href="/dashboard/transactions/liquidations"
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/transactions/liquidations')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Liquidations
+                    </Link>
+                  </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.SYSTEM_LOGS}>
                     <Link 
                       href="/dashboard/reports" 

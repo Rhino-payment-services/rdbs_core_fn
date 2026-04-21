@@ -28,8 +28,27 @@ export interface OpsTransactionSearchResult {
   metadata?: Record<string, unknown>
   direction?: string
   /** Set by core enrichment — drives Sender/Receiver columns when present */
-  senderInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
-  receiverInfo?: { name?: string; contact?: string | null; type?: string; merchantCode?: string | null; merchantName?: string | null }
+  senderInfo?: {
+    name?: string
+    contact?: string | null
+    type?: string
+    merchantCode?: string | null
+    merchantName?: string | null
+    /** Partner institution (e.g. SACCO) — used for LIQUIDATION, not retail merchant */
+    institutionCode?: string | null
+    institutionName?: string | null
+    institutionLine?: string | null
+  }
+  receiverInfo?: {
+    name?: string
+    contact?: string | null
+    type?: string
+    merchantCode?: string | null
+    merchantName?: string | null
+    institutionCode?: string | null
+    institutionName?: string | null
+    institutionLine?: string | null
+  }
 }
 
 export interface OpsTransactionSearchResponse {
@@ -74,17 +93,19 @@ export function useOpsTransactionSearch(paramsIn: {
   endDate?: string
   page?: number
   limit?: number
+  enabled?: boolean
 }) {
   const q = (paramsIn.q || '').trim()
+  const { enabled = true, ...rest } = paramsIn
   return useQuery<OpsTransactionSearchResponse>({
-    queryKey: ['ops-transaction-search', { ...paramsIn, q }],
+    queryKey: ['ops-transaction-search', { ...rest, q }],
     queryFn: async () => {
-      const params = buildSearchParams({ ...paramsIn, q })
+      const params = buildSearchParams({ ...rest, q })
       const qs = params.toString()
       const res = await api.get(`/ops/transactions/search?${qs}`)
       return res.data as OpsTransactionSearchResponse
     },
-    enabled: true,
+    enabled,
     staleTime: 5000,
   })
 }
