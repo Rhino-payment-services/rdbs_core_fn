@@ -176,9 +176,14 @@ export function StatusCheckModal({
             <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
             <div className="space-y-1 flex-1">
               <p className="text-sm font-semibold text-red-800">Status check failed</p>
-              <p className="text-xs text-red-700">
+              <p className="text-xs text-red-700 whitespace-pre-wrap">
                 {(error as any)?.response?.data?.message || error.message}
               </p>
+              {typeof (error as any)?.response?.data?.subscriberActionNote === 'string' && (
+                <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+                  {(error as any).response.data.subscriberActionNote}
+                </p>
+              )}
               <Button size="sm" variant="outline" className="mt-2" onClick={onCheck}>
                 <RefreshCcw className="h-3.5 w-3.5 mr-1" />
                 Try Again
@@ -207,7 +212,13 @@ export function StatusCheckModal({
                 )}
               </div>
               {result?.message && (
-                <p className="text-sm text-gray-600">{result.message}</p>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{result.message}</p>
+              )}
+              {data?.subscriberActionNote && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                  <span className="font-semibold text-amber-900">Status check notes: </span>
+                  {data.subscriberActionNote}
+                </div>
               )}
             </div>
 

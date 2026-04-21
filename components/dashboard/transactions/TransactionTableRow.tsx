@@ -151,7 +151,14 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     return m
   })()
 
-  const resolvedPartner = transaction.partnerMapping?.partner || transaction.partner || null
+  // ApiPartner: the business/company that uses RukaPay's rails (integrated via API key).
+  // This drives the Sender column for API-initiated transactions.
+  const resolvedPartner = transaction.partner || null
+
+  // ExternalPaymentPartner: the payment rail/gateway RukaPay routes through (MTN, Airtel, ABC bank).
+  // Accessed only via transaction.partnerMapping?.partner — used solely for paymentPartnerLabel below.
+  const extPaymentPartner = transaction.partnerMapping?.partner || null
+
   const resolvedPartnerCode =
     resolvedPartner?.partnerCode ||
     metadata.partnerCode ||
@@ -179,12 +186,11 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.mnoProvider ||
     null
 
-  const paymentPartnerFromMapping = transaction.partnerMapping?.partner
+  const paymentPartnerFromMapping = extPaymentPartner
     ? (() => {
-        const p = transaction.partnerMapping.partner
-        const code = String(p?.partnerCode || '').trim()
+        const code = String(extPaymentPartner.partnerCode || '').trim()
         if (code && !isNumericLikePartnerCode(code)) return code.toUpperCase()
-        const name = String(p?.partnerName || '').trim()
+        const name = String(extPaymentPartner.partnerName || '').trim()
         if (!name) return null
         const upperName = name.toUpperCase()
         if (upperName.includes('ABC')) return 'ABC'
@@ -262,8 +268,8 @@ function useTransactionDerived(transaction: any): TransactionDerived {
       const base = name ? `${name} (${codeDisp})` : codeDisp
       return [base, product].filter(Boolean).join(' · ')
     }
-    if (paymentPartnerFromMapping && transaction.partnerMapping?.partner?.partnerCode) {
-      return `${transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode} (${transaction.partnerMapping.partner.partnerCode})`
+    if (paymentPartnerFromMapping && extPaymentPartner?.partnerCode) {
+      return `${extPaymentPartner.partnerName || extPaymentPartner.partnerCode} (${extPaymentPartner.partnerCode})`
     }
     return paymentPartnerLabel || undefined
   })()

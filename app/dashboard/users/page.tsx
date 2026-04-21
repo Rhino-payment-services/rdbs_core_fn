@@ -18,7 +18,8 @@ import {
   Building,
   User as UserIcon,
   Eye,
-  Key
+  Key,
+  Merge
 } from 'lucide-react'
 import Link from 'next/link'
 import { useUsers, useRoles } from '@/lib/hooks/useApi'
@@ -29,6 +30,7 @@ import { usePermissions as useUserPermissions, PERMISSIONS } from '@/lib/hooks/u
 import { PermissionGuard, RoleGuard } from '@/components/ui/PermissionGuard'
 import { EditUserModal } from '@/components/dashboard/users/EditUserModal'
 import EditUserPermissionsModal from '@/components/dashboard/users/EditUserPermissionsModal'
+import { MergeUsersModal } from '@/components/dashboard/users/MergeUsersModal'
 
 const UsersPage = () => {
   const { data: users, isLoading, error } = useUsers()
@@ -43,6 +45,9 @@ const UsersPage = () => {
   // State for permission editing modal
   const [permissionModalOpen, setPermissionModalOpen] = useState(false)
   const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null)
+
+  // State for merge users modal
+  const [mergeModalOpen, setMergeModalOpen] = useState(false)
 
   // Handler for opening permission editing modal
   const handleEditPermissions = (user: User) => {
@@ -208,6 +213,16 @@ const UsersPage = () => {
                       Manage Permissions
                     </Button>
                   </Link>
+                </PermissionGuard>
+                <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
+                  <Button
+                    variant="outline"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                    onClick={() => setMergeModalOpen(true)}
+                  >
+                    <Merge className="w-4 h-4 mr-2" />
+                    Merge Duplicates
+                  </Button>
                 </PermissionGuard>
                 <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
                   <Link href="/dashboard/users/create">
@@ -454,6 +469,12 @@ const UsersPage = () => {
           userName={selectedUserForPermissions.email || selectedUserForPermissions.phone || 'Unknown User'}
         />
       )}
+
+      {/* Merge Duplicates Modal */}
+      <MergeUsersModal
+        isOpen={mergeModalOpen}
+        onClose={() => setMergeModalOpen(false)}
+      />
     </div>
     </PermissionGuard>
   )

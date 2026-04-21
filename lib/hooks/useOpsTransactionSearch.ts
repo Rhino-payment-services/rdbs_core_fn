@@ -49,6 +49,11 @@ export interface OpsTransactionSearchResult {
     institutionName?: string | null
     institutionLine?: string | null
   }
+
+  /** External payment rail partner (e.g. ABC, Pegasus, MTN gateway). Drives the Partner column. */
+  partnerMapping?: { id: string; partner?: { id: string; partnerName: string; partnerCode: string } | null } | null
+  /** API / business partner that initiated the transaction (no partnerCode — ApiPartner model) */
+  partner?: { id: string; partnerName: string; partnerType?: string } | null
 }
 
 export interface OpsTransactionSearchResponse {

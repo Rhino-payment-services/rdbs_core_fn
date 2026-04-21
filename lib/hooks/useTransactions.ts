@@ -153,6 +153,8 @@ export interface ManualStatusCheckResult {
       reason: string
     } | null
     checkedAt: string
+    /** Subscriber / PIN context from backend (e.g. still in progress at operator, or PIN hinted in partner payload) */
+    subscriberActionNote?: string
   }
 }
 
