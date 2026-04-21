@@ -380,15 +380,12 @@ export function StatusCheckModal({
               </p>
             )}
 
-            {/* Recheck button after result (only when not SUCCESS) */}
-            {data.newStatus !== 'SUCCESS' && (
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
-                  <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Recheck
-                </Button>
-              </div>
-            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
+                <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
+                Recheck
+              </Button>
+            </div>
           </div>
         )}
 
