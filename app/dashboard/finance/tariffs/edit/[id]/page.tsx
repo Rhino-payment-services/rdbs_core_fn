@@ -50,8 +50,9 @@ interface Tariff {
   id: string
   name: string
   description: string
+  tariffType: any
   transactionType: string
-  feeType: string
+  feeType: any
   feeAmount: number
   feePercentage: number
   minAmount: number
@@ -134,7 +135,7 @@ const EditTariffPage = () => {
       name: tariff.name || '',
       description: tariff.description || '',
       transactionType: tariff.transactionType || '',
-      feeType: tariff.feeType || 'FIXED',
+      feeType: tariff?.feeType || '' ,
       feeAmount: tariff.feeAmount || 0,
       feePercentage: (() => {
         const raw = Number(tariff.feePercentage)
