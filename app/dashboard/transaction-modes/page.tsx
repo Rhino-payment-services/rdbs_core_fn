@@ -98,6 +98,14 @@ const TRANSACTION_TYPES = [
   { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet' },
   { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
   { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
+  {
+    value: 'WALLET_TO_PARTNER_INSTITUTION',
+    label: 'Wallet to Partner Institution (SACCO settlement in)',
+  },
+  {
+    value: 'PARTNER_INSTITUTION_TO_WALLET',
+    label: 'Partner Institution to Wallet (SACCO settlement out)',
+  },
 ];
 
 // Tariff transaction types - used for automatic tier-based tariff lookup
@@ -110,6 +118,14 @@ const TARIFF_TRANSACTION_TYPES = [
   { value: 'WALLET_TO_WALLET', label: 'Wallet to Wallet (tiered)' },
   { value: 'WALLET_TO_MERCHANT', label: 'Wallet to Merchant' },
   { value: 'MERCHANT_TO_WALLET', label: 'Merchant to Wallet' },
+  {
+    value: 'WALLET_TO_PARTNER_INSTITUTION',
+    label: 'Wallet to Partner Institution (tiered)',
+  },
+  {
+    value: 'PARTNER_INSTITUTION_TO_WALLET',
+    label: 'Partner Institution to Wallet (tiered)',
+  },
   { value: 'DEPOSIT', label: 'Deposit' },
   { value: 'WITHDRAWAL', label: 'Withdrawal' },
   { value: 'CARD_TO_WALLET', label: 'Card to Wallet' },

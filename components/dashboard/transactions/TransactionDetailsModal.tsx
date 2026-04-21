@@ -652,6 +652,14 @@ export const TransactionDetailsModal = ({
                         </p>
                       </div>
                     )}
+                    {(senderInfo as { institutionLine?: string | null }).institutionLine && (
+                      <div>
+                        <span className="text-blue-600">SACCO / institution:</span>
+                        <p className="font-medium text-blue-900">
+                          {(senderInfo as { institutionLine?: string | null }).institutionLine}
+                        </p>
+                      </div>
+                    )}
                     <Badge className="bg-blue-600 text-white">
                       {partnerRole === 'sender' || senderInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
                     </Badge>

@@ -201,6 +201,84 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const metadata = tx?.metadata || {}
   const type = upper(tx?.type)
+
+  if (type === 'LIQUIDATION' && side === 'sender') {
+    const code = String(
+      info.institutionCode || metadata.partnerInstitutionCode || tx?.partnerInstitution?.code || tx?.wallet?.partnerInstitution?.code || ''
+    ).trim()
+    const instName = String(
+      info.institutionName || metadata.partnerInstitutionName || tx?.partnerInstitution?.name || tx?.wallet?.partnerInstitution?.name || ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      contact: null,
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
+
+  // NEXEN / partner-institution wallet rails: show which SACCO (metadata + relations).
+  if (type === 'WALLET_TO_PARTNER_INSTITUTION' && side === 'receiver') {
+    const code = String(
+      info.institutionCode ||
+        metadata.nexenInstitutionCode ||
+        metadata.partnerInstitutionCode ||
+        tx?.partnerInstitution?.code ||
+        tx?.wallet?.partnerInstitution?.code ||
+        ''
+    ).trim()
+    const instName = String(
+      info.institutionName ||
+        metadata.nexenInstitutionName ||
+        metadata.partnerInstitutionName ||
+        tx?.partnerInstitution?.name ||
+        tx?.wallet?.partnerInstitution?.name ||
+        ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
+  if (type === 'PARTNER_INSTITUTION_TO_WALLET' && side === 'sender') {
+    const code = String(
+      info.institutionCode ||
+        metadata.nexenInstitutionCode ||
+        metadata.partnerInstitutionCode ||
+        tx?.partnerInstitution?.code ||
+        tx?.wallet?.partnerInstitution?.code ||
+        ''
+    ).trim()
+    const instName = String(
+      info.institutionName ||
+        metadata.nexenInstitutionName ||
+        metadata.partnerInstitutionName ||
+        tx?.partnerInstitution?.name ||
+        tx?.wallet?.partnerInstitution?.name ||
+        ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
   const direction = upper(tx?.direction || metadata?.direction)
   const contact = String(info?.contact ?? '').trim() || null
   const partnerDisplay = resolvePartnerDisplay(tx)
@@ -268,6 +346,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     metadata.partnerBusinessName,
     metadata.apiPartnerBusinessName,
     tx?.partner?.partnerName,
+    tx?.wallet?.partner?.partnerName,
     tx?.partner?.businessName,
     tx?.partner?.name,
     metadata.partnerName,
