@@ -11,6 +11,24 @@ interface ReceiverCellProps {
   derived: TransactionDerived
 }
 
+function resolveMerchantBusinessName(transaction: any, metadata: any): string {
+  const merchantCode = String(metadata?.merchantCode || '').trim()
+  const merchants = Array.isArray(transaction?.user?.merchants) ? transaction.user.merchants : []
+  const matchedMerchant = merchantCode
+    ? merchants.find((m: any) => String(m?.merchantCode || '').trim() === merchantCode)
+    : null
+
+  return (
+    metadata?.merchantName ||
+    matchedMerchant?.businessTradeName ||
+    transaction?.user?.merchant?.businessTradeName ||
+    transaction?.user?.profile?.merchantBusinessTradeName ||
+    transaction?.user?.profile?.businessTradeName ||
+    transaction?.user?.profile?.merchant_names ||
+    (merchantCode ? `Merchant (${merchantCode})` : transaction?.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')
+  )
+}
+
 export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
 
@@ -136,13 +154,7 @@ function QrPaymentMerchantReceiver({ transaction, metadata }: { transaction: any
   return (
     <>
       <span className="font-medium">
-        {metadata.merchantName ||
-          transaction.user?.merchants?.[0]?.businessTradeName ||
-          transaction.user?.merchant?.businessTradeName ||
-          transaction.user?.profile?.merchantBusinessTradeName ||
-          transaction.user?.profile?.businessTradeName ||
-          transaction.user?.profile?.merchant_names ||
-          (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+        {resolveMerchantBusinessName(transaction, metadata)}
       </span>
       {metadata.merchantCode && (
         <span className="text-xs text-gray-500">🏪 Code: {metadata.merchantCode}</span>
@@ -454,11 +466,7 @@ function CreditQrPaymentReceiver({ transaction, metadata }: { transaction: any; 
     walletType === 'BUSINESS_LIQUIDATION'
 
   if (isBusinessWallet || metadata.isPublicPayment) {
-    const businessName =
-      metadata.merchantName ||
-      transaction.user?.merchants?.[0]?.businessTradeName ||
-      transaction.user?.merchant?.businessTradeName ||
-      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')
+    const businessName = resolveMerchantBusinessName(transaction, metadata)
     return (
       <>
         <span className="font-medium">{businessName}</span>
@@ -595,13 +603,13 @@ function CreditGenericReceiver({ transaction, metadata }: { transaction: any; me
   if (isMerchantTransaction) {
     const merchantName =
       transaction.user?.displayName ||
-      transaction.user?.merchants?.[0]?.businessTradeName ||
-      transaction.user?.merchant?.businessTradeName ||
-      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null)
+      resolveMerchantBusinessName(transaction, metadata)
 
     const merchantCode =
       metadata.merchantCode ||
-      transaction.user?.merchants?.[0]?.merchantCode ||
+      (Array.isArray(transaction.user?.merchants)
+        ? transaction.user.merchants.find((m: any) => String(m?.merchantCode || '').trim() === String(metadata?.merchantCode || '').trim())?.merchantCode
+        : null) ||
       transaction.user?.merchantCode
 
     return (
