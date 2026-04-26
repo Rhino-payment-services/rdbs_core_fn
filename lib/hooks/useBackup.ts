@@ -125,15 +125,31 @@ const inferDownloadFileName = (contentDisposition?: string | null, fallback = 'b
 export const useBackupDownload = () => {
   return useMutation<void, unknown, BackupDownloadTarget>({
     mutationFn: async (target) => {
-      const response = await api({
-        url: resolveDownloadEndpoint(target),
-        method: 'POST',
-        responseType: 'blob',
-        // Backup creation can take longer than regular API calls.
-        // Override the global 10s timeout so the download request
-        // can wait for the server to finish preparing the file.
-        timeout: 10 * 60 * 1000,
-      })
+      let response
+      try {
+        response = await api({
+          url: resolveDownloadEndpoint(target),
+          method: 'POST',
+          responseType: 'blob',
+          // Backup creation can take longer than regular API calls.
+          // Override the global 10s timeout so the download request
+          // can wait for the server to finish preparing the file.
+          timeout: 10 * 60 * 1000,
+        })
+      } catch (error: any) {
+        const blobError = error?.response?.data
+        const errorContentType = error?.response?.headers?.['content-type'] || ''
+        if (blobError instanceof Blob && errorContentType.includes('application/json')) {
+          try {
+            const text = await blobError.text()
+            const parsed = JSON.parse(text)
+            throw new Error(parsed?.message || parsed?.error || 'Backup download failed')
+          } catch (parseError: any) {
+            throw new Error(parseError?.message || 'Backup download failed')
+          }
+        }
+        throw error
+      }
 
       const contentType = response.headers?.['content-type'] || ''
       if (contentType.includes('application/json')) {
@@ -148,7 +164,12 @@ export const useBackupDownload = () => {
         throw new Error(message)
       }
 
-      const fallbackName = target === 'both' ? 'backup-both.zip' : `backup-${target}`
+      const fallbackName =
+        target === 'both'
+          ? 'backup-both.zip'
+          : target === 'postgres'
+            ? 'backup-postgres.dump'
+            : 'backup-mongodb.tar.gz'
       const filename = inferDownloadFileName(response.headers?.['content-disposition'], fallbackName)
       const blob = new Blob([response.data], {
         type: contentType || 'application/octet-stream',
