@@ -80,6 +80,7 @@ export function StatusCheckModal({
   const partnerResponse = data?.partnerResponse
   const partnerSuccess = partnerResponse?.success
   const hasResult = !!data || !!error
+  const displayCurrency = transaction?.currency || 'UGX'
 
   // Request descriptor: top-level partnerRequestBody + any nested partnerRequestInfo (URL/headers from partner)
   const requestBody = data?.partnerRequestBody as Record<string, any> | undefined
@@ -138,7 +139,7 @@ export function StatusCheckModal({
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Amount</span>
                 <span className="font-medium">
-                  {transaction.currency} {Number(transaction.amount).toLocaleString()}
+                  {displayCurrency} {Number(transaction.amount).toLocaleString()}
                 </span>
               </div>
             )}
@@ -237,7 +238,7 @@ export function StatusCheckModal({
                   )}
                   <span className={data.walletAction.type === 'CREDITED' ? 'text-green-700' : 'text-orange-700'}>
                     {data.walletAction.type === 'CREDITED' ? '+' : '-'}
-                    {transaction?.currency || ''} {Number(data.walletAction.amount).toLocaleString()}
+                    {displayCurrency} {Number(data.walletAction.amount).toLocaleString()}
                   </span>
                 </div>
                 <p className="text-xs text-gray-600">{data.walletAction.reason}</p>
