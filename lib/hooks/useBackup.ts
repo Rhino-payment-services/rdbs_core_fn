@@ -129,12 +129,29 @@ export const useBackupDownload = () => {
         url: resolveDownloadEndpoint(target),
         method: 'POST',
         responseType: 'blob',
+        // Backup creation can take longer than regular API calls.
+        // Override the global 10s timeout so the download request
+        // can wait for the server to finish preparing the file.
+        timeout: 10 * 60 * 1000,
       })
+
+      const contentType = response.headers?.['content-type'] || ''
+      if (contentType.includes('application/json')) {
+        let message = 'Backup download failed'
+        try {
+          const text = await response.data.text()
+          const parsed = JSON.parse(text)
+          message = parsed?.message || parsed?.error || message
+        } catch {
+          // Ignore parsing errors and fall back to generic message.
+        }
+        throw new Error(message)
+      }
 
       const fallbackName = target === 'both' ? 'backup-both.zip' : `backup-${target}`
       const filename = inferDownloadFileName(response.headers?.['content-disposition'], fallbackName)
       const blob = new Blob([response.data], {
-        type: response.headers?.['content-type'] || 'application/octet-stream',
+        type: contentType || 'application/octet-stream',
       })
 
       const objectUrl = window.URL.createObjectURL(blob)
