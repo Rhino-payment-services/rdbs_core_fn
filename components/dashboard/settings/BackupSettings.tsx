@@ -71,7 +71,7 @@ export const BackupSettings: React.FC = () => {
           const mongoOk = result.mongodb?.success
           const pgOk = result.postgres?.success
           if (mongoOk && pgOk) {
-            toast.success('MongoDB + PostgreSQL backups created successfully')
+            toast.success('MongoDB + PostgreSQL backups created. Use "Create + download" to download now.')
           } else {
             toast.error('One or more database backups failed – check server logs')
           }
@@ -87,7 +87,9 @@ export const BackupSettings: React.FC = () => {
     try {
       await downloadBackup.mutateAsync(target)
       toast.success(
-        target === 'both' ? 'Full backup download started' : `${target.toUpperCase()} backup download started`,
+        target === 'both'
+          ? 'Full backup created and downloaded successfully'
+          : `${target.toUpperCase()} backup created and downloaded successfully`,
       )
     } catch (error: any) {
       toast.error(error?.message || 'Backup download failed')
@@ -153,8 +155,7 @@ export const BackupSettings: React.FC = () => {
                 Run backup
               </CardTitle>
               <CardDescription>
-                Trigger backups on the server. Files are stored on the backup volume and visible in
-                backup stats.
+                Choose whether to create backups only, or create and download in one step.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -174,7 +175,7 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup MongoDB
+                        Create backup only
                       </>
                     )}
                   </Button>
@@ -185,7 +186,7 @@ export const BackupSettings: React.FC = () => {
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Backup & download
+                    Create + download
                   </Button>
                 </div>
 
@@ -204,7 +205,7 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup Postgres
+                        Create backup only
                       </>
                     )}
                   </Button>
@@ -215,7 +216,7 @@ export const BackupSettings: React.FC = () => {
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Backup & download
+                    Create + download
                   </Button>
                 </div>
 
@@ -234,7 +235,7 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup both
+                        Create backups only
                       </>
                     )}
                   </Button>
@@ -245,13 +246,13 @@ export const BackupSettings: React.FC = () => {
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Full backup & download zip
+                    Create + download archive
                   </Button>
                 </div>
               </div>
 
               <p className="text-[11px] text-gray-500">
-                Download actions call the authenticated backup endpoint and save the streamed file locally.
+                "Create + download" triggers backup generation first, then downloads the generated file.
               </p>
             </CardContent>
           </Card>
