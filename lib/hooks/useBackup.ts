@@ -31,6 +31,8 @@ export interface CleanupResponse {
   deletedFiles: string[]
 }
 
+export type BackupDownloadTarget = 'mongodb' | 'postgres' | 'both'
+
 const apiFetch = async (endpoint: string, options: any = {}) => {
   const response = await api({
     url: endpoint,
@@ -94,6 +96,55 @@ export const useBackupCleanup = () => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: backupQueryKeys.stats })
+    },
+  })
+}
+
+const resolveDownloadEndpoint = (target: BackupDownloadTarget) => {
+  switch (target) {
+    case 'mongodb':
+      return '/api/v1/admin/backup/mongodb?download=true'
+    case 'postgres':
+      return '/api/v1/admin/backup/postgres?download=true'
+    case 'both':
+    default:
+      return '/api/v1/admin/backup/both?download=true'
+  }
+}
+
+const inferDownloadFileName = (contentDisposition?: string | null, fallback = 'backup') => {
+  if (!contentDisposition) return fallback
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1])
+  }
+  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i)
+  return asciiMatch?.[1] || fallback
+}
+
+export const useBackupDownload = () => {
+  return useMutation<void, unknown, BackupDownloadTarget>({
+    mutationFn: async (target) => {
+      const response = await api({
+        url: resolveDownloadEndpoint(target),
+        method: 'POST',
+        responseType: 'blob',
+      })
+
+      const fallbackName = target === 'both' ? 'backup-both.zip' : `backup-${target}`
+      const filename = inferDownloadFileName(response.headers?.['content-disposition'], fallbackName)
+      const blob = new Blob([response.data], {
+        type: response.headers?.['content-type'] || 'application/octet-stream',
+      })
+
+      const objectUrl = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(objectUrl)
     },
   })
 }

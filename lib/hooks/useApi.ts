@@ -106,6 +106,7 @@ export {
   useBackupPostgres,
   useBackupBoth,
   useBackupCleanup,
+  useBackupDownload,
 } from './useBackup'
 
 // Legacy hooks that might still be needed
