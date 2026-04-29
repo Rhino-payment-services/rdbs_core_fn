@@ -62,6 +62,10 @@ export default function LiquidationApprovalsPage() {
   const [approveOpen, setApproveOpen] = useState(false)
   const [approveTarget, setApproveTarget] = useState<OpsTransactionSearchResult | null>(null)
   const [approveNote, setApproveNote] = useState("")
+  const [approveValidated, setApproveValidated] = useState(false)
+  const [approveValidationBusy, setApproveValidationBusy] = useState(false)
+  const [approveValidationMessage, setApproveValidationMessage] = useState("")
+  const [approveValidationError, setApproveValidationError] = useState("")
 
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [detailsTarget, setDetailsTarget] = useState<OpsTransactionSearchResult | null>(null)
@@ -75,8 +79,93 @@ export default function LiquidationApprovalsPage() {
   const handleApproveClick = useCallback((tx: OpsTransactionSearchResult) => {
     setApproveTarget(tx)
     setApproveNote("")
+    setApproveValidated(false)
+    setApproveValidationMessage("")
+    setApproveValidationError("")
     setApproveOpen(true)
   }, [])
+
+  const handleApproveValidate = useCallback(async () => {
+    const tx = approveTarget
+    if (!tx) return
+    const metadata =
+      tx.metadata && typeof tx.metadata === "object" && !Array.isArray(tx.metadata)
+        ? (tx.metadata as Record<string, unknown>)
+        : {}
+    const payoutMethod = String(metadata.payoutMethod || "").toUpperCase()
+    const payoutDetails =
+      metadata.payoutDetails &&
+      typeof metadata.payoutDetails === "object" &&
+      !Array.isArray(metadata.payoutDetails)
+        ? (metadata.payoutDetails as Record<string, unknown>)
+        : {}
+
+    setApproveValidationBusy(true)
+    setApproveValidationError("")
+    setApproveValidationMessage("")
+    try {
+      if (payoutMethod === "BANK_TRANSFER") {
+        const accountNumber = String(payoutDetails.bankAccountNumber || "").trim()
+        const bankCode = String(payoutDetails.bankCode || payoutDetails.bankName || "").trim()
+        if (!accountNumber || !bankCode) {
+          throw new Error("Missing bank details for validation.")
+        }
+        const res = await fetch("/api/transactions/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionType: "WALLET_TO_BANK",
+            accountNumber,
+            bankCode,
+          }),
+        })
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(payload?.error || "Bank validation failed")
+        const name = (payload?.beneficiary?.name || payload?.validationResult?.data?.name || "Bank account validated") as string
+        setApproveValidationMessage(name)
+        setApproveValidated(true)
+        return
+      }
+
+      if (payoutMethod === "MOBILE_MONEY") {
+        const phoneNumber = String(payoutDetails.mobileMoneyPhone || "").trim()
+        const network = String(payoutDetails.mobileMoneyNetwork || "").trim()
+        if (!phoneNumber || !network) {
+          throw new Error("Missing mobile money details for validation.")
+        }
+        const res = await fetch("/api/transactions/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionType: "WALLET_TO_MNO",
+            phoneNumber,
+            network,
+          }),
+        })
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(payload?.error || "Mobile money validation failed")
+        const name = (payload?.beneficiary?.name || payload?.validationResult?.data?.name || "Mobile number validated") as string
+        setApproveValidationMessage(name)
+        setApproveValidated(true)
+        return
+      }
+
+      if (payoutMethod === "RUKAPAY_WALLET") {
+        const walletId = String(payoutDetails.destinationWalletId || "").trim()
+        if (!walletId) throw new Error("Missing destination wallet identifier.")
+        setApproveValidationMessage("RukaPay wallet destination validated.")
+        setApproveValidated(true)
+        return
+      }
+
+      throw new Error("Unsupported payout method for validation.")
+    } catch (e: unknown) {
+      setApproveValidated(false)
+      setApproveValidationError(e instanceof Error ? e.message : "Validation failed")
+    } finally {
+      setApproveValidationBusy(false)
+    }
+  }, [approveTarget])
 
   const handleApproveConfirm = useCallback(async () => {
     if (!canApprove) {
@@ -86,6 +175,10 @@ export default function LiquidationApprovalsPage() {
     const id = String(approveTarget?.id || "")
     if (!id) {
       toast.error("Missing transaction id")
+      return
+    }
+    if (!approveValidated) {
+      toast.error("Please validate destination before approving")
       return
     }
 
@@ -111,7 +204,7 @@ export default function LiquidationApprovalsPage() {
     } finally {
       setProcessingId(null)
     }
-  }, [approveNote, approveTarget, canApprove, refetch])
+  }, [approveNote, approveTarget, approveValidated, canApprove, refetch])
 
   const openReject = useCallback((tx: OpsTransactionSearchResult) => {
     setRejectTarget(tx)
@@ -420,6 +513,23 @@ export default function LiquidationApprovalsPage() {
               rows={3}
               placeholder="Optional reviewer note"
             />
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleApproveValidate()}
+                disabled={approveValidationBusy || processingId != null}
+              >
+                {approveValidationBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {approveValidationBusy ? "Validating..." : "Validate destination"}
+              </Button>
+              {approveValidationMessage ? (
+                <div className="text-sm text-green-700">{approveValidationMessage}</div>
+              ) : null}
+              {approveValidationError ? (
+                <div className="text-sm text-red-600">{approveValidationError}</div>
+              ) : null}
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
@@ -431,7 +541,7 @@ export default function LiquidationApprovalsPage() {
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
                 onClick={() => void handleApproveConfirm()}
-                disabled={processingId != null}
+                disabled={processingId != null || !approveValidated}
               >
                 {processingId != null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Confirm approve
