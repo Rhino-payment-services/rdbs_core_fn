@@ -661,7 +661,11 @@ export const TransactionDetailsModal = ({
                       </div>
                     )}
                     <Badge className="bg-blue-600 text-white">
-                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : senderInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' && (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
@@ -906,7 +910,11 @@ export const TransactionDetailsModal = ({
                       </div>
                     )}
                     <Badge className="bg-green-600 text-white">
-                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : receiverInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' ? (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>

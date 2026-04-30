@@ -54,6 +54,11 @@ export function getPartnerRole(tx: any): PartnerRole | null {
   // sender/receiver should remain merchant <-> mobile user, not partner actor.
   if (isAirtimeOrDataBill) return null
 
+  // Partner-institution rails are directional and should not be inferred by
+  // generic SEND/WITHDRAW heuristics.
+  if (type === 'WALLET_TO_PARTNER_INSTITUTION') return 'receiver'
+  if (type === 'PARTNER_INSTITUTION_TO_WALLET') return 'sender'
+
   const isInbound =
     type.includes('MNO_TO_WALLET') ||
     type.includes('BANK_TO_WALLET') ||
@@ -244,6 +249,9 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       info.institutionCode ||
         metadata.nexenInstitutionCode ||
         metadata.partnerInstitutionCode ||
+        metadata.institutionCode ||
+        metadata.saccoCode ||
+        metadata.organizationCode ||
         tx?.partnerInstitution?.code ||
         tx?.wallet?.partnerInstitution?.code ||
         ''
@@ -252,6 +260,9 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       info.institutionName ||
         metadata.nexenInstitutionName ||
         metadata.partnerInstitutionName ||
+        metadata.institutionName ||
+        metadata.saccoName ||
+        metadata.organizationName ||
         tx?.partnerInstitution?.name ||
         tx?.wallet?.partnerInstitution?.name ||
         ''
@@ -259,9 +270,24 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     const institutionLine =
       info.institutionLine ||
       ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    const institutionDisplayName =
+      instName ||
+      (code ? `Code ${code}` : '') ||
+      String(info.name || '').trim() ||
+      'SACCO settlement wallet'
+    const partnerName = String(
+      info.partnerName ||
+      metadata.apiPartnerName ||
+      metadata.partnerName ||
+      tx?.partner?.partnerName ||
+      tx?.wallet?.partner?.partnerName ||
+      ''
+    ).trim()
     return {
       ...info,
-      type: 'PARTNER',
+      name: institutionDisplayName,
+      type: 'PARTNER_INSTITUTION',
+      partnerName: partnerName || null,
       institutionLine,
       institutionCode: info.institutionCode ?? (code || null),
       institutionName: info.institutionName ?? (instName || null),
@@ -272,6 +298,9 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       info.institutionCode ||
         metadata.nexenInstitutionCode ||
         metadata.partnerInstitutionCode ||
+        metadata.institutionCode ||
+        metadata.saccoCode ||
+        metadata.organizationCode ||
         tx?.partnerInstitution?.code ||
         tx?.wallet?.partnerInstitution?.code ||
         ''
@@ -280,6 +309,9 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       info.institutionName ||
         metadata.nexenInstitutionName ||
         metadata.partnerInstitutionName ||
+        metadata.institutionName ||
+        metadata.saccoName ||
+        metadata.organizationName ||
         tx?.partnerInstitution?.name ||
         tx?.wallet?.partnerInstitution?.name ||
         ''
@@ -287,9 +319,24 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     const institutionLine =
       info.institutionLine ||
       ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    const institutionDisplayName =
+      instName ||
+      (code ? `Code ${code}` : '') ||
+      String(info.name || '').trim() ||
+      'SACCO settlement wallet'
+    const partnerName = String(
+      info.partnerName ||
+      metadata.apiPartnerName ||
+      metadata.partnerName ||
+      tx?.partner?.partnerName ||
+      tx?.wallet?.partner?.partnerName ||
+      ''
+    ).trim()
     return {
       ...info,
-      type: 'PARTNER',
+      name: institutionDisplayName,
+      type: 'PARTNER_INSTITUTION',
+      partnerName: partnerName || null,
       institutionLine,
       institutionCode: info.institutionCode ?? (code || null),
       institutionName: info.institutionName ?? (instName || null),
