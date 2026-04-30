@@ -56,6 +56,7 @@ interface Tariff {
   description: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
   transactionType: string
+  network?: 'MTN' | 'AIRTEL'
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'HYBRID'
   feeAmount: number
@@ -645,6 +646,7 @@ const TariffsPage = () => {
                   <TableHead>Fee Amount</TableHead>
                   <TableHead>Amount Range</TableHead>
                   <TableHead>Transaction Type</TableHead>
+                  {!isInternalTariff && <TableHead>Network</TableHead>}
                   {!isInternalTariff && <TableHead>Partner</TableHead>}
                   {!isInternalTariff && <TableHead>Group</TableHead>}
                   {!isInternalTariff && <TableHead>Partner Fee</TableHead>}
@@ -677,6 +679,15 @@ const TariffsPage = () => {
                     <TableCell className="text-sm">
                       <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType, tariff)}</Badge>
                     </TableCell>
+                    {!isInternalTariff && (
+                      <TableCell className="text-sm">
+                        {tariff.network ? (
+                          <Badge variant="secondary">{tariff.network}</Badge>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
                     {!isInternalTariff && (
                       <TableCell>
                         {tariff.partner ? (
@@ -724,8 +735,8 @@ const TariffsPage = () => {
                     )}
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
-                        {tariff.rukapayFee ? (
-                          <span className="font-medium">{tariff.rukapayFee} {tariff.currency}</span>
+                        {tariff.rukapayFee !== undefined ? (
+                          <span className="font-medium">{tariff.rukapayFee}%</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -733,8 +744,8 @@ const TariffsPage = () => {
                     )}
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
-                        {tariff.telecomBankCharge ? (
-                          <span className="font-medium">{tariff.telecomBankCharge} {tariff.currency}</span>
+                        {tariff.telecomBankCharge !== undefined ? (
+                          <span className="font-medium">{tariff.telecomBankCharge}%</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -1253,6 +1264,12 @@ const TariffsPage = () => {
                     <Label className="text-xs text-gray-500">Transaction Type</Label>
                     <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType, viewTariff)}</Badge>
                   </div>
+                  {viewTariff.tariffType === 'EXTERNAL' && (
+                    <div>
+                      <Label className="text-xs text-gray-500">Network</Label>
+                      <p className="text-sm">{viewTariff.network || '-'}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1370,13 +1387,13 @@ const TariffsPage = () => {
                     {viewTariff.rukapayFee !== undefined && (
                       <div>
                         <Label className="text-xs text-gray-500">RukaPay Fee</Label>
-                        <p className="text-sm">{viewTariff.rukapayFee} {viewTariff.currency}</p>
+                        <p className="text-sm">{viewTariff.rukapayFee}%</p>
                       </div>
                     )}
                     {viewTariff.telecomBankCharge !== undefined && (
                       <div>
                         <Label className="text-xs text-gray-500">Telecom/Bank Charge</Label>
-                        <p className="text-sm">{viewTariff.telecomBankCharge} {viewTariff.currency}</p>
+                        <p className="text-sm">{viewTariff.telecomBankCharge}%</p>
                       </div>
                     )}
                     {viewTariff.governmentTax !== undefined && (
