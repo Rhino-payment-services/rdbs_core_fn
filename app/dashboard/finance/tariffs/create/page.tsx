@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, Suspense } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ interface CreateTariffForm {
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
   transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'SCHOOL_FEES' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'MERCHANT_TO_WALLET' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'CARD_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM' | 'WALLET_TO_PARTNER_INSTITUTION' | 'PARTNER_INSTITUTION_TO_WALLET'
+  network?: 'MTN' | 'AIRTEL'
   transactionModeId?: string
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
@@ -59,6 +60,11 @@ interface ApiPartner {
   country?: string
 }
 
+const NETWORK_TELECOM_BANK_CHARGE: Record<'MTN' | 'AIRTEL', number> = {
+  MTN: 1.5,
+  AIRTEL: 2,
+}
+
 function CreateTariffPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -76,6 +82,7 @@ function CreateTariffPage() {
     description: '',
     tariffType: apiPartnerIdFromQuery ? 'EXTERNAL' : 'INTERNAL',
     transactionType: 'WALLET_TO_WALLET',
+    network: undefined,
     transactionModeId: undefined,
     currency: 'UGX',
     feeType: apiPartnerIdFromQuery ? 'PERCENTAGE' : 'FIXED',
@@ -210,6 +217,27 @@ function CreateTariffPage() {
   const partners: Partner[] = partnersData || []
   const apiPartners: ApiPartner[] = apiPartnersData || []
 
+  useEffect(() => {
+    const isExternalMnoToWallet = form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+    if (!isExternalMnoToWallet || !form.network || form.feePercentage === undefined || form.feePercentage === null) {
+      return
+    }
+
+    const telecomCharge = NETWORK_TELECOM_BANK_CHARGE[form.network]
+    const computedRukapayFee = Number((Number(form.feePercentage) - telecomCharge).toFixed(4))
+
+    setForm((prev) => {
+      if (prev.telecomBankCharge === telecomCharge && prev.rukapayFee === computedRukapayFee) {
+        return prev
+      }
+      return {
+        ...prev,
+        telecomBankCharge: telecomCharge,
+        rukapayFee: computedRukapayFee,
+      }
+    })
+  }, [form.tariffType, form.transactionType, form.network, form.feePercentage])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -223,26 +251,34 @@ function CreateTariffPage() {
       return
     }
 
+    const isExternalMnoToWallet = form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+    const effectiveFeeType = isExternalMnoToWallet ? 'PERCENTAGE' : form.feeType
+
     // Use the appropriate fee amount for validation
     const currentFeeAmount = form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount
 
-    if (form.feeType === 'FIXED' && currentFeeAmount <= 0) {
+    if (effectiveFeeType === 'FIXED' && currentFeeAmount <= 0) {
       toast.error('Fee amount must be greater than 0 for fixed fees')
       return
     }
 
-    if (form.feeType === 'PERCENTAGE' && (!form.feePercentage || form.feePercentage <= 0)) {
+    if (effectiveFeeType === 'PERCENTAGE' && (!form.feePercentage || form.feePercentage <= 0)) {
       toast.error('Fee percentage must be greater than 0 for percentage fees')
       return
     }
 
-    if (form.feeType === 'HYBRID' && (currentFeeAmount <= 0 || !form.feePercentage || form.feePercentage <= 0)) {
+    if (effectiveFeeType === 'HYBRID' && (currentFeeAmount <= 0 || !form.feePercentage || form.feePercentage <= 0)) {
       toast.error('Both fee amount and percentage must be greater than 0 for hybrid fees')
       return
     }
 
     if (form.tariffType === 'EXTERNAL' && !form.partnerId && !form.apiPartnerId) {
       toast.error('Partner is required for external tariffs')
+      return
+    }
+
+    if (form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET' && !form.network) {
+      toast.error('Network is required for EXTERNAL MNO_TO_WALLET tariffs.')
       return
     }
 
@@ -284,6 +320,8 @@ function CreateTariffPage() {
       ...form,
       // Ensure transactionType is valid
       transactionType: validTransactionType,
+      // MNO_TO_WALLET external partner collection tariffs are percentage-based per network.
+      feeType: form.tariffType === 'EXTERNAL' && validTransactionType === 'MNO_TO_WALLET' ? 'PERCENTAGE' : form.feeType,
       // Set feeAmount to the calculated total for external tariffs
       feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
       // Convert feePercentage based on partner type
@@ -303,6 +341,7 @@ function CreateTariffPage() {
       maxAmount: form.maxAmount || undefined,
       userType: form.userType || undefined,
       subscriberType: form.subscriberType || undefined,
+      network: form.network || undefined,
       partnerId: form.partnerId || undefined,
       apiPartnerId: form.apiPartnerId || undefined,
       group: form.group || undefined,
@@ -416,6 +455,7 @@ function CreateTariffPage() {
                             handleInputChange('partnerId', undefined)
                             handleInputChange('apiPartnerId', undefined)
                             handleInputChange('partnerType', undefined)
+                            handleInputChange('network', undefined)
                           }
                         }}
                       >
@@ -469,6 +509,12 @@ function CreateTariffPage() {
                               }
                               const mappedType = codeToType[selectedMode.code] || form.transactionType
                               handleInputChange('transactionType', mappedType as any)
+                              if (form.tariffType === 'EXTERNAL' && mappedType === 'MNO_TO_WALLET') {
+                                handleInputChange('feeType', 'PERCENTAGE')
+                              }
+                              if (mappedType !== 'MNO_TO_WALLET') {
+                                handleInputChange('network', undefined)
+                              }
                               // Clear metadata for system modes
                               handleInputChange('metadata', undefined)
                             }
@@ -502,7 +548,15 @@ function CreateTariffPage() {
                       <Label htmlFor="transactionType">Transaction Type *</Label>
                       <Select 
                         value={form.transactionType} 
-                        onValueChange={(value) => handleInputChange('transactionType', value)}
+                      onValueChange={(value) => {
+                        handleInputChange('transactionType', value)
+                        if (form.tariffType === 'EXTERNAL' && value === 'MNO_TO_WALLET') {
+                          handleInputChange('feeType', 'PERCENTAGE')
+                        }
+                        if (value !== 'MNO_TO_WALLET') {
+                          handleInputChange('network', undefined)
+                        }
+                      }}
                         required
                       >
                         <SelectTrigger>
@@ -549,6 +603,27 @@ function CreateTariffPage() {
                         Used for backward compatibility. Transaction mode takes precedence.
                       </p>
                     </div>
+
+                    {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET' && (
+                      <div>
+                        <Label htmlFor="network">Network *</Label>
+                        <Select
+                          value={form.network || ''}
+                          onValueChange={(value) => handleInputChange('network', value as 'MTN' | 'AIRTEL')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select network" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MTN">MTN</SelectItem>
+                            <SelectItem value="AIRTEL">AIRTEL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Create separate tariffs for MTN and AIRTEL.
+                        </p>
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="currency">Currency *</Label>
@@ -658,7 +733,11 @@ function CreateTariffPage() {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="feeType">Fee Type *</Label>
-                      <Select value={form.feeType} onValueChange={(value) => handleInputChange('feeType', value)}>
+                      <Select
+                        value={form.feeType}
+                        onValueChange={(value) => handleInputChange('feeType', value)}
+                        disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -669,6 +748,11 @@ function CreateTariffPage() {
                           <SelectItem value="HYBRID">Fixed + Percentage</SelectItem>
                         </SelectContent>
                       </Select>
+                      {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET' && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          EXTERNAL MNO_TO_WALLET tariffs use percentage fees.
+                        </p>
+                      )}
                     </div>
 
                     {form.feeType === 'FIXED' && form.tariffType === 'INTERNAL' && (
@@ -931,31 +1015,39 @@ function CreateTariffPage() {
                       </div>
 
                       <div>
-                        <Label htmlFor="rukapayFee">RukaPay Fee</Label>
+                        <Label htmlFor="rukapayFee">RukaPay Fee (%)</Label>
                         <Input
                           id="rukapayFee"
                           type="number"
                           value={form.rukapayFee}
                           onChange={(e) => handleInputChange('rukapayFee', parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          min="0"
-                          step="0.01"
+                          step="0.001"
+                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
-                        <p className="text-xs text-gray-500 mt-1">RukaPay fee amount</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+                            ? 'Auto-calculated as Fee Percentage - Telecom/Bank Charge. Can be negative.'
+                            : 'Decimal percentage. Can be negative (e.g., -0.002).'}
+                        </p>
                       </div>
 
                       <div>
-                        <Label htmlFor="telecomBankCharge">Telecom/Bank Charge</Label>
+                        <Label htmlFor="telecomBankCharge">Telecom/Bank Charge (%)</Label>
                         <Input
                           id="telecomBankCharge"
                           type="number"
                           value={form.telecomBankCharge}
                           onChange={(e) => handleInputChange('telecomBankCharge', parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          min="0"
-                          step="0.01"
+                          step="0.001"
+                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
-                        <p className="text-xs text-gray-500 mt-1">Optional telecom/bank charge</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+                            ? 'Auto-set by network: MTN = 1.5%, AIRTEL = 2.0%.'
+                            : 'Optional decimal percentage (e.g., 0.001 = 0.1%).'}
+                        </p>
                       </div>
 
                       <div>
