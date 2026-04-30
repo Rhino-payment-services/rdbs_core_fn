@@ -80,6 +80,7 @@ export function StatusCheckModal({
   const partnerResponse = data?.partnerResponse
   const partnerSuccess = partnerResponse?.success
   const hasResult = !!data || !!error
+  const displayCurrency = transaction?.currency || 'UGX'
 
   // Request descriptor: top-level partnerRequestBody + any nested partnerRequestInfo (URL/headers from partner)
   const requestBody = data?.partnerRequestBody as Record<string, any> | undefined
@@ -138,7 +139,7 @@ export function StatusCheckModal({
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Amount</span>
                 <span className="font-medium">
-                  {transaction.currency} {Number(transaction.amount).toLocaleString()}
+                  {displayCurrency} {Number(transaction.amount).toLocaleString()}
                 </span>
               </div>
             )}
@@ -176,9 +177,14 @@ export function StatusCheckModal({
             <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
             <div className="space-y-1 flex-1">
               <p className="text-sm font-semibold text-red-800">Status check failed</p>
-              <p className="text-xs text-red-700">
+              <p className="text-xs text-red-700 whitespace-pre-wrap">
                 {(error as any)?.response?.data?.message || error.message}
               </p>
+              {typeof (error as any)?.response?.data?.subscriberActionNote === 'string' && (
+                <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 mt-2">
+                  {(error as any).response.data.subscriberActionNote}
+                </p>
+              )}
               <Button size="sm" variant="outline" className="mt-2" onClick={onCheck}>
                 <RefreshCcw className="h-3.5 w-3.5 mr-1" />
                 Try Again
@@ -207,7 +213,13 @@ export function StatusCheckModal({
                 )}
               </div>
               {result?.message && (
-                <p className="text-sm text-gray-600">{result.message}</p>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{result.message}</p>
+              )}
+              {data?.subscriberActionNote && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                  <span className="font-semibold text-amber-900">Status check notes: </span>
+                  {data.subscriberActionNote}
+                </div>
               )}
             </div>
 
@@ -226,7 +238,7 @@ export function StatusCheckModal({
                   )}
                   <span className={data.walletAction.type === 'CREDITED' ? 'text-green-700' : 'text-orange-700'}>
                     {data.walletAction.type === 'CREDITED' ? '+' : '-'}
-                    {transaction?.currency || ''} {Number(data.walletAction.amount).toLocaleString()}
+                    {displayCurrency} {Number(data.walletAction.amount).toLocaleString()}
                   </span>
                 </div>
                 <p className="text-xs text-gray-600">{data.walletAction.reason}</p>
@@ -380,15 +392,12 @@ export function StatusCheckModal({
               </p>
             )}
 
-            {/* Recheck button after result (only when not SUCCESS) */}
-            {data.newStatus !== 'SUCCESS' && (
-              <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
-                  <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Recheck
-                </Button>
-              </div>
-            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={onCheck} disabled={isLoading}>
+                <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
+                Recheck
+              </Button>
+            </div>
           </div>
         )}
 

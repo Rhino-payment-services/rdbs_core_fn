@@ -41,8 +41,7 @@ export const ActionCell = ({
     !isDisplayLeg &&
     transaction.type !== 'WALLET_TO_WALLET' &&
     transaction.type !== 'WALLET_TO_INTERNAL_MERCHANT' &&
-    transaction.type !== 'REVERSAL' &&
-    transaction.status !== 'SUCCESS'
+    transaction.type !== 'REVERSAL'
 
   const showReversalButton = !isDisplayLeg && REVERSIBLE_TYPES.has(transaction.type as string)
 

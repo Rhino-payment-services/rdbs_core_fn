@@ -48,6 +48,51 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
   const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
   const debitLabel = isSweep && (metadata?.debitWalletType || 'Collection')
 
+  // LIQUIDATION: always show API partner + which SACCO (institution) — do not fall through to phone-only partner row.
+  if (String(transaction.type || '').toUpperCase() === 'LIQUIDATION') {
+    const m = metadata || {}
+    const base = transaction.senderInfo || {}
+    const partnerName =
+      base.name ||
+      transaction.partner?.partnerName ||
+      transaction.wallet?.partner?.partnerName ||
+      m.apiPartnerName ||
+      'API Partner'
+    const code = String(
+      base.institutionCode || m.partnerInstitutionCode || transaction.partnerInstitution?.code || transaction.wallet?.partnerInstitution?.code || ''
+    ).trim()
+    const instName = String(
+      base.institutionName || m.partnerInstitutionName || transaction.partnerInstitution?.name || transaction.wallet?.partnerInstitution?.name || ''
+    ).trim()
+    const institutionLine =
+      base.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+
+    const liquidInfo = normalizePartyInfoForDisplay(
+      {
+        ...base,
+        name: partnerName,
+        contact: null,
+        type: 'PARTNER',
+        institutionCode: base.institutionCode ?? (code || null),
+        institutionName: base.institutionName ?? (instName || null),
+        institutionLine,
+      },
+      transaction,
+      'sender'
+    )
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <PartyDisplay info={liquidInfo} />
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
+
   // Prefer API-provided senderInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.senderInfo) {
     const senderInfo = normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')

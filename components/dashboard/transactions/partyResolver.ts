@@ -37,6 +37,22 @@ export function getPartnerRole(tx: any): PartnerRole | null {
   const type = upper(tx?.type)
   const mode = upper(tx?.mode || m?.mode || m?.transactionModeCode)
   const direction = upper(tx?.direction || m?.direction)
+  const util = upper(m?.utilityProvider)
+  const pt = String(m?.payment_type || '').toLowerCase()
+  const isAirtimeOrDataBill =
+    (type === 'BILL_PAYMENT' ||
+      mode.includes('AIRTIME') ||
+      mode.includes('DATA_BUNDLES')) &&
+    (util === 'AIRTIME' ||
+      util === 'DATA_BUNDLES' ||
+      pt === 'airtime' ||
+      pt === 'mobile_data' ||
+      mode.includes('AIRTIME') ||
+      mode.includes('DATA_BUNDLES'))
+
+  // For airtime/data bill rails, partner should be shown in "Partner" column only;
+  // sender/receiver should remain merchant <-> mobile user, not partner actor.
+  if (isAirtimeOrDataBill) return null
 
   const isInbound =
     type.includes('MNO_TO_WALLET') ||
@@ -67,6 +83,25 @@ export function getPartnerRole(tx: any): PartnerRole | null {
 
 export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: string } {
   const m = tx?.metadata || {}
+  const codeUpper = String(m.partnerCode || '').toUpperCase()
+  const isAfricaTalkingRail =
+    codeUpper === 'AFRICASTALKING' ||
+    String(tx?.externalReference || '').startsWith('ATQid_') ||
+    String(tx?.externalReference || '').startsWith('ATPid_')
+  const isBillUtilitySubtype =
+    m.payment_type === 'airtime' ||
+    m.payment_type === 'mobile_data' ||
+    m.utilityProvider === 'AIRTIME' ||
+    m.utilityProvider === 'DATA_BUNDLES'
+  // Executing partner is stamped on metadata (e.g. Africa's Talking) while partnerMapping
+  // may still point at the default bill partner (e.g. Pegasus) — prefer metadata for display.
+  if (isAfricaTalkingRail && isBillUtilitySubtype) {
+    const primary =
+      String(m.partnerName || '').trim() || "Africa's Talking"
+    // Omit external partner refs here — they are long (e.g. ATQid_…) and clutter the table.
+    return { primary }
+  }
+
   // tx.partner = ApiPartner (the API caller / business) — preferred for display
   // tx.partnerMapping.partner = ExternalPaymentPartner (MNO gateway) — fallback only
   const apiPartner = tx?.partner || null
@@ -101,6 +136,57 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
   return { primary, secondary: secondary ? String(secondary) : undefined }
 }
 
+/**
+ * Partner line in transaction details (and similar): for utility bill payments the executing
+ * rail is on metadata while partnerMapping may still be the default (e.g. Pegasus).
+ */
+export function getBasicPartnerDisplayLabel(tx: any): string {
+  const m = tx?.metadata || {}
+
+  if (upper(tx?.type) === 'BILL_PAYMENT') {
+    const pt = m.payment_type
+    const util = m.utilityProvider
+    const isUtilityAirtimeOrData =
+      pt === 'airtime' ||
+      pt === 'mobile_data' ||
+      util === 'AIRTIME' ||
+      util === 'DATA_BUNDLES'
+    if (isUtilityAirtimeOrData) {
+      const codeRaw = String(m.partnerCode || '').trim()
+      const atRef =
+        String(tx?.externalReference || '').startsWith('ATQid_') ||
+        String(tx?.externalReference || '').startsWith('ATPid_')
+      const codeDisp =
+        codeRaw && !isNumericLikeLabel(codeRaw)
+          ? codeRaw.toUpperCase()
+          : atRef
+            ? 'AFRICASTALKING'
+            : ''
+      const name = String(m.partnerName || '').trim()
+      if (codeDisp || name) {
+        if (name && codeDisp) return `${name} (${codeDisp})`
+        return name || codeDisp
+      }
+    }
+  }
+
+  const mapping = tx?.partnerMapping?.partner
+  const pd = resolvePartnerDisplay(tx).primary
+
+  return (
+    mapping?.partnerName ||
+    mapping?.partnerCode ||
+    m.apiPartnerBusinessName ||
+    m.partnerBusinessName ||
+    m.apiPartnerName ||
+    tx?.partner?.partnerName ||
+    tx?.partner?.businessName ||
+    m.partnerName ||
+    pd ||
+    'Direct'
+  )
+}
+
 function isNumericLikeLabel(value: any): boolean {
   const s = String(value ?? '').trim()
   if (!s) return false
@@ -131,6 +217,84 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const metadata = tx?.metadata || {}
   const type = upper(tx?.type)
+
+  if (type === 'LIQUIDATION' && side === 'sender') {
+    const code = String(
+      info.institutionCode || metadata.partnerInstitutionCode || tx?.partnerInstitution?.code || tx?.wallet?.partnerInstitution?.code || ''
+    ).trim()
+    const instName = String(
+      info.institutionName || metadata.partnerInstitutionName || tx?.partnerInstitution?.name || tx?.wallet?.partnerInstitution?.name || ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      contact: null,
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
+
+  // NEXEN / partner-institution wallet rails: show which SACCO (metadata + relations).
+  if (type === 'WALLET_TO_PARTNER_INSTITUTION' && side === 'receiver') {
+    const code = String(
+      info.institutionCode ||
+        metadata.nexenInstitutionCode ||
+        metadata.partnerInstitutionCode ||
+        tx?.partnerInstitution?.code ||
+        tx?.wallet?.partnerInstitution?.code ||
+        ''
+    ).trim()
+    const instName = String(
+      info.institutionName ||
+        metadata.nexenInstitutionName ||
+        metadata.partnerInstitutionName ||
+        tx?.partnerInstitution?.name ||
+        tx?.wallet?.partnerInstitution?.name ||
+        ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
+  if (type === 'PARTNER_INSTITUTION_TO_WALLET' && side === 'sender') {
+    const code = String(
+      info.institutionCode ||
+        metadata.nexenInstitutionCode ||
+        metadata.partnerInstitutionCode ||
+        tx?.partnerInstitution?.code ||
+        tx?.wallet?.partnerInstitution?.code ||
+        ''
+    ).trim()
+    const instName = String(
+      info.institutionName ||
+        metadata.nexenInstitutionName ||
+        metadata.partnerInstitutionName ||
+        tx?.partnerInstitution?.name ||
+        tx?.wallet?.partnerInstitution?.name ||
+        ''
+    ).trim()
+    const institutionLine =
+      info.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    return {
+      ...info,
+      type: 'PARTNER',
+      institutionLine,
+      institutionCode: info.institutionCode ?? (code || null),
+      institutionName: info.institutionName ?? (instName || null),
+    }
+  }
   const direction = upper(tx?.direction || metadata?.direction)
   const contact = String(info?.contact ?? '').trim() || null
   const partnerDisplay = resolvePartnerDisplay(tx)
@@ -184,8 +348,12 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
+        metadata.customerName,
         metadata.receiverName,
         metadata.recipientName,
+        metadata?.validationResult?.customerName,
+        metadata?.mnoReceiverValidation?.data?.customerName,
+        metadata?.mnoReceiverValidation?.data?.name,
         metadata.userName,
         userProfileName,
         counterpartyProfileName,
@@ -198,6 +366,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     metadata.partnerBusinessName,
     metadata.apiPartnerBusinessName,
     tx?.partner?.partnerName,
+    tx?.wallet?.partner?.partnerName,
     tx?.partner?.businessName,
     tx?.partner?.name,
     metadata.partnerName,
@@ -209,8 +378,8 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     ((info?.type === 'PARTNER' || isPartnerSide)
       ? firstMeaningfulName(partnerCandidates, contact)
       : null) ||
-    firstMeaningfulName([info?.name], contact) ||
     firstMeaningfulName(roleSpecificCandidates, contact) ||
+    firstMeaningfulName([info?.name], contact) ||
     (info?.type === 'PARTNER' || isPartnerSide ? 'API Partner' : null) ||
     info?.name
 

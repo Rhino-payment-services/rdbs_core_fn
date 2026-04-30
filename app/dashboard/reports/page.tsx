@@ -221,6 +221,11 @@ const ReportsPage = () => {
     lines.push(`P2P,Volume,${report.transactions.p2p.volume}`)
     lines.push(`Wallet To Bank,Count,${report.transactions.walletToBank.count}`)
     lines.push(`Wallet To Bank,Volume,${report.transactions.walletToBank.volume}`)
+    lines.push('')
+    lines.push('Wallet To Bank By Bank,Bank,Transaction Count,Volume')
+    ;(report.transactions.walletToBankByBank || []).forEach((row) => {
+      lines.push(`Wallet To Bank By Bank,"${String(row.bank).replace(/"/g, '""')}",${row.transactionCount},${row.volume}`)
+    })
     lines.push(`Merchant To Wallet,Count,${report.transactions.merchantToWallet.count}`)
     lines.push(`Merchant To Wallet,Volume,${report.transactions.merchantToWallet.volume}`)
     lines.push(`Personal To Business,Count,${report.transactions.personalToBusiness.count}`)
@@ -253,8 +258,41 @@ const ReportsPage = () => {
     lines.push(`Merchants,Female,${report.merchants.female}`)
     lines.push(`Merchants,Male,${report.merchants.male}`)
     lines.push(`Wallets,Total Active Balance,${report.wallets.totalActiveBalance}`)
+    const nm = report.wallets.activeNonMerchantLinked
+    const ml = report.wallets.activeMerchantLinked
+    const blk = report.wallets.blocked
+    const dorm = report.wallets.dormant
+    const sus = report.accounts?.userSuspended
+    if (nm) {
+      lines.push(`Wallets,Active Non-Merchant-Linked Wallet Count,${nm.walletCount}`)
+      lines.push(`Wallets,Active Non-Merchant-Linked Total Balance,${nm.totalBalance}`)
+    }
+    if (ml) {
+      lines.push(`Wallets,Active Merchant-Linked Wallet Count,${ml.walletCount}`)
+      lines.push(`Wallets,Active Merchant-Linked Total Balance,${ml.totalBalance}`)
+    }
+    if (blk) {
+      lines.push(`Wallets,Blocked (Suspended) Wallet Count,${blk.walletCount}`)
+      lines.push(`Wallets,Blocked (Suspended) Total Balance,${blk.totalBalance}`)
+    }
+    if (dorm) {
+      lines.push(`Wallets,Dormant Wallet Count (${dorm.inactiveDaysThreshold ?? 365}d no activity),${dorm.walletCount}`)
+      lines.push(`Wallets,Dormant Total Balance,${dorm.totalBalance}`)
+    }
+    if (sus) {
+      lines.push(`Accounts,User Suspended Count,${sus.userCount}`)
+      lines.push(`Accounts,Suspended Users Wallet Count,${sus.walletCount}`)
+      lines.push(`Accounts,Suspended Users Total Wallet Balance,${sus.totalWalletBalance}`)
+    }
     return lines.join('\n')
   }
+
+  const escapeHtml = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
 
   const buildBouHtml = (report: BouMonthlyReport): string => {
     const generatedAt = new Date(report.generatedAt).toLocaleString()
@@ -270,6 +308,24 @@ const ReportsPage = () => {
         </tr>
       `
     }).join('')
+
+    const walletToBankByBankRows = (report.transactions.walletToBankByBank || [])
+      .map(
+        (b) => `
+        <tr>
+          <td>${escapeHtml(String(b.bank))}</td>
+          <td>${b.transactionCount}</td>
+          <td>${b.volume}</td>
+        </tr>
+      `,
+      )
+      .join('')
+
+    const nm = report.wallets.activeNonMerchantLinked
+    const ml = report.wallets.activeMerchantLinked
+    const blk = report.wallets.blocked
+    const dorm = report.wallets.dormant
+    const sus = report.accounts?.userSuspended
 
     return `
       <html>
@@ -310,6 +366,23 @@ const ReportsPage = () => {
                 <tr><td>P2P - Volume</td><td>${report.transactions.p2p.volume}</td></tr>
                 <tr><td>Wallet to Bank - Count</td><td>${report.transactions.walletToBank.count}</td></tr>
                 <tr><td>Wallet to Bank - Volume</td><td>${report.transactions.walletToBank.volume}</td></tr>
+              </tbody>
+            </table>
+            <h3 style="margin-top:16px;font-size:15px;">Wallet to bank by destination (metadata)</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Bank</th>
+                  <th>Transactions</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${walletToBankByBankRows || '<tr><td colspan="3">No wallet-to-bank rows</td></tr>'}
+              </tbody>
+            </table>
+            <table style="margin-top:16px;">
+              <tbody>
                 <tr><td>Merchant to Wallet - Count</td><td>${report.transactions.merchantToWallet.count}</td></tr>
                 <tr><td>Merchant to Wallet - Volume</td><td>${report.transactions.merchantToWallet.volume}</td></tr>
                 <tr><td>Personal to Business - Count</td><td>${report.transactions.personalToBusiness.count}</td></tr>
@@ -371,11 +444,43 @@ const ReportsPage = () => {
           </div>
 
           <div class="section">
-            <h2>5. Wallets</h2>
+            <h2>5. Wallets &amp; accounts</h2>
             <table>
               <tbody>
                 <tr><th>Metric</th><th>Value</th></tr>
                 <tr><td>Total Active Wallet Balance</td><td>${report.wallets.totalActiveBalance}</td></tr>
+                ${
+                  nm
+                    ? `<tr><td>Active non-merchant-linked wallets (count)</td><td>${nm.walletCount}</td></tr>
+                <tr><td>Active non-merchant-linked balance</td><td>${nm.totalBalance}</td></tr>`
+                    : ''
+                }
+                ${
+                  ml
+                    ? `<tr><td>Active merchant-linked wallets (count)</td><td>${ml.walletCount}</td></tr>
+                <tr><td>Active merchant-linked balance</td><td>${ml.totalBalance}</td></tr>`
+                    : ''
+                }
+                ${
+                  blk
+                    ? `<tr><td>Blocked (suspended) wallets (count)</td><td>${blk.walletCount}</td></tr>
+                <tr><td>Blocked (suspended) total balance</td><td>${blk.totalBalance}</td></tr>`
+                    : ''
+                }
+                ${
+                  dorm
+                    ? `<tr><td>Dormant wallets (${dorm.inactiveDaysThreshold ?? 365}d no SUCCESS activity)</td><td>${dorm.walletCount}</td></tr>
+                <tr><td>Dormant total balance</td><td>${dorm.totalBalance}</td></tr>`
+                    : ''
+                }
+                ${
+                  sus
+                    ? `<tr><td colspan="2" style="background:#f9fafb;font-weight:600;">Suspended users (account)</td></tr>
+                <tr><td>Suspended user count</td><td>${sus.userCount}</td></tr>
+                <tr><td>Their wallets (count)</td><td>${sus.walletCount}</td></tr>
+                <tr><td>Total balance on those wallets</td><td>${sus.totalWalletBalance}</td></tr>`
+                    : ''
+                }
               </tbody>
             </table>
           </div>
@@ -789,6 +894,101 @@ const ReportsPage = () => {
                           {bouReport.transactions.personalToMerchant.volume.toLocaleString()}
                         </span>
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                    <div className="rounded-lg border border-gray-200 bg-white p-4">
+                      <p className="text-sm font-semibold text-gray-900 mb-2">Wallet balances (point in time)</p>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        <li>
+                          Active non-merchant-linked:{' '}
+                          <span className="font-medium">
+                            {(bouReport.wallets.activeNonMerchantLinked?.totalBalance ?? bouReport.wallets.totalActiveBalance).toLocaleString()}
+                          </span>
+                          {' '}
+                          <span className="text-gray-500">
+                            ({bouReport.wallets.activeNonMerchantLinked?.walletCount ?? '—'} wallets)
+                          </span>
+                        </li>
+                        <li>
+                          Active merchant-linked:{' '}
+                          <span className="font-medium">
+                            {(bouReport.wallets.activeMerchantLinked?.totalBalance ?? 0).toLocaleString()}
+                          </span>
+                          {' '}
+                          <span className="text-gray-500">
+                            ({bouReport.wallets.activeMerchantLinked?.walletCount ?? '—'} wallets)
+                          </span>
+                        </li>
+                        <li>
+                          Blocked (suspended) wallets:{' '}
+                          <span className="font-medium">
+                            {(bouReport.wallets.blocked?.totalBalance ?? 0).toLocaleString()}
+                          </span>
+                          {' '}
+                          <span className="text-gray-500">
+                            ({bouReport.wallets.blocked?.walletCount ?? '—'} wallets)
+                          </span>
+                        </li>
+                        <li>
+                          Dormant (no SUCCESS activity in{' '}
+                          {bouReport.wallets.dormant?.inactiveDaysThreshold ?? 365} days):{' '}
+                          <span className="font-medium">
+                            {(bouReport.wallets.dormant?.totalBalance ?? 0).toLocaleString()}
+                          </span>
+                          {' '}
+                          <span className="text-gray-500">
+                            ({bouReport.wallets.dormant?.walletCount ?? '—'} wallets)
+                          </span>
+                        </li>
+                        {bouReport.accounts?.userSuspended != null && (
+                          <li>
+                            Suspended users (all their wallets):{' '}
+                            <span className="font-medium">
+                              {bouReport.accounts.userSuspended.totalWalletBalance.toLocaleString()}
+                            </span>
+                            {' '}
+                            <span className="text-gray-500">
+                              ({bouReport.accounts.userSuspended.userCount} users,{' '}
+                              {bouReport.accounts.userSuspended.walletCount} wallets)
+                            </span>
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 bg-white p-4">
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        Wallet to bank by destination (month)
+                      </p>
+                      <div className="max-h-56 overflow-auto text-sm">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase">
+                              <th className="py-1 pr-2">Bank</th>
+                              <th className="py-1 pr-2 text-right">Tx</th>
+                              <th className="py-1 text-right">Volume</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(bouReport.transactions.walletToBankByBank || []).length === 0 ? (
+                              <tr>
+                                <td colSpan={3} className="py-2 text-gray-500">
+                                  No wallet-to-bank rows (or legacy report).
+                                </td>
+                              </tr>
+                            ) : (
+                              (bouReport.transactions.walletToBankByBank || []).map((row) => (
+                                <tr key={row.bank} className="border-b border-gray-100">
+                                  <td className="py-1 pr-2">{row.bank}</td>
+                                  <td className="py-1 pr-2 text-right">{row.transactionCount.toLocaleString()}</td>
+                                  <td className="py-1 text-right">{row.volume.toLocaleString()}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 </div>

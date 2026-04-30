@@ -21,7 +21,7 @@ interface CreateTariffForm {
   name: string
   description?: string
   tariffType: 'INTERNAL' | 'EXTERNAL'
-  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'SCHOOL_FEES' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'MERCHANT_TO_WALLET' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'CARD_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM'
+  transactionType: 'DEPOSIT' | 'WITHDRAWAL' | 'BILL_PAYMENT' | 'SCHOOL_FEES' | 'WALLET_INIT' | 'WALLET_TO_INTERNAL_MERCHANT' | 'WALLET_TO_EXTERNAL_MERCHANT' | 'MERCHANT_WITHDRAWAL' | 'MERCHANT_TO_WALLET' | 'WALLET_TO_WALLET' | 'WALLET_TO_MNO' | 'WALLET_TO_UTILITY' | 'MNO_TO_WALLET' | 'WALLET_TO_MERCHANT' | 'WALLET_TO_BANK' | 'BANK_TO_WALLET' | 'CARD_TO_WALLET' | 'REVERSAL' | 'FEE_CHARGE' | 'CUSTOM' | 'WALLET_TO_PARTNER_INSTITUTION' | 'PARTNER_INSTITUTION_TO_WALLET'
   network?: 'MTN' | 'AIRTEL'
   transactionModeId?: string
   currency: string
@@ -41,6 +41,9 @@ interface CreateTariffForm {
   telecomBankCharge?: number
   governmentTax?: number
   metadata?: Record<string, any>
+  /** Basis points of principal deducted before SACCO/NEXEN credit (WALLET_TO_PARTNER_INSTITUTION only). */
+  institutionSpreadRukapayBps?: number
+  institutionSpreadNexenBps?: number
 }
 
 interface Partner {
@@ -96,7 +99,9 @@ function CreateTariffPage() {
     partnerFee: 0,
     rukapayFee: 0,
     telecomBankCharge: 0,
-    governmentTax: 0
+    governmentTax: 0,
+    institutionSpreadRukapayBps: 0,
+    institutionSpreadNexenBps: 0,
   })
 
   // Fetch transaction modes for selection
@@ -283,7 +288,8 @@ function CreateTariffPage() {
       'WALLET_TO_INTERNAL_MERCHANT', 'WALLET_TO_EXTERNAL_MERCHANT', 'MERCHANT_WITHDRAWAL',
       'MERCHANT_TO_WALLET', 'WALLET_TO_WALLET', 'WALLET_TO_MNO', 'WALLET_TO_UTILITY',
       'MNO_TO_WALLET', 'WALLET_TO_MERCHANT', 'WALLET_TO_BANK', 'BANK_TO_WALLET',
-      'CARD_TO_WALLET', 'REVERSAL', 'FEE_CHARGE', 'CUSTOM'
+      'CARD_TO_WALLET', 'REVERSAL', 'FEE_CHARGE', 'CUSTOM',
+      'WALLET_TO_PARTNER_INSTITUTION', 'PARTNER_INSTITUTION_TO_WALLET',
     ]
     
     // If transactionType is not in allowed list, default to CUSTOM
@@ -294,6 +300,20 @@ function CreateTariffPage() {
     if (form.transactionType !== validTransactionType) {
       console.warn(`Invalid transactionType "${form.transactionType}" replaced with "CUSTOM"`)
     }
+
+    const clampBps = (n: number) =>
+      Math.max(0, Math.min(10000, Math.floor(Number.isFinite(n) ? n : 0)))
+
+    const institutionMetadata =
+      validTransactionType === 'WALLET_TO_PARTNER_INSTITUTION'
+        ? {
+            ...(typeof form.metadata === 'object' && form.metadata !== null ? form.metadata : {}),
+            institutionSpreadBps: {
+              rukapay: clampBps(Number(form.institutionSpreadRukapayBps)),
+              nexen: clampBps(Number(form.institutionSpreadNexenBps)),
+            },
+          }
+        : form.metadata || undefined
 
     // Clean up the data before sending
     const submitData = {
@@ -313,8 +333,8 @@ function CreateTariffPage() {
         : undefined,
       // Keep government tax as percentage value (no conversion needed)
       governmentTax: form.governmentTax || undefined,
-      // Include metadata (RTIS metadata for custom transaction modes)
-      metadata: form.metadata || undefined,
+      // Include metadata (custom modes + institution SACCO spread for wallet→institution)
+      metadata: institutionMetadata,
       // Remove undefined values and UI-only fields
       description: form.description || undefined,
       minAmount: form.minAmount || undefined,
@@ -328,17 +348,22 @@ function CreateTariffPage() {
       partnerFee: form.partnerFee || undefined,
       rukapayFee: form.rukapayFee || undefined,
       telecomBankCharge: form.telecomBankCharge || undefined,
-      // Remove UI-only field
-      partnerType: undefined
+      // Remove UI-only fields (not in CreateTariffDto)
+      partnerType: undefined,
+      institutionSpreadRukapayBps: undefined,
+      institutionSpreadNexenBps: undefined,
     }
 
     createTariffMutation.mutate(submitData)
   }
 
-  const handleInputChange = (field: keyof CreateTariffForm, value: string | number | undefined) => {
-    setForm(prev => ({
+  const handleInputChange = (
+    field: keyof CreateTariffForm,
+    value: string | number | undefined | Record<string, unknown>,
+  ) => {
+    setForm((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }))
   }
 
@@ -479,6 +504,8 @@ function CreateTariffPage() {
                                 'BANK_TO_WALLET': 'BANK_TO_WALLET',
                                 'BILL_PAYMENT': 'BILL_PAYMENT',
                                 'WALLET_TO_WALLET': 'WALLET_TO_WALLET',
+                                'WALLET_TO_PARTNER_INSTITUTION': 'WALLET_TO_PARTNER_INSTITUTION',
+                                'PARTNER_INSTITUTION_TO_WALLET': 'PARTNER_INSTITUTION_TO_WALLET',
                               }
                               const mappedType = codeToType[selectedMode.code] || form.transactionType
                               handleInputChange('transactionType', mappedType as any)
@@ -561,6 +588,12 @@ function CreateTariffPage() {
                               <SelectItem value="BANK_TO_WALLET">Bank to Wallet</SelectItem>
                               <SelectItem value="MNO_TO_WALLET">MNO to Wallet</SelectItem>
                               <SelectItem value="CARD_TO_WALLET">Card to Wallet</SelectItem>
+                              <SelectItem value="WALLET_TO_PARTNER_INSTITUTION">
+                                Wallet to Partner Institution (SACCO settlement in)
+                              </SelectItem>
+                              <SelectItem value="PARTNER_INSTITUTION_TO_WALLET">
+                                Partner Institution to Wallet (SACCO settlement out)
+                              </SelectItem>
                               <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>
                           )}
@@ -865,6 +898,61 @@ function CreateTariffPage() {
                     />
                   </div>
                 </div>
+
+                {form.transactionType === 'WALLET_TO_PARTNER_INSTITUTION' && (
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        SACCO / NEXEN net — principal spread (metadata)
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Enter <strong>basis points</strong> of the member&apos;s principal withheld before SACCO
+                        settlement and NEXEN posting (100 bps = 1%). The subscriber is still charged{' '}
+                        <strong>principal + customer fee</strong> from the fee section above. Use 0 and 0 so SACCO
+                        receives the full principal. If no tariff matches this flow, the system also credits full
+                        principal.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="institutionSpreadRukapayBps">RukaPay spread (bps)</Label>
+                        <Input
+                          id="institutionSpreadRukapayBps"
+                          type="number"
+                          min={0}
+                          max={10000}
+                          step={1}
+                          value={form.institutionSpreadRukapayBps ?? 0}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'institutionSpreadRukapayBps',
+                              parseInt(e.target.value, 10) || 0,
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Stored as metadata.institutionSpreadBps.rukapay</p>
+                      </div>
+                      <div>
+                        <Label htmlFor="institutionSpreadNexenBps">NEXEN spread (bps)</Label>
+                        <Input
+                          id="institutionSpreadNexenBps"
+                          type="number"
+                          min={0}
+                          max={10000}
+                          step={1}
+                          value={form.institutionSpreadNexenBps ?? 0}
+                          onChange={(e) =>
+                            handleInputChange(
+                              'institutionSpreadNexenBps',
+                              parseInt(e.target.value, 10) || 0,
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Stored as metadata.institutionSpreadBps.nexen</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* User Type Configuration */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

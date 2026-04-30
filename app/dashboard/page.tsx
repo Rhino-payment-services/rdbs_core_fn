@@ -37,13 +37,19 @@ import ChannelStatsCard from '@/components/dashboard/ChannelStatsCard'
 import { formatCompactUgx } from '@/lib/utils/transactions'
 
 const DashboardPage = () => {
-  const { hasPermission } = usePermissions()
+  const { hasPermission, userRole } = usePermissions()
   const { status: sessionStatus } = useSession()
   const [showScrollButtons, setShowScrollButtons] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   
-  // Check if user has dashboard viewing permission
-  const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW)
+  // Dashboard is always accessible for ADMIN and SUPER_ADMIN so they are never
+  // locked out of the home page, even when their explicit permission list is
+  // empty (first-login / no assignments yet).
+  // Other roles (USER, MERCHANT, etc.) still require DASHBOARD_VIEW.
+  const canViewDashboard =
+    hasPermission(PERMISSIONS.DASHBOARD_VIEW) ||
+    userRole === 'ADMIN' ||
+    userRole === 'SUPER_ADMIN'
   const isLoadingSession = sessionStatus === 'loading'
 
   // Fetch data from backend

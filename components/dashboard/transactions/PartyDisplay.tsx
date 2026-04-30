@@ -3,10 +3,16 @@ import type { PartyDisplayProps } from './types'
 export const PartyDisplay = ({ info, nameClassName, extras }: PartyDisplayProps) => (
   <>
     <span className={`font-medium ${nameClassName || ''}`}>{info.name}</span>
+    {info.institutionLine && (
+      <span className="text-xs text-gray-700">
+        <span className="font-semibold text-gray-800">SACCO · </span>
+        {info.institutionLine}
+      </span>
+    )}
     {info.contact && (
       <span className="text-xs text-gray-500">📱 {info.contact}</span>
     )}
-    {info.merchantCode && (
+    {info.merchantCode && !info.institutionLine && (
       <span className="text-xs text-gray-500">🏪 Code: {info.merchantCode}</span>
     )}
     <span className={`text-xs font-medium ${

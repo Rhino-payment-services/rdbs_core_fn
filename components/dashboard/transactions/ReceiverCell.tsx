@@ -11,6 +11,24 @@ interface ReceiverCellProps {
   derived: TransactionDerived
 }
 
+function resolveMerchantBusinessName(transaction: any, metadata: any): string {
+  const merchantCode = String(metadata?.merchantCode || '').trim()
+  const merchants = Array.isArray(transaction?.user?.merchants) ? transaction.user.merchants : []
+  const matchedMerchant = merchantCode
+    ? merchants.find((m: any) => String(m?.merchantCode || '').trim() === merchantCode)
+    : null
+
+  return (
+    metadata?.merchantName ||
+    matchedMerchant?.businessTradeName ||
+    transaction?.user?.merchant?.businessTradeName ||
+    transaction?.user?.profile?.merchantBusinessTradeName ||
+    transaction?.user?.profile?.businessTradeName ||
+    transaction?.user?.profile?.merchant_names ||
+    (merchantCode ? `Merchant (${merchantCode})` : transaction?.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')
+  )
+}
+
 export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
 
@@ -136,13 +154,7 @@ function QrPaymentMerchantReceiver({ transaction, metadata }: { transaction: any
   return (
     <>
       <span className="font-medium">
-        {metadata.merchantName ||
-          transaction.user?.merchants?.[0]?.businessTradeName ||
-          transaction.user?.merchant?.businessTradeName ||
-          transaction.user?.profile?.merchantBusinessTradeName ||
-          transaction.user?.profile?.businessTradeName ||
-          transaction.user?.profile?.merchant_names ||
-          (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')}
+        {resolveMerchantBusinessName(transaction, metadata)}
       </span>
       {metadata.merchantCode && (
         <span className="text-xs text-gray-500">🏪 Code: {metadata.merchantCode}</span>
@@ -350,11 +362,21 @@ function CounterpartyInfoReceiver({ transaction, metadata }: { transaction: any;
 }
 
 function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; metadata: any }) {
+  const resolvedMobileName =
+    metadata.customerName ||
+    metadata.receiverName ||
+    metadata.recipientName ||
+    metadata.userName ||
+    metadata?.validationResult?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.name ||
+    null
+
   if (metadata.mnoProvider) {
     return (
       <>
         <span className="font-medium">
-          {metadata.userName || metadata.recipientName || `${metadata.mnoProvider} Mobile Money`}
+          {resolvedMobileName || `${metadata.mnoProvider} Mobile Money`}
         </span>
         {metadata.phoneNumber && (
           <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
@@ -367,7 +389,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.phoneNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'Mobile Money User'}</span>
+        <span className="font-medium">{resolvedMobileName || 'Mobile Money User'}</span>
         <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
         {(transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO')) && (
           <span className="text-xs text-gray-500">📱 Mobile Money</span>
@@ -379,7 +401,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.accountNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'External Account'}</span>
+        <span className="font-medium">{resolvedMobileName || 'External Account'}</span>
         <span className="text-xs text-gray-500">
           {transaction.type?.includes('BANK')
             ? `🏦 Bank: ${metadata.accountNumber}`
@@ -444,11 +466,7 @@ function CreditQrPaymentReceiver({ transaction, metadata }: { transaction: any; 
     walletType === 'BUSINESS_LIQUIDATION'
 
   if (isBusinessWallet || metadata.isPublicPayment) {
-    const businessName =
-      metadata.merchantName ||
-      transaction.user?.merchants?.[0]?.businessTradeName ||
-      transaction.user?.merchant?.businessTradeName ||
-      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')
+    const businessName = resolveMerchantBusinessName(transaction, metadata)
     return (
       <>
         <span className="font-medium">{businessName}</span>
@@ -585,13 +603,13 @@ function CreditGenericReceiver({ transaction, metadata }: { transaction: any; me
   if (isMerchantTransaction) {
     const merchantName =
       transaction.user?.displayName ||
-      transaction.user?.merchants?.[0]?.businessTradeName ||
-      transaction.user?.merchant?.businessTradeName ||
-      (transaction.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : null)
+      resolveMerchantBusinessName(transaction, metadata)
 
     const merchantCode =
       metadata.merchantCode ||
-      transaction.user?.merchants?.[0]?.merchantCode ||
+      (Array.isArray(transaction.user?.merchants)
+        ? transaction.user.merchants.find((m: any) => String(m?.merchantCode || '').trim() === String(metadata?.merchantCode || '').trim())?.merchantCode
+        : null) ||
       transaction.user?.merchantCode
 
     return (

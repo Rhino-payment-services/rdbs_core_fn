@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Database, DownloadCloud, HardDrive, RefreshCw, Trash2 } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { useBackupStats, useBackupMongo, useBackupPostgres, useBackupBoth, useBackupCleanup } from '@/lib/hooks/useApi'
+import { useBackupStats, useBackupMongo, useBackupPostgres, useBackupBoth, useBackupCleanup, useBackupDownload } from '@/lib/hooks/useApi'
 import toast from 'react-hot-toast'
 
 const formatBytes = (bytes?: number) => {
@@ -37,14 +37,13 @@ export const BackupSettings: React.FC = () => {
   const backupPostgres = useBackupPostgres()
   const backupBoth = useBackupBoth()
   const cleanup = useBackupCleanup()
+  const downloadBackup = useBackupDownload()
 
   const [cleanupDays, setCleanupDays] = useState<string>('30')
   const [cleanupKeepCount, setCleanupKeepCount] = useState<string>('10')
   const [cleanupType, setCleanupType] = useState<'mongodb' | 'postgres' | 'both'>('both')
 
   const totalSizeFormatted = useMemo(() => formatBytes(stats?.totalSize), [stats?.totalSize])
-
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   const handleRunBackup = async (target: 'mongodb' | 'postgres' | 'both') => {
     try {
@@ -72,7 +71,7 @@ export const BackupSettings: React.FC = () => {
           const mongoOk = result.mongodb?.success
           const pgOk = result.postgres?.success
           if (mongoOk && pgOk) {
-            toast.success('MongoDB + PostgreSQL backups created successfully')
+            toast.success('MongoDB + PostgreSQL backups created. Use "Create + download" to download now.')
           } else {
             toast.error('One or more database backups failed – check server logs')
           }
@@ -84,16 +83,17 @@ export const BackupSettings: React.FC = () => {
     }
   }
 
-  const handleDownloadBackup = (target: 'mongodb' | 'postgres' | 'both') => {
-    const path =
-      target === 'mongodb'
-        ? '/api/v1/admin/backup/mongodb?download=true'
-        : target === 'postgres'
-        ? '/api/v1/admin/backup/postgres?download=true'
-        : '/api/v1/admin/backup/both?download=true'
-
-    const url = `${apiBaseUrl}${path}`
-    window.open(url, '_blank')
+  const handleDownloadBackup = async (target: 'mongodb' | 'postgres' | 'both') => {
+    try {
+      await downloadBackup.mutateAsync(target)
+      toast.success(
+        target === 'both'
+          ? 'Full backup created and downloaded successfully'
+          : `${target.toUpperCase()} backup created and downloaded successfully`,
+      )
+    } catch (error: any) {
+      toast.error(error?.message || 'Backup download failed')
+    }
   }
 
   const handleCleanup = async () => {
@@ -126,7 +126,7 @@ export const BackupSettings: React.FC = () => {
   }
 
   const anyBackupLoading =
-    backupMongo.isPending || backupPostgres.isPending || backupBoth.isPending || cleanup.isPending
+    backupMongo.isPending || backupPostgres.isPending || backupBoth.isPending || cleanup.isPending || downloadBackup.isPending
 
   return (
     <PermissionGuard permission={PERMISSIONS.BACKUP_VIEW}>
@@ -155,8 +155,7 @@ export const BackupSettings: React.FC = () => {
                 Run backup
               </CardTitle>
               <CardDescription>
-                Trigger backups on the server. Files are stored on the backup volume and visible in
-                backup stats.
+                Choose whether to create backups only, or create and download in one step.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -176,17 +175,18 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup MongoDB
+                        Create backup only
                       </>
                     )}
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleDownloadBackup('mongodb')}
+                    onClick={() => void handleDownloadBackup('mongodb')}
+                    disabled={anyBackupLoading}
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Backup & download
+                    Create + download
                   </Button>
                 </div>
 
@@ -205,17 +205,18 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup Postgres
+                        Create backup only
                       </>
                     )}
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleDownloadBackup('postgres')}
+                    onClick={() => void handleDownloadBackup('postgres')}
+                    disabled={anyBackupLoading}
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Backup & download
+                    Create + download
                   </Button>
                 </div>
 
@@ -234,24 +235,24 @@ export const BackupSettings: React.FC = () => {
                     ) : (
                       <>
                         <Database className="h-4 w-4 mr-2" />
-                        Backup both
+                        Create backups only
                       </>
                     )}
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleDownloadBackup('both')}
+                    onClick={() => void handleDownloadBackup('both')}
+                    disabled={anyBackupLoading}
                     className="w-full justify-center text-xs"
                   >
                     <DownloadCloud className="h-4 w-4 mr-1" />
-                    Full backup & download zip
+                    Create + download archive
                   </Button>
                 </div>
               </div>
 
               <p className="text-[11px] text-gray-500">
-                Download actions open the backup endpoint directly in a new tab so the browser can
-                stream large files safely.
+                "Create + download" triggers backup generation first, then downloads the generated file.
               </p>
             </CardContent>
           </Card>

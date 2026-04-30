@@ -58,9 +58,30 @@ const refreshToken = async (refreshToken: string) => {
   }
 }
 
+// Public auth routes: must not send Bearer token or backend may choose the wrong branch
+// (e.g. POST /auth/set-password expects { token, newPassword } from email link, not JWT + `password`).
+const AUTH_ROUTES_WITHOUT_BEARER = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/set-password',
+]
+
+function shouldSkipAuthHeader(url: string | undefined): boolean {
+  if (!url) return false
+  return AUTH_ROUTES_WITHOUT_BEARER.some((path) => url.includes(path))
+}
+
 // Request interceptor to add auth token dynamically
 api.interceptors.request.use(
   async (config) => {
+    if (shouldSkipAuthHeader(config.url)) {
+      delete config.headers.Authorization
+      return config
+    }
+
     // Use cached session if available and fresh (prevents endless getSession calls)
     const now = Date.now()
     let session = cachedSession
