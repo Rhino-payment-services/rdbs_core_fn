@@ -32,6 +32,21 @@ export interface CleanupResponse {
 }
 
 export type BackupDownloadTarget = 'mongodb' | 'postgres' | 'both'
+export type BackupJobStatus = 'pending' | 'running' | 'done' | 'failed'
+
+export interface BackupJob {
+  id: string
+  target: BackupDownloadTarget
+  status: BackupJobStatus
+  /** 0–100 */
+  progress: number
+  step: string
+  fileName?: string
+  fileSize?: number
+  error?: string
+  startedAt: string
+  finishedAt?: string
+}
 
 const apiFetch = async (endpoint: string, options: any = {}) => {
   const response = await api({
@@ -46,6 +61,7 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
 
 export const backupQueryKeys = {
   stats: ['backup', 'stats'] as const,
+  job: (id: string) => ['backup', 'job', id] as const,
 }
 
 export const useBackupStats = () => {
@@ -100,90 +116,71 @@ export const useBackupCleanup = () => {
   })
 }
 
-const resolveDownloadEndpoint = (target: BackupDownloadTarget) => {
-  switch (target) {
-    case 'mongodb':
-      return '/api/v1/admin/backup/mongodb?download=true'
-    case 'postgres':
-      return '/api/v1/admin/backup/postgres?download=true'
-    case 'both':
-    default:
-      return '/api/v1/admin/backup/both?download=true'
-  }
-}
+// ─── Job-based download with reactive progress polling ─────────────────────
 
-const inferDownloadFileName = (contentDisposition?: string | null, fallback = 'backup') => {
-  if (!contentDisposition) return fallback
-  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(utf8Match[1])
-  }
-  const asciiMatch = contentDisposition.match(/filename="?([^"]+)"?/i)
-  return asciiMatch?.[1] || fallback
-}
+const POLL_INTERVAL_MS = 1500
 
-export const useBackupDownload = () => {
-  return useMutation<void, unknown, BackupDownloadTarget>({
-    mutationFn: async (target) => {
-      let response
-      try {
-        response = await api({
-          url: resolveDownloadEndpoint(target),
-          method: 'POST',
-          responseType: 'blob',
-          // Backup creation can take longer than regular API calls.
-          // Override the global 10s timeout so the download request
-          // can wait for the server to finish preparing the file.
-          timeout: 10 * 60 * 1000,
-        })
-      } catch (error: any) {
-        const blobError = error?.response?.data
-        const errorContentType = error?.response?.headers?.['content-type'] || ''
-        if (blobError instanceof Blob && errorContentType.includes('application/json')) {
-          try {
-            const text = await blobError.text()
-            const parsed = JSON.parse(text)
-            throw new Error(parsed?.message || parsed?.error || 'Backup download failed')
-          } catch (parseError: any) {
-            throw new Error(parseError?.message || 'Backup download failed')
-          }
-        }
-        throw error
-      }
-
-      const contentType = response.headers?.['content-type'] || ''
-      if (contentType.includes('application/json')) {
-        let message = 'Backup download failed'
-        try {
-          const text = await response.data.text()
-          const parsed = JSON.parse(text)
-          message = parsed?.message || parsed?.error || message
-        } catch {
-          // Ignore parsing errors and fall back to generic message.
-        }
-        throw new Error(message)
-      }
-
-      const fallbackName =
-        target === 'both'
-          ? 'backup-both.zip'
-          : target === 'postgres'
-            ? 'backup-postgres.dump'
-            : 'backup-mongodb.tar.gz'
-      const filename = inferDownloadFileName(response.headers?.['content-disposition'], fallbackName)
-      const blob = new Blob([response.data], {
-        type: contentType || 'application/octet-stream',
-      })
-
-      const objectUrl = window.URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = objectUrl
-      anchor.download = filename
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(objectUrl)
-    },
+/**
+ * Start a backup job — returns the initial BackupJob (with status "pending").
+ * The component then polls via useBackupJobStatus for live progress.
+ */
+export const useStartBackupJob = () => {
+  return useMutation<BackupJob, Error, BackupDownloadTarget>({
+    mutationFn: (target) =>
+      apiFetch('/api/v1/admin/backup/job/start', {
+        method: 'POST',
+        data: { target },
+      }),
   })
 }
 
+/**
+ * Reactively poll a running backup job's status.
+ * Stops polling automatically once status is "done" or "failed".
+ */
+export const useBackupJobStatus = (jobId: string | null) => {
+  return useQuery<BackupJob>({
+    queryKey: backupQueryKeys.job(jobId ?? ''),
+    queryFn: () => apiFetch(`/api/v1/admin/backup/job/${jobId}/status`),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return !status || status === 'pending' || status === 'running' ? POLL_INTERVAL_MS : false
+    },
+    staleTime: 0,
+  })
+}
+
+/** Trigger a browser download for a completed job's file. */
+export const downloadJobFile = async (job: BackupJob): Promise<void> => {
+  const downloadResponse = await api({
+    url: `/api/v1/admin/backup/job/${job.id}/download`,
+    method: 'GET',
+    responseType: 'blob',
+    timeout: 5 * 60 * 1000,
+  })
+
+  const contentType = downloadResponse.headers?.['content-type'] || 'application/octet-stream'
+  const disposition: string = downloadResponse.headers?.['content-disposition'] || ''
+  const filenameMatch = disposition.match(/filename="?([^"]+)"?/i)
+  const filename =
+    filenameMatch?.[1] ||
+    (job.target === 'both'
+      ? 'backup-both.zip'
+      : job.target === 'postgres'
+        ? 'backup-postgres.dump'
+        : 'backup-mongodb.tar.gz')
+
+  const blob = new Blob([downloadResponse.data], { type: contentType })
+  const objectUrl = window.URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  window.URL.revokeObjectURL(objectUrl)
+}
+
+// Keep backwards-compatible export used by BackupSettings
+export const useBackupDownload = useStartBackupJob

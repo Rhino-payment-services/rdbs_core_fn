@@ -107,6 +107,12 @@ export {
   useBackupBoth,
   useBackupCleanup,
   useBackupDownload,
+  useStartBackupJob,
+  useBackupJobStatus,
+  downloadJobFile,
+  type BackupDownloadTarget,
+  type BackupJob,
+  type BackupJobStatus,
 } from './useBackup'
 
 // Legacy hooks that might still be needed
