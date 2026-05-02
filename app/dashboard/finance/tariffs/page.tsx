@@ -105,6 +105,17 @@ interface Tariff {
   telecomBankCharge?: number // Telecom/Bank charge (optional)
   governmentTax?: number
   transactionModeCode?: string // Transaction mode code for CUSTOM transaction types
+  metadata?: Record<string, unknown> | null
+}
+
+function formatInstitutionSpreadFromMetadata(metadata: unknown): string | null {
+  const m = metadata as { institutionSpreadBps?: { rukapay?: number; nexen?: number } } | null | undefined
+  const b = m?.institutionSpreadBps
+  if (!b) return null
+  const r = Math.max(0, Math.floor(Number(b.rukapay) || 0))
+  const n = Math.max(0, Math.floor(Number(b.nexen) || 0))
+  if (r === 0 && n === 0) return 'SACCO: full principal (0 bps spread)'
+  return `SACCO spread: RukaPay ${r} bps + NEXEN ${n} bps (${(r + n) / 100}% of principal)`
 }
 
 interface Partner {
@@ -192,6 +203,8 @@ const TariffsPage = () => {
       'MERCHANT_WITHDRAWAL': 'Merchant Withdrawal',
       'MERCHANT_TO_WALLET': 'Merchant to Wallet',
       'CARD_TO_WALLET': 'Card to Wallet',
+      'WALLET_TO_PARTNER_INSTITUTION': 'Wallet to Partner Institution',
+      'PARTNER_INSTITUTION_TO_WALLET': 'Partner Institution to Wallet',
       'CUSTOM': 'Custom',
     }
     return typeLabels[type] || type
@@ -336,6 +349,20 @@ const TariffsPage = () => {
       color: 'bg-cyan-600',
       tabId: 'card-to-wallet'
     },
+    'WALLET_TO_PARTNER_INSTITUTION': {
+      name: 'Wallet → Partner Institution',
+      description: 'Subscriber wallet to SACCO / institution settlement',
+      icon: Building2,
+      color: 'bg-teal-700',
+      tabId: 'wallet-to-partner-institution'
+    },
+    'PARTNER_INSTITUTION_TO_WALLET': {
+      name: 'Partner Institution → Wallet',
+      description: 'SACCO settlement payout to subscriber wallet',
+      icon: Building2,
+      color: 'bg-sky-700',
+      tabId: 'partner-institution-to-wallet'
+    },
     'CUSTOM': {
       name: 'Custom',
       description: 'Custom transaction types (e.g., School Fees)',
@@ -381,6 +408,12 @@ const TariffsPage = () => {
     'MERCHANT_WITHDRAWAL': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_WITHDRAWAL'),
     'MERCHANT_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'MERCHANT_TO_WALLET'),
     'CARD_TO_WALLET': externalTariffs.filter((t: Tariff) => t.transactionType === 'CARD_TO_WALLET'),
+    'WALLET_TO_PARTNER_INSTITUTION': externalTariffs.filter(
+      (t: Tariff) => t.transactionType === 'WALLET_TO_PARTNER_INSTITUTION',
+    ),
+    'PARTNER_INSTITUTION_TO_WALLET': externalTariffs.filter(
+      (t: Tariff) => t.transactionType === 'PARTNER_INSTITUTION_TO_WALLET',
+    ),
     'CUSTOM': externalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
 
@@ -644,7 +677,9 @@ const TariffsPage = () => {
                   <TableHead>Fee Type</TableHead>
                   <TableHead>Fee Amount</TableHead>
                   <TableHead>Amount Range</TableHead>
-                  <TableHead>Transaction Type</TableHead>
+                  <TableHead className="max-w-[220px] whitespace-normal">
+                    Transaction Type
+                  </TableHead>
                   {!isInternalTariff && <TableHead>Partner</TableHead>}
                   {!isInternalTariff && <TableHead>Group</TableHead>}
                   {!isInternalTariff && <TableHead>Partner Fee</TableHead>}
@@ -674,8 +709,20 @@ const TariffsPage = () => {
                         : '-'
                       }
                     </TableCell>
-                    <TableCell className="text-sm">
-                      <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType, tariff)}</Badge>
+                    <TableCell className="max-w-[220px] min-w-[10rem] align-top text-sm whitespace-normal break-words">
+                      <Badge variant="outline" className="whitespace-nowrap">
+                        {getTransactionTypeLabel(tariff.transactionType, tariff)}
+                      </Badge>
+                      {(() => {
+                        const spreadLine =
+                          tariff.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
+                            ? formatInstitutionSpreadFromMetadata(tariff.metadata) ??
+                              'SACCO: full principal (no spread in metadata)'
+                            : null
+                        return spreadLine ? (
+                          <p className="mt-1 text-xs leading-snug text-muted-foreground">{spreadLine}</p>
+                        ) : null
+                      })()}
                     </TableCell>
                     {!isInternalTariff && (
                       <TableCell>
@@ -1253,6 +1300,19 @@ const TariffsPage = () => {
                     <Label className="text-xs text-gray-500">Transaction Type</Label>
                     <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType, viewTariff)}</Badge>
                   </div>
+                  {viewTariff.transactionType === 'WALLET_TO_PARTNER_INSTITUTION' && (
+                    <div className="col-span-2">
+                      <Label className="text-xs text-gray-500">Institution principal spread (metadata)</Label>
+                      <p className="text-sm mt-1">
+                        {formatInstitutionSpreadFromMetadata(viewTariff.metadata) ??
+                          'SACCO: full principal (no spread in metadata)'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Stored as <code className="text-xs">metadata.institutionSpreadBps</code> (basis points of
+                        principal before SACCO / NEXEN credit).
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

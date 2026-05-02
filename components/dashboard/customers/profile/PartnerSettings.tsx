@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Wallet, TrendingUp, RefreshCw, PlusCircle, Loader2 } from 'lucide-react'
+import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -74,6 +74,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const [form, setForm] = useState({
     walletType: 'ESCROW' as 'ESCROW' | 'COMMISSION',
+    transactionType: 'CREDIT' as 'CREDIT' | 'DEBIT',
     amount: '',
     reference: '',
     description: '',
@@ -97,11 +98,15 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     refetchCommission()
   }
 
-  const handleOpenFund = (walletType: 'ESCROW' | 'COMMISSION') => {
+  const handleOpenAdjustment = (
+    walletType: 'ESCROW' | 'COMMISSION',
+    transactionType: 'CREDIT' | 'DEBIT',
+  ) => {
     setForm({
       walletType,
+      transactionType,
       amount: '',
-      reference: `TOPUP_${walletType}_${Date.now()}`,
+      reference: `${transactionType === 'DEBIT' ? 'DEBIT' : 'TOPUP'}_${walletType}_${Date.now()}`,
       description: '',
     })
     setFundDialogOpen(true)
@@ -110,7 +115,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const handleFundWallet = async () => {
     const parsedAmount = parseFloat(form.amount)
     if (!form.amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error('Please enter a valid positive amount')
+      toast.error('Amount must be a positive number')
       return
     }
     if (!form.reference.trim()) {
@@ -119,21 +124,31 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     }
 
     const walletId = resolveWalletId(form.walletType)
+    if (form.transactionType === 'DEBIT' && !walletId) {
+      toast.error('Debit is only available after the wallet exists. Use credit first to create the wallet, or wait for balances to load.')
+      return
+    }
+
     const reason =
-      form.description.trim() || `Manual funding (${form.walletType}) — ${partnerName}`
+      form.description.trim() ||
+      (form.transactionType === 'DEBIT'
+        ? `Manual debit (${form.walletType}) — ${partnerName}`
+        : `Manual funding (${form.walletType}) — ${partnerName}`)
     const reference = form.reference.trim()
+    // Same as CustomerSettings: fund API accepts positive (credit) or negative (debit)
+    const signedAmount = form.transactionType === 'DEBIT' ? -parsedAmount : parsedAmount
 
     setIsLoading(true)
     try {
       if (walletId) {
-        // Same path as CustomerSettings manual credit — admin wallet fund
         await api.post(`/wallet/admin/${walletId}/fund`, {
-          amount: parsedAmount,
+          amount: signedAmount,
           reason,
           reference,
         })
       } else {
-        // No wallet row yet — gateway flow creates ESCROW/COMMISSION wallet if missing
+        // Top-up flow only supports adding funds (creates wallet if needed)
+        // Top-up flow only supports adding funds (creates wallet if needed)
         await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
           partnerId,
           amount: parsedAmount,
@@ -144,7 +159,10 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         })
       }
 
-      toast.success(`${form.walletType} wallet funded with ${parsedAmount.toLocaleString()} UGX`)
+      const action = form.transactionType === 'CREDIT' ? 'Credit' : 'Debit'
+      toast.success(
+        `${action}: ${parsedAmount.toLocaleString()} UGX on ${form.walletType} wallet for ${partnerName}`,
+      )
       setFundDialogOpen(false)
 
       queryClient.invalidateQueries({ queryKey: ['partner-wallet-balance', partnerId] })
@@ -156,7 +174,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         error?.message ||
-        'Failed to fund wallet'
+        'Failed to apply wallet adjustment'
       toast.error(msg)
     } finally {
       setIsLoading(false)
@@ -211,10 +229,16 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             )}
           </>
         )}
-        <Button size="sm" variant="outline" className={btnOutline} onClick={() => handleOpenFund(type)}>
-          <PlusCircle className="h-3.5 w-3.5" />
-          Fund Wallet
-        </Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+            <PlusCircle className="h-3.5 w-3.5" />
+            Fund
+          </Button>
+          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+            <MinusCircle className="h-3.5 w-3.5" />
+            Deduct
+          </Button>
+        </div>
       </div>
     )
   }
@@ -230,8 +254,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 Partner wallets &amp; manual funding
               </CardTitle>
               <CardDescription>
-                Add money to ESCROW or COMMISSION the same way as manual transactions on customer profiles (admin wallet
-                fund when a wallet exists).
+                Credit or debit ESCROW and COMMISSION wallets using the same admin wallet fund API as merchant/customer
+                profiles when a wallet exists; first-time credit can use gateway top-up to create the wallet.
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" onClick={handleRefresh} className="gap-1.5">
@@ -265,18 +289,19 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-blue-600" />
-              Fund {form.walletType} Wallet
+              Manual transaction — {form.walletType}
             </DialogTitle>
             <DialogDescription>
-              Add funds to the {form.walletType.toLowerCase()} wallet for{' '}
+              Credit or debit the {form.walletType.toLowerCase()} wallet for{' '}
               <span className="font-medium">{partnerName}</span>.
               {resolveWalletId(form.walletType) ? (
                 <span className="block mt-1 text-xs text-muted-foreground">
-                  Uses admin wallet funding (same as customer manual credit).
+                  Uses admin wallet fund (positive = credit, negative = debit), same as customer/merchant settings.
                 </span>
               ) : (
                 <span className="block mt-1 text-xs text-amber-700">
-                  Wallet will be created on first funding if it does not exist yet.
+                  Wallet not loaded yet: only credit is available; gateway top-up will create the wallet if needed. Debit
+                  requires an existing wallet.
                 </span>
               )}
             </DialogDescription>
@@ -300,10 +325,27 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             </div>
 
             <div>
+              <Label>Transaction type</Label>
+              <Select
+                value={form.transactionType}
+                onValueChange={(v) => setForm((f) => ({ ...f, transactionType: v as 'CREDIT' | 'DEBIT' }))}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CREDIT">Credit (add money)</SelectItem>
+                  <SelectItem value="DEBIT">Debit (remove money)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Amount (UGX)</Label>
               <Input
                 type="number"
-                min="1"
+                min="500"
+                step="1"
                 placeholder="e.g. 1000000"
                 className="mt-1"
                 value={form.amount}
@@ -332,12 +374,36 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               />
             </div>
 
-            {form.amount && !Number.isNaN(parseFloat(form.amount)) && (
-              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-sm">
-                <p className="text-blue-800 font-medium">
-                  Funding {form.walletType} with{' '}
+            {form.amount && !Number.isNaN(parseFloat(form.amount)) && parseFloat(form.amount) > 0 && (
+              <div
+                className={`rounded-md border p-3 text-sm ${
+                  form.transactionType === 'CREDIT'
+                    ? 'bg-green-50 border-green-200 text-green-900'
+                    : 'bg-red-50 border-red-200 text-red-900'
+                }`}
+              >
+                <p className="font-medium">
+                  {form.transactionType === 'CREDIT' ? 'Credit' : 'Debit'}{' '}
                   <span className="font-bold">{parseFloat(form.amount).toLocaleString('en-UG')} UGX</span>
+                  {` on ${form.walletType}`}
                 </p>
+                {(() => {
+                  const bal =
+                    form.walletType === 'ESCROW'
+                      ? escrowBalance?.balance
+                      : commissionBalance?.balance
+                  const n = bal != null ? Number(bal) : NaN
+                  if (Number.isNaN(n)) return null
+                  const amt = parseFloat(form.amount)
+                  const after =
+                    form.transactionType === 'CREDIT' ? n + amt : n - amt
+                  return (
+                    <p className="mt-1 text-xs opacity-90">
+                      Balance after: <span className="font-semibold">{after.toLocaleString('en-UG')} UGX</span>
+                      {after < 0 ? ' (invalid — insufficient balance)' : ''}
+                    </p>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -346,7 +412,11 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             <Button variant="outline" onClick={() => setFundDialogOpen(false)} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={handleFundWallet} disabled={isLoading} className="gap-1.5">
+            <Button
+              onClick={handleFundWallet}
+              disabled={isLoading}
+              className={`gap-1.5 ${form.transactionType === 'DEBIT' ? 'bg-red-600 hover:bg-red-700' : ''}`}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -355,7 +425,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               ) : (
                 <>
                   <PlusCircle className="h-4 w-4" />
-                  Confirm Funding
+                  {form.transactionType === 'CREDIT' ? 'Credit wallet' : 'Debit wallet'}
                 </>
               )}
             </Button>

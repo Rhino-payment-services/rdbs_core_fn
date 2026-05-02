@@ -202,6 +202,13 @@ export const getTypeDisplay = (
     (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
   if (isSweep) return 'Liquidate'
 
+  if (type === 'BILL_PAYMENT') {
+    const util = meta?.utilityProvider
+    const pt = meta?.payment_type
+    if (pt === 'airtime' || util === 'AIRTIME') return 'Airtime (bill)'
+    if (pt === 'mobile_data' || util === 'DATA_BUNDLES') return 'Mobile data (bill)'
+  }
+
   // Special handling for MERCHANT_TO_WALLET based on direction
   if ((type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET') && direction === 'DEBIT') {
     return 'Sent from Merchant'
@@ -235,6 +242,9 @@ export const getTypeDisplay = (
     WALLET_TO_UTILITY: 'Utility Payment',
     BILL_PAYMENT: 'Bill Payment',
     SCHOOL_FEES: 'School Fees',
+    WALLET_TO_PARTNER_INSTITUTION: 'Wallet to SACCO',
+    PARTNER_INSTITUTION_TO_WALLET: 'SACCO to Wallet',
+    LIQUIDATION: 'SACCO Liquidation',
     
     // Wallet Operations
     DEPOSIT: 'Wallet Deposit',
@@ -248,7 +258,16 @@ export const getTypeDisplay = (
     FEE_CHARGE: 'Fee Charge',
     CUSTOM: 'Custom Transaction'
   }
-  return typeMap[type as keyof typeof typeMap] || type
+  const mapped = typeMap[type as keyof typeof typeMap]
+  if (mapped) return mapped
+
+  // Final fallback: humanize unknown enum-like names.
+  return String(type || 'Unknown')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 /**

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,14 +42,17 @@ interface TariffForm {
   partnerId?: string
   isActive: boolean
   reason?: string
+  institutionSpreadRukapayBps: number
+  institutionSpreadNexenBps: number
 }
 
 interface Tariff {
   id: string
   name: string
   description: string
+  tariffType: any
   transactionType: string
-  feeType: string
+  feeType: any
   feeAmount: number
   feePercentage: number
   minAmount: number
@@ -63,6 +66,7 @@ interface Tariff {
   approvedBy?: string
   createdAt: string
   updatedAt: string
+  metadata?: Record<string, unknown> | null
 }
 
 const EditTariffPage = () => {
@@ -90,18 +94,29 @@ const EditTariffPage = () => {
     profileTypes: [],
     partnerId: '',
     isActive: true,
-    reason: ''
+    reason: '',
+    institutionSpreadRukapayBps: 0,
+    institutionSpreadNexenBps: 0,
   })
 
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([])
   const [selectedProfileTypes, setSelectedProfileTypes] = useState<string[]>([])
+  const tariffHydratedId = useRef<string | null>(null)
 
   // Fetch tariff data
   const { data: tariff, isLoading: tariffLoading, error: tariffError } = useQuery({
     queryKey: ['tariff', tariffId],
-    queryFn: () => api.get(`/finance/tariffs/${tariffId}`).then(res => res.data),
+    queryFn: async () => {
+      const res = await api.get(`/finance/tariffs/${tariffId}`)
+      const body = res.data as { data?: Tariff } & Tariff
+      return (body?.data ?? body) as Tariff
+    },
     enabled: !!tariffId,
   })
+
+  useEffect(() => {
+    tariffHydratedId.current = null
+  }, [tariffId])
 
   // Fetch partners for external tariffs
   const { data: partners } = useQuery({
@@ -109,33 +124,54 @@ const EditTariffPage = () => {
     queryFn: () => api.get('/admin/external-payment-partners').then(res => res.data),
   })
 
-  // Update form when tariff data loads
+  // Update form when tariff data loads (once per tariff id)
   useEffect(() => {
-    if (tariff && !form.name) { // Only set form if it's not already set
-      console.log('Loading tariff data:', tariff)
-      console.log('Transaction Type:', tariff.transactionType)
-      setForm({
-        name: tariff.name || '',
-        description: tariff.description || '',
-        transactionType: tariff.transactionType || '',
-        feeType: tariff.feeType || 'FIXED',
-        feeAmount: tariff.feeAmount || 0,
-        feePercentage: tariff.feePercentage || 0,
-        minAmount: tariff.minAmount || 0,
-        maxAmount: tariff.maxAmount || 0,
-        userTypes: tariff.userTypes || [],
-        profileTypes: tariff.profileTypes || [],
-        partnerId: tariff.partnerId || '',
-        isActive: tariff.isActive ?? true,
-        reason: ''
-      })
-      setSelectedUserTypes(tariff.userTypes || [])
-      setSelectedProfileTypes(tariff.profileTypes || [])
-    }
-  }, [tariff, form.name])
+    if (!tariff?.id || tariffHydratedId.current === tariff.id) return
+    tariffHydratedId.current = tariff.id
+    const bps = (tariff.metadata as Record<string, unknown> | undefined)?.institutionSpreadBps as
+      | { rukapay?: number; nexen?: number }
+      | undefined
+    setForm({
+      name: tariff.name || '',
+      description: tariff.description || '',
+      transactionType: tariff.transactionType || '',
+      feeType: tariff?.feeType || '' ,
+      feeAmount: tariff.feeAmount || 0,
+      feePercentage: (() => {
+        const raw = Number(tariff.feePercentage)
+        if (!Number.isFinite(raw) || raw <= 0) return 0
+        return raw > 0 && raw <= 1 ? raw * 100 : raw
+      })(),
+      minAmount: tariff.minAmount || 0,
+      maxAmount: tariff.maxAmount || 0,
+      userTypes: tariff.userTypes || [],
+      profileTypes: tariff.profileTypes || [],
+      partnerId: tariff.partnerId || '',
+      isActive: tariff.isActive ?? true,
+      reason: '',
+      institutionSpreadRukapayBps: Math.max(0, Math.floor(Number(bps?.rukapay) || 0)),
+      institutionSpreadNexenBps: Math.max(0, Math.floor(Number(bps?.nexen) || 0)),
+    })
+    setSelectedUserTypes(tariff.userTypes || [])
+    setSelectedProfileTypes(tariff.profileTypes || [])
+  }, [tariff])
 
   const updateTariffMutation = useMutation({
     mutationFn: async (data: TariffForm) => {
+      const clampBps = (n: number) =>
+        Math.max(0, Math.min(10000, Math.floor(Number.isFinite(n) ? n : 0)))
+      const prevMeta = (tariff?.metadata as Record<string, unknown> | undefined) ?? {}
+      const nextMeta: Record<string, unknown> = { ...prevMeta }
+      if (data.transactionType === 'WALLET_TO_PARTNER_INSTITUTION') {
+        nextMeta.institutionSpreadBps = {
+          rukapay: clampBps(data.institutionSpreadRukapayBps),
+          nexen: clampBps(data.institutionSpreadNexenBps),
+        }
+      } else {
+        delete nextMeta.institutionSpreadBps
+      }
+      const metadataPayload = Object.keys(nextMeta).length > 0 ? nextMeta : undefined
+
       // Transform form data to match backend DTO
       const updateData = {
         name: data.name,
@@ -150,6 +186,7 @@ const EditTariffPage = () => {
         userType: data.userTypes.length > 0 ? data.userTypes[0] : undefined, // Backend expects single value
         subscriberType: data.profileTypes.length > 0 ? data.profileTypes[0] : undefined, // Backend expects single value
         partnerId: data.partnerId || undefined,
+        metadata: metadataPayload,
       }
       console.log('Updating tariff with data:', updateData)
       return api.put(`/finance/tariffs/${tariffId}`, updateData)
@@ -286,7 +323,9 @@ const EditTariffPage = () => {
     'CARD_TO_WALLET',
     'REVERSAL',
     'FEE_CHARGE',
-    'CUSTOM'
+    'CUSTOM',
+    'WALLET_TO_PARTNER_INSTITUTION',
+    'PARTNER_INSTITUTION_TO_WALLET',
   ]
   
   // Ensure current transaction type is in the list if tariff is loaded
@@ -560,6 +599,49 @@ const EditTariffPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {form.transactionType === 'WALLET_TO_PARTNER_INSTITUTION' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">SACCO / NEXEN principal spread</CardTitle>
+                  <CardDescription>
+                    Basis points (bps) of principal withheld before SACCO receives funds (100 bps = 1%). Stored in{' '}
+                    <code className="text-xs">metadata.institutionSpreadBps</code>. Subscriber still pays principal +
+                    customer fee from above.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="institutionSpreadRukapayBps">RukaPay spread (bps)</Label>
+                    <Input
+                      id="institutionSpreadRukapayBps"
+                      type="number"
+                      min={0}
+                      max={10000}
+                      step={1}
+                      value={form.institutionSpreadRukapayBps}
+                      onChange={(e) =>
+                        handleInputChange('institutionSpreadRukapayBps', parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="institutionSpreadNexenBps">NEXEN spread (bps)</Label>
+                    <Input
+                      id="institutionSpreadNexenBps"
+                      type="number"
+                      min={0}
+                      max={10000}
+                      step={1}
+                      value={form.institutionSpreadNexenBps}
+                      onChange={(e) =>
+                        handleInputChange('institutionSpreadNexenBps', parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>

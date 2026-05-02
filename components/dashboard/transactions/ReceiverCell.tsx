@@ -31,6 +31,7 @@ function resolveMerchantBusinessName(transaction: any, metadata: any): string {
 
 export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
+  const txType = String(transaction.type || '').toUpperCase()
 
   if (transaction.type === 'REVERSAL') {
     return (
@@ -69,6 +70,57 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
               <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
             ) : undefined}
           />
+          {creditLabel && (
+            <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
+
+  // Partner-institution credit leg without receiverInfo: derive SACCO from metadata.
+  if (txType === 'WALLET_TO_PARTNER_INSTITUTION') {
+    const code = String(
+      metadata?.nexenInstitutionCode ||
+      metadata?.partnerInstitutionCode ||
+      metadata?.institutionCode ||
+      metadata?.saccoCode ||
+      metadata?.organizationCode ||
+      ''
+    ).trim()
+    const instName = String(
+      metadata?.nexenInstitutionName ||
+      metadata?.partnerInstitutionName ||
+      metadata?.institutionName ||
+      metadata?.saccoName ||
+      metadata?.organizationName ||
+      ''
+    ).trim()
+    const partnerName = String(
+      metadata?.apiPartnerName ||
+      metadata?.partnerName ||
+      transaction?.partner?.partnerName ||
+      ''
+    ).trim()
+
+    const syntheticInfo = normalizePartyInfoForDisplay(
+      {
+        name: instName || (code ? `Code ${code}` : 'SACCO settlement wallet'),
+        contact: transaction?.partner?.contactPhone || transaction?.partner?.contactEmail || null,
+        type: 'PARTNER_INSTITUTION',
+        partnerName: partnerName || null,
+        institutionCode: code || null,
+        institutionName: instName || null,
+        institutionLine: [code && `Code ${code}`, instName].filter(Boolean).join(' · ') || null,
+      },
+      transaction,
+      'receiver'
+    )
+
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <PartyDisplay info={syntheticInfo} />
           {creditLabel && (
             <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
           )}
@@ -362,11 +414,21 @@ function CounterpartyInfoReceiver({ transaction, metadata }: { transaction: any;
 }
 
 function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; metadata: any }) {
+  const resolvedMobileName =
+    metadata.customerName ||
+    metadata.receiverName ||
+    metadata.recipientName ||
+    metadata.userName ||
+    metadata?.validationResult?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.customerName ||
+    metadata?.mnoReceiverValidation?.data?.name ||
+    null
+
   if (metadata.mnoProvider) {
     return (
       <>
         <span className="font-medium">
-          {metadata.userName || metadata.recipientName || `${metadata.mnoProvider} Mobile Money`}
+          {resolvedMobileName || `${metadata.mnoProvider} Mobile Money`}
         </span>
         {metadata.phoneNumber && (
           <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
@@ -379,7 +441,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.phoneNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'Mobile Money User'}</span>
+        <span className="font-medium">{resolvedMobileName || 'Mobile Money User'}</span>
         <span className="text-xs text-gray-500">📱 {metadata.phoneNumber}</span>
         {(transaction.type?.includes('MNO') || transaction.type?.includes('WALLET_TO_MNO')) && (
           <span className="text-xs text-gray-500">📱 Mobile Money</span>
@@ -391,7 +453,7 @@ function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; me
   if (metadata.accountNumber) {
     return (
       <>
-        <span className="font-medium">{metadata.userName || metadata.recipientName || 'External Account'}</span>
+        <span className="font-medium">{resolvedMobileName || 'External Account'}</span>
         <span className="text-xs text-gray-500">
           {transaction.type?.includes('BANK')
             ? `🏦 Bank: ${metadata.accountNumber}`

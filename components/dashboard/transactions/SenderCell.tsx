@@ -30,6 +30,7 @@ function getBadgeColor(type: BadgeType): string {
 
 export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
   const { metadata, senderMeta, resolvedPartner, resolvedPartnerName } = derived
+  const txType = String(transaction.type || '').toUpperCase()
 
   if (transaction.type === 'REVERSAL') {
     return (
@@ -48,6 +49,75 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
   const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
   const debitLabel = isSweep && (metadata?.debitWalletType || 'Collection')
 
+  // LIQUIDATION: always show API partner + which SACCO (institution) — do not fall through to phone-only partner row.
+  if (String(transaction.type || '').toUpperCase() === 'LIQUIDATION') {
+    const m = metadata || {}
+    const base = transaction.senderInfo || {}
+    const code = String(
+      base.institutionCode ||
+      m.nexenInstitutionCode ||
+      m.partnerInstitutionCode ||
+      m.institutionCode ||
+      m.saccoCode ||
+      m.organizationCode ||
+      transaction.partnerInstitution?.code ||
+      transaction.wallet?.partnerInstitution?.code ||
+      ''
+    ).trim()
+    const instName = String(
+      base.institutionName ||
+      m.nexenInstitutionName ||
+      m.partnerInstitutionName ||
+      m.institutionName ||
+      m.saccoName ||
+      m.organizationName ||
+      transaction.partnerInstitution?.name ||
+      transaction.wallet?.partnerInstitution?.name ||
+      ''
+    ).trim()
+    const institutionLine =
+      base.institutionLine ||
+      ([code && `Code ${code}`, instName].filter(Boolean).join(' · ') || undefined)
+    const institutionDisplayName =
+      instName ||
+      (code ? `Code ${code}` : '') ||
+      String(base.name || '').trim() ||
+      'SACCO settlement wallet'
+    const partnerName = String(
+      base.partnerName ||
+      transaction.partner?.partnerName ||
+      transaction.wallet?.partner?.partnerName ||
+      m.apiPartnerName ||
+      m.partnerName ||
+      ''
+    ).trim()
+
+    const liquidInfo = normalizePartyInfoForDisplay(
+      {
+        ...base,
+        name: institutionDisplayName,
+        contact: null,
+        type: 'PARTNER_INSTITUTION',
+        partnerName: partnerName || null,
+        institutionCode: base.institutionCode ?? (code || null),
+        institutionName: base.institutionName ?? (instName || null),
+        institutionLine,
+      },
+      transaction,
+      'sender'
+    )
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <PartyDisplay info={liquidInfo} />
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
+
   // Prefer API-provided senderInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.senderInfo) {
     const senderInfo = normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
@@ -58,6 +128,56 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
             info={senderInfo}
             nameClassName={senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}
           />
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
+
+  // Partner-institution debit leg without senderInfo: derive SACCO from metadata.
+  if (txType === 'PARTNER_INSTITUTION_TO_WALLET') {
+    const code = String(
+      metadata?.nexenInstitutionCode ||
+      metadata?.partnerInstitutionCode ||
+      metadata?.institutionCode ||
+      metadata?.saccoCode ||
+      metadata?.organizationCode ||
+      ''
+    ).trim()
+    const instName = String(
+      metadata?.nexenInstitutionName ||
+      metadata?.partnerInstitutionName ||
+      metadata?.institutionName ||
+      metadata?.saccoName ||
+      metadata?.organizationName ||
+      ''
+    ).trim()
+    const partnerName = String(
+      metadata?.apiPartnerName ||
+      metadata?.partnerName ||
+      transaction?.partner?.partnerName ||
+      ''
+    ).trim()
+
+    const syntheticInfo = normalizePartyInfoForDisplay(
+      {
+        name: instName || (code ? `Code ${code}` : 'SACCO settlement wallet'),
+        contact: transaction?.partner?.contactPhone || transaction?.partner?.contactEmail || null,
+        type: 'PARTNER_INSTITUTION',
+        partnerName: partnerName || null,
+        institutionCode: code || null,
+        institutionName: instName || null,
+        institutionLine: [code && `Code ${code}`, instName].filter(Boolean).join(' · ') || null,
+      },
+      transaction,
+      'sender'
+    )
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <PartyDisplay info={syntheticInfo} />
           {debitLabel && (
             <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
           )}

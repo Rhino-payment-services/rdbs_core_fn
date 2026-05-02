@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
 import { normalizePhoneForSearch } from '@/lib/utils'
 
-interface User {
+export interface UserSearchResult {
   id: string
   phone: string
   email?: string
@@ -23,6 +23,8 @@ interface User {
     gender?: string
     nationalId?: string
   }
+  merchants?: Array<{ id: string }>
+  wallets?: Array<{ id: string }>
 }
 
 interface UseUserSearchProps {
@@ -39,7 +41,7 @@ export const useUserSearch = ({ phone, email, enabled = true }: UseUserSearchPro
 
   return useQuery({
     queryKey: ['userSearch', searchKey],
-    queryFn: async (): Promise<User> => {
+    queryFn: async (): Promise<UserSearchResult> => {
       const params = new URLSearchParams()
       if (searchByEmail) {
         params.set('email', email!.trim())

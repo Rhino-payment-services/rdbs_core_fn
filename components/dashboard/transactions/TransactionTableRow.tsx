@@ -151,7 +151,14 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     return m
   })()
 
-  const resolvedPartner = transaction.partnerMapping?.partner || transaction.partner || null
+  // ApiPartner: the business/company that uses RukaPay's rails (integrated via API key).
+  // This drives the Sender column for API-initiated transactions.
+  const resolvedPartner = transaction.partner || null
+
+  // ExternalPaymentPartner: the payment rail/gateway RukaPay routes through (MTN, Airtel, ABC bank).
+  // Accessed only via transaction.partnerMapping?.partner — used solely for paymentPartnerLabel below.
+  const extPaymentPartner = transaction.partnerMapping?.partner || null
+
   const resolvedPartnerCode =
     resolvedPartner?.partnerCode ||
     metadata.partnerCode ||
@@ -179,19 +186,17 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.mnoProvider ||
     null
 
-  const paymentPartnerFromMapping = transaction.partnerMapping?.partner
+  const paymentPartnerFromMapping = extPaymentPartner
     ? (() => {
-        const p = transaction.partnerMapping.partner
-        const name = String(p?.partnerName || '').trim()
-        const code = String(p?.partnerCode || '').trim()
-        if (!name) return code && !isNumericLikePartnerCode(code) ? code : null
-        // Prefer a short label in the table (e.g. "ABC Payment Services" -> "ABC")
+        const code = String(extPaymentPartner.partnerCode || '').trim()
+        if (code && !isNumericLikePartnerCode(code)) return code.toUpperCase()
+        const name = String(extPaymentPartner.partnerName || '').trim()
+        if (!name) return null
         const upperName = name.toUpperCase()
         if (upperName.includes('ABC')) return 'ABC'
         if (upperName.includes('PEGASUS')) return 'PEGASUS'
         if (upperName.includes('AIRTEL')) return 'AIRTEL'
         if (upperName.includes('MTN')) return 'MTN'
-        if (code && !isNumericLikePartnerCode(code)) return code
         const firstToken = name.split(/\s+/)[0]
         return firstToken ? firstToken.toUpperCase() : name
       })()
@@ -218,16 +223,62 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.bank ||
     null
 
+  /** Bill/utility rows where executing rail is on metadata (e.g. Africa's Talking airtime/data). */
+  const paymentPartnerFromExecutedBillMetadata = (() => {
+    const utilUpper = String(metadata.utilityProvider || '').toUpperCase()
+    const ptLower = String(metadata.payment_type || '').toLowerCase()
+    const modeUpper = String(
+      metadata.transactionModeCode || metadata.mode || transaction.mode || ''
+    ).toUpperCase()
+    const isAirtimeOrData =
+      utilUpper === 'AIRTIME' ||
+      utilUpper === 'DATA_BUNDLES' ||
+      ptLower === 'airtime' ||
+      ptLower === 'mobile_data' ||
+      modeUpper.includes('AIRTIME') ||
+      modeUpper.includes('DATA_BUNDLES')
+    if (!isAirtimeOrData) return null
+
+    const code = String(metadata.partnerCode || '').trim()
+    const atRef =
+      String(transaction.externalReference || '').startsWith('ATQid_') ||
+      String(transaction.externalReference || '').startsWith('ATPid_')
+
+    const codeUpper = (code || (atRef ? 'AFRICASTALKING' : '')).toUpperCase()
+    if (codeUpper && !isNumericLikePartnerCode(codeUpper)) return codeUpper
+    // Some failed AT bill rows do not have partnerCode/externalReference yet.
+    // Use utility subtype as deterministic fallback.
+    return isAirtimeOrData ? 'AFRICASTALKING' : null
+  })()
+
   const paymentPartnerLabel =
+    paymentPartnerFromExecutedBillMetadata ||
     paymentPartnerFromMapping ||
     paymentPartnerFromMno ||
     paymentPartnerFromBank ||
     null
 
-  const paymentPartnerTitle =
-    paymentPartnerFromMapping && transaction.partnerMapping?.partner?.partnerCode
-      ? `${transaction.partnerMapping.partner.partnerName || transaction.partnerMapping.partner.partnerCode} (${transaction.partnerMapping.partner.partnerCode})`
-      : paymentPartnerLabel || undefined
+  const paymentPartnerTitle = (() => {
+    if (paymentPartnerFromExecutedBillMetadata) {
+      const code = String(metadata.partnerCode || '').trim()
+      const name = String(metadata.partnerName || '').trim()
+      const pt = metadata.payment_type
+      const util = metadata.utilityProvider
+      const product =
+        pt === 'airtime' || util === 'AIRTIME'
+          ? 'Airtime'
+          : pt === 'mobile_data' || util === 'DATA_BUNDLES'
+            ? 'Mobile data'
+            : ''
+      const codeDisp = (code || paymentPartnerFromExecutedBillMetadata).toUpperCase()
+      const base = name ? `${name} (${codeDisp})` : codeDisp
+      return [base, product].filter(Boolean).join(' · ')
+    }
+    if (paymentPartnerFromMapping && extPaymentPartner?.partnerCode) {
+      return `${extPaymentPartner.partnerName || extPaymentPartner.partnerCode} (${extPaymentPartner.partnerCode})`
+    }
+    return paymentPartnerLabel || undefined
+  })()
 
   const hasPartnerSignal =
     transaction.partnerId ||

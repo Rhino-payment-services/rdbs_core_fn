@@ -26,7 +26,7 @@ import {
   shortenTransactionId
 } from '@/lib/utils/transactions'
 import toast from 'react-hot-toast'
-import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
+import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay } from './partyResolver'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 
 interface TransactionDetailsModalProps {
@@ -159,18 +159,7 @@ export const TransactionDetailsModal = ({
   const receiverInfo = transaction.receiverInfo
     ? normalizePartyInfoForDisplay(transaction.receiverInfo, transaction, 'receiver')
     : null
-  const partnerDisplay = resolvePartnerDisplay(transaction)
-  const basicPartnerLabel =
-    transaction.partnerMapping?.partner?.partnerName ||
-    transaction.partnerMapping?.partner?.partnerCode ||
-    transaction.metadata?.apiPartnerBusinessName ||
-    transaction.metadata?.partnerBusinessName ||
-    transaction.metadata?.apiPartnerName ||
-    transaction.partner?.partnerName ||
-    transaction.partner?.businessName ||
-    transaction.metadata?.partnerName ||
-    partnerDisplay.primary ||
-    'Direct'
+  const basicPartnerLabel = getBasicPartnerDisplayLabel(transaction)
   const metadata = transaction.metadata || {}
   const bulkQueuePosition =
     metadata.bulkQueuePosition ??
@@ -663,8 +652,20 @@ export const TransactionDetailsModal = ({
                         </p>
                       </div>
                     )}
+                    {(senderInfo as { institutionLine?: string | null }).institutionLine && (
+                      <div>
+                        <span className="text-blue-600">SACCO / institution:</span>
+                        <p className="font-medium text-blue-900">
+                          {(senderInfo as { institutionLine?: string | null }).institutionLine}
+                        </p>
+                      </div>
+                    )}
                     <Badge className="bg-blue-600 text-white">
-                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : senderInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' && (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
@@ -909,7 +910,11 @@ export const TransactionDetailsModal = ({
                       </div>
                     )}
                     <Badge className="bg-green-600 text-white">
-                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : receiverInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' ? (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
