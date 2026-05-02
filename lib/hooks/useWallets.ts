@@ -139,6 +139,8 @@ export const useAdminWallets = (filters?: {
   isSuspended?: boolean
   page?: number
   limit?: number
+  sortBy?: 'balance' | 'createdAt' | 'updatedAt'
+  sortOrder?: 'asc' | 'desc'
 }) => {
   const queryString = filters ? new URLSearchParams(
     Object.entries(filters)
