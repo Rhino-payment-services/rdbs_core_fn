@@ -544,131 +544,75 @@ const TariffsPage = () => {
     }
   }
 
-  const getCurrentTabTariffs = (): Tariff[] => {
-    if (activeMainTab === 'internal') {
-      if (availableInternalTypes.length === 0) return []
-      let typeKey = availableInternalTypes.find(
-        (t) => internalTransactionTypes[t as keyof typeof internalTransactionTypes]?.tabId === activeInternalTab,
-      )
-      if (!typeKey) typeKey = availableInternalTypes[0]
-      return internalGroupedTariffs[typeKey as keyof typeof internalGroupedTariffs] || []
-    }
-    if (activeMainTab === 'external') {
-      if (availableExternalTypes.length === 0) return []
-      let typeKey = availableExternalTypes.find(
-        (t) => externalTransactionTypes[t as keyof typeof externalTransactionTypes]?.tabId === activeExternalTab,
-      )
-      if (!typeKey) typeKey = availableExternalTypes[0]
-      return externalGroupedTariffs[typeKey as keyof typeof externalGroupedTariffs] || []
-    }
-    return []
-  }
-
   const handleExportCsv = () => {
     if (tariffsLoading) return
-    const rows = getCurrentTabTariffs()
+    const rows = (Array.isArray(allTariffs) ? allTariffs : []) as Tariff[]
     if (rows.length === 0) {
-      toast.error('No tariffs to export for this view')
+      toast.error('No tariffs to export')
       return
     }
-    const isInternal = activeMainTab === 'internal'
-    const tabSlug =
-      activeMainTab === 'internal'
-        ? activeInternalTab || 'internal'
-        : activeExternalTab || 'external'
+    const sorted = [...rows].sort((a, b) => {
+      const typeCmp = (a.tariffType || '').localeCompare(b.tariffType || '')
+      if (typeCmp !== 0) return typeCmp
+      const tx = (a.transactionType || '').localeCompare(b.transactionType || '')
+      if (tx !== 0) return tx
+      return (a.name || '').localeCompare(b.name || '')
+    })
     const datePart = new Date().toISOString().slice(0, 10)
-
-    const headers = isInternal
-      ? [
-          'ID',
-          'Name',
-          'Description',
-          'Fee Type',
-          'Fee Amount',
-          'Amount Range',
-          'Transaction Type',
-          'User Type',
-          'Subscriber Type',
-          'Tariff Type',
-          'Status',
-          'Created At',
-          'Updated At',
-        ]
-      : [
-          'ID',
-          'Name',
-          'Description',
-          'Fee Type',
-          'Fee Amount',
-          'Amount Range',
-          'Transaction Type',
-          'Partner',
-          'Group',
-          'Partner Fee',
-          'RukaPay Fee',
-          'Telecom/Bank Charge',
-          'Government Tax',
-          'User Type',
-          'Subscriber Type',
-          'Tariff Type',
-          'Status',
-          'Institution Spread / Notes',
-          'Created At',
-          'Updated At',
-        ]
-
+    const headers = [
+      'ID',
+      'Name',
+      'Description',
+      'Tariff Type',
+      'Fee Type',
+      'Fee Amount',
+      'Amount Range',
+      'Transaction Type',
+      'Transaction Type Code',
+      'Partner',
+      'Group',
+      'Partner Fee',
+      'RukaPay Fee',
+      'Telecom/Bank Charge',
+      'Government Tax',
+      'User Type',
+      'Subscriber Type',
+      'Status',
+      'Institution Spread / Notes',
+      'Created At',
+      'Updated At',
+    ]
     const lines = [headers.map(escapeCsvCell).join(',')]
-    for (const t of rows) {
-      if (isInternal) {
-        lines.push(
-          [
-            t.id,
-            t.name,
-            t.description ?? '',
-            t.feeType,
-            formatFeeAmount(t),
-            getAmountRange(t),
-            getTransactionTypeLabel(t.transactionType, t),
-            t.userType,
-            t.subscriberType ?? '',
-            t.tariffType,
-            getTariffStatusExportLabel(t),
-            t.createdAt ?? '',
-            t.updatedAt ?? '',
-          ]
-            .map(escapeCsvCell)
-            .join(','),
-        )
-      } else {
-        lines.push(
-          [
-            t.id,
-            t.name,
-            t.description ?? '',
-            t.feeType,
-            formatFeeAmount(t),
-            getAmountRange(t),
-            getTransactionTypeLabel(t.transactionType, t),
-            getPartnerExportLabel(t),
-            t.group ?? '',
-            t.partnerFee ?? '',
-            t.rukapayFee ?? '',
-            t.telecomBankCharge ?? '',
-            t.governmentTax ?? '',
-            t.userType,
-            t.subscriberType ?? '',
-            t.tariffType,
-            getTariffStatusExportLabel(t),
-            t.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
-              ? formatInstitutionSpreadFromMetadata(t.metadata) ?? ''
-              : '',
-            t.createdAt ?? '',
-            t.updatedAt ?? '',
-          ]
-            .map(escapeCsvCell)
-            .join(','),
-        )
-      }
+    for (const t of sorted) {
+      lines.push(
+        [
+          t.id,
+          t.name,
+          t.description ?? '',
+          t.tariffType,
+          t.feeType,
+          formatFeeAmount(t),
+          getAmountRange(t),
+          getTransactionTypeLabel(t.transactionType, t),
+          t.transactionType,
+          getPartnerExportLabel(t),
+          t.group ?? '',
+          t.partnerFee !== undefined && t.partnerFee !== null ? t.partnerFee : '',
+          t.rukapayFee !== undefined && t.rukapayFee !== null ? t.rukapayFee : '',
+          t.telecomBankCharge !== undefined && t.telecomBankCharge !== null ? t.telecomBankCharge : '',
+          t.governmentTax !== undefined && t.governmentTax !== null ? t.governmentTax : '',
+          t.userType,
+          t.subscriberType ?? '',
+          getTariffStatusExportLabel(t),
+          t.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
+            ? formatInstitutionSpreadFromMetadata(t.metadata) ?? ''
+            : '',
+          t.createdAt ?? '',
+          t.updatedAt ?? '',
+        ]
+          .map(escapeCsvCell)
+          .join(','),
+      )
     }
 
     const csvContent = `\uFEFF${lines.join('\n')}`
@@ -676,12 +620,12 @@ const TariffsPage = () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `tariffs-${activeMainTab}-${tabSlug}-${datePart}.csv`
+    a.download = `tariffs-all-${datePart}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    toast.success(`Downloaded ${rows.length} tariff${rows.length === 1 ? '' : 's'} as CSV`)
+    toast.success(`Downloaded ${sorted.length} tariff${sorted.length === 1 ? '' : 's'} as CSV`)
   }
 
   // Approval workflow functions
@@ -1125,7 +1069,7 @@ const TariffsPage = () => {
                   size="sm"
                   onClick={handleExportCsv}
                   disabled={tariffsLoading}
-                  title="Download tariffs for the selected Internal/External tab and transaction category as CSV"
+                  title="Download all tariffs (internal and external) as CSV"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
