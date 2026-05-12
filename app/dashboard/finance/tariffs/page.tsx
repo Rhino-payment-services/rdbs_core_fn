@@ -38,7 +38,8 @@ import {
   XCircle,
   Clock,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Download
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -116,6 +117,28 @@ function formatInstitutionSpreadFromMetadata(metadata: unknown): string | null {
   const n = Math.max(0, Math.floor(Number(b.nexen) || 0))
   if (r === 0 && n === 0) return 'SACCO: full principal (0 bps spread)'
   return `SACCO spread: RukaPay ${r} bps + NEXEN ${n} bps (${(r + n) / 100}% of principal)`
+}
+
+function escapeCsvCell(value: unknown): string {
+  const s = value === null || value === undefined ? '' : String(value)
+  return `"${s.replace(/"/g, '""')}"`
+}
+
+function getPartnerExportLabel(tariff: Tariff): string {
+  if (tariff.partner) {
+    return `${tariff.partner.partnerCode} — ${tariff.partner.partnerName} (External Partner)`
+  }
+  if (tariff.apiPartner) {
+    return `${tariff.apiPartner.partnerName} (${tariff.apiPartner.partnerType}) (API Partner)`
+  }
+  return ''
+}
+
+function getTariffStatusExportLabel(tariff: Tariff): string {
+  if (!tariff.status && !tariff.approvalStatus) {
+    return tariff.isActive ? 'ACTIVE' : 'INACTIVE'
+  }
+  return String(tariff.status || tariff.approvalStatus || '')
 }
 
 interface Partner {
@@ -519,6 +542,146 @@ const TariffsPage = () => {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const getCurrentTabTariffs = (): Tariff[] => {
+    if (activeMainTab === 'internal') {
+      if (availableInternalTypes.length === 0) return []
+      let typeKey = availableInternalTypes.find(
+        (t) => internalTransactionTypes[t as keyof typeof internalTransactionTypes]?.tabId === activeInternalTab,
+      )
+      if (!typeKey) typeKey = availableInternalTypes[0]
+      return internalGroupedTariffs[typeKey as keyof typeof internalGroupedTariffs] || []
+    }
+    if (activeMainTab === 'external') {
+      if (availableExternalTypes.length === 0) return []
+      let typeKey = availableExternalTypes.find(
+        (t) => externalTransactionTypes[t as keyof typeof externalTransactionTypes]?.tabId === activeExternalTab,
+      )
+      if (!typeKey) typeKey = availableExternalTypes[0]
+      return externalGroupedTariffs[typeKey as keyof typeof externalGroupedTariffs] || []
+    }
+    return []
+  }
+
+  const handleExportCsv = () => {
+    if (tariffsLoading) return
+    const rows = getCurrentTabTariffs()
+    if (rows.length === 0) {
+      toast.error('No tariffs to export for this view')
+      return
+    }
+    const isInternal = activeMainTab === 'internal'
+    const tabSlug =
+      activeMainTab === 'internal'
+        ? activeInternalTab || 'internal'
+        : activeExternalTab || 'external'
+    const datePart = new Date().toISOString().slice(0, 10)
+
+    const headers = isInternal
+      ? [
+          'ID',
+          'Name',
+          'Description',
+          'Fee Type',
+          'Fee Amount',
+          'Amount Range',
+          'Transaction Type',
+          'User Type',
+          'Subscriber Type',
+          'Tariff Type',
+          'Status',
+          'Created At',
+          'Updated At',
+        ]
+      : [
+          'ID',
+          'Name',
+          'Description',
+          'Fee Type',
+          'Fee Amount',
+          'Amount Range',
+          'Transaction Type',
+          'Partner',
+          'Group',
+          'Partner Fee',
+          'RukaPay Fee',
+          'Telecom/Bank Charge',
+          'Government Tax',
+          'User Type',
+          'Subscriber Type',
+          'Tariff Type',
+          'Status',
+          'Institution Spread / Notes',
+          'Created At',
+          'Updated At',
+        ]
+
+    const lines = [headers.map(escapeCsvCell).join(',')]
+    for (const t of rows) {
+      if (isInternal) {
+        lines.push(
+          [
+            t.id,
+            t.name,
+            t.description ?? '',
+            t.feeType,
+            formatFeeAmount(t),
+            getAmountRange(t),
+            getTransactionTypeLabel(t.transactionType, t),
+            t.userType,
+            t.subscriberType ?? '',
+            t.tariffType,
+            getTariffStatusExportLabel(t),
+            t.createdAt ?? '',
+            t.updatedAt ?? '',
+          ]
+            .map(escapeCsvCell)
+            .join(','),
+        )
+      } else {
+        lines.push(
+          [
+            t.id,
+            t.name,
+            t.description ?? '',
+            t.feeType,
+            formatFeeAmount(t),
+            getAmountRange(t),
+            getTransactionTypeLabel(t.transactionType, t),
+            getPartnerExportLabel(t),
+            t.group ?? '',
+            t.partnerFee ?? '',
+            t.rukapayFee ?? '',
+            t.telecomBankCharge ?? '',
+            t.governmentTax ?? '',
+            t.userType,
+            t.subscriberType ?? '',
+            t.tariffType,
+            getTariffStatusExportLabel(t),
+            t.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
+              ? formatInstitutionSpreadFromMetadata(t.metadata) ?? ''
+              : '',
+            t.createdAt ?? '',
+            t.updatedAt ?? '',
+          ]
+            .map(escapeCsvCell)
+            .join(','),
+        )
+      }
+    }
+
+    const csvContent = `\uFEFF${lines.join('\n')}`
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tariffs-${activeMainTab}-${tabSlug}-${datePart}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${rows.length} tariff${rows.length === 1 ? '' : 's'} as CSV`)
   }
 
   // Approval workflow functions
@@ -956,6 +1119,16 @@ const TariffsPage = () => {
                 >
                   <Building2 className="h-4 w-4 mr-2" />
                   Manage Partners
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCsv}
+                  disabled={tariffsLoading}
+                  title="Download tariffs for the selected Internal/External tab and transaction category as CSV"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
                 </Button>
                 {/* <Button 
                   variant="outline" 
