@@ -5,7 +5,8 @@ import {
   Building2,
   Store,
   Users,
-  School
+  School,
+  CreditCard
 } from 'lucide-react'
 
 /**
@@ -329,6 +330,18 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       color: 'text-emerald-700',
       bgColor: 'bg-emerald-50 border-emerald-200'
     },
+    CARD: {
+      label: 'Card Payment',
+      icon: CreditCard,
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50 border-violet-200'
+    },
+    POS: {
+      label: 'POS Terminal',
+      icon: Store,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50 border-amber-200'
+    },
   }
   
   // Find exact match or pattern match
@@ -352,6 +365,10 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       matchedChannel = channelMap.AGENT_PORTAL
     } else if (normalizedChannel.includes('PARTNER')) {
       matchedChannel = channelMap.PARTNER_PORTAL
+    } else if (normalizedChannel.includes('CARD') || normalizedChannel.includes('NFC')) {
+      matchedChannel = channelMap.CARD
+    } else if (normalizedChannel.includes('POS')) {
+      matchedChannel = channelMap.POS
     } else {
       // Default to APP
       matchedChannel = channelMap.APP
