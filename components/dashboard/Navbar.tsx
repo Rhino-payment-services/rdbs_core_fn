@@ -250,7 +250,7 @@ const Navbar = () => {
                   <Link 
                     href="/dashboard" 
                     className={`nav-slider-item ${
-                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
                         ? 'active'
                         : ''
                     }`}
@@ -364,6 +364,20 @@ const Navbar = () => {
                     >
                       <Users className="nav-icon" />
                       <span>Customers</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
+                {isVisible('cards') && (
+                  <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                    <Link
+                      href="/dashboard/cards"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/cards') ? 'active' : ''
+                      }`}
+                    >
+                      <CreditCard className="nav-icon" />
+                      <span>Cards</span>
                     </Link>
                   </PermissionGuard>
                 )}
