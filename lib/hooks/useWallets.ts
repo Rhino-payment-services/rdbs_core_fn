@@ -405,7 +405,9 @@ export interface PlatformRevenueEntry {
     id: string
     reference?: string | null
     type?: string
+    channel?: string | null
     amount?: number
+    currency?: string
     status?: string
     createdAt?: string
     description?: string | null
