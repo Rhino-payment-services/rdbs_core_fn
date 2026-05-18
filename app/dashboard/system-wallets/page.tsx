@@ -24,10 +24,9 @@ import {
   useAdminWallets,
   useCreateSystemFeeWallet,
   useWithdrawSystemFeeWallet,
-  usePlatformRevenueBalance,
-  useLiquidatePlatformRevenue,
   isPlatformRevenueWallet,
 } from '@/lib/hooks/useWallets'
+import { PlatformRevenuePanel } from '@/components/dashboard/PlatformRevenuePanel'
 import { useGatewayPartners } from '@/lib/hooks/useGatewayPartners'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { useQuery } from '@tanstack/react-query'
@@ -36,12 +35,9 @@ import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/dashboard/Navbar'
 import type { Wallet as WalletType } from '@/lib/types/api'
-import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
-
 const SystemWalletsPage = () => {
   const [showCreateSystemWallet, setShowCreateSystemWallet] = useState(false)
   const [showWithdrawSystemWallet, setShowWithdrawSystemWallet] = useState(false)
-  const [showLiquidateRevenue, setShowLiquidateRevenue] = useState(false)
   const [selectedWallet, setSelectedWallet] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [partnerFilter, setPartnerFilter] = useState<string>('all')
@@ -59,19 +55,6 @@ const SystemWalletsPage = () => {
     destinationBank: '',
     narration: ''
   })
-
-  const [liquidateForm, setLiquidateForm] = useState({
-    amount: '',
-    bankCode: '',
-    bankAccountNumber: '',
-    bankAccountName: '',
-    narration: '',
-    currency: 'UGX',
-  })
-  const [bankValidationMessage, setBankValidationMessage] = useState('')
-  const [bankValidationError, setBankValidationError] = useState('')
-  const [bankValidationBusy, setBankValidationBusy] = useState(false)
-  const [bankValidated, setBankValidated] = useState(false)
 
   // Fetch wallets filtered to SYSTEM type
   const { data: walletsData, isLoading: isWalletsLoading, error: walletsError, refetch } = useAdminWallets({
@@ -98,12 +81,7 @@ const SystemWalletsPage = () => {
   const gatewayPartners = gatewayPartnersResponse?.data || []
   const createSystemFeeWallet = useCreateSystemFeeWallet()
   const withdrawSystemFeeWallet = useWithdrawSystemFeeWallet()
-  const liquidatePlatformRevenue = useLiquidatePlatformRevenue()
-  const { data: platformRevenueBalanceRes, refetch: refetchPlatformRevenue } = usePlatformRevenueBalance()
   const { handleError } = useErrorHandler()
-
-  const platformRevenueBalance = platformRevenueBalanceRes?.data?.balance ?? 0
-  const platformRevenueCurrency = platformRevenueBalanceRes?.data?.currency ?? 'UGX'
 
   // Process wallets data
   let walletsArray: WalletType[] = []
@@ -182,112 +160,6 @@ const SystemWalletsPage = () => {
       refetch()
     } catch (error) {
       handleError(error, 'Failed to create system fee wallet')
-    }
-  }
-
-  const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
-
-  const resetLiquidateForm = () => {
-    setLiquidateForm({
-      amount: '',
-      bankCode: '',
-      bankAccountNumber: '',
-      bankAccountName: '',
-      narration: '',
-      currency: platformRevenueCurrency,
-    })
-    setBankValidationMessage('')
-    setBankValidationError('')
-    setBankValidated(false)
-  }
-
-  const handleValidateBankAccount = async () => {
-    const accountNumber = liquidateForm.bankAccountNumber.trim()
-    const bankCode = liquidateForm.bankCode.trim()
-    if (!accountNumber || !bankCode) {
-      toast.error('Select a bank and enter the account number')
-      return
-    }
-    setBankValidationBusy(true)
-    setBankValidationError('')
-    setBankValidationMessage('')
-    setBankValidated(false)
-    try {
-      const res = await fetch('/api/transactions/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionType: 'WALLET_TO_BANK',
-          accountNumber,
-          bankCode,
-        }),
-      })
-      const payload = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(payload?.error || 'Bank account validation failed')
-      }
-      const name =
-        (payload?.beneficiary?.name ||
-          payload?.validationResult?.data?.name ||
-          'Account validated') as string
-      setBankValidationMessage(name)
-      setBankValidated(true)
-      if (name && name !== 'Account validated') {
-        setLiquidateForm((prev) => ({ ...prev, bankAccountName: name }))
-      }
-    } catch (e: unknown) {
-      setBankValidationError(e instanceof Error ? e.message : 'Validation failed')
-    } finally {
-      setBankValidationBusy(false)
-    }
-  }
-
-  const handleLiquidatePlatformRevenue = async () => {
-    const amount = parseFloat(liquidateForm.amount)
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount')
-      return
-    }
-    if (!liquidateForm.bankCode || !liquidateForm.bankAccountNumber.trim()) {
-      toast.error('Select a bank and enter the account number')
-      return
-    }
-    if (!liquidateForm.bankAccountName.trim()) {
-      toast.error('Enter the account holder name')
-      return
-    }
-    if (!bankValidated) {
-      toast.error('Validate the bank account before sending')
-      return
-    }
-    if (amount > platformRevenueBalance) {
-      toast.error('Amount exceeds available platform revenue balance')
-      return
-    }
-
-    const bankName = selectedBank?.name || liquidateForm.bankCode
-
-    try {
-      const result = await liquidatePlatformRevenue.mutateAsync({
-        amount,
-        currency: liquidateForm.currency,
-        bankName,
-        bankAccountNumber: liquidateForm.bankAccountNumber.trim(),
-        bankAccountName: liquidateForm.bankAccountName.trim(),
-        bankCode: liquidateForm.bankCode,
-        narration: liquidateForm.narration || undefined,
-      })
-      toast.success(
-        `Sent ${formatCurrency(amount, liquidateForm.currency)} to ${bankName}${
-          result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
-        }`,
-      )
-      resetLiquidateForm()
-      setShowLiquidateRevenue(false)
-      refetchPlatformRevenue()
-      refetch()
-    } catch (error) {
-      handleError(error, 'Failed to send platform revenue to bank')
     }
   }
 
@@ -540,41 +412,11 @@ const SystemWalletsPage = () => {
             </div>
           </div>
 
-          {/* Platform revenue — finance liquidation */}
-          <Card className="mb-6 border-indigo-200 bg-indigo-50/40">
-            <CardHeader>
-              <CardTitle className="text-indigo-900">Platform revenue (consolidated)</CardTitle>
-              <CardDescription>
-                All successful RukaPay fees accrue here ({platformRevenueCurrency}). Not included in legacy system fee wallet totals below.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Available to liquidate</p>
-                <p className="text-3xl font-bold text-indigo-700">
-                  {formatCurrency(platformRevenueBalance, platformRevenueCurrency)}
-                </p>
-                {platformRevenueWallets.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Wallet: {platformRevenueWallets[0].description || 'PLATFORM_REVENUE'}
-                  </p>
-                )}
-              </div>
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 shrink-0"
-                onClick={() => {
-                  setLiquidateForm((prev) => ({
-                    ...prev,
-                    currency: platformRevenueCurrency,
-                  }))
-                  setShowLiquidateRevenue(true)
-                }}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Send to bank
-              </Button>
-            </CardContent>
-          </Card>
+          <PlatformRevenuePanel
+            walletDescription={
+              platformRevenueWallets[0]?.description || 'PLATFORM_REVENUE'
+            }
+          />
 
           {/* Stats Cards — legacy fee wallets */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -847,133 +689,6 @@ const SystemWalletsPage = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Liquidate platform revenue */}
-          <Dialog
-            open={showLiquidateRevenue}
-            onOpenChange={(open) => {
-              setShowLiquidateRevenue(open)
-              if (!open) resetLiquidateForm()
-            }}
-          >
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Send platform revenue to bank</DialogTitle>
-                <DialogDescription>
-                  Validate the account, transfer via the payment partner, then debit the consolidated revenue wallet.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Available balance</label>
-                  <p className="text-2xl font-bold text-indigo-700">
-                    {formatCurrency(platformRevenueBalance, platformRevenueCurrency)}
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="liquidateAmount">Amount <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="liquidateAmount"
-                    type="number"
-                    placeholder="Enter amount"
-                    value={liquidateForm.amount}
-                    onChange={(e) => setLiquidateForm((prev) => ({ ...prev, amount: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Bank <span className="text-red-500">*</span></Label>
-                  <Select
-                    value={liquidateForm.bankCode || undefined}
-                    onValueChange={(code) => {
-                      setLiquidateForm((prev) => ({ ...prev, bankCode: code }))
-                      setBankValidated(false)
-                      setBankValidationMessage('')
-                      setBankValidationError('')
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UGANDA_BANKS.map((bank) => (
-                        <SelectItem key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="liquidateAccount">Account number <span className="text-red-500">*</span></Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input
-                      id="liquidateAccount"
-                      placeholder="Bank account number"
-                      value={liquidateForm.bankAccountNumber}
-                      onChange={(e) => {
-                        setLiquidateForm((prev) => ({ ...prev, bankAccountNumber: e.target.value }))
-                        setBankValidated(false)
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleValidateBankAccount}
-                      disabled={bankValidationBusy}
-                    >
-                      {bankValidationBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
-                    </Button>
-                  </div>
-                  {bankValidationMessage && (
-                    <p className="text-sm text-green-700 mt-1">{bankValidationMessage}</p>
-                  )}
-                  {bankValidationError && (
-                    <p className="text-sm text-red-600 mt-1">{bankValidationError}</p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="liquidateAccountName">Account name <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="liquidateAccountName"
-                    placeholder="Beneficiary name"
-                    value={liquidateForm.bankAccountName}
-                    onChange={(e) =>
-                      setLiquidateForm((prev) => ({ ...prev, bankAccountName: e.target.value }))
-                    }
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="liquidateNarration">Narration (optional)</Label>
-                  <Input
-                    id="liquidateNarration"
-                    value={liquidateForm.narration}
-                    onChange={(e) => setLiquidateForm((prev) => ({ ...prev, narration: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <Button variant="outline" className="flex-1" onClick={() => setShowLiquidateRevenue(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                    onClick={handleLiquidatePlatformRevenue}
-                    disabled={liquidatePlatformRevenue.isPending || !bankValidated}
-                  >
-                    {liquidatePlatformRevenue.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Sending to bank...
-                      </>
-                    ) : (
-                      'Send to bank'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </main>
     </div>
