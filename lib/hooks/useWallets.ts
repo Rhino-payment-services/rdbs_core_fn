@@ -375,14 +375,63 @@ export interface PlatformRevenueBalance {
   currency: string
 }
 
+export type PlatformRevenuePayoutMethod = 'BANK' | 'PARTNER_OFFSET'
+
 export interface LiquidatePlatformRevenueRequest {
   amount: number
   currency?: string
-  bankName: string
-  bankAccountNumber: string
-  bankAccountName: string
-  bankCode: string
+  payoutMethod?: PlatformRevenuePayoutMethod
+  partnerId?: string
+  externalPartnerId?: string
+  bankName?: string
+  bankAccountNumber?: string
+  bankAccountName?: string
+  bankCode?: string
   narration?: string
+}
+
+export interface PlatformRevenueEntry {
+  id: string
+  transactionId: string
+  amount: number
+  currency: string
+  creditedAt: string
+  partnerLabel?: string | null
+  partnerId?: string | null
+  externalPartnerId?: string | null
+  transactionType?: string | null
+  channel?: string | null
+  transaction?: {
+    id: string
+    reference?: string | null
+    type?: string
+    amount?: number
+    status?: string
+    createdAt?: string
+    description?: string | null
+  } | null
+}
+
+export interface PlatformRevenuePartnerSummaryRow {
+  partnerId: string | null
+  externalPartnerId: string | null
+  partnerKind: 'gateway' | 'external' | 'unattributed'
+  partnerLabel: string
+  accruedAmount: number
+  liquidatedAmount: number
+  unsettledAmount: number
+  entryCount: number
+}
+
+export interface ListPlatformRevenueEntriesParams {
+  page?: number
+  limit?: number
+  currency?: string
+  startDate?: string
+  endDate?: string
+  partnerId?: string
+  reference?: string
+  transactionId?: string
 }
 
 /** Consolidated PLATFORM_REVENUE wallet — not included in legacy system fee wallet totals */
@@ -390,6 +439,51 @@ export const usePlatformRevenueBalance = () => {
   return useQuery<{ success?: boolean; data: PlatformRevenueBalance }>({
     queryKey: ['platform-revenue', 'balance'],
     queryFn: () => apiFetch('/wallet/platform-revenue/balance'),
+    staleTime: 30 * 1000,
+  })
+}
+
+export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesParams = {}) => {
+  const search = new URLSearchParams()
+  if (params.page) search.set('page', String(params.page))
+  if (params.limit) search.set('limit', String(params.limit))
+  if (params.currency) search.set('currency', params.currency)
+  if (params.startDate) search.set('startDate', params.startDate)
+  if (params.endDate) search.set('endDate', params.endDate)
+  if (params.partnerId) search.set('partnerId', params.partnerId)
+  if (params.reference) search.set('reference', params.reference)
+  if (params.transactionId) search.set('transactionId', params.transactionId)
+
+  const qs = search.toString()
+  return useQuery<{
+    success?: boolean
+    data: {
+      items: PlatformRevenueEntry[]
+      pagination: { page: number; limit: number; total: number; totalPages: number }
+    }
+  }>({
+    queryKey: ['platform-revenue', 'entries', params],
+    queryFn: () => apiFetch(`/wallet/platform-revenue/entries${qs ? `?${qs}` : ''}`),
+    staleTime: 30 * 1000,
+  })
+}
+
+export const usePlatformRevenuePartnerSummary = (currency = 'UGX') => {
+  return useQuery<{
+    success?: boolean
+    data: {
+      currency: string
+      items: PlatformRevenuePartnerSummaryRow[]
+      totals: {
+        accruedAmount: number
+        liquidatedAmount: number
+        unsettledAmount: number
+        entryCount: number
+      }
+    }
+  }>({
+    queryKey: ['platform-revenue', 'summary-by-partner', currency],
+    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?currency=${currency}`),
     staleTime: 30 * 1000,
   })
 }
@@ -403,7 +497,7 @@ export const useLiquidatePlatformRevenue = () => {
         data,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['platform-revenue', 'balance'] })
+      queryClient.invalidateQueries({ queryKey: ['platform-revenue'] })
       queryClient.invalidateQueries({ queryKey: ['system-fee-wallet', 'balance'] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
       queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
