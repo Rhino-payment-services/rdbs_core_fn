@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { CreditCard, FileText, Loader2 } from 'lucide-react'
+import { CreditCard, ExternalLink, FileText, Loader2 } from 'lucide-react'
+import api from '@/lib/axios'
+import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +60,27 @@ const formatDate = (dateString: string) =>
     minute: '2-digit',
   })
 
+function normalizeTransactionPayload(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null
+  const payload = raw as Record<string, unknown>
+  if (payload.id) return payload
+  if (payload.data && typeof payload.data === 'object' && (payload.data as Record<string, unknown>).id) {
+    return payload.data as Record<string, unknown>
+  }
+  return null
+}
+
+function extractPartnerSummaryItems(summaryRes: unknown) {
+  if (!summaryRes || typeof summaryRes !== 'object') return []
+  const res = summaryRes as Record<string, unknown>
+  if (Array.isArray(res.items)) return res.items as PlatformRevenuePartnerSummaryRow[]
+  if (res.data && typeof res.data === 'object') {
+    const data = res.data as Record<string, unknown>
+    if (Array.isArray(data.items)) return data.items as PlatformRevenuePartnerSummaryRow[]
+  }
+  return []
+}
+
 type SettleTarget = {
   partnerId?: string
   externalPartnerId?: string
@@ -76,7 +99,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null)
 
   const [statementPage, setStatementPage] = useState(1)
-  const [statementPartnerId, setStatementPartnerId] = useState<string>('all')
+  const [statementPartnerKey, setStatementPartnerKey] = useState<string>('all')
   const [statementReference, setStatementReference] = useState('')
 
   const [liquidateForm, setLiquidateForm] = useState({
@@ -93,23 +116,44 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const [bankValidationError, setBankValidationError] = useState('')
   const [bankValidationBusy, setBankValidationBusy] = useState(false)
   const [bankValidated, setBankValidated] = useState(false)
+  const [detailTransaction, setDetailTransaction] = useState<Record<string, unknown> | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const { data: balanceRes, refetch: refetchBalance } = usePlatformRevenueBalance()
   const currency = balanceRes?.data?.currency ?? 'UGX'
   const balance = balanceRes?.data?.balance ?? 0
 
-  const { data: summaryRes, refetch: refetchSummary } = usePlatformRevenuePartnerSummary(currency)
-  const partnerRows = summaryRes?.data?.items ?? []
+  const {
+    data: summaryRes,
+    refetch: refetchSummary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+  } = usePlatformRevenuePartnerSummary(currency)
+  const partnerRows = useMemo(() => extractPartnerSummaryItems(summaryRes), [summaryRes])
+
+  const selectedPartnerFilter = useMemo(() => {
+    if (statementPartnerKey === 'all') return null
+    return partnerRows.find((row) => {
+      const key = row.partnerId
+        ? `g:${row.partnerId}`
+        : row.externalPartnerId
+          ? `e:${row.externalPartnerId}`
+          : 'unattributed'
+      return key === statementPartnerKey
+    })
+  }, [statementPartnerKey, partnerRows])
 
   const entriesParams = useMemo(
     () => ({
       page: statementPage,
       limit: 15,
       currency,
-      partnerId: statementPartnerId !== 'all' ? statementPartnerId : undefined,
+      partnerId: selectedPartnerFilter?.partnerId ?? undefined,
+      externalPartnerId: selectedPartnerFilter?.externalPartnerId ?? undefined,
       reference: statementReference.trim() || undefined,
     }),
-    [statementPage, currency, statementPartnerId, statementReference],
+    [statementPage, currency, selectedPartnerFilter, statementReference],
   )
 
   const { data: entriesRes, isLoading: entriesLoading, refetch: refetchEntries } =
@@ -120,12 +164,39 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const liquidateMutation = useLiquidatePlatformRevenue()
   const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
 
-  const gatewayPartnerOptions = useMemo(() => {
-    const seen = new Set<string>()
+  const partnerFilterOptions = useMemo(() => {
     return partnerRows
-      .filter((r) => r.partnerId && !seen.has(r.partnerId) && seen.add(r.partnerId))
-      .map((r) => ({ id: r.partnerId!, label: r.partnerLabel }))
+      .filter((r) => r.partnerId || r.externalPartnerId)
+      .map((r) => ({
+        key: r.partnerId
+          ? `g:${r.partnerId}`
+          : r.externalPartnerId
+            ? `e:${r.externalPartnerId}`
+            : 'unattributed',
+        label: r.partnerLabel,
+      }))
   }, [partnerRows])
+
+  const handleViewTransaction = async (transactionId: string) => {
+    setDetailModalOpen(true)
+    setDetailLoading(true)
+    setDetailTransaction(null)
+    try {
+      const response = await api.get(`/transactions/${transactionId}`)
+      const tx = normalizeTransactionPayload(response.data)
+      if (!tx) {
+        toast.error('Transaction not found')
+        setDetailModalOpen(false)
+        return
+      }
+      setDetailTransaction(tx)
+    } catch {
+      toast.error('Failed to load transaction details')
+      setDetailModalOpen(false)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
 
   const openSettle = (target: SettleTarget) => {
     setSettleTarget(target)
@@ -352,7 +423,20 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {partnerRows.length === 0 ? (
+          {summaryLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            </div>
+          ) : summaryError ? (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-sm text-red-600">
+                Could not load revenue by partner. The summary API may not be deployed yet.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetchSummary()}>
+                Retry
+              </Button>
+            </div>
+          ) : partnerRows.length === 0 ? (
             <p className="text-sm text-gray-500 py-4">No partner accruals yet.</p>
           ) : (
             <Table>
@@ -395,9 +479,9 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <Select
-              value={statementPartnerId}
+              value={statementPartnerKey}
               onValueChange={(v) => {
-                setStatementPartnerId(v)
+                setStatementPartnerKey(v)
                 setStatementPage(1)
               }}
             >
@@ -406,8 +490,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All partners</SelectItem>
-                {gatewayPartnerOptions.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
+                {partnerFilterOptions.map((p) => (
+                  <SelectItem key={p.key} value={p.key}>
                     {p.label}
                   </SelectItem>
                 ))}
@@ -439,11 +523,15 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     <TableHead>Partner</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Reference</TableHead>
+                    <TableHead className="text-right">Txn amount</TableHead>
                     <TableHead className="text-right">Fee amount</TableHead>
+                    <TableHead className="w-[100px]" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((entry) => (
+                  {entries.map((entry) => {
+                    const tx = entry.transaction
+                    return (
                     <TableRow key={entry.id}>
                       <TableCell className="text-sm whitespace-nowrap">
                         {formatDate(entry.creditedAt)}
@@ -456,16 +544,32 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {entry.transactionType || entry.transaction?.type || '—'}
+                        {entry.transactionType || tx?.type || '—'}
                       </TableCell>
-                      <TableCell className="text-sm font-mono">
-                        {entry.transaction?.reference || entry.transactionId.slice(0, 8)}
+                      <TableCell className="text-sm font-mono max-w-[140px] truncate" title={tx?.reference ?? ''}>
+                        {tx?.reference || entry.transactionId.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-mono">
+                        {tx?.amount != null
+                          ? formatCurrency(tx.amount, tx.currency || entry.currency)
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(entry.amount, entry.currency)}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={detailLoading}
+                          onClick={() => handleViewTransaction(entry.transactionId)}
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
               {pagination && pagination.totalPages > 1 && (
@@ -665,6 +769,15 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </div>
         </DialogContent>
       </Dialog>
+
+      <TransactionDetailsModal
+        isOpen={detailModalOpen}
+        onOpenChange={(open) => {
+          setDetailModalOpen(open)
+          if (!open) setDetailTransaction(null)
+        }}
+        transaction={detailLoading ? null : detailTransaction}
+      />
     </>
   )
 }
