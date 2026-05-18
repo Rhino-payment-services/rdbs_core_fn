@@ -432,6 +432,7 @@ export interface ListPlatformRevenueEntriesParams {
   startDate?: string
   endDate?: string
   partnerId?: string
+  externalPartnerId?: string
   reference?: string
   transactionId?: string
 }
@@ -453,6 +454,7 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
   if (params.startDate) search.set('startDate', params.startDate)
   if (params.endDate) search.set('endDate', params.endDate)
   if (params.partnerId) search.set('partnerId', params.partnerId)
+  if (params.externalPartnerId) search.set('externalPartnerId', params.externalPartnerId)
   if (params.reference) search.set('reference', params.reference)
   if (params.transactionId) search.set('transactionId', params.transactionId)
 
