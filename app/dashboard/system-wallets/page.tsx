@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from 'react'
+import Link from 'next/link'
 import { 
   Wallet, 
   Plus, 
@@ -11,8 +12,10 @@ import {
   Loader2,
   Building2,
   Filter,
-  Search
+  Search,
+  ExternalLink,
 } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +27,8 @@ import {
   useAdminWallets,
   useCreateSystemFeeWallet,
   useWithdrawSystemFeeWallet,
+  usePlatformRevenueBalance,
+  usePlatformRevenueEntries,
   isPlatformRevenueWallet,
 } from '@/lib/hooks/useWallets'
 import { PlatformRevenuePanel } from '@/components/dashboard/PlatformRevenuePanel'
@@ -42,6 +47,8 @@ const SystemWalletsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [partnerFilter, setPartnerFilter] = useState<string>('all')
   const [currencyFilter, setCurrencyFilter] = useState<string>('all')
+  const [revenueEntriesPage, setRevenueEntriesPage] = useState(1)
+  const [revenueReferenceSearch, setRevenueReferenceSearch] = useState('')
   
   const [systemWalletForm, setSystemWalletForm] = useState({
     currency: 'UGX',
@@ -82,6 +89,23 @@ const SystemWalletsPage = () => {
   const createSystemFeeWallet = useCreateSystemFeeWallet()
   const withdrawSystemFeeWallet = useWithdrawSystemFeeWallet()
   const { handleError } = useErrorHandler()
+
+  const { data: platformRevenueBalanceRes, refetch: refetchPlatformRevenue } = usePlatformRevenueBalance()
+  const platformRevenueCurrency = platformRevenueBalanceRes?.data?.currency ?? 'UGX'
+
+  const {
+    data: revenueEntriesRes,
+    isLoading: revenueEntriesLoading,
+    refetch: refetchRevenueEntries,
+  } = usePlatformRevenueEntries({
+    currency: platformRevenueCurrency,
+    page: revenueEntriesPage,
+    limit: 25,
+    reference: revenueReferenceSearch.trim() || undefined,
+  })
+
+  const revenueEntries = revenueEntriesRes?.data?.items ?? []
+  const revenueEntriesPagination = revenueEntriesRes?.data?.pagination
 
   // Process wallets data
   let walletsArray: WalletType[] = []
@@ -417,6 +441,137 @@ const SystemWalletsPage = () => {
               platformRevenueWallets[0]?.description || 'PLATFORM_REVENUE'
             }
           />
+
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Revenue accrual history</CardTitle>
+              <CardDescription>
+                Each row is a RukaPay fee credited from a successful transaction into the platform revenue wallet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by transaction reference…"
+                    value={revenueReferenceSearch}
+                    onChange={(e) => {
+                      setRevenueReferenceSearch(e.target.value)
+                      setRevenueEntriesPage(1)
+                    }}
+                    className="pl-9"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    refetchRevenueEntries()
+                    refetchPlatformRevenue()
+                  }}
+                >
+                  Refresh
+                </Button>
+              </div>
+
+              {revenueEntriesLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                </div>
+              ) : revenueEntries.length === 0 ? (
+                <p className="text-sm text-gray-500 py-8 text-center">
+                  No revenue entries yet. Fees appear here after successful transactions are credited (live or backfill).
+                </p>
+              ) : (
+                <>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Credited</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Channel</TableHead>
+                          <TableHead>Partner</TableHead>
+                          <TableHead className="text-right">Txn amount</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {revenueEntries.map((entry) => {
+                          const tx = entry.transaction
+                          return (
+                            <TableRow key={entry.id}>
+                              <TableCell className="text-sm whitespace-nowrap">
+                                {new Date(entry.creditedAt).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-mono text-sm max-w-[140px] truncate" title={tx?.reference ?? ''}>
+                                {tx?.reference || '—'}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {entry.transactionType || tx?.type || '—'}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {entry.channel || tx?.channel || '—'}
+                              </TableCell>
+                              <TableCell className="text-sm max-w-[160px] truncate" title={entry.partnerLabel ?? ''}>
+                                {entry.partnerLabel || '—'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm">
+                                {tx?.amount != null
+                                  ? formatCurrency(tx.amount, tx.currency || entry.currency)
+                                  : '—'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-sm font-semibold text-indigo-700">
+                                +{formatCurrency(entry.amount, entry.currency)}
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="sm" asChild>
+                                  <Link href={`/dashboard/transactions/${entry.transactionId}`}>
+                                    <ExternalLink className="h-4 w-4 mr-1" />
+                                    View
+                                  </Link>
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {revenueEntriesPagination && revenueEntriesPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-gray-600">
+                        Page {revenueEntriesPagination.page} of {revenueEntriesPagination.totalPages} ·{' '}
+                        {revenueEntriesPagination.total} entries
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={revenueEntriesPage <= 1}
+                          onClick={() => setRevenueEntriesPage((p) => Math.max(1, p - 1))}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={revenueEntriesPage >= revenueEntriesPagination.totalPages}
+                          onClick={() => setRevenueEntriesPage((p) => p + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Stats Cards — legacy fee wallets */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
