@@ -369,3 +369,49 @@ export const useSystemFeeWalletBalance = () => {
     staleTime: 30 * 1000, // 30 seconds
   })
 }
+
+export interface PlatformRevenueBalance {
+  balance: number
+  currency: string
+}
+
+export interface LiquidatePlatformRevenueRequest {
+  amount: number
+  currency?: string
+  bankName: string
+  bankAccountNumber: string
+  bankAccountName: string
+  bankCode: string
+  narration?: string
+}
+
+/** Consolidated PLATFORM_REVENUE wallet — not included in legacy system fee wallet totals */
+export const usePlatformRevenueBalance = () => {
+  return useQuery<{ success?: boolean; data: PlatformRevenueBalance }>({
+    queryKey: ['platform-revenue', 'balance'],
+    queryFn: () => apiFetch('/wallet/platform-revenue/balance'),
+    staleTime: 30 * 1000,
+  })
+}
+
+export const useLiquidatePlatformRevenue = () => {
+  const queryClient = useQueryClient()
+  return useMutation<any, Error, LiquidatePlatformRevenueRequest>({
+    mutationFn: (data) =>
+      apiFetch('/wallet/platform-revenue/liquidate', {
+        method: 'POST',
+        data,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-revenue', 'balance'] })
+      queryClient.invalidateQueries({ queryKey: ['system-fee-wallet', 'balance'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export function isPlatformRevenueWallet(wallet: { description?: string | null; isPlatformRevenue?: boolean }): boolean {
+  if (wallet.isPlatformRevenue === true) return true
+  return !!wallet.description?.startsWith('PLATFORM_REVENUE_')
+}
