@@ -375,7 +375,7 @@ export interface PlatformRevenueBalance {
   currency: string
 }
 
-export type PlatformRevenuePayoutMethod = 'BANK' | 'PARTNER_OFFSET'
+export type PlatformRevenuePayoutMethod = 'BANK' | 'MNO' | 'PARTNER_OFFSET'
 
 export interface LiquidatePlatformRevenueRequest {
   amount: number
@@ -387,6 +387,9 @@ export interface LiquidatePlatformRevenueRequest {
   bankAccountNumber?: string
   bankAccountName?: string
   bankCode?: string
+  phoneNumber?: string
+  mnoProvider?: string
+  recipientName?: string
   narration?: string
 }
 
