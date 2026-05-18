@@ -577,7 +577,7 @@ const WalletPage = () => {
                 </div>
                 <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(totalBalance, 'UGX')}</p>
                 <div className="mt-0">
-                  <span className="text-sm text-gray-500">Across all wallets</span>
+                  <span className="text-sm text-gray-500">Customer &amp; float (excludes platform revenue)</span>
                 </div>
               </CardContent>
             </Card>
