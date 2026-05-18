@@ -108,14 +108,17 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     bankCode: '',
     bankAccountNumber: '',
     bankAccountName: '',
+    phoneNumber: '',
+    mnoProvider: 'MTN',
+    recipientName: '',
     narration: '',
     partnerId: '',
     externalPartnerId: '',
   })
-  const [bankValidationMessage, setBankValidationMessage] = useState('')
-  const [bankValidationError, setBankValidationError] = useState('')
-  const [bankValidationBusy, setBankValidationBusy] = useState(false)
-  const [bankValidated, setBankValidated] = useState(false)
+  const [validationMessage, setValidationMessage] = useState('')
+  const [validationError, setValidationError] = useState('')
+  const [validationBusy, setValidationBusy] = useState(false)
+  const [destinationValidated, setDestinationValidated] = useState(false)
   const [detailTransaction, setDetailTransaction] = useState<Record<string, unknown> | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -206,13 +209,16 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       bankCode: '',
       bankAccountNumber: '',
       bankAccountName: '',
+      phoneNumber: '',
+      mnoProvider: 'MTN',
+      recipientName: '',
       narration: '',
       partnerId: target.partnerId ?? '',
       externalPartnerId: target.externalPartnerId ?? '',
     })
-    setBankValidationMessage('')
-    setBankValidationError('')
-    setBankValidated(false)
+    setValidationMessage('')
+    setValidationError('')
+    setDestinationValidated(false)
     setShowLiquidate(true)
   }
 
@@ -223,14 +229,23 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       bankCode: '',
       bankAccountNumber: '',
       bankAccountName: '',
+      phoneNumber: '',
+      mnoProvider: 'MTN',
+      recipientName: '',
       narration: '',
       partnerId: '',
       externalPartnerId: '',
     })
-    setBankValidationMessage('')
-    setBankValidationError('')
-    setBankValidated(false)
+    setValidationMessage('')
+    setValidationError('')
+    setDestinationValidated(false)
     setSettleTarget(null)
+  }
+
+  const clearValidation = () => {
+    setValidationMessage('')
+    setValidationError('')
+    setDestinationValidated(false)
   }
 
   const handleValidateBankAccount = async () => {
@@ -240,10 +255,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       toast.error('Select a bank and enter the account number')
       return
     }
-    setBankValidationBusy(true)
-    setBankValidationError('')
-    setBankValidationMessage('')
-    setBankValidated(false)
+    setValidationBusy(true)
+    clearValidation()
     try {
       const res = await fetch('/api/transactions/validate', {
         method: 'POST',
@@ -260,15 +273,52 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         (payload?.beneficiary?.name ||
           payload?.validationResult?.data?.name ||
           'Account validated') as string
-      setBankValidationMessage(name)
-      setBankValidated(true)
+      setValidationMessage(name)
+      setDestinationValidated(true)
       if (name && name !== 'Account validated') {
         setLiquidateForm((prev) => ({ ...prev, bankAccountName: name }))
       }
     } catch (e: unknown) {
-      setBankValidationError(e instanceof Error ? e.message : 'Validation failed')
+      setValidationError(e instanceof Error ? e.message : 'Validation failed')
     } finally {
-      setBankValidationBusy(false)
+      setValidationBusy(false)
+    }
+  }
+
+  const handleValidateMno = async () => {
+    const phoneNumber = liquidateForm.phoneNumber.trim()
+    const network = liquidateForm.mnoProvider.trim()
+    if (!phoneNumber || !network) {
+      toast.error('Select a network and enter the mobile number')
+      return
+    }
+    setValidationBusy(true)
+    clearValidation()
+    try {
+      const res = await fetch('/api/transactions/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionType: 'WALLET_TO_MNO',
+          phoneNumber,
+          network,
+        }),
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload?.error || 'Mobile money validation failed')
+      const name =
+        (payload?.beneficiary?.name ||
+          payload?.validationResult?.data?.name ||
+          'Mobile number validated') as string
+      setValidationMessage(name)
+      setDestinationValidated(true)
+      if (name && name !== 'Mobile number validated') {
+        setLiquidateForm((prev) => ({ ...prev, recipientName: name }))
+      }
+    } catch (e: unknown) {
+      setValidationError(e instanceof Error ? e.message : 'Validation failed')
+    } finally {
+      setValidationBusy(false)
     }
   }
 
@@ -283,7 +333,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       return
     }
 
-    const isOffset = liquidateForm.payoutMethod === 'PARTNER_OFFSET'
+    const method = liquidateForm.payoutMethod
+    const isOffset = method === 'PARTNER_OFFSET'
+    const isMno = method === 'MNO'
+    const isBank = method === 'BANK'
 
     if (isOffset) {
       if (!liquidateForm.partnerId && !liquidateForm.externalPartnerId) {
@@ -294,7 +347,16 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         toast.error('Narration is required (e.g. settled on ABC platform)')
         return
       }
-    } else {
+    } else if (isMno) {
+      if (!liquidateForm.phoneNumber.trim() || !liquidateForm.mnoProvider.trim()) {
+        toast.error('Select a network and enter the mobile number')
+        return
+      }
+      if (!destinationValidated) {
+        toast.error('Validate the mobile number before sending')
+        return
+      }
+    } else if (isBank) {
       if (!liquidateForm.bankCode || !liquidateForm.bankAccountNumber.trim()) {
         toast.error('Select a bank and enter the account number')
         return
@@ -303,7 +365,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         toast.error('Enter the account holder name')
         return
       }
-      if (!bankValidated) {
+      if (!destinationValidated) {
         toast.error('Validate the bank account before sending')
         return
       }
@@ -315,25 +377,35 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       const result = await liquidateMutation.mutateAsync({
         amount,
         currency,
-        payoutMethod: liquidateForm.payoutMethod,
+        payoutMethod: method,
         partnerId: liquidateForm.partnerId || undefined,
         externalPartnerId: liquidateForm.externalPartnerId || undefined,
         narration: liquidateForm.narration || undefined,
         ...(isOffset
           ? {}
-          : {
-              bankName,
-              bankAccountNumber: liquidateForm.bankAccountNumber.trim(),
-              bankAccountName: liquidateForm.bankAccountName.trim(),
-              bankCode: liquidateForm.bankCode,
-            }),
+          : isMno
+            ? {
+                phoneNumber: liquidateForm.phoneNumber.trim(),
+                mnoProvider: liquidateForm.mnoProvider.trim(),
+                recipientName: liquidateForm.recipientName.trim() || undefined,
+              }
+            : {
+                bankName,
+                bankAccountNumber: liquidateForm.bankAccountNumber.trim(),
+                bankAccountName: liquidateForm.bankAccountName.trim(),
+                bankCode: liquidateForm.bankCode,
+              }),
       })
       toast.success(
         isOffset
           ? `Recorded ${formatCurrency(amount, currency)} partner offset`
-          : `Sent ${formatCurrency(amount, currency)} to ${bankName}${
-              result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
-            }`,
+          : isMno
+            ? `Sent ${formatCurrency(amount, currency)} to ${liquidateForm.mnoProvider} ${liquidateForm.phoneNumber}${
+                result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
+              }`
+            : `Sent ${formatCurrency(amount, currency)} to ${bankName}${
+                result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
+              }`,
       )
       setShowLiquidate(false)
       resetLiquidate()
@@ -341,7 +413,14 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       refetchSummary()
       refetchEntries()
     } catch (error) {
-      handleError(error, isOffset ? 'Failed to record partner offset' : 'Failed to send to bank')
+      handleError(
+        error,
+        isOffset
+          ? 'Failed to record partner offset'
+          : isMno
+            ? 'Failed to send to mobile money'
+            : 'Failed to send to bank',
+      )
     }
   }
 
@@ -361,6 +440,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           onClick={() => openSettle({ ...target, payoutMethod: 'BANK' })}
         >
           Send to bank
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openSettle({ ...target, payoutMethod: 'MNO' })}
+        >
+          Send to MNO
         </Button>
         {row.partnerKind !== 'unattributed' && (
           <Button
@@ -615,7 +701,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
             <DialogDescription>
               {settleTarget?.partnerLabel
                 ? `Settling: ${settleTarget.partnerLabel}`
-                : 'Debit consolidated revenue — bank transfer or partner offset.'}
+                : 'Debit consolidated revenue — bank, mobile money (MNO), or partner offset.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -633,7 +719,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     ...prev,
                     payoutMethod: v as PlatformRevenuePayoutMethod,
                   }))
-                  setBankValidated(false)
+                  clearValidation()
                 }}
               >
                 <SelectTrigger className="mt-1">
@@ -641,12 +727,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="BANK">Send to bank</SelectItem>
-                  <SelectItem value="PARTNER_OFFSET">Partner offset (no bank)</SelectItem>
+                  <SelectItem value="MNO">Send to mobile money (MTN / Airtel)</SelectItem>
+                  <SelectItem value="PARTNER_OFFSET">Partner offset (no payout)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 mt-1">
-                Partner offset records a deduction when fees are settled on another platform (e.g.
-                ABC, Pegasus float).
+                Bank and MNO send funds via payment partners. Partner offset only debits the wallet
+                when settlement happens on another platform.
               </p>
             </div>
 
@@ -669,7 +756,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     value={liquidateForm.bankCode || undefined}
                     onValueChange={(code) => {
                       setLiquidateForm((prev) => ({ ...prev, bankCode: code }))
-                      setBankValidated(false)
+                      clearValidation()
                     }}
                   >
                     <SelectTrigger className="mt-1">
@@ -691,23 +778,23 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       value={liquidateForm.bankAccountNumber}
                       onChange={(e) => {
                         setLiquidateForm((prev) => ({ ...prev, bankAccountNumber: e.target.value }))
-                        setBankValidated(false)
+                        clearValidation()
                       }}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleValidateBankAccount}
-                      disabled={bankValidationBusy}
+                      disabled={validationBusy}
                     >
-                      {bankValidationBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
+                      {validationBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
                     </Button>
                   </div>
-                  {bankValidationMessage && (
-                    <p className="text-sm text-green-700 mt-1">{bankValidationMessage}</p>
+                  {validationMessage && liquidateForm.payoutMethod === 'BANK' && (
+                    <p className="text-sm text-green-700 mt-1">{validationMessage}</p>
                   )}
-                  {bankValidationError && (
-                    <p className="text-sm text-red-600 mt-1">{bankValidationError}</p>
+                  {validationError && liquidateForm.payoutMethod === 'BANK' && (
+                    <p className="text-sm text-red-600 mt-1">{validationError}</p>
                   )}
                 </div>
                 <div>
@@ -721,10 +808,69 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   />
                 </div>
               </>
+            ) : liquidateForm.payoutMethod === 'MNO' ? (
+              <>
+                <div>
+                  <Label>Network *</Label>
+                  <Select
+                    value={liquidateForm.mnoProvider}
+                    onValueChange={(network) => {
+                      setLiquidateForm((prev) => ({ ...prev, mnoProvider: network }))
+                      clearValidation()
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select network" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MTN">MTN</SelectItem>
+                      <SelectItem value="Airtel">Airtel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Mobile number *</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      placeholder="e.g. 256701234567"
+                      value={liquidateForm.phoneNumber}
+                      onChange={(e) => {
+                        setLiquidateForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                        clearValidation()
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleValidateMno}
+                      disabled={validationBusy}
+                    >
+                      {validationBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
+                    </Button>
+                  </div>
+                  {validationMessage && liquidateForm.payoutMethod === 'MNO' && (
+                    <p className="text-sm text-green-700 mt-1">{validationMessage}</p>
+                  )}
+                  {validationError && liquidateForm.payoutMethod === 'MNO' && (
+                    <p className="text-sm text-red-600 mt-1">{validationError}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Recipient name</Label>
+                  <Input
+                    value={liquidateForm.recipientName}
+                    onChange={(e) =>
+                      setLiquidateForm((prev) => ({ ...prev, recipientName: e.target.value }))
+                    }
+                    placeholder="Filled from validation when available"
+                    className="mt-1"
+                  />
+                </div>
+              </>
             ) : (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
-                No bank transfer. Wallet is debited and the settlement is attributed to the selected
-                partner for reporting.
+                No bank or mobile money transfer. Wallet is debited and the settlement is attributed
+                to the selected partner for reporting.
               </p>
             )}
 
@@ -751,7 +897,9 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 onClick={handleLiquidate}
                 disabled={
                   liquidateMutation.isPending ||
-                  (liquidateForm.payoutMethod === 'BANK' && !bankValidated)
+                  ((liquidateForm.payoutMethod === 'BANK' ||
+                    liquidateForm.payoutMethod === 'MNO') &&
+                    !destinationValidated)
                 }
               >
                 {liquidateMutation.isPending ? (
@@ -761,6 +909,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   </>
                 ) : liquidateForm.payoutMethod === 'PARTNER_OFFSET' ? (
                   'Record offset'
+                ) : liquidateForm.payoutMethod === 'MNO' ? (
+                  'Send to mobile money'
                 ) : (
                   'Send to bank'
                 )}

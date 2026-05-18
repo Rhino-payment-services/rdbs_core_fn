@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   useAdminWallets,
   useCreateSystemFeeWallet,
@@ -244,7 +245,8 @@ const SystemWalletsPage = () => {
                   <DialogHeader>
                     <DialogTitle>Create System Fee Wallet</DialogTitle>
                     <DialogDescription>
-                      Create a system wallet to track RukaPay fees. Can be general or partner-specific.
+                      Legacy only — prefer platform revenue above. Creates a deprecated per-partner or
+                      general RUKAPAY_FEES wallet; not used for new fee accrual.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -418,6 +420,17 @@ const SystemWalletsPage = () => {
             }
           />
 
+          <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-950">
+            <AlertCircle className="h-4 w-4 text-amber-700" />
+            <AlertTitle className="text-amber-900">Legacy fee wallets (deprecated)</AlertTitle>
+            <AlertDescription className="text-amber-900/90">
+              The cards below are old per-partner <strong>RUKAPAY_FEES</strong> /{' '}
+              <strong>COMMISSION</strong> system wallets. New fee accrual and settlement use{' '}
+              <strong>Platform revenue (consolidated)</strong> above — bank, MNO, or partner offset.
+              Migrate any remaining balances with the decommission script, then use withdraw here only
+              to drain legacy wallets. These balances are not included in platform revenue totals.
+            </AlertDescription>
+          </Alert>
 
           {/* Stats Cards — legacy fee wallets */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -466,9 +479,15 @@ const SystemWalletsPage = () => {
           {/* Wallets List */}
           <Card>
             <CardHeader>
-              <CardTitle>Legacy system fee wallets</CardTitle>
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                Legacy system fee wallets
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 font-normal">
+                  Deprecated
+                </Badge>
+              </CardTitle>
               <CardDescription>
-                Deprecated RUKAPAY_FEES / COMMISSION wallets (migrate balances with decommission script).{' '}
+                Per-partner fee wallets superseded by consolidated platform revenue. Run the decommission
+                script to migrate balances, then withdraw to empty these wallets.{' '}
                 {filteredWallets.length} {filteredWallets.length === 1 ? 'wallet' : 'wallets'} shown.
               </CardDescription>
             </CardHeader>
@@ -516,7 +535,7 @@ const SystemWalletsPage = () => {
                     const partner = allPartners.find((p: any) => p.id === (wallet as any).partnerId)
                     
                     return (
-                      <Card key={wallet.id} className="hover:shadow-md transition-shadow border-purple-100">
+                      <Card key={wallet.id} className="hover:shadow-md transition-shadow border-amber-100/80 bg-amber-50/30">
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center space-x-2 min-w-0 flex-1">
