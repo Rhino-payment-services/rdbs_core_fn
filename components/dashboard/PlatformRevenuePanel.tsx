@@ -139,6 +139,21 @@ type SettleTarget = {
   payoutMethod?: PlatformRevenuePayoutMethod
 }
 
+function buildSettleTargetFromRow(row: PlatformRevenuePartnerSummaryRow): SettleTarget {
+  const isGateway = row.partnerKind === 'gateway' && row.partnerId
+  const isExternal = row.partnerKind === 'external' && row.externalPartnerId
+  return {
+    bucketKey: row.bucketKey,
+    partnerId: isGateway ? (row.partnerId ?? undefined) : undefined,
+    externalPartnerId: isExternal ? (row.externalPartnerId ?? undefined) : undefined,
+    revenueSegment:
+      row.partnerKind === 'rukapay' ? (row.revenueSegment ?? undefined) : undefined,
+    partnerLabel: row.partnerLabel,
+    suggestedAmount: row.unsettledAmount,
+    payoutMethod: isGateway || isExternal ? 'PARTNER_OFFSET' : 'BANK',
+  }
+}
+
 interface PlatformRevenuePanelProps {
   walletDescription?: string
 }
@@ -573,7 +588,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           <CardTitle>Revenue by source</CardTitle>
           <CardDescription>
             Fee revenue and TPV by source. Use the period and sort controls to review activity;
-            settle from the button above when ready.
+            settle all sources from the button above, or one source via the settle icon on each row.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -652,14 +667,15 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : partnerRows.length === 0 ? (
             <p className="text-sm text-gray-500 py-4">No fee accruals yet.</p>
           ) : (
-            <Table className="table-fixed min-w-[880px] [&_th]:!align-top [&_td]:!align-top [&_th]:!py-2.5 [&_td]:!py-2.5 [&_th]:leading-snug [&_td]:leading-snug">
+            <Table className="table-fixed min-w-[920px] [&_th]:!align-top [&_td]:!align-top [&_th]:!py-2.5 [&_td]:!py-2.5 [&_th]:leading-snug [&_td]:leading-snug">
               <colgroup>
-                <col className="w-[32%]" />
-                <col className="w-[15%]" />
-                <col className="w-[7%]" />
+                <col className="w-[28%]" />
                 <col className="w-[14%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
+                <col className="w-[6%]" />
+                <col className="w-[13%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[9%]" />
                 <col className="w-[8%]" />
               </colgroup>
               <TableHeader>
@@ -676,6 +692,9 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   </TableHead>
                   <TableHead className="px-3 align-top text-left font-semibold whitespace-nowrap">
                     Last activity
+                  </TableHead>
+                  <TableHead className="px-2 align-top text-center font-semibold w-12">
+                    <span className="sr-only">Settle</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -713,6 +732,27 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     <TableCell className="px-3 align-top text-left text-gray-600 whitespace-nowrap">
                       {row.lastCreditedAt ? formatDateOnly(row.lastCreditedAt) : '—'}
                     </TableCell>
+                    <TableCell className="px-2 align-top text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                        title={
+                          row.unsettledAmount > 0
+                            ? `Settle ${row.partnerLabel}`
+                            : 'Nothing unsettled for this source'
+                        }
+                        disabled={row.unsettledAmount <= 0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openSettle(buildSettleTargetFromRow(row))
+                        }}
+                      >
+                        <CreditCard className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">Settle {row.partnerLabel}</span>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {partnerTotals && (
@@ -736,6 +776,26 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       {formatCurrency(partnerTotals.unsettledAmount, currency)}
                     </TableCell>
                     <TableCell className="px-3 align-top" />
+                    <TableCell className="px-2 align-top text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                        title="Settle all sources"
+                        disabled={(partnerTotals.unsettledAmount ?? 0) <= 0}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openSettle({
+                            partnerLabel: 'All sources',
+                            suggestedAmount: partnerTotals.unsettledAmount,
+                          })
+                        }}
+                      >
+                        <CreditCard className="h-4 w-4" aria-hidden />
+                        <span className="sr-only">Settle all sources</span>
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
