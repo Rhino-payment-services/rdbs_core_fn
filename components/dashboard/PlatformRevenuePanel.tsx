@@ -1187,31 +1187,34 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           if (!open) resetLiquidate()
         }}
       >
-        <DialogContent className="max-w-4xl w-[min(96vw,56rem)] max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Settle platform revenue</DialogTitle>
-            <DialogDescription>
-              One payout for all checked sources. Each row in Revenue by source is updated by its
-              share of this settlement.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DialogContent className="flex h-[min(94vh,900px)] max-h-[94vh] w-[min(98vw,76rem)] !max-w-[min(98vw,76rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:!max-w-[min(98vw,76rem)]">
+          <div className="shrink-0 border-b px-6 py-5 pr-12">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Settle platform revenue</DialogTitle>
+              <DialogDescription className="text-base">
+                One payout for all checked sources. Each row in Revenue by source is updated by its
+                share of this settlement.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="grid min-h-[min(520px,58vh)] grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
             <div className="space-y-4">
               <div>
                 <Label>Selected sources ({selectedSettleRows.length})</Label>
-                <div className="mt-2 max-h-52 overflow-y-auto rounded-md border">
+                <div className="mt-2 min-h-[280px] max-h-[min(42vh,360px)] overflow-y-auto rounded-lg border bg-gray-50/50">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-gray-50">
                       <TableRow>
-                        <TableHead>Source</TableHead>
+                        <TableHead className="w-[58%]">Source</TableHead>
                         <TableHead className="text-right">Unsettled</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {selectedSettleRows.map((row) => (
                         <TableRow key={row.bucketKey}>
-                          <TableCell className="text-sm font-medium">{row.partnerLabel}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums">
+                          <TableCell className="py-2.5 text-sm font-medium">{row.partnerLabel}</TableCell>
+                          <TableCell className="py-2.5 text-right text-sm tabular-nums">
                             {formatCurrency(row.unsettledAmount, currency)}
                           </TableCell>
                         </TableRow>
@@ -1220,13 +1223,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   </Table>
                 </div>
               </div>
-              <div>
-                <Label>Total unsettled (selected)</Label>
-                <p className="text-2xl font-bold text-indigo-700">
+              <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+                <Label className="text-sm text-indigo-900">Total unsettled (selected)</Label>
+                <p className="text-3xl font-bold text-indigo-700">
                   {formatCurrency(selectedUnsettledTotal, currency)}
                 </p>
                 {walletCashBalance != null && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-sm text-indigo-800/80">
                     Wallet cash cap: {formatCurrency(walletCashBalance, currency)}
                   </p>
                 )}
@@ -1412,8 +1415,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               />
             </div>
             </div>
+          </div>
+          </div>
 
-            <div className="flex gap-3 pt-2 lg:col-span-2">
+          <div className="flex shrink-0 gap-3 border-t bg-gray-50/80 px-6 py-4">
               <Button variant="outline" className="flex-1" onClick={() => setShowLiquidate(false)}>
                 Cancel
               </Button>
@@ -1442,7 +1447,6 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   'Send to bank'
                 )}
               </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
