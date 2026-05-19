@@ -7,6 +7,14 @@ function upper(v: any) {
 
 export function isApiDrivenTransaction(tx: any): boolean {
   const m = tx?.metadata || {}
+  if (
+    m.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    tx?.platformRevenueSettlement === true
+  ) {
+    return false
+  }
+  const ref = String(tx?.reference || '')
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) return false
   return !!(
     tx?.partner ||
     tx?.partnerId ||
@@ -147,6 +155,17 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
  */
 export function getBasicPartnerDisplayLabel(tx: any): string {
   const m = tx?.metadata || {}
+
+  if (
+    m.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    tx?.platformRevenueSettlement === true
+  ) {
+    return 'Platform revenue'
+  }
+  const ref = String(tx?.reference || '')
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) {
+    return 'Platform revenue'
+  }
 
   if (upper(tx?.type) === 'BILL_PAYMENT') {
     const pt = m.payment_type

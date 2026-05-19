@@ -121,6 +121,10 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
   // Prefer API-provided senderInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.senderInfo) {
     const senderInfo = normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
+    const isPlatformRevenue =
+      metadata?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+      transaction.platformRevenueSettlement === true ||
+      senderInfo.platformRevenueSettlement === true
     return (
       <TableCell>
         <div className="flex flex-col gap-[0.5px]">
@@ -128,6 +132,9 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
             info={senderInfo}
             nameClassName={senderInfo.type === 'ADMIN' ? 'text-purple-900' : ''}
           />
+          {isPlatformRevenue && (
+            <span className="text-xs text-indigo-700 font-medium">Platform revenue wallet</span>
+          )}
           {debitLabel && (
             <span className="text-xs text-amber-700 font-medium">Debited: {metadata.debitWalletType || 'Collection'} wallet</span>
           )}

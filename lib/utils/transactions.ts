@@ -191,6 +191,19 @@ export const getContactInfo = (user: any, metadata?: any, counterpartyUser?: any
  * Get transaction type display name
  * Pass optional transaction (or metadata + reference) to detect sweep/liquidation
  */
+/** Platform revenue wallet settlement (finance settle / partner offset). */
+export const isPlatformRevenueLiquidationTx = (
+  transactionOrMeta?: { metadata?: any; reference?: string } | null,
+): boolean => {
+  const meta = transactionOrMeta?.metadata ?? transactionOrMeta
+  if ((meta as any)?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION') return true
+  const reference =
+    transactionOrMeta && 'reference' in transactionOrMeta
+      ? transactionOrMeta.reference
+      : (meta as any)?.reference
+  return !!reference && /^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(String(reference))
+}
+
 export const getTypeDisplay = (
   type: string,
   direction?: string,
@@ -198,6 +211,9 @@ export const getTypeDisplay = (
 ) => {
   const meta = transactionOrMeta?.metadata ?? transactionOrMeta
   const reference = transactionOrMeta && 'reference' in transactionOrMeta ? transactionOrMeta.reference : (meta as any)?.reference
+  if (isPlatformRevenueLiquidationTx(transactionOrMeta)) {
+    return 'Platform revenue settlement'
+  }
   const isSweep =
     type === 'WALLET_TO_WALLET' &&
     (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))

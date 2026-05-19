@@ -9,6 +9,7 @@ import {
   getStatusBadgeConfig,
   getTypeDisplay,
   getChannelDisplay,
+  isPlatformRevenueLiquidationTx,
 } from '@/lib/utils/transactions'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
@@ -50,7 +51,14 @@ export const TransactionTableRow = ({
         </div>
       </TableCell>
       <TableCell>
-        {paymentPartnerLabel ? (
+        {isPlatformRevenueLiquidationTx(transaction) ? (
+          <span
+            className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-medium"
+            title="Fee revenue settled from the consolidated platform revenue wallet"
+          >
+            Platform revenue
+          </span>
+        ) : paymentPartnerLabel ? (
           <span
             className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium"
             title={paymentPartnerTitle}
