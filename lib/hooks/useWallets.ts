@@ -487,6 +487,10 @@ export const usePlatformRevenuePartnerSummary = (currency = 'UGX') => {
         unsettledAmount: number
         entryCount: number
       }
+      walletBalance?: number
+      lifetimeAccruedInEntries?: number
+      /** Wallet cash from legacy migration / backfill not tied to platform_revenue_entries */
+      orphanWalletBalance?: number
     }
   }>({
     queryKey: ['platform-revenue', 'summary-by-partner', currency],
