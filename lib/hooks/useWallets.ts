@@ -386,6 +386,15 @@ export interface PlatformRevenueBalance {
 
 export type PlatformRevenuePayoutMethod = 'BANK' | 'MNO' | 'PARTNER_OFFSET'
 
+export interface PlatformRevenueSettlementAllocation {
+  bucketKey: string
+  amount: number
+  partnerId?: string
+  externalPartnerId?: string
+  revenueSegment?: string
+  partnerLabel?: string
+}
+
 export interface LiquidatePlatformRevenueRequest {
   amount: number
   currency?: string
@@ -394,6 +403,7 @@ export interface LiquidatePlatformRevenueRequest {
   externalPartnerId?: string
   revenueSegment?: string
   bucketKey?: string
+  settlementAllocations?: PlatformRevenueSettlementAllocation[]
   bankName?: string
   bankAccountNumber?: string
   bankAccountName?: string
