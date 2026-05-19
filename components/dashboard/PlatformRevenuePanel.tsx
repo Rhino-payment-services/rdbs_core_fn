@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { CreditCard, ExternalLink, FileText, Loader2 } from 'lucide-react'
 import api from '@/lib/axios'
 import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
@@ -258,6 +258,19 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
 
   const liquidateMutation = useLiquidatePlatformRevenue()
   const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
+
+  // Keep statement in sync when returning from Transaction Management after new fees post.
+  useEffect(() => {
+    const refresh = () => {
+      refetchBalance()
+      refetchSummary()
+      refetchEntries()
+    }
+    refresh()
+    const onFocus = () => refresh()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [refetchBalance, refetchSummary, refetchEntries])
 
   const partnerFilterOptions = useMemo(() => {
     return partnerRows.map((r) => ({
@@ -808,7 +821,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle>Revenue statement</CardTitle>
           <CardDescription>
-            Per-transaction fee accruals. Uses the same date range as the table above when set.
+            Per-transaction fee accruals after transactions succeed. Uses the same date range as the
+            table above when set. New fees appear when you open this page or click Refresh statement.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

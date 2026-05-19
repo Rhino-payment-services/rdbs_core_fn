@@ -477,7 +477,9 @@ export const usePlatformRevenueBalance = () => {
   return useQuery<{ success?: boolean; data: PlatformRevenueBalance }>({
     queryKey: ['platform-revenue', 'balance'],
     queryFn: () => apiFetch('/wallet/platform-revenue/balance'),
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -505,7 +507,9 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
   }>({
     queryKey: ['platform-revenue', 'entries', params],
     queryFn: () => apiFetch(`/wallet/platform-revenue/entries${qs ? `?${qs}` : ''}`),
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -539,7 +543,9 @@ export const usePlatformRevenuePartnerSummary = (
   }>({
     queryKey: ['platform-revenue', 'summary-by-partner', params],
     queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?${qs}`),
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 }
 
