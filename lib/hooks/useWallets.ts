@@ -510,6 +510,7 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
   })
 }
 
@@ -546,6 +547,29 @@ export const usePlatformRevenuePartnerSummary = (
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+  })
+}
+
+export const useSyncPlatformRevenueAccruals = () => {
+  const queryClient = useQueryClient()
+  return useMutation<
+    {
+      success?: boolean
+      message?: string
+      data: { attempted: number; credited: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
+    },
+    Error,
+    { currency?: string; days?: number }
+  >({
+    mutationFn: ({ currency = 'UGX', days = 30 }) => {
+      const params = new URLSearchParams({ currency, days: String(days) })
+      return apiFetch(`/wallet/platform-revenue/sync-missing-accruals?${params}`, {
+        method: 'POST',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-revenue'] })
+    },
   })
 }
 
