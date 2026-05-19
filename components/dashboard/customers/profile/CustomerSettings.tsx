@@ -45,7 +45,7 @@ interface CustomerSettingsProps {
   merchantId?: string
   onActionComplete?: () => void
   merchantCode?: string
-  collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE' | 'MERCHANT_PAYS_FEE'
+  collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
   collectionCustomerSharePercent?: number
   collectionTotalFeePercent?: number | null
   collectionMnoPartnerFeePercent?: number | null
@@ -120,8 +120,8 @@ const CustomerSettings = ({
 
   // Merchant collection fee configuration state (synced from props when merchant data is refetched)
   const [collectionMode, setCollectionMode] = useState<
-    'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE' | 'MERCHANT_PAYS_FEE'
-  >(collectionFeeMode ?? 'MERCHANT_PAYS_FEE')
+    'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
+  >(collectionFeeMode ?? 'CUSTOMER_PAYS_NONE')
   const [customerSharePercent, setCustomerSharePercent] = useState<number>(collectionCustomerSharePercent ?? 0)
   const [totalFeePercent, setTotalFeePercent] = useState<string>(
     collectionTotalFeePercent != null ? String(collectionTotalFeePercent) : '',
@@ -516,11 +516,7 @@ const CustomerSettings = ({
                   value={collectionMode}
                   onValueChange={(value) =>
                     setCollectionMode(
-                      value as
-                        | 'CUSTOMER_PAYS_ALL'
-                        | 'CUSTOMER_PAYS_PARTIAL'
-                        | 'CUSTOMER_PAYS_NONE'
-                        | 'MERCHANT_PAYS_FEE',
+                      value as 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE',
                     )
                   }
                 >
@@ -535,10 +531,7 @@ const CustomerSettings = ({
                       Customer pays partial external fee
                     </SelectItem>
                     <SelectItem value="CUSTOMER_PAYS_NONE">
-                      Customer pays no external fee
-                    </SelectItem>
-                    <SelectItem value="MERCHANT_PAYS_FEE">
-                      Deduct fee from collection (merchant pays)
+                      Merchant pays fee (deducted from collection)
                     </SelectItem>
                   </SelectContent>
                 </Select>
