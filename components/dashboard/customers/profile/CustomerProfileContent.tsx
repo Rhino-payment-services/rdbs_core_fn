@@ -439,6 +439,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               merchantCode={merchantData?.merchantCode}
               collectionFeeMode={merchantData?.collectionFeeMode ?? undefined}
               collectionCustomerSharePercent={merchantData?.collectionCustomerSharePercent ?? undefined}
+              collectionTotalFeePercent={merchantData?.collectionTotalFeePercent ?? undefined}
+              collectionMnoPartnerFeePercent={merchantData?.collectionMnoPartnerFeePercent ?? undefined}
               onActionComplete={() => {
                 window.location.reload()
               }}
