@@ -58,10 +58,10 @@ const FinancePage = () => {
       borderColor: 'border-emerald-200'
     },
     {
-      title: 'System Wallets',
-      description: 'Inspect platform system wallets and balances',
+      title: 'Platform revenue',
+      description: 'Consolidated fee revenue, partner breakdown, and settlement',
       icon: Layers,
-      href: '/dashboard/system-wallets',
+      href: '/dashboard/platform-revenue',
       color: 'text-teal-700',
       bgColor: 'bg-teal-50',
       borderColor: 'border-teal-200'
