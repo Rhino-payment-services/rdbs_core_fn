@@ -81,6 +81,44 @@ function extractPartnerSummaryItems(summaryRes: unknown) {
   return []
 }
 
+function extractPartnerSummaryMeta(summaryRes: unknown) {
+  const empty = {
+    totals: null as {
+      accruedAmount: number
+      liquidatedAmount: number
+      unsettledAmount: number
+      entryCount: number
+    } | null,
+    walletBalance: undefined as number | undefined,
+    lifetimeAccruedInEntries: undefined as number | undefined,
+    orphanWalletBalance: undefined as number | undefined,
+  }
+  if (!summaryRes || typeof summaryRes !== 'object') return empty
+  const data =
+    'data' in (summaryRes as object) && (summaryRes as { data?: unknown }).data
+      ? ((summaryRes as { data: Record<string, unknown> }).data)
+      : (summaryRes as Record<string, unknown>)
+  if (!data || typeof data !== 'object') return empty
+  const totalsRaw = data.totals
+  const totals =
+    totalsRaw && typeof totalsRaw === 'object'
+      ? (totalsRaw as {
+          accruedAmount: number
+          liquidatedAmount: number
+          unsettledAmount: number
+          entryCount: number
+        })
+      : null
+  return {
+    totals,
+    walletBalance: typeof data.walletBalance === 'number' ? data.walletBalance : undefined,
+    lifetimeAccruedInEntries:
+      typeof data.lifetimeAccruedInEntries === 'number' ? data.lifetimeAccruedInEntries : undefined,
+    orphanWalletBalance:
+      typeof data.orphanWalletBalance === 'number' ? data.orphanWalletBalance : undefined,
+  }
+}
+
 type SettleTarget = {
   partnerId?: string
   externalPartnerId?: string
@@ -134,6 +172,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     isError: summaryError,
   } = usePlatformRevenuePartnerSummary(currency)
   const partnerRows = useMemo(() => extractPartnerSummaryItems(summaryRes), [summaryRes])
+  const partnerMeta = useMemo(() => extractPartnerSummaryMeta(summaryRes), [summaryRes])
+  const partnerTotals = partnerMeta.totals
+  const orphanBalance = partnerMeta.orphanWalletBalance ?? 0
+  const showReconciliationGap = orphanBalance > 1000
 
   const selectedPartnerFilter = useMemo(() => {
     if (statementPartnerKey === 'all') return null
@@ -467,8 +509,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle className="text-indigo-900">Platform revenue (consolidated)</CardTitle>
           <CardDescription>
-            Fee accruals and settlements for {currency}. Wallet cash may differ slightly from
-            per-partner unsettled totals until all legacy fees are migrated.
+            Wallet balance is all cash in the consolidated fee wallet. Partner rows below only
+            count fees recorded in platform revenue entries (per-transaction accruals).
             {walletDescription ? ` Wallet: ${walletDescription}` : ''}
           </CardDescription>
         </CardHeader>
@@ -499,6 +541,23 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </div>
         </CardContent>
       </Card>
+
+      {showReconciliationGap && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium text-amber-900">Wallet balance vs entry totals</p>
+          <p className="mt-1 text-amber-900/90">
+            Wallet holds {formatCurrency(balance, currency)}, but platform revenue entries only
+            account for {formatCurrency(partnerMeta.lifetimeAccruedInEntries ?? 0, currency)} in
+            accrued fees
+            {partnerTotals && partnerTotals.liquidatedAmount > 0
+              ? ` (${formatCurrency(partnerTotals.liquidatedAmount, currency)} already settled from entries)`
+              : ''}
+            . About {formatCurrency(orphanBalance, currency)} is from legacy fee wallet sweeps or
+            older backfills that credited the wallet without a matching entry row — it is safe to
+            liquidate but will not appear in the partner table until backfilled.
+          </p>
+        </div>
+      )}
 
       <Card className="mb-6">
         <CardHeader>
@@ -537,8 +596,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {partnerRows.map((row) => (
-                  <TableRow key={`${row.partnerId ?? ''}-${row.externalPartnerId ?? ''}`}>
+                {partnerRows.map((row, idx) => (
+                  <TableRow
+                    key={`${row.partnerId ?? ''}-${row.externalPartnerId ?? ''}-${idx}`}
+                  >
                     <TableCell className="font-medium">{row.partnerLabel}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.accruedAmount, currency)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.liquidatedAmount, currency)}</TableCell>
@@ -549,6 +610,22 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     <TableCell>{renderPartnerActions(row)}</TableCell>
                   </TableRow>
                 ))}
+                {partnerTotals && (
+                  <TableRow className="bg-gray-50 font-medium border-t">
+                    <TableCell>Total (from entries)</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(partnerTotals.accruedAmount, currency)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(partnerTotals.liquidatedAmount, currency)}
+                    </TableCell>
+                    <TableCell className="text-right text-indigo-700">
+                      {formatCurrency(partnerTotals.unsettledAmount, currency)}
+                    </TableCell>
+                    <TableCell className="text-right text-gray-600">{partnerTotals.entryCount}</TableCell>
+                    <TableCell />
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           )}
