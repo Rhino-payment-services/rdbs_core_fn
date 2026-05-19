@@ -36,6 +36,7 @@ import {
   usePlatformRevenueEntries,
   usePlatformRevenuePartnerSummary,
   useLiquidatePlatformRevenue,
+  useSyncPlatformRevenueAccruals,
   type PlatformRevenuePartnerSummaryRow,
   type PlatformRevenuePayoutMethod,
   type PlatformRevenueSummarySort,
@@ -67,6 +68,11 @@ const formatDateOnly = (dateString: string) =>
     month: 'short',
     day: 'numeric',
   })
+
+/** Calendar date in Uganda (EAT) for period filters — matches backend date bounds. */
+function todayInEastAfrica(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala' }).format(new Date())
+}
 
 function normalizeTransactionPayload(raw: unknown): Record<string, unknown> | null {
   if (!raw || typeof raw !== 'object') return null
@@ -257,6 +263,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const pagination = entriesRes?.data?.pagination
 
   const liquidateMutation = useLiquidatePlatformRevenue()
+  const syncAccrualsMutation = useSyncPlatformRevenueAccruals()
   const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
 
   // Keep statement in sync when returning from Transaction Management after new fees post.
@@ -571,13 +578,41 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button
               variant="outline"
+              disabled={syncAccrualsMutation.isPending}
+              onClick={async () => {
+                try {
+                  const res = await syncAccrualsMutation.mutateAsync({ currency, days: 30 })
+                  const credited = res?.data?.credited ?? 0
+                  const attempted = res?.data?.attempted ?? 0
+                  toast.success(
+                    credited > 0
+                      ? `Synced ${credited} P2P/internal fee accrual(s) (${attempted} checked)`
+                      : `No missing accruals found in the last 30 days (${attempted} checked)`,
+                  )
+                  setStatementPage(1)
+                  refetchBalance()
+                  refetchSummary()
+                  refetchEntries()
+                } catch (e) {
+                  handleError(e, 'Failed to sync missing fee accruals')
+                }
+              }}
+            >
+              {syncAccrualsMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              Sync P2P & internal fees
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => {
                 setStatementPage(1)
                 refetchEntries()
                 refetchSummary()
               }}
             >
-              <FileText className="w-4 h-4 mr-2" />
               Refresh statement
             </Button>
             <Button
@@ -648,6 +683,19 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 </SelectContent>
               </Select>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-end"
+              onClick={() => {
+                const today = todayInEastAfrica()
+                setPeriodStart(today)
+                setPeriodEnd(today)
+                setStatementPage(1)
+              }}
+            >
+              Today
+            </Button>
             {(periodStart || periodEnd) && (
               <Button
                 variant="ghost"
@@ -821,8 +869,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle>Revenue statement</CardTitle>
           <CardDescription>
-            Per-transaction fee accruals after transactions succeed. Uses the same date range as the
-            table above when set. New fees appear when you open this page or click Refresh statement.
+            Per-transaction fee accruals after transactions succeed. P2P and other internal Rukapay
+            fees appear under <strong>Rukapay (P2P &amp; internal)</strong> above. If they are missing,
+            click <strong>Sync P2P &amp; internal fees</strong>. Uses the same date range as the table
+            above when set.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -877,7 +927,20 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           ) : entries.length === 0 ? (
-            <p className="text-sm text-gray-500 py-6 text-center">No revenue entries found.</p>
+            <div className="text-sm text-gray-500 py-6 text-center space-y-2">
+              <p>No revenue entries found.</p>
+              {periodFiltered ? (
+                <p className="text-xs">
+                  Try <strong>Clear dates</strong> or search by transaction reference. Fees only
+                  appear here after successful transactions with a RukaPay fee.
+                </p>
+              ) : (
+                <p className="text-xs">
+                  Use <strong>Today</strong> above to filter this period, or search by reference
+                  (e.g. TXN_1779181274973).
+                </p>
+              )}
+            </div>
           ) : (
             <>
               <Table>
