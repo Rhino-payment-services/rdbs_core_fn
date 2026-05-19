@@ -371,8 +371,17 @@ export const useSystemFeeWalletBalance = () => {
 }
 
 export interface PlatformRevenueBalance {
-  balance: number
   currency: string
+  /** Unsettled fees from platform_revenue_entries (primary finance view) */
+  balance: number
+  availableToLiquidate?: number
+  unsettledFromEntries?: number
+  accruedFromEntries?: number
+  settledFromEntries?: number
+  entryCount?: number
+  /** Physical wallet cash (includes legacy sweeps not in entries) */
+  walletCashBalance?: number
+  legacyOrphanBalance?: number
 }
 
 export type PlatformRevenuePayoutMethod = 'BANK' | 'MNO' | 'PARTNER_OFFSET'
@@ -383,6 +392,8 @@ export interface LiquidatePlatformRevenueRequest {
   payoutMethod?: PlatformRevenuePayoutMethod
   partnerId?: string
   externalPartnerId?: string
+  revenueSegment?: string
+  bucketKey?: string
   bankName?: string
   bankAccountNumber?: string
   bankAccountName?: string
@@ -417,15 +428,34 @@ export interface PlatformRevenueEntry {
   } | null
 }
 
+export type PlatformRevenueSummarySort =
+  | 'lastActivity'
+  | 'unsettled'
+  | 'tpv'
+  | 'accrued'
+  | 'source'
+
+export interface PlatformRevenuePartnerSummaryParams {
+  currency?: string
+  startDate?: string
+  endDate?: string
+  sortBy?: PlatformRevenueSummarySort
+}
+
 export interface PlatformRevenuePartnerSummaryRow {
+  bucketKey: string
   partnerId: string | null
   externalPartnerId: string | null
-  partnerKind: 'gateway' | 'external' | 'unattributed'
+  partnerKind: 'gateway' | 'external' | 'rukapay' | 'other'
+  revenueSegment?: string | null
   partnerLabel: string
   accruedAmount: number
   liquidatedAmount: number
   unsettledAmount: number
   entryCount: number
+  transactionVolume?: number
+  firstCreditedAt?: string | null
+  lastCreditedAt?: string | null
 }
 
 export interface ListPlatformRevenueEntriesParams {
@@ -436,8 +466,10 @@ export interface ListPlatformRevenueEntriesParams {
   endDate?: string
   partnerId?: string
   externalPartnerId?: string
+  bucketKey?: string
   reference?: string
   transactionId?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 /** Consolidated PLATFORM_REVENUE wallet — not included in legacy system fee wallet totals */
@@ -458,8 +490,10 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
   if (params.endDate) search.set('endDate', params.endDate)
   if (params.partnerId) search.set('partnerId', params.partnerId)
   if (params.externalPartnerId) search.set('externalPartnerId', params.externalPartnerId)
+  if (params.bucketKey) search.set('bucketKey', params.bucketKey)
   if (params.reference) search.set('reference', params.reference)
   if (params.transactionId) search.set('transactionId', params.transactionId)
+  if (params.sortOrder) search.set('sortOrder', params.sortOrder)
 
   const qs = search.toString()
   return useQuery<{
@@ -475,7 +509,17 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
   })
 }
 
-export const usePlatformRevenuePartnerSummary = (currency = 'UGX') => {
+export const usePlatformRevenuePartnerSummary = (
+  params: PlatformRevenuePartnerSummaryParams = {},
+) => {
+  const currency = params.currency ?? 'UGX'
+  const search = new URLSearchParams()
+  search.set('currency', currency)
+  if (params.startDate) search.set('startDate', params.startDate)
+  if (params.endDate) search.set('endDate', params.endDate)
+  if (params.sortBy) search.set('sortBy', params.sortBy)
+
+  const qs = search.toString()
   return useQuery<{
     success?: boolean
     data: {
@@ -486,15 +530,15 @@ export const usePlatformRevenuePartnerSummary = (currency = 'UGX') => {
         liquidatedAmount: number
         unsettledAmount: number
         entryCount: number
+        transactionVolume?: number
       }
       walletBalance?: number
       lifetimeAccruedInEntries?: number
-      /** Wallet cash from legacy migration / backfill not tied to platform_revenue_entries */
       orphanWalletBalance?: number
     }
   }>({
-    queryKey: ['platform-revenue', 'summary-by-partner', currency],
-    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?currency=${currency}`),
+    queryKey: ['platform-revenue', 'summary-by-partner', params],
+    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?${qs}`),
     staleTime: 30 * 1000,
   })
 }

@@ -38,6 +38,7 @@ import {
   useLiquidatePlatformRevenue,
   type PlatformRevenuePartnerSummaryRow,
   type PlatformRevenuePayoutMethod,
+  type PlatformRevenueSummarySort,
 } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
@@ -58,6 +59,13 @@ const formatDate = (dateString: string) =>
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  })
+
+const formatDateOnly = (dateString: string) =>
+  new Date(dateString).toLocaleDateString('en-UG', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   })
 
 function normalizeTransactionPayload(raw: unknown): Record<string, unknown> | null {
@@ -88,6 +96,7 @@ function extractPartnerSummaryMeta(summaryRes: unknown) {
       liquidatedAmount: number
       unsettledAmount: number
       entryCount: number
+      transactionVolume?: number
     } | null,
     walletBalance: undefined as number | undefined,
     lifetimeAccruedInEntries: undefined as number | undefined,
@@ -107,6 +116,7 @@ function extractPartnerSummaryMeta(summaryRes: unknown) {
           liquidatedAmount: number
           unsettledAmount: number
           entryCount: number
+          transactionVolume?: number
         })
       : null
   return {
@@ -120,8 +130,10 @@ function extractPartnerSummaryMeta(summaryRes: unknown) {
 }
 
 type SettleTarget = {
+  bucketKey?: string
   partnerId?: string
   externalPartnerId?: string
+  revenueSegment?: string
   partnerLabel: string
   suggestedAmount?: number
   payoutMethod?: PlatformRevenuePayoutMethod
@@ -139,6 +151,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const [statementPage, setStatementPage] = useState(1)
   const [statementPartnerKey, setStatementPartnerKey] = useState<string>('all')
   const [statementReference, setStatementReference] = useState('')
+  const [periodStart, setPeriodStart] = useState('')
+  const [periodEnd, setPeriodEnd] = useState('')
+  const [sourceSort, setSourceSort] = useState<PlatformRevenueSummarySort>('lastActivity')
+  const [statementSortOrder, setStatementSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const [liquidateForm, setLiquidateForm] = useState({
     payoutMethod: 'BANK' as PlatformRevenuePayoutMethod,
@@ -152,6 +168,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     narration: '',
     partnerId: '',
     externalPartnerId: '',
+    revenueSegment: '',
+    bucketKey: '',
   })
   const [validationMessage, setValidationMessage] = useState('')
   const [validationError, setValidationError] = useState('')
@@ -163,30 +181,34 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
 
   const { data: balanceRes, refetch: refetchBalance } = usePlatformRevenueBalance()
   const currency = balanceRes?.data?.currency ?? 'UGX'
-  const balance = balanceRes?.data?.balance ?? 0
+  const availableToLiquidate =
+    balanceRes?.data?.availableToLiquidate ??
+    balanceRes?.data?.unsettledFromEntries ??
+    balanceRes?.data?.balance ??
+    0
+  const walletCashBalance = balanceRes?.data?.walletCashBalance
+  const legacyOrphanBalance = balanceRes?.data?.legacyOrphanBalance ?? 0
 
   const {
     data: summaryRes,
     refetch: refetchSummary,
     isLoading: summaryLoading,
     isError: summaryError,
-  } = usePlatformRevenuePartnerSummary(currency)
+  } = usePlatformRevenuePartnerSummary({
+    currency,
+    startDate: periodStart || undefined,
+    endDate: periodEnd || undefined,
+    sortBy: sourceSort,
+  })
   const partnerRows = useMemo(() => extractPartnerSummaryItems(summaryRes), [summaryRes])
   const partnerMeta = useMemo(() => extractPartnerSummaryMeta(summaryRes), [summaryRes])
   const partnerTotals = partnerMeta.totals
-  const orphanBalance = partnerMeta.orphanWalletBalance ?? 0
-  const showReconciliationGap = orphanBalance > 1000
-
+  const periodFiltered = Boolean(periodStart || periodEnd)
+  const displayAvailableToLiquidate =
+    periodFiltered && partnerTotals ? partnerTotals.unsettledAmount : availableToLiquidate
   const selectedPartnerFilter = useMemo(() => {
     if (statementPartnerKey === 'all') return null
-    return partnerRows.find((row) => {
-      const key = row.partnerId
-        ? `g:${row.partnerId}`
-        : row.externalPartnerId
-          ? `e:${row.externalPartnerId}`
-          : 'unattributed'
-      return key === statementPartnerKey
-    })
+    return partnerRows.find((row) => row.bucketKey === statementPartnerKey) ?? null
   }, [statementPartnerKey, partnerRows])
 
   const entriesParams = useMemo(
@@ -194,11 +216,24 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       page: statementPage,
       limit: 15,
       currency,
-      partnerId: selectedPartnerFilter?.partnerId ?? undefined,
-      externalPartnerId: selectedPartnerFilter?.externalPartnerId ?? undefined,
+      bucketKey:
+        selectedPartnerFilter?.bucketKey ??
+        (statementPartnerKey !== 'all' ? statementPartnerKey : undefined),
       reference: statementReference.trim() || undefined,
+      startDate: periodStart || undefined,
+      endDate: periodEnd || undefined,
+      sortOrder: statementSortOrder,
     }),
-    [statementPage, currency, selectedPartnerFilter, statementReference],
+    [
+      statementPage,
+      currency,
+      selectedPartnerFilter,
+      statementPartnerKey,
+      statementReference,
+      periodStart,
+      periodEnd,
+      statementSortOrder,
+    ],
   )
 
   const { data: entriesRes, isLoading: entriesLoading, refetch: refetchEntries } =
@@ -210,16 +245,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
 
   const partnerFilterOptions = useMemo(() => {
-    return partnerRows
-      .filter((r) => r.partnerId || r.externalPartnerId)
-      .map((r) => ({
-        key: r.partnerId
-          ? `g:${r.partnerId}`
-          : r.externalPartnerId
-            ? `e:${r.externalPartnerId}`
-            : 'unattributed',
-        label: r.partnerLabel,
-      }))
+    return partnerRows.map((r) => ({
+      key: r.bucketKey,
+      label: r.partnerLabel,
+    }))
   }, [partnerRows])
 
   const handleViewTransaction = async (transactionId: string) => {
@@ -257,6 +286,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       narration: '',
       partnerId: target.partnerId ?? '',
       externalPartnerId: target.externalPartnerId ?? '',
+      revenueSegment: target.revenueSegment ?? '',
+      bucketKey: target.bucketKey ?? '',
     })
     setValidationMessage('')
     setValidationError('')
@@ -277,6 +308,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       narration: '',
       partnerId: '',
       externalPartnerId: '',
+      revenueSegment: '',
+      bucketKey: '',
     })
     setValidationMessage('')
     setValidationError('')
@@ -370,8 +403,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       toast.error('Please enter a valid amount')
       return
     }
-    if (amount > balance) {
-      toast.error('Amount exceeds available platform revenue balance')
+    const maxForTarget = settleTarget?.suggestedAmount ?? availableToLiquidate
+    if (amount > maxForTarget) {
+      toast.error('Amount exceeds unsettled revenue for this source')
+      return
+    }
+    if (walletCashBalance != null && amount > walletCashBalance) {
+      toast.error('Amount exceeds cash in the consolidated revenue wallet')
       return
     }
 
@@ -381,8 +419,12 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     const isBank = method === 'BANK'
 
     if (isOffset) {
-      if (!liquidateForm.partnerId && !liquidateForm.externalPartnerId) {
-        toast.error('Select a partner for offset settlement')
+      if (
+        !liquidateForm.partnerId &&
+        !liquidateForm.externalPartnerId &&
+        !liquidateForm.revenueSegment
+      ) {
+        toast.error('Select a revenue source for offset settlement')
         return
       }
       if (!liquidateForm.narration.trim()) {
@@ -422,6 +464,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         payoutMethod: method,
         partnerId: liquidateForm.partnerId || undefined,
         externalPartnerId: liquidateForm.externalPartnerId || undefined,
+        revenueSegment: liquidateForm.revenueSegment || undefined,
+        bucketKey: liquidateForm.bucketKey || undefined,
         narration: liquidateForm.narration || undefined,
         ...(isOffset
           ? {}
@@ -466,42 +510,6 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     }
   }
 
-  const renderPartnerActions = (row: PlatformRevenuePartnerSummaryRow) => {
-    if (row.unsettledAmount <= 0) return null
-    const target: SettleTarget = {
-      partnerId: row.partnerId ?? undefined,
-      externalPartnerId: row.externalPartnerId ?? undefined,
-      partnerLabel: row.partnerLabel,
-      suggestedAmount: row.unsettledAmount,
-    }
-    return (
-      <div className="flex flex-wrap gap-1 justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => openSettle({ ...target, payoutMethod: 'BANK' })}
-        >
-          Send to bank
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => openSettle({ ...target, payoutMethod: 'MNO' })}
-        >
-          Send to MNO
-        </Button>
-        {row.partnerKind !== 'unattributed' && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => openSettle({ ...target, payoutMethod: 'PARTNER_OFFSET' })}
-          >
-            Partner offset
-          </Button>
-        )}
-      </div>
-    )
-  }
 
   return (
     <>
@@ -509,15 +517,28 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle className="text-indigo-900">Platform revenue (consolidated)</CardTitle>
           <CardDescription>
-            Wallet balance is all cash in the consolidated fee wallet. Partner rows below only
-            count fees recorded in platform revenue entries (per-transaction accruals).
+            Totals are from platform revenue entries (per-transaction fee accruals). Legacy fee
+            wallet sweeps are excluded from accrued and unsettled figures below.
             {walletDescription ? ` Wallet: ${walletDescription}` : ''}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <p className="text-sm text-gray-600">Available to liquidate (wallet balance)</p>
-            <p className="text-3xl font-bold text-indigo-700">{formatCurrency(balance, currency)}</p>
+            <p className="text-sm text-gray-600">Available to liquidate (from entries)</p>
+            <p className="text-3xl font-bold text-indigo-700">
+              {formatCurrency(displayAvailableToLiquidate, currency)}
+            </p>
+            {periodFiltered && (
+              <p className="text-xs text-indigo-600/80 mt-0.5">Filtered by selected period</p>
+            )}
+            {walletCashBalance != null && (
+              <p className="text-xs text-gray-500 mt-1">
+                Wallet cash (max you can send out): {formatCurrency(walletCashBalance, currency)}
+                {legacyOrphanBalance > 1000
+                  ? ` · ${formatCurrency(legacyOrphanBalance, currency)} is legacy cash not tied to entries`
+                  : ''}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button
@@ -533,7 +554,12 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700"
-              onClick={() => openSettle({ partnerLabel: 'All partners' })}
+              onClick={() =>
+                openSettle({
+                  partnerLabel: 'All sources',
+                  suggestedAmount: displayAvailableToLiquidate,
+                })
+              }
             >
               <CreditCard className="w-4 h-4 mr-2" />
               Settle revenue
@@ -542,32 +568,74 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         </CardContent>
       </Card>
 
-      {showReconciliationGap && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <p className="font-medium text-amber-900">Wallet balance vs entry totals</p>
-          <p className="mt-1 text-amber-900/90">
-            Wallet holds {formatCurrency(balance, currency)}, but platform revenue entries only
-            account for {formatCurrency(partnerMeta.lifetimeAccruedInEntries ?? 0, currency)} in
-            accrued fees
-            {partnerTotals && partnerTotals.liquidatedAmount > 0
-              ? ` (${formatCurrency(partnerTotals.liquidatedAmount, currency)} already settled from entries)`
-              : ''}
-            . About {formatCurrency(orphanBalance, currency)} is from legacy fee wallet sweeps or
-            older backfills that credited the wallet without a matching entry row — it is safe to
-            liquidate but will not appear in the partner table until backfilled.
-          </p>
-        </div>
-      )}
-
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Revenue by partner</CardTitle>
+          <CardTitle>Revenue by source</CardTitle>
           <CardDescription>
-            Accrued fees from platform revenue entries vs amounts already settled (bank or partner
-            offset). Use partner offset when settlement happens on another platform.
+            Fee revenue and TPV by source. Use the period and sort controls to review activity;
+            settle from the button above when ready.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col lg:flex-row flex-wrap gap-3">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-gray-500">From</Label>
+              <Input
+                type="date"
+                value={periodStart}
+                onChange={(e) => {
+                  setPeriodStart(e.target.value)
+                  setStatementPage(1)
+                }}
+                className="w-full sm:w-40"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-gray-500">To</Label>
+              <Input
+                type="date"
+                value={periodEnd}
+                onChange={(e) => {
+                  setPeriodEnd(e.target.value)
+                  setStatementPage(1)
+                }}
+                className="w-full sm:w-40"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-gray-500">Sort by</Label>
+              <Select
+                value={sourceSort}
+                onValueChange={(v) => setSourceSort(v as PlatformRevenueSummarySort)}
+              >
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lastActivity">Last activity (newest)</SelectItem>
+                  <SelectItem value="unsettled">Unsettled (high to low)</SelectItem>
+                  <SelectItem value="tpv">TPV (high to low)</SelectItem>
+                  <SelectItem value="accrued">Fees accrued (high to low)</SelectItem>
+                  <SelectItem value="source">Source name (A–Z)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(periodStart || periodEnd) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-end"
+                onClick={() => {
+                  setPeriodStart('')
+                  setPeriodEnd('')
+                  setStatementPage(1)
+                }}
+              >
+                Clear dates
+              </Button>
+            )}
+          </div>
+
           {summaryLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
@@ -575,44 +643,63 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : summaryError ? (
             <div className="text-center py-6 space-y-3">
               <p className="text-sm text-red-600">
-                Could not load revenue by partner. The summary API may not be deployed yet.
+                Could not load revenue by source. The summary API may not be deployed yet.
               </p>
               <Button variant="outline" size="sm" onClick={() => refetchSummary()}>
                 Retry
               </Button>
             </div>
           ) : partnerRows.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4">No partner accruals yet.</p>
+            <p className="text-sm text-gray-500 py-4">No fee accruals yet.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Partner</TableHead>
-                  <TableHead className="text-right">Accrued</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead className="text-right">TPV</TableHead>
+                  <TableHead className="text-right">Txns</TableHead>
+                  <TableHead className="text-right">Fees accrued</TableHead>
                   <TableHead className="text-right">Settled</TableHead>
                   <TableHead className="text-right">Unsettled</TableHead>
-                  <TableHead className="text-right">Entries</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">Last activity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {partnerRows.map((row, idx) => (
+                {partnerRows.map((row) => (
                   <TableRow
-                    key={`${row.partnerId ?? ''}-${row.externalPartnerId ?? ''}-${idx}`}
+                    key={row.bucketKey}
+                    className="cursor-pointer hover:bg-gray-50/80"
+                    onClick={() => {
+                      setStatementPartnerKey(row.bucketKey)
+                      setStatementPage(1)
+                    }}
                   >
                     <TableCell className="font-medium">{row.partnerLabel}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.accruedAmount, currency)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.liquidatedAmount, currency)}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(row.transactionVolume ?? 0, currency)}
+                    </TableCell>
+                    <TableCell className="text-right text-gray-600">{row.entryCount}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(row.accruedAmount, currency)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(row.liquidatedAmount, currency)}
+                    </TableCell>
                     <TableCell className="text-right font-medium text-indigo-700">
                       {formatCurrency(row.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-gray-600">{row.entryCount}</TableCell>
-                    <TableCell>{renderPartnerActions(row)}</TableCell>
+                    <TableCell className="text-right text-sm text-gray-600 whitespace-nowrap">
+                      {row.lastCreditedAt ? formatDateOnly(row.lastCreditedAt) : '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {partnerTotals && (
                   <TableRow className="bg-gray-50 font-medium border-t">
-                    <TableCell>Total (from entries)</TableCell>
+                    <TableCell>Total{periodFiltered ? ' (period)' : ''}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(partnerTotals.transactionVolume ?? 0, currency)}
+                    </TableCell>
+                    <TableCell className="text-right text-gray-600">{partnerTotals.entryCount}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(partnerTotals.accruedAmount, currency)}
                     </TableCell>
@@ -622,7 +709,6 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     <TableCell className="text-right text-indigo-700">
                       {formatCurrency(partnerTotals.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-gray-600">{partnerTotals.entryCount}</TableCell>
                     <TableCell />
                   </TableRow>
                 )}
@@ -636,7 +722,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle>Revenue statement</CardTitle>
           <CardDescription>
-            Each row is a fee credited to platform revenue from a successful transaction.
+            Per-transaction fee accruals. Uses the same date range as the table above when set.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -652,7 +738,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 <SelectValue placeholder="Partner filter" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All partners</SelectItem>
+                <SelectItem value="all">All sources</SelectItem>
                 {partnerFilterOptions.map((p) => (
                   <SelectItem key={p.key} value={p.key}>
                     {p.label}
@@ -669,6 +755,21 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               }}
               className="sm:max-w-xs"
             />
+            <Select
+              value={statementSortOrder}
+              onValueChange={(v) => {
+                setStatementSortOrder(v as 'asc' | 'desc')
+                setStatementPage(1)
+              }}
+            >
+              <SelectTrigger className="sm:w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Date (newest first)</SelectItem>
+                <SelectItem value="asc">Date (oldest first)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {entriesLoading ? (
@@ -683,7 +784,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Partner</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Reference</TableHead>
                     <TableHead className="text-right">Txn amount</TableHead>
@@ -783,8 +884,15 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Wallet balance</Label>
-              <p className="text-xl font-bold text-indigo-700">{formatCurrency(balance, currency)}</p>
+              <Label>Unsettled (from entries)</Label>
+              <p className="text-xl font-bold text-indigo-700">
+                {formatCurrency(settleTarget?.suggestedAmount ?? availableToLiquidate, currency)}
+              </p>
+              {walletCashBalance != null && (
+                <p className="text-xs text-gray-500">
+                  Wallet cash cap: {formatCurrency(walletCashBalance, currency)}
+                </p>
+              )}
             </div>
 
             <div>
