@@ -469,6 +469,7 @@ export interface ListPlatformRevenueEntriesParams {
   bucketKey?: string
   reference?: string
   transactionId?: string
+  transactionType?: string
   sortOrder?: 'asc' | 'desc'
 }
 
@@ -495,6 +496,7 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
   if (params.bucketKey) search.set('bucketKey', params.bucketKey)
   if (params.reference) search.set('reference', params.reference)
   if (params.transactionId) search.set('transactionId', params.transactionId)
+  if (params.transactionType) search.set('transactionType', params.transactionType)
   if (params.sortOrder) search.set('sortOrder', params.sortOrder)
 
   const qs = search.toString()
@@ -559,10 +561,11 @@ export const useSyncPlatformRevenueAccruals = () => {
       data: { attempted: number; credited: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
     },
     Error,
-    { currency?: string; days?: number }
+    { currency?: string; days?: number; transactionType?: string }
   >({
-    mutationFn: ({ currency = 'UGX', days = 30 }) => {
+    mutationFn: ({ currency = 'UGX', days = 30, transactionType }) => {
       const params = new URLSearchParams({ currency, days: String(days) })
+      if (transactionType) params.set('transactionType', transactionType)
       return apiFetch(`/wallet/platform-revenue/sync-missing-accruals?${params}`, {
         method: 'POST',
       })

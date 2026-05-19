@@ -171,6 +171,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
 
   const [statementPage, setStatementPage] = useState(1)
   const [statementPartnerKey, setStatementPartnerKey] = useState<string>('all')
+  const [statementTxnType, setStatementTxnType] = useState<'all' | 'WALLET_TO_WALLET'>('all')
   const [statementReference, setStatementReference] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
@@ -238,8 +239,12 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       limit: 15,
       currency,
       bucketKey:
-        selectedPartnerFilter?.bucketKey ??
-        (statementPartnerKey !== 'all' ? statementPartnerKey : undefined),
+        statementTxnType === 'all'
+          ? selectedPartnerFilter?.bucketKey ??
+            (statementPartnerKey !== 'all' ? statementPartnerKey : undefined)
+          : 'rukapay:core',
+      transactionType:
+        statementTxnType === 'WALLET_TO_WALLET' ? 'WALLET_TO_WALLET' : undefined,
       reference: statementReference.trim() || undefined,
       startDate: periodStart || undefined,
       endDate: periodEnd || undefined,
@@ -250,6 +255,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       currency,
       selectedPartnerFilter,
       statementPartnerKey,
+      statementTxnType,
       statementReference,
       periodStart,
       periodEnd,
@@ -581,13 +587,17 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               disabled={syncAccrualsMutation.isPending}
               onClick={async () => {
                 try {
-                  const res = await syncAccrualsMutation.mutateAsync({ currency, days: 30 })
+                  const res = await syncAccrualsMutation.mutateAsync({
+                    currency,
+                    days: 30,
+                    transactionType: 'WALLET_TO_WALLET',
+                  })
                   const credited = res?.data?.credited ?? 0
                   const attempted = res?.data?.attempted ?? 0
                   toast.success(
                     credited > 0
-                      ? `Synced ${credited} P2P/internal fee accrual(s) (${attempted} checked)`
-                      : `No missing accruals found in the last 30 days (${attempted} checked)`,
+                      ? `Synced ${credited} P2P fee accrual(s) (${attempted} debit legs checked)`
+                      : `No missing P2P accruals in the last 30 days (${attempted} checked)`,
                   )
                   setStatementPage(1)
                   refetchBalance()
@@ -869,9 +879,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle>Revenue statement</CardTitle>
           <CardDescription>
-            Per-transaction fee accruals after transactions succeed. P2P and other internal Rukapay
-            fees appear under <strong>Rukapay (P2P &amp; internal)</strong> above. If they are missing,
-            click <strong>Sync P2P &amp; internal fees</strong>. Uses the same date range as the table
+            Per-transaction fee accruals after transactions succeed. P2P and internal wallet flows
+            appear under <strong>Rukapay (P2P &amp; internal)</strong>; partnerless mobile-money and
+            bank fees have their own source rows (e.g. <strong>Mobile money (wallet to MNO)</strong>).
+            If P2P fees are missing, click <strong>Sync P2P &amp; internal fees</strong>. Uses the same date range as the table
             above when set.
           </CardDescription>
         </CardHeader>
@@ -883,6 +894,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 setStatementPartnerKey(v)
                 setStatementPage(1)
               }}
+              disabled={statementTxnType === 'WALLET_TO_WALLET'}
             >
               <SelectTrigger className="sm:w-56">
                 <SelectValue placeholder="Partner filter" />
@@ -894,6 +906,22 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                     {p.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={statementTxnType}
+              onValueChange={(v) => {
+                setStatementTxnType(v as 'all' | 'WALLET_TO_WALLET')
+                setStatementPage(1)
+                if (v === 'WALLET_TO_WALLET') setStatementPartnerKey('all')
+              }}
+            >
+              <SelectTrigger className="sm:w-44">
+                <SelectValue placeholder="Txn type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All txn types</SelectItem>
+                <SelectItem value="WALLET_TO_WALLET">P2P only</SelectItem>
               </SelectContent>
             </Select>
             <Input
