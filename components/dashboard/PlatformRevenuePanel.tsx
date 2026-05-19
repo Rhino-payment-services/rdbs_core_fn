@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { CreditCard, ExternalLink, FileText, Loader2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import api from '@/lib/axios'
 import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,6 +40,7 @@ import {
   useSyncPlatformRevenueAccruals,
   type PlatformRevenuePartnerSummaryRow,
   type PlatformRevenuePayoutMethod,
+  type PlatformRevenueSettlementAllocation,
   type PlatformRevenueSummarySort,
 } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
@@ -160,6 +162,58 @@ function buildSettleTargetFromRow(row: PlatformRevenuePartnerSummaryRow): Settle
   }
 }
 
+function defaultPayoutForRows(
+  rows: PlatformRevenuePartnerSummaryRow[],
+): PlatformRevenuePayoutMethod {
+  if (rows.length === 0) return 'BANK'
+  return rows.every((r) => r.partnerKind === 'gateway' || r.partnerKind === 'external')
+    ? 'PARTNER_OFFSET'
+    : 'BANK'
+}
+
+function buildSettlementAllocations(
+  rows: PlatformRevenuePartnerSummaryRow[],
+  totalAmount: number,
+): PlatformRevenueSettlementAllocation[] {
+  if (rows.length === 0) return []
+  const totalUnsettled = rows.reduce((sum, row) => sum + row.unsettledAmount, 0)
+  if (totalUnsettled <= 0) return []
+
+  const toAllocation = (row: PlatformRevenuePartnerSummaryRow, amount: number) => {
+    const target = buildSettleTargetFromRow(row)
+    return {
+      bucketKey: row.bucketKey,
+      amount: Number(amount.toFixed(2)),
+      partnerId: target.partnerId,
+      externalPartnerId: target.externalPartnerId,
+      revenueSegment: target.revenueSegment,
+      partnerLabel: row.partnerLabel,
+    }
+  }
+
+  if (rows.length === 1) {
+    return [toAllocation(rows[0], totalAmount)]
+  }
+
+  if (Math.abs(totalAmount - totalUnsettled) < 0.02) {
+    return rows.map((row) => toAllocation(row, row.unsettledAmount))
+  }
+
+  const amounts: number[] = []
+  let allocated = 0
+  for (let i = 0; i < rows.length; i++) {
+    if (i === rows.length - 1) {
+      amounts.push(Number((totalAmount - allocated).toFixed(2)))
+    } else {
+      const share = Number(((totalAmount * rows[i].unsettledAmount) / totalUnsettled).toFixed(2))
+      amounts.push(share)
+      allocated += share
+    }
+  }
+
+  return rows.map((row, index) => toAllocation(row, amounts[index]))
+}
+
 interface PlatformRevenuePanelProps {
   walletDescription?: string
 }
@@ -167,7 +221,7 @@ interface PlatformRevenuePanelProps {
 export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanelProps) {
   const { handleError } = useErrorHandler()
   const [showLiquidate, setShowLiquidate] = useState(false)
-  const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null)
+  const [selectedSettleKeys, setSelectedSettleKeys] = useState<string[]>([])
 
   const [statementPage, setStatementPage] = useState(1)
   const [statementPartnerKey, setStatementPartnerKey] = useState<string>('all')
@@ -225,17 +279,21 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const partnerRows = useMemo(() => extractPartnerSummaryItems(summaryRes), [summaryRes])
   const partnerMeta = useMemo(() => extractPartnerSummaryMeta(summaryRes), [summaryRes])
   const partnerTotals = partnerMeta.totals
-  const settleSourceOptions = useMemo(
-    () =>
-      [...partnerRows]
-        .filter((r) => r.unsettledAmount > 0)
-        .sort((a, b) => b.unsettledAmount - a.unsettledAmount),
+  const selectableSettleRows = useMemo(
+    () => partnerRows.filter((r) => r.unsettledAmount > 0),
     [partnerRows],
   )
-  const selectedSourceRow = useMemo(
-    () => partnerRows.find((r) => r.bucketKey === liquidateForm.bucketKey) ?? null,
-    [partnerRows, liquidateForm.bucketKey],
+  const selectedSettleRows = useMemo(
+    () => partnerRows.filter((r) => selectedSettleKeys.includes(r.bucketKey)),
+    [partnerRows, selectedSettleKeys],
   )
+  const selectedUnsettledTotal = useMemo(
+    () => selectedSettleRows.reduce((sum, row) => sum + row.unsettledAmount, 0),
+    [selectedSettleRows],
+  )
+  const allSelectableSelected =
+    selectableSettleRows.length > 0 &&
+    selectableSettleRows.every((row) => selectedSettleKeys.includes(row.bucketKey))
   const periodFiltered = Boolean(periodStart || periodEnd)
   const displayAvailableToLiquidate =
     periodFiltered && partnerTotals ? partnerTotals.unsettledAmount : availableToLiquidate
@@ -324,13 +382,38 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     }
   }
 
-  const applySettleSourceFromRow = (row: PlatformRevenuePartnerSummaryRow) => {
-    const target = buildSettleTargetFromRow(row)
-    setSettleTarget(target)
-    setLiquidateForm((prev) => ({
-      ...prev,
-      payoutMethod: target.payoutMethod ?? 'BANK',
-      amount: String(row.unsettledAmount),
+  const toggleSettleKey = (bucketKey: string, checked: boolean) => {
+    setSelectedSettleKeys((prev) => {
+      if (checked) {
+        return prev.includes(bucketKey) ? prev : [...prev, bucketKey]
+      }
+      return prev.filter((key) => key !== bucketKey)
+    })
+  }
+
+  const toggleSelectAllSettle = (checked: boolean) => {
+    if (checked) {
+      setSelectedSettleKeys(selectableSettleRows.map((row) => row.bucketKey))
+    } else {
+      setSelectedSettleKeys([])
+    }
+  }
+
+  const openSettle = (preselectKeys?: string[]) => {
+    const keys = preselectKeys?.length ? preselectKeys : selectedSettleKeys
+    const rows = partnerRows.filter(
+      (row) => keys.includes(row.bucketKey) && row.unsettledAmount > 0,
+    )
+    if (rows.length === 0) {
+      toast.error('Select one or more sources with unsettled balance using the checkboxes')
+      return
+    }
+
+    const total = Number(rows.reduce((sum, row) => sum + row.unsettledAmount, 0).toFixed(2))
+    setSelectedSettleKeys(rows.map((row) => row.bucketKey))
+    setLiquidateForm({
+      payoutMethod: defaultPayoutForRows(rows),
+      amount: String(total),
       bankCode: '',
       bankAccountNumber: '',
       bankAccountName: '',
@@ -338,48 +421,14 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       mnoProvider: 'MTN',
       recipientName: '',
       narration: '',
-      partnerId: target.partnerId ?? '',
-      externalPartnerId: target.externalPartnerId ?? '',
-      revenueSegment: target.revenueSegment ?? '',
-      bucketKey: target.bucketKey ?? '',
-    }))
+      partnerId: '',
+      externalPartnerId: '',
+      revenueSegment: '',
+      bucketKey: '',
+    })
     setValidationMessage('')
     setValidationError('')
     setDestinationValidated(false)
-  }
-
-  const openSettle = (target?: SettleTarget) => {
-    if (target?.bucketKey) {
-      const row = partnerRows.find((r) => r.bucketKey === target.bucketKey)
-      if (row) {
-        applySettleSourceFromRow(row)
-      } else {
-        setSettleTarget(target)
-        setLiquidateForm({
-          payoutMethod: target.payoutMethod ?? 'BANK',
-          amount: target.suggestedAmount ? String(target.suggestedAmount) : '',
-          bankCode: '',
-          bankAccountNumber: '',
-          bankAccountName: '',
-          phoneNumber: '',
-          mnoProvider: 'MTN',
-          recipientName: '',
-          narration: '',
-          partnerId: target.partnerId ?? '',
-          externalPartnerId: target.externalPartnerId ?? '',
-          revenueSegment: target.revenueSegment ?? '',
-          bucketKey: target.bucketKey ?? '',
-        })
-        setValidationMessage('')
-        setValidationError('')
-        setDestinationValidated(false)
-      }
-    } else if (settleSourceOptions.length > 0) {
-      applySettleSourceFromRow(settleSourceOptions[0])
-    } else {
-      toast.error('No unsettled revenue by source for the selected period')
-      return
-    }
     setShowLiquidate(true)
   }
 
@@ -402,7 +451,6 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     setValidationMessage('')
     setValidationError('')
     setDestinationValidated(false)
-    setSettleTarget(null)
   }
 
   const clearValidation = () => {
@@ -491,20 +539,25 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       toast.error('Please enter a valid amount')
       return
     }
-    if (!liquidateForm.bucketKey.trim()) {
-      toast.error('Select a revenue source')
+    const rowsForSettle = partnerRows.filter(
+      (row) => selectedSettleKeys.includes(row.bucketKey) && row.unsettledAmount > 0,
+    )
+    if (rowsForSettle.length === 0) {
+      toast.error('Select at least one revenue source')
       return
     }
 
-    const maxForTarget = selectedSourceRow?.unsettledAmount ?? settleTarget?.suggestedAmount ?? 0
+    const maxForTarget = selectedUnsettledTotal
     if (maxForTarget <= 0) {
-      toast.error('Selected source has no unsettled revenue')
+      toast.error('Selected sources have no unsettled revenue')
       return
     }
-    if (amount > maxForTarget) {
-      toast.error('Amount exceeds unsettled revenue for this source')
+    if (amount > maxForTarget + 0.01) {
+      toast.error('Amount exceeds unsettled revenue for selected sources')
       return
     }
+
+    const settlementAllocations = buildSettlementAllocations(rowsForSettle, amount)
     if (walletCashBalance != null && amount > walletCashBalance) {
       toast.error('Amount exceeds cash in the consolidated revenue wallet')
       return
@@ -516,15 +569,6 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     const isBank = method === 'BANK'
 
     if (isOffset) {
-      if (
-        !liquidateForm.partnerId &&
-        !liquidateForm.externalPartnerId &&
-        !liquidateForm.revenueSegment &&
-        !liquidateForm.bucketKey
-      ) {
-        toast.error('Select a revenue source for offset settlement')
-        return
-      }
       if (!liquidateForm.narration.trim()) {
         toast.error('Narration is required (e.g. settled on ABC platform)')
         return
@@ -560,10 +604,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         amount,
         currency,
         payoutMethod: method,
-        partnerId: liquidateForm.partnerId || undefined,
-        externalPartnerId: liquidateForm.externalPartnerId || undefined,
-        revenueSegment: liquidateForm.revenueSegment || undefined,
-        bucketKey: liquidateForm.bucketKey || undefined,
+        settlementAllocations,
         narration: liquidateForm.narration || undefined,
         ...(isOffset
           ? {}
@@ -592,6 +633,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               }`,
       )
       setShowLiquidate(false)
+      setSelectedSettleKeys([])
       resetLiquidate()
       refetchBalance()
       refetchSummary()
@@ -684,7 +726,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700"
-              disabled={settleSourceOptions.length === 0}
+              disabled={selectedSettleKeys.length === 0}
               onClick={() => openSettle()}
             >
               <CreditCard className="w-4 h-4 mr-2" />
@@ -698,11 +740,26 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         <CardHeader>
           <CardTitle>Revenue by source</CardTitle>
           <CardDescription>
-            Fee revenue and TPV by source. Use the period and sort controls to review activity;
-            settle all sources from the button above, or one source via the settle icon on each row.
+            Select sources with the checkboxes, then settle in one payout. Each selected source is
+            updated in this table.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {selectedSettleKeys.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-indigo-200 bg-indigo-50/80 px-4 py-3">
+              <p className="text-sm text-indigo-900">
+                <strong>{selectedSettleKeys.length}</strong> source
+                {selectedSettleKeys.length === 1 ? '' : 's'} selected ·{' '}
+                <strong>{formatCurrency(selectedUnsettledTotal, currency)}</strong> unsettled
+              </p>
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => openSettle()}>
+                Settle selected
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelectedSettleKeys([])}>
+                Clear selection
+              </Button>
+            </div>
+          )}
           <div className="flex flex-col lg:flex-row flex-wrap gap-3">
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-gray-500">From</Label>
@@ -791,19 +848,28 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : partnerRows.length === 0 ? (
             <p className="text-sm text-gray-500 py-4">No fee accruals yet.</p>
           ) : (
-            <Table className="table-fixed min-w-[920px] [&_th]:!align-top [&_td]:!align-top [&_th]:!py-2.5 [&_td]:!py-2.5 [&_th]:leading-snug [&_td]:leading-snug">
+            <Table className="table-fixed min-w-[960px] [&_th]:!align-top [&_td]:!align-top [&_th]:!py-2.5 [&_td]:!py-2.5 [&_th]:leading-snug [&_td]:leading-snug">
               <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[14%]" />
-                <col className="w-[6%]" />
+                <col className="w-[40px]" />
+                <col className="w-[26%]" />
                 <col className="w-[13%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
+                <col className="w-[6%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[10%]" />
                 <col className="w-[9%]" />
                 <col className="w-[8%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-2 align-top text-center w-10">
+                    <Checkbox
+                      checked={allSelectableSelected}
+                      onCheckedChange={(checked) => toggleSelectAllSettle(checked === true)}
+                      disabled={selectableSettleRows.length === 0}
+                      aria-label="Select all sources with unsettled balance"
+                    />
+                  </TableHead>
                   <TableHead className="px-3 align-top text-left font-semibold">Source</TableHead>
                   <TableHead className="px-3 align-top text-left font-semibold tabular-nums">TPV</TableHead>
                   <TableHead className="px-3 align-top text-left font-semibold tabular-nums">Txns</TableHead>
@@ -823,15 +889,31 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {partnerRows.map((row) => (
+                {partnerRows.map((row) => {
+                  const isSelected = selectedSettleKeys.includes(row.bucketKey)
+                  const canSelect = row.unsettledAmount > 0
+                  return (
                   <TableRow
                     key={row.bucketKey}
-                    className="cursor-pointer hover:bg-gray-50/80"
+                    className={`cursor-pointer hover:bg-gray-50/80 ${isSelected ? 'bg-indigo-50/60' : ''}`}
                     onClick={() => {
                       setStatementPartnerKey(row.bucketKey)
                       setStatementPage(1)
                     }}
                   >
+                    <TableCell
+                      className="px-2 align-top text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={!canSelect}
+                        onCheckedChange={(checked) =>
+                          toggleSettleKey(row.bucketKey, checked === true)
+                        }
+                        aria-label={`Select ${row.partnerLabel} for settlement`}
+                      />
+                    </TableCell>
                     <TableCell
                       className="px-3 align-top font-medium truncate"
                       title={row.partnerLabel}
@@ -870,7 +952,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                         disabled={row.unsettledAmount <= 0}
                         onClick={(e) => {
                           e.stopPropagation()
-                          openSettle(buildSettleTargetFromRow(row))
+                          openSettle([row.bucketKey])
                         }}
                       >
                         <CreditCard className="h-4 w-4" aria-hidden />
@@ -878,9 +960,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
                 {partnerTotals && (
                   <TableRow className="bg-gray-50 font-medium border-t hover:bg-gray-50">
+                    <TableCell className="px-2 align-top" />
                     <TableCell className="px-3 align-top">
                       Total{periodFiltered ? ' (period)' : ''}
                     </TableCell>
@@ -1104,57 +1187,55 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           if (!open) resetLiquidate()
         }}
       >
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[min(96vw,56rem)] max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Settle platform revenue</DialogTitle>
             <DialogDescription>
-              Choose the revenue source so the settlement updates the correct row in Revenue by
-              source.
+              One payout for all checked sources. Each row in Revenue by source is updated by its
+              share of this settlement.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Revenue source *</Label>
-              <Select
-                value={liquidateForm.bucketKey || undefined}
-                onValueChange={(bucketKey) => {
-                  const row = partnerRows.find((r) => r.bucketKey === bucketKey)
-                  if (row) applySettleSourceFromRow(row)
-                }}
-                disabled={settleSourceOptions.length === 0}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select source to settle" />
-                </SelectTrigger>
-                <SelectContent>
-                  {settleSourceOptions.map((row) => (
-                    <SelectItem key={row.bucketKey} value={row.bucketKey}>
-                      {row.partnerLabel} · {formatCurrency(row.unsettledAmount, currency)}{' '}
-                      unsettled
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {settleTarget?.partnerLabel && liquidateForm.bucketKey ? (
-                <p className="text-xs text-gray-500 mt-1">
-                  Settling: <strong>{settleTarget.partnerLabel}</strong>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <Label>Selected sources ({selectedSettleRows.length})</Label>
+                <div className="mt-2 max-h-52 overflow-y-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Source</TableHead>
+                        <TableHead className="text-right">Unsettled</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedSettleRows.map((row) => (
+                        <TableRow key={row.bucketKey}>
+                          <TableCell className="text-sm font-medium">{row.partnerLabel}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums">
+                            {formatCurrency(row.unsettledAmount, currency)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div>
+                <Label>Total unsettled (selected)</Label>
+                <p className="text-2xl font-bold text-indigo-700">
+                  {formatCurrency(selectedUnsettledTotal, currency)}
                 </p>
-              ) : null}
-            </div>
-            <div>
-              <Label>Unsettled for this source</Label>
-              <p className="text-xl font-bold text-indigo-700">
-                {formatCurrency(selectedSourceRow?.unsettledAmount ?? 0, currency)}
-              </p>
-              {walletCashBalance != null && (
-                <p className="text-xs text-gray-500">
-                  Wallet cash cap: {formatCurrency(walletCashBalance, currency)}
-                </p>
-              )}
+                {walletCashBalance != null && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Wallet cash cap: {formatCurrency(walletCashBalance, currency)}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div>
-              <Label>Settlement method</Label>
+            <div className="space-y-4">
+              <div>
+                <Label>Settlement method</Label>
               <Select
                 value={liquidateForm.payoutMethod}
                 onValueChange={(v) => {
@@ -1312,8 +1393,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               </>
             ) : (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
-                No bank or mobile money transfer. Wallet is debited and the settlement is attributed
-                to the selected partner for reporting.
+                No bank or mobile money transfer. Wallet is debited once; each checked source is
+                credited in Revenue by source.
               </p>
             )}
 
@@ -1330,8 +1411,9 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 className="mt-1"
               />
             </div>
+            </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 lg:col-span-2">
               <Button variant="outline" className="flex-1" onClick={() => setShowLiquidate(false)}>
                 Cancel
               </Button>
@@ -1340,8 +1422,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 onClick={handleLiquidate}
                 disabled={
                   liquidateMutation.isPending ||
-                  !liquidateForm.bucketKey ||
-                  (selectedSourceRow?.unsettledAmount ?? 0) <= 0 ||
+                  selectedSettleRows.length === 0 ||
+                  selectedUnsettledTotal <= 0 ||
                   ((liquidateForm.payoutMethod === 'BANK' ||
                     liquidateForm.payoutMethod === 'MNO') &&
                     !destinationValidated)
