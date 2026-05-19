@@ -652,16 +652,27 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : partnerRows.length === 0 ? (
             <p className="text-sm text-gray-500 py-4">No fee accruals yet.</p>
           ) : (
-            <Table>
+            <Table className="table-fixed min-w-[880px]">
+              <colgroup>
+                <col className="w-[32%]" />
+                <col className="w-[15%]" />
+                <col className="w-[7%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Source</TableHead>
-                  <TableHead className="text-right">TPV</TableHead>
-                  <TableHead className="text-right">Txns</TableHead>
-                  <TableHead className="text-right">Fees accrued</TableHead>
-                  <TableHead className="text-right">Settled</TableHead>
-                  <TableHead className="text-right">Unsettled</TableHead>
-                  <TableHead className="text-right">Last activity</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-3 text-left align-bottom">Source</TableHead>
+                  <TableHead className="px-3 text-right align-bottom tabular-nums">TPV</TableHead>
+                  <TableHead className="px-3 text-right align-bottom tabular-nums">Txns</TableHead>
+                  <TableHead className="px-3 text-right align-bottom tabular-nums">Fees accrued</TableHead>
+                  <TableHead className="px-3 text-right align-bottom tabular-nums">Settled</TableHead>
+                  <TableHead className="px-3 text-right align-bottom tabular-nums">Unsettled</TableHead>
+                  <TableHead className="px-3 text-right align-bottom whitespace-nowrap">
+                    Last activity
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -674,42 +685,50 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       setStatementPage(1)
                     }}
                   >
-                    <TableCell className="font-medium">{row.partnerLabel}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">
+                    <TableCell className="px-3 max-w-0 font-medium" title={row.partnerLabel}>
+                      <span className="block truncate">{row.partnerLabel}</span>
+                    </TableCell>
+                    <TableCell className="px-3 text-right tabular-nums text-sm">
                       {formatCurrency(row.transactionVolume ?? 0, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-gray-600">{row.entryCount}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-3 text-right tabular-nums text-gray-600">
+                      {row.entryCount}
+                    </TableCell>
+                    <TableCell className="px-3 text-right tabular-nums">
                       {formatCurrency(row.accruedAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-3 text-right tabular-nums">
                       {formatCurrency(row.liquidatedAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-indigo-700">
+                    <TableCell className="px-3 text-right tabular-nums font-medium text-indigo-700">
                       {formatCurrency(row.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-gray-600 whitespace-nowrap">
+                    <TableCell className="px-3 text-right text-sm text-gray-600 whitespace-nowrap">
                       {row.lastCreditedAt ? formatDateOnly(row.lastCreditedAt) : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
                 {partnerTotals && (
-                  <TableRow className="bg-gray-50 font-medium border-t">
-                    <TableCell>Total{periodFiltered ? ' (period)' : ''}</TableCell>
-                    <TableCell className="text-right font-mono">
+                  <TableRow className="bg-gray-50 font-medium border-t hover:bg-gray-50">
+                    <TableCell className="px-3">
+                      Total{periodFiltered ? ' (period)' : ''}
+                    </TableCell>
+                    <TableCell className="px-3 text-right tabular-nums">
                       {formatCurrency(partnerTotals.transactionVolume ?? 0, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-gray-600">{partnerTotals.entryCount}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-3 text-right tabular-nums text-gray-600">
+                      {partnerTotals.entryCount}
+                    </TableCell>
+                    <TableCell className="px-3 text-right tabular-nums">
                       {formatCurrency(partnerTotals.accruedAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="px-3 text-right tabular-nums">
                       {formatCurrency(partnerTotals.liquidatedAmount, currency)}
                     </TableCell>
-                    <TableCell className="text-right text-indigo-700">
+                    <TableCell className="px-3 text-right tabular-nums text-indigo-700">
                       {formatCurrency(partnerTotals.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell />
+                    <TableCell className="px-3" />
                   </TableRow>
                 )}
               </TableBody>
