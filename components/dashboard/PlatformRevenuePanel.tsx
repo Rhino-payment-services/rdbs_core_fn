@@ -239,10 +239,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       limit: 15,
       currency,
       bucketKey:
-        statementTxnType === 'all'
-          ? selectedPartnerFilter?.bucketKey ??
-            (statementPartnerKey !== 'all' ? statementPartnerKey : undefined)
-          : 'rukapay:core',
+        statementTxnType === 'WALLET_TO_WALLET'
+          ? undefined
+          : selectedPartnerFilter?.bucketKey ??
+            (statementPartnerKey !== 'all' ? statementPartnerKey : undefined),
       transactionType:
         statementTxnType === 'WALLET_TO_WALLET' ? 'WALLET_TO_WALLET' : undefined,
       reference: statementReference.trim() || undefined,
@@ -589,7 +589,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 try {
                   const res = await syncAccrualsMutation.mutateAsync({
                     currency,
-                    days: 30,
+                    days: 365,
                     transactionType: 'WALLET_TO_WALLET',
                   })
                   const credited = res?.data?.credited ?? 0
@@ -597,7 +597,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   toast.success(
                     credited > 0
                       ? `Synced ${credited} P2P fee accrual(s) (${attempted} debit legs checked)`
-                      : `No missing P2P accruals in the last 30 days (${attempted} checked)`,
+                      : `No missing P2P accruals in the last 365 days (${attempted} checked)`,
                   )
                   setStatementPage(1)
                   refetchBalance()
@@ -962,10 +962,16 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   Try <strong>Clear dates</strong> or search by transaction reference. Fees only
                   appear here after successful transactions with a RukaPay fee.
                 </p>
+              ) : statementTxnType === 'WALLET_TO_WALLET' ? (
+                <p className="text-xs">
+                  P2P fees appear on the <strong>debit</strong> leg after successful transfers.
+                  Click <strong>Sync P2P &amp; internal fees</strong> to backfill missing accruals
+                  (last 365 days), then refresh.
+                </p>
               ) : (
                 <p className="text-xs">
                   Use <strong>Today</strong> above to filter this period, or search by reference
-                  (e.g. TXN_1779181274973).
+                  (e.g. TXN_1779181274973). For P2P, use the type filter and sync button above.
                 </p>
               )}
             </div>
