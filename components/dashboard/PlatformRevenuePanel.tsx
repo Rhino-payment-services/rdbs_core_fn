@@ -652,7 +652,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : partnerRows.length === 0 ? (
             <p className="text-sm text-gray-500 py-4">No fee accruals yet.</p>
           ) : (
-            <Table className="table-fixed min-w-[880px]">
+            <Table className="table-fixed min-w-[880px] [&_th]:!align-top [&_td]:!align-top [&_th]:!py-2.5 [&_td]:!py-2.5 [&_th]:leading-snug [&_td]:leading-snug">
               <colgroup>
                 <col className="w-[32%]" />
                 <col className="w-[15%]" />
@@ -664,13 +664,17 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               </colgroup>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="px-3 text-left align-bottom">Source</TableHead>
-                  <TableHead className="px-3 text-right align-bottom tabular-nums">TPV</TableHead>
-                  <TableHead className="px-3 text-right align-bottom tabular-nums">Txns</TableHead>
-                  <TableHead className="px-3 text-right align-bottom tabular-nums">Fees accrued</TableHead>
-                  <TableHead className="px-3 text-right align-bottom tabular-nums">Settled</TableHead>
-                  <TableHead className="px-3 text-right align-bottom tabular-nums">Unsettled</TableHead>
-                  <TableHead className="px-3 text-right align-bottom whitespace-nowrap">
+                  <TableHead className="px-3 align-top text-left font-semibold">Source</TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold tabular-nums">TPV</TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold tabular-nums">Txns</TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold tabular-nums">
+                    Fees accrued
+                  </TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold tabular-nums">Settled</TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold tabular-nums">
+                    Unsettled
+                  </TableHead>
+                  <TableHead className="px-3 align-top text-right font-semibold whitespace-nowrap">
                     Last activity
                   </TableHead>
                 </TableRow>
@@ -685,50 +689,53 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       setStatementPage(1)
                     }}
                   >
-                    <TableCell className="px-3 max-w-0 font-medium" title={row.partnerLabel}>
-                      <span className="block truncate">{row.partnerLabel}</span>
+                    <TableCell
+                      className="px-3 align-top font-medium truncate"
+                      title={row.partnerLabel}
+                    >
+                      {row.partnerLabel}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-sm">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(row.transactionVolume ?? 0, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-gray-600">
+                    <TableCell className="px-3 align-top text-right tabular-nums text-gray-600">
                       {row.entryCount}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(row.accruedAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(row.liquidatedAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums font-medium text-indigo-700">
+                    <TableCell className="px-3 align-top text-right tabular-nums font-medium text-indigo-700">
                       {formatCurrency(row.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right text-sm text-gray-600 whitespace-nowrap">
+                    <TableCell className="px-3 align-top text-right text-gray-600 whitespace-nowrap">
                       {row.lastCreditedAt ? formatDateOnly(row.lastCreditedAt) : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
                 {partnerTotals && (
                   <TableRow className="bg-gray-50 font-medium border-t hover:bg-gray-50">
-                    <TableCell className="px-3">
+                    <TableCell className="px-3 align-top">
                       Total{periodFiltered ? ' (period)' : ''}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(partnerTotals.transactionVolume ?? 0, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-gray-600">
+                    <TableCell className="px-3 align-top text-right tabular-nums text-gray-600">
                       {partnerTotals.entryCount}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(partnerTotals.accruedAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums">
+                    <TableCell className="px-3 align-top text-right tabular-nums">
                       {formatCurrency(partnerTotals.liquidatedAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-indigo-700">
+                    <TableCell className="px-3 align-top text-right tabular-nums text-indigo-700">
                       {formatCurrency(partnerTotals.unsettledAmount, currency)}
                     </TableCell>
-                    <TableCell className="px-3" />
+                    <TableCell className="px-3 align-top" />
                   </TableRow>
                 )}
               </TableBody>
