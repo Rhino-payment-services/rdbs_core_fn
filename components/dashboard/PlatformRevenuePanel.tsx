@@ -225,6 +225,17 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const partnerRows = useMemo(() => extractPartnerSummaryItems(summaryRes), [summaryRes])
   const partnerMeta = useMemo(() => extractPartnerSummaryMeta(summaryRes), [summaryRes])
   const partnerTotals = partnerMeta.totals
+  const settleSourceOptions = useMemo(
+    () =>
+      [...partnerRows]
+        .filter((r) => r.unsettledAmount > 0)
+        .sort((a, b) => b.unsettledAmount - a.unsettledAmount),
+    [partnerRows],
+  )
+  const selectedSourceRow = useMemo(
+    () => partnerRows.find((r) => r.bucketKey === liquidateForm.bucketKey) ?? null,
+    [partnerRows, liquidateForm.bucketKey],
+  )
   const periodFiltered = Boolean(periodStart || periodEnd)
   const displayAvailableToLiquidate =
     periodFiltered && partnerTotals ? partnerTotals.unsettledAmount : availableToLiquidate
@@ -313,11 +324,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     }
   }
 
-  const openSettle = (target: SettleTarget) => {
+  const applySettleSourceFromRow = (row: PlatformRevenuePartnerSummaryRow) => {
+    const target = buildSettleTargetFromRow(row)
     setSettleTarget(target)
-    setLiquidateForm({
+    setLiquidateForm((prev) => ({
+      ...prev,
       payoutMethod: target.payoutMethod ?? 'BANK',
-      amount: target.suggestedAmount ? String(target.suggestedAmount) : '',
+      amount: String(row.unsettledAmount),
       bankCode: '',
       bankAccountNumber: '',
       bankAccountName: '',
@@ -329,10 +342,44 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       externalPartnerId: target.externalPartnerId ?? '',
       revenueSegment: target.revenueSegment ?? '',
       bucketKey: target.bucketKey ?? '',
-    })
+    }))
     setValidationMessage('')
     setValidationError('')
     setDestinationValidated(false)
+  }
+
+  const openSettle = (target?: SettleTarget) => {
+    if (target?.bucketKey) {
+      const row = partnerRows.find((r) => r.bucketKey === target.bucketKey)
+      if (row) {
+        applySettleSourceFromRow(row)
+      } else {
+        setSettleTarget(target)
+        setLiquidateForm({
+          payoutMethod: target.payoutMethod ?? 'BANK',
+          amount: target.suggestedAmount ? String(target.suggestedAmount) : '',
+          bankCode: '',
+          bankAccountNumber: '',
+          bankAccountName: '',
+          phoneNumber: '',
+          mnoProvider: 'MTN',
+          recipientName: '',
+          narration: '',
+          partnerId: target.partnerId ?? '',
+          externalPartnerId: target.externalPartnerId ?? '',
+          revenueSegment: target.revenueSegment ?? '',
+          bucketKey: target.bucketKey ?? '',
+        })
+        setValidationMessage('')
+        setValidationError('')
+        setDestinationValidated(false)
+      }
+    } else if (settleSourceOptions.length > 0) {
+      applySettleSourceFromRow(settleSourceOptions[0])
+    } else {
+      toast.error('No unsettled revenue by source for the selected period')
+      return
+    }
     setShowLiquidate(true)
   }
 
@@ -444,7 +491,16 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       toast.error('Please enter a valid amount')
       return
     }
-    const maxForTarget = settleTarget?.suggestedAmount ?? availableToLiquidate
+    if (!liquidateForm.bucketKey.trim()) {
+      toast.error('Select a revenue source')
+      return
+    }
+
+    const maxForTarget = selectedSourceRow?.unsettledAmount ?? settleTarget?.suggestedAmount ?? 0
+    if (maxForTarget <= 0) {
+      toast.error('Selected source has no unsettled revenue')
+      return
+    }
     if (amount > maxForTarget) {
       toast.error('Amount exceeds unsettled revenue for this source')
       return
@@ -463,7 +519,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       if (
         !liquidateForm.partnerId &&
         !liquidateForm.externalPartnerId &&
-        !liquidateForm.revenueSegment
+        !liquidateForm.revenueSegment &&
+        !liquidateForm.bucketKey
       ) {
         toast.error('Select a revenue source for offset settlement')
         return
@@ -627,12 +684,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700"
-              onClick={() =>
-                openSettle({
-                  partnerLabel: 'All sources',
-                  suggestedAmount: displayAvailableToLiquidate,
-                })
-              }
+              disabled={settleSourceOptions.length === 0}
+              onClick={() => openSettle()}
             >
               <CreditCard className="w-4 h-4 mr-2" />
               Settle revenue
@@ -847,26 +900,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                       {formatCurrency(partnerTotals.unsettledAmount, currency)}
                     </TableCell>
                     <TableCell className="px-3 align-top" />
-                    <TableCell className="px-2 align-top text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
-                        title="Settle all sources"
-                        disabled={(partnerTotals.unsettledAmount ?? 0) <= 0}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openSettle({
-                            partnerLabel: 'All sources',
-                            suggestedAmount: partnerTotals.unsettledAmount,
-                          })
-                        }}
-                      >
-                        <CreditCard className="h-4 w-4" aria-hidden />
-                        <span className="sr-only">Settle all sources</span>
-                      </Button>
-                    </TableCell>
+                    <TableCell className="px-2 align-top text-center" />
                   </TableRow>
                 )}
               </TableBody>
@@ -1074,16 +1108,43 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           <DialogHeader>
             <DialogTitle>Settle platform revenue</DialogTitle>
             <DialogDescription>
-              {settleTarget?.partnerLabel
-                ? `Settling: ${settleTarget.partnerLabel}`
-                : 'Debit consolidated revenue — bank, mobile money (MNO), or partner offset.'}
+              Choose the revenue source so the settlement updates the correct row in Revenue by
+              source.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Unsettled (from entries)</Label>
+              <Label>Revenue source *</Label>
+              <Select
+                value={liquidateForm.bucketKey || undefined}
+                onValueChange={(bucketKey) => {
+                  const row = partnerRows.find((r) => r.bucketKey === bucketKey)
+                  if (row) applySettleSourceFromRow(row)
+                }}
+                disabled={settleSourceOptions.length === 0}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select source to settle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {settleSourceOptions.map((row) => (
+                    <SelectItem key={row.bucketKey} value={row.bucketKey}>
+                      {row.partnerLabel} · {formatCurrency(row.unsettledAmount, currency)}{' '}
+                      unsettled
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {settleTarget?.partnerLabel && liquidateForm.bucketKey ? (
+                <p className="text-xs text-gray-500 mt-1">
+                  Settling: <strong>{settleTarget.partnerLabel}</strong>
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label>Unsettled for this source</Label>
               <p className="text-xl font-bold text-indigo-700">
-                {formatCurrency(settleTarget?.suggestedAmount ?? availableToLiquidate, currency)}
+                {formatCurrency(selectedSourceRow?.unsettledAmount ?? 0, currency)}
               </p>
               {walletCashBalance != null && (
                 <p className="text-xs text-gray-500">
@@ -1279,6 +1340,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 onClick={handleLiquidate}
                 disabled={
                   liquidateMutation.isPending ||
+                  !liquidateForm.bucketKey ||
+                  (selectedSourceRow?.unsettledAmount ?? 0) <= 0 ||
                   ((liquidateForm.payoutMethod === 'BANK' ||
                     liquidateForm.payoutMethod === 'MNO') &&
                     !destinationValidated)
