@@ -1064,11 +1064,11 @@ function CreateTariffPage() {
                           onChange={(e) => handleInputChange('rukapayFee', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           step="0.001"
-                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
+                          // disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
-                            ? 'Auto-calculated as Fee Percentage - Telecom/Bank Charge. Can be negative.'
+                            ? ''
                             : 'Decimal percentage. Can be negative (e.g., -0.002).'}
                         </p>
                       </div>
@@ -1082,11 +1082,11 @@ function CreateTariffPage() {
                           onChange={(e) => handleInputChange('telecomBankCharge', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           step="0.001"
-                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
+                          // disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
                         <p className="text-xs text-gray-500 mt-1">
                           {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
-                            ? 'Auto-set by network: MTN = 1.5%, AIRTEL = 2.0%.'
+                            ? ''
                             : 'Optional decimal percentage (e.g., 0.001 = 0.1%).'}
                         </p>
                       </div>
