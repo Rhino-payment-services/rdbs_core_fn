@@ -27,6 +27,7 @@ import toast from 'react-hot-toast'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/axios'
+import { TARIFF_CHANNEL_ALL, TARIFF_CHANNEL_OPTIONS } from '@/lib/constants/tariff-channels'
 
 interface TariffForm {
   name: string
@@ -44,6 +45,7 @@ interface TariffForm {
   reason?: string
   institutionSpreadRukapayBps: number
   institutionSpreadNexenBps: number
+  channel?: string
 }
 
 interface Tariff {
@@ -67,6 +69,7 @@ interface Tariff {
   createdAt: string
   updatedAt: string
   metadata?: Record<string, unknown> | null
+  channel?: string | null
 }
 
 const EditTariffPage = () => {
@@ -97,6 +100,7 @@ const EditTariffPage = () => {
     reason: '',
     institutionSpreadRukapayBps: 0,
     institutionSpreadNexenBps: 0,
+    channel: TARIFF_CHANNEL_ALL,
   })
 
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([])
@@ -151,6 +155,7 @@ const EditTariffPage = () => {
       reason: '',
       institutionSpreadRukapayBps: Math.max(0, Math.floor(Number(bps?.rukapay) || 0)),
       institutionSpreadNexenBps: Math.max(0, Math.floor(Number(bps?.nexen) || 0)),
+      channel: tariff.channel ?? TARIFF_CHANNEL_ALL,
     })
     setSelectedUserTypes(tariff.userTypes || [])
     setSelectedProfileTypes(tariff.profileTypes || [])
@@ -186,6 +191,10 @@ const EditTariffPage = () => {
         userType: data.userTypes.length > 0 ? data.userTypes[0] : undefined, // Backend expects single value
         subscriberType: data.profileTypes.length > 0 ? data.profileTypes[0] : undefined, // Backend expects single value
         partnerId: data.partnerId || undefined,
+        channel:
+          data.channel && data.channel !== TARIFF_CHANNEL_ALL
+            ? data.channel.trim().toUpperCase()
+            : null,
         metadata: metadataPayload,
       }
       console.log('Updating tariff with data:', updateData)
@@ -491,6 +500,28 @@ const EditTariffPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="channel">Channel (optional)</Label>
+                  <Select
+                    value={form.channel ?? ''}
+                    onValueChange={(value) => handleInputChange('channel', value)}
+                  >
+                    <SelectTrigger id="channel">
+                      <SelectValue placeholder="All channels (default)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TARIFF_CHANNEL_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value || 'all'} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Channel-specific tariffs (e.g. CARD) override the default for that channel only.
+                  </p>
                 </div>
 
                 <div>

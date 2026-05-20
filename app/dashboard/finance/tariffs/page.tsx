@@ -50,6 +50,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApproveTariff, useRejectTariff, useSubmitTariffForApproval } from '@/lib/hooks/useTariffs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
+import { formatTariffChannel } from '@/lib/constants/tariff-channels'
 
 interface Tariff {
   id: string
@@ -107,6 +108,7 @@ interface Tariff {
   governmentTax?: number
   transactionModeCode?: string // Transaction mode code for CUSTOM transaction types
   metadata?: Record<string, unknown> | null
+  channel?: string | null
 }
 
 function formatInstitutionSpreadFromMetadata(metadata: unknown): string | null {
@@ -244,7 +246,7 @@ const TariffsPage = () => {
     },
     'WALLET_TO_INTERNAL_MERCHANT': {
       name: 'Wallet to Internal Merchant',
-      description: 'Payments to RukaPay registered merchants',
+      description: 'Payments to RukaPay merchants — configure per channel (e.g. CARD fee, default free for APP/USSD)',
       icon: Store,
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
@@ -783,6 +785,7 @@ const TariffsPage = () => {
                   <TableHead>Description</TableHead>
                   <TableHead>Fee Type</TableHead>
                   <TableHead>Fee Amount</TableHead>
+                  <TableHead>Channel</TableHead>
                   <TableHead>Amount Range</TableHead>
                   <TableHead className="max-w-[220px] whitespace-normal">
                     Transaction Type
@@ -809,6 +812,11 @@ const TariffsPage = () => {
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatFeeAmount(tariff)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant="secondary" className="font-normal">
+                        {formatTariffChannel(tariff.channel)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
                       {tariff.minAmount && tariff.maxAmount 

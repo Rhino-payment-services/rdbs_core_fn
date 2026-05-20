@@ -16,6 +16,7 @@ import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import api from '@/lib/axios'
 import { useTransactionModes } from '@/lib/hooks/useTransactionModes'
+import { TARIFF_CHANNEL_ALL, TARIFF_CHANNEL_OPTIONS } from '@/lib/constants/tariff-channels'
 
 interface CreateTariffForm {
   name: string
@@ -43,6 +44,8 @@ interface CreateTariffForm {
   /** Basis points of principal deducted before SACCO/NEXEN credit (WALLET_TO_PARTNER_INSTITUTION only). */
   institutionSpreadRukapayBps?: number
   institutionSpreadNexenBps?: number
+  /** Empty = all channels; CARD, USSD, APP, etc. for channel-specific tariffs */
+  channel?: string
 }
 
 interface Partner {
@@ -95,6 +98,7 @@ function CreateTariffPage() {
     governmentTax: 0,
     institutionSpreadRukapayBps: 0,
     institutionSpreadNexenBps: 0,
+    channel: TARIFF_CHANNEL_ALL,
   })
 
   // Fetch transaction modes for selection
@@ -226,13 +230,13 @@ function CreateTariffPage() {
     // Use the appropriate fee amount for validation
     const currentFeeAmount = form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount
 
-    if (form.feeType === 'FIXED' && currentFeeAmount <= 0) {
-      toast.error('Fee amount must be greater than 0 for fixed fees')
+    if (form.feeType === 'FIXED' && currentFeeAmount < 0) {
+      toast.error('Fee amount cannot be negative for fixed fees')
       return
     }
 
-    if (form.feeType === 'PERCENTAGE' && (!form.feePercentage || form.feePercentage <= 0)) {
-      toast.error('Fee percentage must be greater than 0 for percentage fees')
+    if (form.feeType === 'PERCENTAGE' && (form.feePercentage === undefined || form.feePercentage === null || form.feePercentage < 0)) {
+      toast.error('Fee percentage is required for percentage fees (use 0 for a free tariff)')
       return
     }
 
@@ -282,6 +286,10 @@ function CreateTariffPage() {
     // Clean up the data before sending
     const submitData = {
       ...form,
+      channel:
+        form.channel && form.channel !== TARIFF_CHANNEL_ALL
+          ? form.channel.trim().toUpperCase()
+          : undefined,
       // Ensure transactionType is valid
       transactionType: validTransactionType,
       // Set feeAmount to the calculated total for external tariffs
@@ -562,6 +570,36 @@ function CreateTariffPage() {
                           <SelectItem value="EUR">EUR</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="channel">Channel (optional)</Label>
+                      <Select
+                        value={form.channel ?? ''}
+                        onValueChange={(value) => handleInputChange('channel', value)}
+                      >
+                        <SelectTrigger id="channel">
+                          <SelectValue placeholder="All channels (default)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TARIFF_CHANNEL_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value || 'all'} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {form.transactionType === 'WALLET_TO_INTERNAL_MERCHANT' ? (
+                          <>
+                            Use <span className="font-medium">Card / NFC</span> for card payment fees; leave as{' '}
+                            <span className="font-medium">All channels</span> for a default (e.g. free APP/USSD) tariff.
+                            Multiple tariffs per type are allowed (one per channel).
+                          </>
+                        ) : (
+                          <>Restrict this tariff to a specific channel, or leave as all channels.</>
+                        )}
+                      </p>
                     </div>
 
                     {form.tariffType === 'EXTERNAL' && (
