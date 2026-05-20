@@ -36,6 +36,7 @@ export interface Tariff {
   updatedAt: string;
   createdBy: string;
   updatedBy: string;
+  channel?: string | null;
 }
 
 export interface CreateTariffRequest {
@@ -56,6 +57,8 @@ export interface CreateTariffRequest {
   rukapayFee?: number; // RukaPay fee amount for external tariffs
   telecomBankCharge?: number; // Telecom/Bank charge (optional)
   isActive?: boolean;
+  /** Omit or empty string for all channels; otherwise USSD, APP, CARD, etc. */
+  channel?: string | null;
 }
 
 export interface TariffFilters {
@@ -68,6 +71,7 @@ export interface TariffFilters {
   group?: string; // Added group filter
   isActive?: boolean;
   search?: string;
+  channel?: string;
   page?: number;
   limit?: number;
 }
@@ -78,6 +82,7 @@ export interface FeeCalculationRequest {
   currency?: string;
   userType: string;
   subscriberType?: string;
+  channel?: string;
 }
 
 export interface FeeCalculationResponse {

@@ -139,6 +139,8 @@ export const useAdminWallets = (filters?: {
   isSuspended?: boolean
   page?: number
   limit?: number
+  sortBy?: 'balance' | 'createdAt' | 'updatedAt'
+  sortOrder?: 'asc' | 'desc'
 }) => {
   const queryString = filters ? new URLSearchParams(
     Object.entries(filters)
@@ -366,4 +368,242 @@ export const useSystemFeeWalletBalance = () => {
     queryFn: () => apiFetch('/wallet/system-fee/balance'),
     staleTime: 30 * 1000, // 30 seconds
   })
+}
+
+export interface PlatformRevenueBalance {
+  currency: string
+  /** Unsettled fees from platform_revenue_entries (primary finance view) */
+  balance: number
+  availableToLiquidate?: number
+  unsettledFromEntries?: number
+  accruedFromEntries?: number
+  settledFromEntries?: number
+  entryCount?: number
+  /** Physical wallet cash (includes legacy sweeps not in entries) */
+  walletCashBalance?: number
+  legacyOrphanBalance?: number
+}
+
+export type PlatformRevenuePayoutMethod = 'BANK' | 'MNO' | 'PARTNER_OFFSET'
+
+export interface PlatformRevenueSettlementAllocation {
+  bucketKey: string
+  amount: number
+  partnerId?: string
+  externalPartnerId?: string
+  revenueSegment?: string
+  partnerLabel?: string
+}
+
+export interface LiquidatePlatformRevenueRequest {
+  amount: number
+  currency?: string
+  payoutMethod?: PlatformRevenuePayoutMethod
+  partnerId?: string
+  externalPartnerId?: string
+  revenueSegment?: string
+  bucketKey?: string
+  settlementAllocations?: PlatformRevenueSettlementAllocation[]
+  bankName?: string
+  bankAccountNumber?: string
+  bankAccountName?: string
+  bankCode?: string
+  phoneNumber?: string
+  mnoProvider?: string
+  recipientName?: string
+  narration?: string
+}
+
+export interface PlatformRevenueEntry {
+  id: string
+  transactionId: string
+  amount: number
+  currency: string
+  creditedAt: string
+  partnerLabel?: string | null
+  partnerId?: string | null
+  externalPartnerId?: string | null
+  transactionType?: string | null
+  channel?: string | null
+  transaction?: {
+    id: string
+    reference?: string | null
+    type?: string
+    channel?: string | null
+    amount?: number
+    currency?: string
+    status?: string
+    createdAt?: string
+    description?: string | null
+  } | null
+}
+
+export type PlatformRevenueSummarySort =
+  | 'lastActivity'
+  | 'unsettled'
+  | 'tpv'
+  | 'accrued'
+  | 'source'
+
+export interface PlatformRevenuePartnerSummaryParams {
+  currency?: string
+  startDate?: string
+  endDate?: string
+  sortBy?: PlatformRevenueSummarySort
+}
+
+export interface PlatformRevenuePartnerSummaryRow {
+  bucketKey: string
+  partnerId: string | null
+  externalPartnerId: string | null
+  partnerKind: 'gateway' | 'external' | 'rukapay' | 'other'
+  revenueSegment?: string | null
+  partnerLabel: string
+  accruedAmount: number
+  liquidatedAmount: number
+  unsettledAmount: number
+  entryCount: number
+  transactionVolume?: number
+  firstCreditedAt?: string | null
+  lastCreditedAt?: string | null
+}
+
+export interface ListPlatformRevenueEntriesParams {
+  page?: number
+  limit?: number
+  currency?: string
+  startDate?: string
+  endDate?: string
+  partnerId?: string
+  externalPartnerId?: string
+  bucketKey?: string
+  reference?: string
+  transactionId?: string
+  transactionType?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+/** Consolidated PLATFORM_REVENUE wallet — not included in legacy system fee wallet totals */
+export const usePlatformRevenueBalance = () => {
+  return useQuery<{ success?: boolean; data: PlatformRevenueBalance }>({
+    queryKey: ['platform-revenue', 'balance'],
+    queryFn: () => apiFetch('/wallet/platform-revenue/balance'),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  })
+}
+
+export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesParams = {}) => {
+  const search = new URLSearchParams()
+  if (params.page) search.set('page', String(params.page))
+  if (params.limit) search.set('limit', String(params.limit))
+  if (params.currency) search.set('currency', params.currency)
+  if (params.startDate) search.set('startDate', params.startDate)
+  if (params.endDate) search.set('endDate', params.endDate)
+  if (params.partnerId) search.set('partnerId', params.partnerId)
+  if (params.externalPartnerId) search.set('externalPartnerId', params.externalPartnerId)
+  if (params.bucketKey) search.set('bucketKey', params.bucketKey)
+  if (params.reference) search.set('reference', params.reference)
+  if (params.transactionId) search.set('transactionId', params.transactionId)
+  if (params.transactionType) search.set('transactionType', params.transactionType)
+  if (params.sortOrder) search.set('sortOrder', params.sortOrder)
+
+  const qs = search.toString()
+  return useQuery<{
+    success?: boolean
+    data: {
+      items: PlatformRevenueEntry[]
+      pagination: { page: number; limit: number; total: number; totalPages: number }
+    }
+  }>({
+    queryKey: ['platform-revenue', 'entries', params],
+    queryFn: () => apiFetch(`/wallet/platform-revenue/entries${qs ? `?${qs}` : ''}`),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
+  })
+}
+
+export const usePlatformRevenuePartnerSummary = (
+  params: PlatformRevenuePartnerSummaryParams = {},
+) => {
+  const currency = params.currency ?? 'UGX'
+  const search = new URLSearchParams()
+  search.set('currency', currency)
+  if (params.startDate) search.set('startDate', params.startDate)
+  if (params.endDate) search.set('endDate', params.endDate)
+  if (params.sortBy) search.set('sortBy', params.sortBy)
+
+  const qs = search.toString()
+  return useQuery<{
+    success?: boolean
+    data: {
+      currency: string
+      items: PlatformRevenuePartnerSummaryRow[]
+      totals: {
+        accruedAmount: number
+        liquidatedAmount: number
+        unsettledAmount: number
+        entryCount: number
+        transactionVolume?: number
+      }
+      walletBalance?: number
+      lifetimeAccruedInEntries?: number
+      orphanWalletBalance?: number
+    }
+  }>({
+    queryKey: ['platform-revenue', 'summary-by-partner', params],
+    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?${qs}`),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  })
+}
+
+export const useSyncPlatformRevenueAccruals = () => {
+  const queryClient = useQueryClient()
+  return useMutation<
+    {
+      success?: boolean
+      message?: string
+      data: { attempted: number; credited: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
+    },
+    Error,
+    { currency?: string; days?: number; transactionType?: string }
+  >({
+    mutationFn: ({ currency = 'UGX', days = 30, transactionType }) => {
+      const params = new URLSearchParams({ currency, days: String(days) })
+      if (transactionType) params.set('transactionType', transactionType)
+      return apiFetch(`/wallet/platform-revenue/sync-missing-accruals?${params}`, {
+        method: 'POST',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-revenue'] })
+    },
+  })
+}
+
+export const useLiquidatePlatformRevenue = () => {
+  const queryClient = useQueryClient()
+  return useMutation<any, Error, LiquidatePlatformRevenueRequest>({
+    mutationFn: (data) =>
+      apiFetch('/wallet/platform-revenue/liquidate', {
+        method: 'POST',
+        data,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['platform-revenue'] })
+      queryClient.invalidateQueries({ queryKey: ['system-fee-wallet', 'balance'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export function isPlatformRevenueWallet(wallet: { description?: string | null; isPlatformRevenue?: boolean }): boolean {
+  if (wallet.isPlatformRevenue === true) return true
+  return !!wallet.description?.startsWith('PLATFORM_REVENUE_')
 }

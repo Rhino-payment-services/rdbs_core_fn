@@ -8,6 +8,7 @@ export const NAV_ITEMS = [
   { key: 'gateway-partners', label: 'Gateway Partners', description: 'External gateway partner management' },
   { key: 'users', label: 'Users', description: 'Staff user management' },
   { key: 'customers', label: 'Customers', description: 'Customer account management' },
+  { key: 'cards', label: 'Cards', description: 'Physical and virtual card management' },
   { key: 'security', label: 'Security', description: 'Security, KYC, activity & system logs' },
   { key: 'settings', label: 'Settings', description: 'System configuration & settings' },
   { key: 'profile', label: 'Profile', description: 'User profile page' },

@@ -1,13 +1,26 @@
-import React, { useMemo, useState } from 'react'
+"use client"
+
+import React, { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertTriangle, Database, DownloadCloud, HardDrive, RefreshCw, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Database, DownloadCloud, HardDrive, RefreshCw, Trash2, XCircle } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS } from '@/lib/hooks/usePermissions'
-import { useBackupStats, useBackupMongo, useBackupPostgres, useBackupBoth, useBackupCleanup, useBackupDownload } from '@/lib/hooks/useApi'
+import {
+  useBackupStats,
+  useBackupMongo,
+  useBackupPostgres,
+  useBackupBoth,
+  useBackupCleanup,
+  useStartBackupJob,
+  useBackupJobStatus,
+  downloadJobFile,
+  BackupDownloadTarget,
+} from '@/lib/hooks/useApi'
 import toast from 'react-hot-toast'
 
 const formatBytes = (bytes?: number) => {
@@ -32,16 +45,44 @@ const formatDateTime = (value?: string | null) => {
 }
 
 export const BackupSettings: React.FC = () => {
-  const { data: stats, isLoading: statsLoading } = useBackupStats()
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useBackupStats()
   const backupMongo = useBackupMongo()
   const backupPostgres = useBackupPostgres()
   const backupBoth = useBackupBoth()
   const cleanup = useBackupCleanup()
-  const downloadBackup = useBackupDownload()
+  const startJob = useStartBackupJob()
 
   const [cleanupDays, setCleanupDays] = useState<string>('30')
   const [cleanupKeepCount, setCleanupKeepCount] = useState<string>('10')
   const [cleanupType, setCleanupType] = useState<'mongodb' | 'postgres' | 'both'>('both')
+
+  // Active download job ID drives the progress panel
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const [downloadTriggered, setDownloadTriggered] = useState(false)
+
+  const { data: jobStatus } = useBackupJobStatus(activeJobId)
+
+  // When job finishes, trigger browser download once
+  useEffect(() => {
+    if (!jobStatus || downloadTriggered) return
+    if (jobStatus.status === 'done') {
+      setDownloadTriggered(true)
+      downloadJobFile(jobStatus)
+        .then(() => {
+          toast.success(
+            jobStatus.target === 'both'
+              ? 'Full backup created and downloaded'
+              : `${jobStatus.target.toUpperCase()} backup created and downloaded`,
+          )
+          refetchStats()
+        })
+        .catch((err: any) => {
+          toast.error(err?.message || 'Download failed')
+        })
+    } else if (jobStatus.status === 'failed') {
+      toast.error(jobStatus.error || 'Backup job failed')
+    }
+  }, [jobStatus, downloadTriggered, refetchStats])
 
   const totalSizeFormatted = useMemo(() => formatBytes(stats?.totalSize), [stats?.totalSize])
 
@@ -71,7 +112,7 @@ export const BackupSettings: React.FC = () => {
           const mongoOk = result.mongodb?.success
           const pgOk = result.postgres?.success
           if (mongoOk && pgOk) {
-            toast.success('MongoDB + PostgreSQL backups created. Use "Create + download" to download now.')
+            toast.success('MongoDB + PostgreSQL backups created.')
           } else {
             toast.error('One or more database backups failed – check server logs')
           }
@@ -83,16 +124,16 @@ export const BackupSettings: React.FC = () => {
     }
   }
 
-  const handleDownloadBackup = async (target: 'mongodb' | 'postgres' | 'both') => {
+  const handleDownloadBackup = async (target: BackupDownloadTarget) => {
+    // Reset any previous job state
+    setActiveJobId(null)
+    setDownloadTriggered(false)
+
     try {
-      await downloadBackup.mutateAsync(target)
-      toast.success(
-        target === 'both'
-          ? 'Full backup created and downloaded successfully'
-          : `${target.toUpperCase()} backup created and downloaded successfully`,
-      )
+      const job = await startJob.mutateAsync(target)
+      setActiveJobId(job.id)
     } catch (error: any) {
-      toast.error(error?.message || 'Backup download failed')
+      toast.error(error?.message || 'Could not start backup job')
     }
   }
 
@@ -125,12 +166,89 @@ export const BackupSettings: React.FC = () => {
     }
   }
 
+  const isDownloadRunning =
+    startJob.isPending ||
+    (jobStatus?.status === 'pending' || jobStatus?.status === 'running')
+
   const anyBackupLoading =
-    backupMongo.isPending || backupPostgres.isPending || backupBoth.isPending || cleanup.isPending || downloadBackup.isPending
+    backupMongo.isPending ||
+    backupPostgres.isPending ||
+    backupBoth.isPending ||
+    cleanup.isPending ||
+    isDownloadRunning
 
   return (
     <PermissionGuard permission={PERMISSIONS.BACKUP_VIEW}>
       <div className="space-y-6">
+
+        {/* ── Download progress panel ── */}
+        {jobStatus && (
+          <Card
+            className={
+              jobStatus.status === 'failed'
+                ? 'border-red-200 bg-red-50/60'
+                : jobStatus.status === 'done'
+                  ? 'border-green-200 bg-green-50/60'
+                  : 'border-blue-200 bg-blue-50/60'
+            }
+          >
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="flex items-center justify-between text-sm font-medium">
+                <div className="flex items-center gap-2">
+                  {jobStatus.status === 'failed' ? (
+                    <XCircle className="h-4 w-4 text-red-600" />
+                  ) : jobStatus.status === 'done' ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                  )}
+                  <span
+                    className={
+                      jobStatus.status === 'failed'
+                        ? 'text-red-800'
+                        : jobStatus.status === 'done'
+                          ? 'text-green-800'
+                          : 'text-blue-800'
+                    }
+                  >
+                    {jobStatus.status === 'failed'
+                      ? 'Backup failed'
+                      : jobStatus.status === 'done'
+                        ? 'Backup complete — file downloaded'
+                        : `Creating ${jobStatus.target === 'both' ? 'full' : jobStatus.target.toUpperCase()} backup…`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{jobStatus.step}</span>
+                  {(jobStatus.status === 'done' || jobStatus.status === 'failed') && (
+                    <button
+                      onClick={() => setActiveJobId(null)}
+                      className="text-xs text-gray-400 hover:text-gray-600 ml-2"
+                      aria-label="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {jobStatus.status !== 'failed' && (
+                <div className="space-y-1">
+                  <Progress value={jobStatus.progress} className="h-2" />
+                  <p className="text-xs text-gray-500 text-right">{jobStatus.progress}%</p>
+                </div>
+              )}
+
+              {jobStatus.status === 'failed' && jobStatus.error && (
+                <p className="text-xs text-red-700 mt-1">{jobStatus.error}</p>
+              )}
+              {jobStatus.status === 'done' && jobStatus.fileSize && (
+                <p className="text-xs text-green-700">{formatBytes(jobStatus.fileSize)} downloaded</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="border-blue-100 bg-blue-50/60">
           <CardHeader className="flex flex-row items-start gap-3">
             <div className="mt-1 rounded-full bg-blue-100 p-2">
@@ -245,14 +363,23 @@ export const BackupSettings: React.FC = () => {
                     disabled={anyBackupLoading}
                     className="w-full justify-center text-xs"
                   >
-                    <DownloadCloud className="h-4 w-4 mr-1" />
-                    Create + download archive
+                    {isDownloadRunning && jobStatus?.target === 'both' ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                        {jobStatus.progress}%…
+                      </>
+                    ) : (
+                      <>
+                        <DownloadCloud className="h-4 w-4 mr-1" />
+                        Create + download archive
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
 
               <p className="text-[11px] text-gray-500">
-                "Create + download" triggers backup generation first, then downloads the generated file.
+                "Create + download" triggers backup generation first, then downloads the generated file. A live progress bar will appear above.
               </p>
             </CardContent>
           </Card>
@@ -408,4 +535,3 @@ export const BackupSettings: React.FC = () => {
     </PermissionGuard>
   )
 }
-

@@ -250,7 +250,7 @@ const Navbar = () => {
                   <Link 
                     href="/dashboard" 
                     className={`nav-slider-item ${
-                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
                         ? 'active'
                         : ''
                     }`}
@@ -292,7 +292,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/finance" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/reconciliation') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/ova') || isActive('/dashboard/finance/reconciliation') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
                             ? 'active'
                             : ''
                         }`}
@@ -364,6 +364,20 @@ const Navbar = () => {
                     >
                       <Users className="nav-icon" />
                       <span>Customers</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
+                {isVisible('cards') && (
+                  <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                    <Link
+                      href="/dashboard/cards"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/cards') ? 'active' : ''
+                      }`}
+                    >
+                      <CreditCard className="nav-icon" />
+                      <span>Cards</span>
                     </Link>
                   </PermissionGuard>
                 )}
@@ -575,15 +589,15 @@ const Navbar = () => {
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
                     <Link 
-                      href="/dashboard/system-wallets" 
+                      href="/dashboard/platform-revenue" 
                       className={`block px-4 py-2 text-sm transition-colors ${
-                        isActive('/dashboard/system-wallets')
+                        isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets')
                           ? 'text-[#08163d] bg-[#08163d]/10'
                           : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
                       }`}
                       onClick={() => setIsFinanceDropdownOpen(false)}
                     >
-                      System Wallets
+                      Platform revenue
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>

@@ -661,7 +661,11 @@ export const TransactionDetailsModal = ({
                       </div>
                     )}
                     <Badge className="bg-blue-600 text-white">
-                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'sender' || senderInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : senderInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' && (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
@@ -906,7 +910,11 @@ export const TransactionDetailsModal = ({
                       </div>
                     )}
                     <Badge className="bg-green-600 text-white">
-                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER' ? 'API Partner' : 'RukaPay Subscriber'}
+                      {partnerRole === 'receiver' || receiverInfo.type === 'PARTNER'
+                        ? 'API Partner'
+                        : receiverInfo.type === 'PARTNER_INSTITUTION'
+                          ? 'Partner Institution'
+                          : 'RukaPay Subscriber'}
                     </Badge>
                     {transaction.direction === 'DEBIT' ? (
                       <Badge className="bg-red-500 text-white ml-1">DEBIT</Badge>
@@ -1111,6 +1119,22 @@ export const TransactionDetailsModal = ({
                   </div>
                   )
                 })()}
+                {(transaction.metadata.liquidatedByName ||
+                  transaction.metadata.liquidatedByEmail ||
+                  transaction.metadata.initiatedBy) && (
+                  <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200 md:col-span-2">
+                    <span className="text-xs text-indigo-700 block mb-1">Settled by (finance)</span>
+                    <p className="font-medium text-indigo-900">
+                      {transaction.metadata.liquidatedByName || 'Finance operator'}
+                      {transaction.metadata.liquidatedByEmail
+                        ? ` · ${transaction.metadata.liquidatedByEmail}`
+                        : ''}
+                      {transaction.metadata.liquidatedByRole
+                        ? ` · ${transaction.metadata.liquidatedByRole}`
+                        : ''}
+                    </p>
+                  </div>
+                )}
                 {transaction.metadata.narration && (
                   <div className="bg-white p-3 rounded-lg border border-gray-200">
                     <span className="text-xs text-gray-500 block mb-1">Narration</span>

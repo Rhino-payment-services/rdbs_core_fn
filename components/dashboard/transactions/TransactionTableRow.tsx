@@ -9,6 +9,7 @@ import {
   getStatusBadgeConfig,
   getTypeDisplay,
   getChannelDisplay,
+  isPlatformRevenueLiquidationTx,
 } from '@/lib/utils/transactions'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
@@ -50,7 +51,14 @@ export const TransactionTableRow = ({
         </div>
       </TableCell>
       <TableCell>
-        {paymentPartnerLabel ? (
+        {isPlatformRevenueLiquidationTx(transaction) ? (
+          <span
+            className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-medium"
+            title="Fee revenue settled from the consolidated platform revenue wallet"
+          >
+            Platform revenue
+          </span>
+        ) : paymentPartnerLabel ? (
           <span
             className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium"
             title={paymentPartnerTitle}
@@ -186,6 +194,16 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.counterpartyInfo?.mnoProvider ||
     null
 
+  // metadata.partnerCode is written once at execution time and is the source of truth
+  // for which rail actually processed the transaction. partnerMapping.partner can be
+  // mutated later (e.g. when the partner-mapping row's partnerId is reassigned), so we
+  // prefer metadata when it carries a real partner code.
+  const paymentPartnerFromMetadata = (() => {
+    const code = String(metadata.partnerCode || '').trim()
+    if (!code || isNumericLikePartnerCode(code)) return null
+    return code.toUpperCase()
+  })()
+
   const paymentPartnerFromMapping = extPaymentPartner
     ? (() => {
         const code = String(extPaymentPartner.partnerCode || '').trim()
@@ -253,6 +271,7 @@ function useTransactionDerived(transaction: any): TransactionDerived {
 
   const paymentPartnerLabel =
     paymentPartnerFromExecutedBillMetadata ||
+    paymentPartnerFromMetadata ||
     paymentPartnerFromMapping ||
     paymentPartnerFromMno ||
     paymentPartnerFromBank ||
@@ -273,6 +292,10 @@ function useTransactionDerived(transaction: any): TransactionDerived {
       const codeDisp = (code || paymentPartnerFromExecutedBillMetadata).toUpperCase()
       const base = name ? `${name} (${codeDisp})` : codeDisp
       return [base, product].filter(Boolean).join(' · ')
+    }
+    if (paymentPartnerFromMetadata) {
+      const name = String(metadata.partnerName || '').trim()
+      return name ? `${name} (${paymentPartnerFromMetadata})` : paymentPartnerFromMetadata
     }
     if (paymentPartnerFromMapping && extPaymentPartner?.partnerCode) {
       return `${extPaymentPartner.partnerName || extPaymentPartner.partnerCode} (${extPaymentPartner.partnerCode})`

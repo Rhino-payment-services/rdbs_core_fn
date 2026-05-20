@@ -9,7 +9,10 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -66,6 +69,8 @@ const WalletPage = () => {
     isSuspended?: boolean
     page?: number
     limit?: number
+    sortBy?: 'balance' | 'createdAt' | 'updatedAt'
+    sortOrder?: 'asc' | 'desc'
   }
 
   const [filters, setFilters] = useState<WalletFilters>({
@@ -75,7 +80,9 @@ const WalletPage = () => {
     isActive: undefined,
     isSuspended: undefined,
     page: 1,
-    limit: 50
+    limit: 50,
+    sortBy: 'balance',
+    sortOrder: 'desc',
   })
 
   const { data: walletsData, isLoading: isWalletsLoading, error: walletsError, refetch } = useAdminWallets(filters)
@@ -570,7 +577,7 @@ const WalletPage = () => {
                 </div>
                 <p className="text-xl font-bold text-gray-900 leading-tight">{formatCurrency(totalBalance, 'UGX')}</p>
                 <div className="mt-0">
-                  <span className="text-sm text-gray-500">Across all wallets</span>
+                  <span className="text-sm text-gray-500">Customer &amp; float (excludes platform revenue)</span>
                 </div>
               </CardContent>
             </Card>
@@ -686,7 +693,7 @@ const WalletPage = () => {
                   {!isWalletsLoading && (
                     <Button 
                       onClick={() => {
-                        setFilters({ category: undefined, search: undefined, currency: undefined, isActive: undefined, isSuspended: undefined, page: 1, limit: 50 })
+                        setFilters({ category: undefined, search: undefined, currency: undefined, isActive: undefined, isSuspended: undefined, page: 1, limit: 50, sortBy: 'balance', sortOrder: 'desc' })
                         refetch()
                       }} 
                       variant="outline" 
@@ -704,10 +711,56 @@ const WalletPage = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Currency</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-right">
+                        <button
+                          className="flex items-center gap-1 ml-auto hover:text-gray-900 transition-colors"
+                          onClick={() =>
+                            setFilters(prev => ({
+                              ...prev,
+                              sortBy: 'balance',
+                              sortOrder: prev.sortBy === 'balance' && prev.sortOrder === 'desc' ? 'asc' : 'desc',
+                              page: 1,
+                            }))
+                          }
+                        >
+                          Balance
+                          {filters.sortBy === 'balance' ? (
+                            filters.sortOrder === 'desc' ? (
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowUp className="h-3.5 w-3.5" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead className="text-right">Daily Limit</TableHead>
                       <TableHead className="text-right">Monthly Limit</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>
+                        <button
+                          className="flex items-center gap-1 hover:text-gray-900 transition-colors"
+                          onClick={() =>
+                            setFilters(prev => ({
+                              ...prev,
+                              sortBy: 'createdAt',
+                              sortOrder: prev.sortBy === 'createdAt' && prev.sortOrder === 'desc' ? 'asc' : 'desc',
+                              page: 1,
+                            }))
+                          }
+                        >
+                          Created
+                          {filters.sortBy === 'createdAt' ? (
+                            filters.sortOrder === 'desc' ? (
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            ) : (
+                              <ArrowUp className="h-3.5 w-3.5" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead>Owner</TableHead>
                       <TableHead className="font-mono text-xs">ID</TableHead>
                       <TableHead className="text-right">Actions</TableHead>

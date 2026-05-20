@@ -41,6 +41,7 @@ import {
   useRevokeApiKey,
   usePartnerWalletBalance,
   useTopUpPartnerWallet,
+  useUpdatePartnerAuthType,
 } from '@/lib/hooks/useGatewayPartners'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -83,6 +84,7 @@ const GatewayPartnerDetailsPage = () => {
   const suspendPartner = useSuspendGatewayPartner()
   const revokeKey = useRevokeApiKey()
   const topUpWallet = useTopUpPartnerWallet()
+  const updateAuthType = useUpdatePartnerAuthType()
 
   const { data: escrowBalance, refetch: refetchBalance } = usePartnerWalletBalance(
     partnerId,
@@ -354,6 +356,75 @@ const GatewayPartnerDetailsPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Authentication Type */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-orange-600" />
+                Authentication Type
+              </CardTitle>
+              <CardDescription>
+                Controls how this partner authenticates with the Gateway API.
+                <strong> API_KEY_ONLY</strong> requires only an API key.
+                <strong> API_KEY_AND_TOKEN</strong> requires the partner to generate a one-time access token before each request.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 max-w-xs">
+                  <Select
+                    value={partner.authenticationType || 'API_KEY_ONLY'}
+                    onValueChange={(value) => {
+                      updateAuthType.mutate({
+                        partnerId,
+                        authenticationType: value as 'API_KEY_ONLY' | 'API_KEY_AND_TOKEN',
+                      })
+                    }}
+                    disabled={updateAuthType.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="API_KEY_ONLY">
+                        API Key Only
+                      </SelectItem>
+                      <SelectItem value="API_KEY_AND_TOKEN">
+                        API Key + One-Time Token
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    (partner.authenticationType || 'API_KEY_ONLY') === 'API_KEY_AND_TOKEN'
+                      ? 'bg-orange-50 text-orange-700 border-orange-300'
+                      : 'bg-green-50 text-green-700 border-green-300'
+                  }
+                >
+                  {(partner.authenticationType || 'API_KEY_ONLY') === 'API_KEY_AND_TOKEN'
+                    ? 'Enhanced Security'
+                    : 'Standard'}
+                </Badge>
+                {updateAuthType.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                )}
+              </div>
+              {(partner.authenticationType || 'API_KEY_ONLY') === 'API_KEY_AND_TOKEN' && (
+                <div className="mt-4 rounded-lg bg-orange-50 border border-orange-200 p-3 text-sm text-orange-800">
+                  <p className="font-medium mb-1">One-Time Token Flow</p>
+                  <ol className="list-decimal list-inside space-y-1 text-orange-700">
+                    <li>Partner calls <code className="bg-orange-100 px-1 rounded">POST /api/v1/gateway/partners/generate-token</code> with their API key</li>
+                    <li>System returns a JWT token valid for 5 minutes (single use)</li>
+                    <li>Partner includes both <code className="bg-orange-100 px-1 rounded">x-api-key</code> and <code className="bg-orange-100 px-1 rounded">Authorization: Bearer &lt;token&gt;</code> on protected requests</li>
+                    <li>Token is consumed after one successful request</li>
+                  </ol>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Wallet Balances */}
           <Card className="mb-6">

@@ -5,7 +5,8 @@ import {
   Building2,
   Store,
   Users,
-  School
+  School,
+  CreditCard
 } from 'lucide-react'
 
 /**
@@ -190,6 +191,19 @@ export const getContactInfo = (user: any, metadata?: any, counterpartyUser?: any
  * Get transaction type display name
  * Pass optional transaction (or metadata + reference) to detect sweep/liquidation
  */
+/** Platform revenue wallet settlement (finance settle / partner offset). */
+export const isPlatformRevenueLiquidationTx = (
+  transactionOrMeta?: { metadata?: any; reference?: string } | null,
+): boolean => {
+  const meta = transactionOrMeta?.metadata ?? transactionOrMeta
+  if ((meta as any)?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION') return true
+  const reference =
+    transactionOrMeta && 'reference' in transactionOrMeta
+      ? transactionOrMeta.reference
+      : (meta as any)?.reference
+  return !!reference && /^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(String(reference))
+}
+
 export const getTypeDisplay = (
   type: string,
   direction?: string,
@@ -197,6 +211,9 @@ export const getTypeDisplay = (
 ) => {
   const meta = transactionOrMeta?.metadata ?? transactionOrMeta
   const reference = transactionOrMeta && 'reference' in transactionOrMeta ? transactionOrMeta.reference : (meta as any)?.reference
+  if (isPlatformRevenueLiquidationTx(transactionOrMeta)) {
+    return 'Platform revenue settlement'
+  }
   const isSweep =
     type === 'WALLET_TO_WALLET' &&
     (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
@@ -242,6 +259,9 @@ export const getTypeDisplay = (
     WALLET_TO_UTILITY: 'Utility Payment',
     BILL_PAYMENT: 'Bill Payment',
     SCHOOL_FEES: 'School Fees',
+    WALLET_TO_PARTNER_INSTITUTION: 'Wallet to SACCO',
+    PARTNER_INSTITUTION_TO_WALLET: 'SACCO to Wallet',
+    LIQUIDATION: 'SACCO Liquidation',
     
     // Wallet Operations
     DEPOSIT: 'Wallet Deposit',
@@ -255,7 +275,16 @@ export const getTypeDisplay = (
     FEE_CHARGE: 'Fee Charge',
     CUSTOM: 'Custom Transaction'
   }
-  return typeMap[type as keyof typeof typeMap] || type
+  const mapped = typeMap[type as keyof typeof typeMap]
+  if (mapped) return mapped
+
+  // Final fallback: humanize unknown enum-like names.
+  return String(type || 'Unknown')
+    .toLowerCase()
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 /**
@@ -317,6 +346,18 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       color: 'text-emerald-700',
       bgColor: 'bg-emerald-50 border-emerald-200'
     },
+    CARD: {
+      label: 'Card Payment',
+      icon: CreditCard,
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50 border-violet-200'
+    },
+    POS: {
+      label: 'POS Terminal',
+      icon: Store,
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50 border-amber-200'
+    },
   }
   
   // Find exact match or pattern match
@@ -340,6 +381,10 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       matchedChannel = channelMap.AGENT_PORTAL
     } else if (normalizedChannel.includes('PARTNER')) {
       matchedChannel = channelMap.PARTNER_PORTAL
+    } else if (normalizedChannel.includes('CARD') || normalizedChannel.includes('NFC')) {
+      matchedChannel = channelMap.CARD
+    } else if (normalizedChannel.includes('POS')) {
+      matchedChannel = channelMap.POS
     } else {
       // Default to APP
       matchedChannel = channelMap.APP

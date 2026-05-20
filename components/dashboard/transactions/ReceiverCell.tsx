@@ -31,6 +31,7 @@ function resolveMerchantBusinessName(transaction: any, metadata: any): string {
 
 export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
+  const txType = String(transaction.type || '').toUpperCase()
 
   if (transaction.type === 'REVERSAL') {
     return (
@@ -69,6 +70,57 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
               <span className="text-xs text-green-600 font-medium">💰 Wallet Credit</span>
             ) : undefined}
           />
+          {creditLabel && (
+            <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
+
+  // Partner-institution credit leg without receiverInfo: derive SACCO from metadata.
+  if (txType === 'WALLET_TO_PARTNER_INSTITUTION') {
+    const code = String(
+      metadata?.nexenInstitutionCode ||
+      metadata?.partnerInstitutionCode ||
+      metadata?.institutionCode ||
+      metadata?.saccoCode ||
+      metadata?.organizationCode ||
+      ''
+    ).trim()
+    const instName = String(
+      metadata?.nexenInstitutionName ||
+      metadata?.partnerInstitutionName ||
+      metadata?.institutionName ||
+      metadata?.saccoName ||
+      metadata?.organizationName ||
+      ''
+    ).trim()
+    const partnerName = String(
+      metadata?.apiPartnerName ||
+      metadata?.partnerName ||
+      transaction?.partner?.partnerName ||
+      ''
+    ).trim()
+
+    const syntheticInfo = normalizePartyInfoForDisplay(
+      {
+        name: instName || (code ? `Code ${code}` : 'SACCO settlement wallet'),
+        contact: transaction?.partner?.contactPhone || transaction?.partner?.contactEmail || null,
+        type: 'PARTNER_INSTITUTION',
+        partnerName: partnerName || null,
+        institutionCode: code || null,
+        institutionName: instName || null,
+        institutionLine: [code && `Code ${code}`, instName].filter(Boolean).join(' · ') || null,
+      },
+      transaction,
+      'receiver'
+    )
+
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <PartyDisplay info={syntheticInfo} />
           {creditLabel && (
             <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
           )}

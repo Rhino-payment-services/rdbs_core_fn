@@ -36,6 +36,7 @@ export interface GatewayPartner {
   description?: string;
   website?: string;
   address?: string;
+  authenticationType?: 'API_KEY_ONLY' | 'API_KEY_AND_TOKEN';
   createdAt: string;
   updatedAt: string;
 }
@@ -219,6 +220,39 @@ export const useUpdateGatewayPartner = () => {
     },
     onError: (error: any) => {
       toast.error(error?.data?.message || 'Failed to update partner');
+    },
+  });
+};
+
+// Hook: Update partner authentication type
+export const useUpdatePartnerAuthType = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      partnerId,
+      authenticationType,
+    }: {
+      partnerId: string;
+      authenticationType: 'API_KEY_ONLY' | 'API_KEY_AND_TOKEN';
+    }) => {
+      const response = await api.put(
+        `/api/v1/admin/gateway-partners/${partnerId}`,
+        { authenticationType },
+      );
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-partners'] });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner', variables.partnerId],
+      });
+      toast.success('Authentication type updated successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(
+        error?.response?.data?.message || 'Failed to update authentication type',
+      );
     },
   });
 };

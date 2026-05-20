@@ -47,6 +47,8 @@ interface CustomerSettingsProps {
   merchantCode?: string
   collectionFeeMode?: 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
   collectionCustomerSharePercent?: number
+  collectionTotalFeePercent?: number | null
+  collectionMnoPartnerFeePercent?: number | null
   /** All wallets for this user (from wallet service). When set, Wallet Management shows each wallet and manual tx can target a chosen wallet. */
   allUserWallets?: WalletItem[]
 }
@@ -74,6 +76,8 @@ const CustomerSettings = ({
   merchantCode,
   collectionFeeMode = 'CUSTOMER_PAYS_NONE',
   collectionCustomerSharePercent = 0,
+  collectionTotalFeePercent = null,
+  collectionMnoPartnerFeePercent = null,
   allUserWallets = [],
 }: CustomerSettingsProps) => {
   const [isLoading, setIsLoading] = useState(false)
@@ -115,13 +119,23 @@ const CustomerSettings = ({
   const effectiveBalanceNum = typeof effectiveBalance === 'number' ? effectiveBalance : parseFloat(String(effectiveBalance ?? 0)) || 0
 
   // Merchant collection fee configuration state (synced from props when merchant data is refetched)
-  const [collectionMode, setCollectionMode] = useState<'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'>(collectionFeeMode)
+  const [collectionMode, setCollectionMode] = useState<
+    'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE'
+  >(collectionFeeMode ?? 'CUSTOMER_PAYS_NONE')
   const [customerSharePercent, setCustomerSharePercent] = useState<number>(collectionCustomerSharePercent ?? 0)
+  const [totalFeePercent, setTotalFeePercent] = useState<string>(
+    collectionTotalFeePercent != null ? String(collectionTotalFeePercent) : '',
+  )
+  const [mnoFeePercent, setMnoFeePercent] = useState<string>(
+    collectionMnoPartnerFeePercent != null ? String(collectionMnoPartnerFeePercent) : '',
+  )
 
   useEffect(() => {
     if (collectionFeeMode) setCollectionMode(collectionFeeMode)
     if (collectionCustomerSharePercent != null) setCustomerSharePercent(Number(collectionCustomerSharePercent))
-  }, [collectionFeeMode, collectionCustomerSharePercent])
+    setTotalFeePercent(collectionTotalFeePercent != null ? String(collectionTotalFeePercent) : '')
+    setMnoFeePercent(collectionMnoPartnerFeePercent != null ? String(collectionMnoPartnerFeePercent) : '')
+  }, [collectionFeeMode, collectionCustomerSharePercent, collectionTotalFeePercent, collectionMnoPartnerFeePercent])
 
   // Merchant feature flags state
   const [featureFlags, setFeatureFlags] = useState({
@@ -307,10 +321,27 @@ const CustomerSettings = ({
       }
     }
 
+    const parsedTotal = totalFeePercent.trim() === '' ? null : Number(totalFeePercent)
+    const parsedMno = mnoFeePercent.trim() === '' ? null : Number(mnoFeePercent)
+    if (parsedTotal != null && (Number.isNaN(parsedTotal) || parsedTotal <= 0 || parsedTotal > 50)) {
+      toast.error('Total collection fee % must be between 0.01 and 50.')
+      return
+    }
+    if (parsedMno != null && (Number.isNaN(parsedMno) || parsedMno < 0 || parsedMno > 50)) {
+      toast.error('MNO fee % must be between 0 and 50.')
+      return
+    }
+    if (parsedTotal != null && parsedMno != null && parsedMno > parsedTotal) {
+      toast.error('MNO fee % cannot exceed total collection fee %.')
+      return
+    }
+
     setIsSavingFeeMode(true)
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         collectionFeeMode: collectionMode,
+        collectionTotalFeePercent: parsedTotal,
+        collectionMnoPartnerFeePercent: parsedMno,
       }
       if (collectionMode === 'CUSTOMER_PAYS_PARTIAL') {
         payload.collectionCustomerSharePercent = customerSharePercent
@@ -322,6 +353,10 @@ const CustomerSettings = ({
       // Persist on frontend: update local state so the dropdown reflects the saved value immediately
       if (data?.collectionFeeMode) setCollectionMode(data.collectionFeeMode)
       if (data?.collectionCustomerSharePercent != null) setCustomerSharePercent(Number(data.collectionCustomerSharePercent))
+      if (data?.collectionTotalFeePercent != null) setTotalFeePercent(String(data.collectionTotalFeePercent))
+      else if (parsedTotal === null) setTotalFeePercent('')
+      if (data?.collectionMnoPartnerFeePercent != null) setMnoFeePercent(String(data.collectionMnoPartnerFeePercent))
+      else if (parsedMno === null) setMnoFeePercent('')
 
       toast.success('Merchant collection fee mode updated successfully.')
       onActionComplete?.()
@@ -480,7 +515,9 @@ const CustomerSettings = ({
                 <Select
                   value={collectionMode}
                   onValueChange={(value) =>
-                    setCollectionMode(value as 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE')
+                    setCollectionMode(
+                      value as 'CUSTOMER_PAYS_ALL' | 'CUSTOMER_PAYS_PARTIAL' | 'CUSTOMER_PAYS_NONE',
+                    )
                   }
                 >
                   <SelectTrigger>
@@ -494,10 +531,45 @@ const CustomerSettings = ({
                       Customer pays partial external fee
                     </SelectItem>
                     <SelectItem value="CUSTOMER_PAYS_NONE">
-                      Customer pays no external fee
+                      Merchant pays fee (deducted from collection)
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="totalFeePercent">Total collection fee (%)</Label>
+                  <Input
+                    id="totalFeePercent"
+                    type="number"
+                    min={0.01}
+                    max={50}
+                    step={0.01}
+                    value={totalFeePercent}
+                    onChange={(e) => setTotalFeePercent(e.target.value)}
+                    placeholder="Default 2.5"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Custom rate for this merchant (e.g. 2.8). Leave empty for platform default.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mnoFeePercent">MNO / partner share (%)</Label>
+                  <Input
+                    id="mnoFeePercent"
+                    type="number"
+                    min={0}
+                    max={50}
+                    step={0.01}
+                    value={mnoFeePercent}
+                    onChange={(e) => setMnoFeePercent(e.target.value)}
+                    placeholder="Default 2.0"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Rukapay share = total − MNO. Leave empty to scale from default ratio.
+                  </p>
+                </div>
               </div>
 
               {collectionMode === 'CUSTOMER_PAYS_PARTIAL' && (

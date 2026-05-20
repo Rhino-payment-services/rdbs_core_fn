@@ -38,7 +38,8 @@ import {
   XCircle,
   Clock,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Download
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -49,6 +50,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useApproveTariff, useRejectTariff, useSubmitTariffForApproval } from '@/lib/hooks/useTariffs'
 import { useAuth } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
+import { formatTariffChannel } from '@/lib/constants/tariff-channels'
 
 interface Tariff {
   id: string
@@ -107,6 +109,7 @@ interface Tariff {
   governmentTax?: number
   transactionModeCode?: string // Transaction mode code for CUSTOM transaction types
   metadata?: Record<string, unknown> | null
+  channel?: string | null
 }
 
 function formatInstitutionSpreadFromMetadata(metadata: unknown): string | null {
@@ -117,6 +120,28 @@ function formatInstitutionSpreadFromMetadata(metadata: unknown): string | null {
   const n = Math.max(0, Math.floor(Number(b.nexen) || 0))
   if (r === 0 && n === 0) return 'SACCO: full principal (0 bps spread)'
   return `SACCO spread: RukaPay ${r} bps + NEXEN ${n} bps (${(r + n) / 100}% of principal)`
+}
+
+function escapeCsvCell(value: unknown): string {
+  const s = value === null || value === undefined ? '' : String(value)
+  return `"${s.replace(/"/g, '""')}"`
+}
+
+function getPartnerExportLabel(tariff: Tariff): string {
+  if (tariff.partner) {
+    return `${tariff.partner.partnerCode} — ${tariff.partner.partnerName} (External Partner)`
+  }
+  if (tariff.apiPartner) {
+    return `${tariff.apiPartner.partnerName} (${tariff.apiPartner.partnerType}) (API Partner)`
+  }
+  return ''
+}
+
+function getTariffStatusExportLabel(tariff: Tariff): string {
+  if (!tariff.status && !tariff.approvalStatus) {
+    return tariff.isActive ? 'ACTIVE' : 'INACTIVE'
+  }
+  return String(tariff.status || tariff.approvalStatus || '')
 }
 
 interface Partner {
@@ -222,7 +247,7 @@ const TariffsPage = () => {
     },
     'WALLET_TO_INTERNAL_MERCHANT': {
       name: 'Wallet to Internal Merchant',
-      description: 'Payments to RukaPay registered merchants',
+      description: 'Payments to RukaPay merchants — configure per channel (e.g. CARD fee, default free for APP/USSD)',
       icon: Store,
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
@@ -522,6 +547,90 @@ const TariffsPage = () => {
     }
   }
 
+  const handleExportCsv = () => {
+    if (tariffsLoading) return
+    const rows = (Array.isArray(allTariffs) ? allTariffs : []) as Tariff[]
+    if (rows.length === 0) {
+      toast.error('No tariffs to export')
+      return
+    }
+    const sorted = [...rows].sort((a, b) => {
+      const typeCmp = (a.tariffType || '').localeCompare(b.tariffType || '')
+      if (typeCmp !== 0) return typeCmp
+      const tx = (a.transactionType || '').localeCompare(b.transactionType || '')
+      if (tx !== 0) return tx
+      return (a.name || '').localeCompare(b.name || '')
+    })
+    const datePart = new Date().toISOString().slice(0, 10)
+    const headers = [
+      'ID',
+      'Name',
+      'Description',
+      'Tariff Type',
+      'Fee Type',
+      'Fee Amount',
+      'Amount Range',
+      'Transaction Type',
+      'Transaction Type Code',
+      'Partner',
+      'Group',
+      'Partner Fee',
+      'RukaPay Fee',
+      'Telecom/Bank Charge',
+      'Government Tax',
+      'User Type',
+      'Subscriber Type',
+      'Status',
+      'Institution Spread / Notes',
+      'Created At',
+      'Updated At',
+    ]
+    const lines = [headers.map(escapeCsvCell).join(',')]
+    for (const t of sorted) {
+      lines.push(
+        [
+          t.id,
+          t.name,
+          t.description ?? '',
+          t.tariffType,
+          t.feeType,
+          formatFeeAmount(t),
+          getAmountRange(t),
+          getTransactionTypeLabel(t.transactionType, t),
+          t.transactionType,
+          getPartnerExportLabel(t),
+          t.group ?? '',
+          t.partnerFee !== undefined && t.partnerFee !== null ? t.partnerFee : '',
+          t.rukapayFee !== undefined && t.rukapayFee !== null ? t.rukapayFee : '',
+          t.telecomBankCharge !== undefined && t.telecomBankCharge !== null ? t.telecomBankCharge : '',
+          t.governmentTax !== undefined && t.governmentTax !== null ? t.governmentTax : '',
+          t.userType,
+          t.subscriberType ?? '',
+          getTariffStatusExportLabel(t),
+          t.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
+            ? formatInstitutionSpreadFromMetadata(t.metadata) ?? ''
+            : '',
+          t.createdAt ?? '',
+          t.updatedAt ?? '',
+        ]
+          .map(escapeCsvCell)
+          .join(','),
+      )
+    }
+
+    const csvContent = `\uFEFF${lines.join('\n')}`
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tariffs-all-${datePart}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${sorted.length} tariff${sorted.length === 1 ? '' : 's'} as CSV`)
+  }
+
   // Approval workflow functions
   const handleApprovalAction = (tariff: Tariff, action: 'approve' | 'reject') => {
     setSelectedTariff(tariff)
@@ -677,6 +786,7 @@ const TariffsPage = () => {
                   <TableHead>Description</TableHead>
                   <TableHead>Fee Type</TableHead>
                   <TableHead>Fee Amount</TableHead>
+                  <TableHead>Channel</TableHead>
                   <TableHead>Amount Range</TableHead>
                   <TableHead className="max-w-[220px] whitespace-normal">
                     Transaction Type
@@ -704,6 +814,11 @@ const TariffsPage = () => {
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {formatFeeAmount(tariff)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant="secondary" className="font-normal">
+                        {formatTariffChannel(tariff.channel)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
                       {tariff.minAmount && tariff.maxAmount 
@@ -955,6 +1070,16 @@ const TariffsPage = () => {
                 >
                   <Building2 className="h-4 w-4 mr-2" />
                   Manage Partners
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCsv}
+                  disabled={tariffsLoading}
+                  title="Download all tariffs (internal and external) as CSV"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
                 </Button>
                 {/* <Button 
                   variant="outline" 
