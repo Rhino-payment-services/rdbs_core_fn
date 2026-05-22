@@ -8,6 +8,7 @@ import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
+import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
 // Import extracted components
@@ -575,11 +576,7 @@ const TransactionsPage = () => {
         }
         // Wallet-to-bank specific fields from metadata
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
-        // Derive fee breakdown (reuses logic from UI components)
         const amount = Number(tx.amount) || 0
-        const feeBreakdown = tx.metadata?.feeBreakdown || {}
-
-        const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0
         const isSweepTransaction = Boolean(
           metadata?.sweepToDisbursement || metadata?.sweepFromCollection,
         )
@@ -588,40 +585,24 @@ const TransactionsPage = () => {
           (tx?.channel === 'BACKOFFICE' &&
             tx?.type === 'WALLET_TO_WALLET' &&
             /liquidate:/i.test(String(tx?.description || '')))
-        const rukapayFee = rukapayFeeFromBreakdown > 0
-          ? rukapayFeeFromBreakdown
-          : (Number(tx.rukapayFee) || (isLiquidationLike ? Number(tx.fee) || 0 : 0))
 
-        const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0
-        const partnerFee = partnerFeeFromBreakdown > 0
-          ? partnerFeeFromBreakdown
-          : (Number(tx.thirdPartyFee) || 0)
-
-        const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0
-        const governmentTax = govTaxFromBreakdown > 0
-          ? govTaxFromBreakdown
-          : (Number(tx.governmentTax) || 0)
-
-        const processingFee = feeBreakdown.processingFee || Number(tx.processingFee) || 0
-        const networkFee = feeBreakdown.networkFee || Number(tx.networkFee) || 0
-        const complianceFee = feeBreakdown.complianceFee || Number(tx.complianceFee) || 0
-        const telecomBankCharge = feeBreakdown.telecomBankCharge || 0
-
-        let calculatedTotalFees =
-          rukapayFee +
-          partnerFee +
-          governmentTax +
-          processingFee +
-          networkFee +
-          complianceFee +
-          telecomBankCharge
-
-        if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
-          calculatedTotalFees = Number(feeBreakdown.totalFee)
+        const fees = normalizeFeeBreakdown(tx)
+        let rukapayFee = fees.rukapayFee
+        if (isSweepTransaction) {
+          const sweepFee = Number(metadata.sweepFeeAmount) || 0
+          if (sweepFee > 0 && tx.direction === 'DEBIT') {
+            rukapayFee = sweepFee
+          } else if (tx.direction === 'CREDIT') {
+            rukapayFee = 0
+          }
+        } else if (isLiquidationLike && rukapayFee === 0) {
+          rukapayFee = Number(tx.fee) || 0
         }
 
-        let finalTotalFee = calculatedTotalFees
+        const partnerFee = fees.partnerFee
+        const governmentTax = fees.governmentTax
 
+        let finalTotalFee = fees.totalFee
         if (finalTotalFee === 0) {
           const feeField = Number(tx.fee) || 0
           if (feeField > 0) {
@@ -725,22 +706,36 @@ const TransactionsPage = () => {
   // Count fees from ALL transactions (fees are charged regardless of status)
   // Only count volume from SUCCESS transactions
   const pageStats = transactions.reduce((acc: any, tx: any) => {
+    const metadata = tx?.metadata || {}
     const isSweepTransaction = Boolean(
-      tx?.metadata?.sweepToDisbursement || tx?.metadata?.sweepFromCollection,
+      metadata.sweepToDisbursement || metadata.sweepFromCollection,
     )
     const isLiquidationLike =
       isSweepTransaction ||
       (tx?.channel === 'BACKOFFICE' &&
         tx?.type === 'WALLET_TO_WALLET' &&
         /liquidate:/i.test(String(tx?.description || '')))
-    const effectiveRukapayFee =
-      Number(tx.rukapayFee) || (isLiquidationLike ? Number(tx.fee) || 0 : 0)
 
-    // Fees are charged regardless of transaction status
-    acc.totalFees += Number(tx.fee) || 0
+    const fees = normalizeFeeBreakdown(tx)
+    let effectiveRukapayFee = fees.rukapayFee
+    if (isSweepTransaction) {
+      const sweepFee = Number(metadata.sweepFeeAmount) || 0
+      if (sweepFee > 0 && tx.direction === 'DEBIT') {
+        effectiveRukapayFee = sweepFee
+      } else if (tx.direction === 'CREDIT') {
+        effectiveRukapayFee = 0
+      }
+    } else if (isLiquidationLike && effectiveRukapayFee === 0) {
+      effectiveRukapayFee = Number(tx.fee) || 0
+    }
+
+    const totalFeeForRow =
+      fees.totalFee > 0 ? fees.totalFee : Number(tx.fee) || 0
+
+    acc.totalFees += totalFeeForRow
     acc.rukapayFees += effectiveRukapayFee
-    acc.partnerFees += Number(tx.thirdPartyFee) || 0
-    acc.governmentTaxes += Number(tx.governmentTax) || 0
+    acc.partnerFees += fees.partnerFee
+    acc.governmentTaxes += fees.governmentTax
     
     // Only count volume and success count for successful transactions
     if (tx.status === 'SUCCESS') {
