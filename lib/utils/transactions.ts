@@ -67,14 +67,17 @@ export const shortenTransactionId = (id: string): string => {
 };
 
 /**
- * Format amount as currency
+ * Format amount as currency. Shows 1–2 decimal places when the value is fractional.
  */
 export const formatAmount = (amount: number) => {
+  const n = Number(amount)
+  const hasFraction = Number.isFinite(n) && Math.abs(n % 1) > 1e-9
   return new Intl.NumberFormat('en-UG', {
     style: 'currency',
     currency: 'UGX',
-    minimumFractionDigits: 0
-  }).format(amount)
+    minimumFractionDigits: hasFraction ? 1 : 0,
+    maximumFractionDigits: hasFraction ? 2 : 0,
+  }).format(n)
 }
 
 /**

@@ -2,65 +2,11 @@
 
 import { TableCell } from '@/components/ui/table'
 import { formatAmount } from '@/lib/utils/transactions'
+import { getNormalizedRukapayFee } from '@/lib/utils/feeBreakdown'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 interface FeeCellProps {
   transaction: any
-}
-
-function getNormalizedRukapayFee(transaction: any) {
-  const feeBreakdown = transaction?.metadata?.feeBreakdown || {}
-
-  const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0
-  let rukapayFee =
-    rukapayFeeFromBreakdown > 0 ? rukapayFeeFromBreakdown : (Number(transaction?.rukapayFee) || 0)
-
-  const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0
-  const partnerFee =
-    partnerFeeFromBreakdown > 0 ? partnerFeeFromBreakdown : (Number(transaction?.thirdPartyFee) || 0)
-
-  const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0
-  const governmentTax =
-    govTaxFromBreakdown > 0 ? govTaxFromBreakdown : (Number(transaction?.governmentTax) || 0)
-
-  const processingFee = feeBreakdown.processingFee || Number(transaction?.processingFee) || 0
-  const networkFee = feeBreakdown.networkFee || Number(transaction?.networkFee) || 0
-  const complianceFee = feeBreakdown.complianceFee || Number(transaction?.complianceFee) || 0
-  const telecomBankCharge = feeBreakdown.telecomBankCharge || 0
-
-  let totalFee: number
-  if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
-    totalFee = Number(feeBreakdown.totalFee)
-  } else {
-    const calculatedTotalFees =
-      rukapayFee +
-      partnerFee +
-      governmentTax +
-      processingFee +
-      networkFee +
-      complianceFee +
-      telecomBankCharge
-    totalFee =
-      calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction?.fee) || 0)
-  }
-
-  // When only aggregate fee is persisted, attribute residual to RukaPay fee
-  // so list view stays consistent with the details modal.
-  if (rukapayFee === 0 && totalFee > 0) {
-    const otherComponents =
-      partnerFee +
-      governmentTax +
-      processingFee +
-      networkFee +
-      complianceFee +
-      telecomBankCharge
-    const remaining = totalFee - otherComponents
-    if (remaining > 0) {
-      rukapayFee = remaining
-    }
-  }
-
-  return rukapayFee
 }
 
 export const RukapayFeeCell = ({ transaction }: FeeCellProps) => {
