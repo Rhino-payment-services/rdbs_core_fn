@@ -47,13 +47,17 @@ import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
 import toast from 'react-hot-toast'
 
-const formatCurrency = (amount: number, currency: string) =>
-  new Intl.NumberFormat('en-UG', {
+/** Match ledger formatting: show decimals when the amount is not a whole number. */
+const formatCurrency = (amount: number, currency: string) => {
+  const n = Number(amount)
+  const hasFraction = Number.isFinite(n) && Math.abs(n % 1) > 1e-9
+  return new Intl.NumberFormat('en-UG', {
     style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+    currency: currency || 'UGX',
+    minimumFractionDigits: hasFraction ? 1 : 0,
+    maximumFractionDigits: 2,
+  }).format(n)
+}
 
 const formatDate = (dateString: string) =>
   new Date(dateString).toLocaleString('en-UG', {
