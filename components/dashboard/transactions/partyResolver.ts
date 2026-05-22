@@ -381,9 +381,6 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         [
           metadata?.customerName,
           metadata?.senderName,
-          metadata?.userName,
-          metadata?.counterpartyInfo?.name,
-          counterpartyProfileName,
         ],
         contact
       ) || 'Customer'
@@ -405,6 +402,22 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
+  if (side === 'receiver' && isMerchantCollectionFlow) {
+    const merchantName =
+      metadata?.merchantName ||
+      (metadata?.merchantCode ? `Merchant (${metadata.merchantCode})` : null) ||
+      info?.merchantName ||
+      info?.name
+    return {
+      ...info,
+      type: 'MERCHANT',
+      name: merchantName,
+      merchantCode: metadata?.merchantCode || info?.merchantCode || null,
+      merchantName: metadata?.merchantName || info?.merchantName || null,
+      contact: null,
+    }
+  }
+
   const roleSpecificCandidates = side === 'sender'
     ? [
         metadata.senderName,
@@ -414,15 +427,13 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
-        metadata.customerName,
+        metadata.merchantName,
         metadata.receiverName,
         metadata.recipientName,
+        metadata.customerName,
         metadata?.validationResult?.customerName,
         metadata?.mnoReceiverValidation?.data?.customerName,
         metadata?.mnoReceiverValidation?.data?.name,
-        metadata.userName,
-        userProfileName,
-        counterpartyProfileName,
         metadata.counterpartyInfo?.name,
       ]
 
