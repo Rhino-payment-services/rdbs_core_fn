@@ -8,7 +8,6 @@ import {
   DollarSign,
   ArrowLeftRight,
   Building2,
-  FileSearch,
   Wallet,
   BookOpen,
   BarChart3,
@@ -67,15 +66,6 @@ const FinancePage = () => {
       borderColor: 'border-teal-200'
     },
     {
-      title: 'OVA Accounts',
-      description: 'Manage OVA accounts and related finance configuration',
-      icon: Settings2,
-      href: '/dashboard/finance/ova',
-      color: 'text-cyan-700',
-      bgColor: 'bg-cyan-50',
-      borderColor: 'border-cyan-200'
-    },
-    {
       title: 'External Payment Partners',
       description: 'Manage external payment partners (ABC, Pegasus, etc.) and their configurations',
       icon: Building2,
@@ -101,15 +91,6 @@ const FinancePage = () => {
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-200'
-    },
-    {
-      title: 'Provider Reconciliation',
-      description: 'Ingest settlement files, auto-match rows, and review matched/unmatched records',
-      icon: FileSearch,
-      href: '/dashboard/finance/reconciliation',
-      color: 'text-amber-700',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200'
     }
   ]
 
