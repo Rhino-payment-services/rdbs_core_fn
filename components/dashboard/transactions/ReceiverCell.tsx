@@ -18,13 +18,16 @@ function resolveMerchantBusinessName(transaction: any, metadata: any): string {
     ? merchants.find((m: any) => String(m?.merchantCode || '').trim() === merchantCode)
     : null
 
+  const fromReceiverInfo =
+    transaction?.receiverInfo?.type === 'MERCHANT'
+      ? transaction.receiverInfo.merchantName || transaction.receiverInfo.name
+      : null
+
   return (
     metadata?.merchantName ||
+    fromReceiverInfo ||
     matchedMerchant?.businessTradeName ||
     transaction?.user?.merchant?.businessTradeName ||
-    transaction?.user?.profile?.merchantBusinessTradeName ||
-    transaction?.user?.profile?.businessTradeName ||
-    transaction?.user?.profile?.merchant_names ||
     (merchantCode ? `Merchant (${merchantCode})` : transaction?.user?.merchantCode ? `Merchant (${transaction.user.merchantCode})` : 'Merchant')
   )
 }
