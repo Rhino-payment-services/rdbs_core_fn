@@ -269,6 +269,27 @@ function CreateTariffPage() {
     })
   }, [isExternalMnoToWallet, form.feePercentage, form.telecomBankCharge])
 
+  useEffect(() => {
+    const isExternalMnoToWallet = form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+    if (!isExternalMnoToWallet || !form.network || form.feePercentage === undefined || form.feePercentage === null) {
+      return
+    }
+
+    const telecomCharge = NETWORK_TELECOM_BANK_CHARGE[form.network]
+    const computedRukapayFee = Number((Number(form.feePercentage) - telecomCharge).toFixed(4))
+
+    setForm((prev) => {
+      if (prev.telecomBankCharge === telecomCharge && prev.rukapayFee === computedRukapayFee) {
+        return prev
+      }
+      return {
+        ...prev,
+        telecomBankCharge: telecomCharge,
+        rukapayFee: computedRukapayFee,
+      }
+    })
+  }, [form.tariffType, form.transactionType, form.network, form.feePercentage])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
