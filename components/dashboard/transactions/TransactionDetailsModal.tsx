@@ -28,6 +28,7 @@ import {
 import toast from 'react-hot-toast'
 import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay } from './partyResolver'
 import { usePermissions } from '@/lib/hooks/usePermissions'
+import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
 
 interface TransactionDetailsModalProps {
   isOpen: boolean
@@ -36,66 +37,6 @@ interface TransactionDetailsModalProps {
   transactions?: any[] // For finding original transaction in reversals
   onSelectTransaction?: (transaction: any) => void
   onTransactionUpdated?: (updatedTransaction: any) => void
-}
-
-function normalizeFeeBreakdown(transaction: any) {
-  const feeBreakdown = transaction?.metadata?.feeBreakdown || {};
-
-  const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-  let rukapayFee =
-    rukapayFeeFromBreakdown > 0 ? rukapayFeeFromBreakdown : (Number(transaction?.rukapayFee) || 0);
-
-  const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
-  let partnerFee =
-    partnerFeeFromBreakdown > 0 ? partnerFeeFromBreakdown : (Number(transaction?.thirdPartyFee) || 0);
-
-  const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
-  let governmentTax =
-    govTaxFromBreakdown > 0 ? govTaxFromBreakdown : (Number(transaction?.governmentTax) || 0);
-
-  const processingFee = feeBreakdown.processingFee || Number(transaction?.processingFee) || 0;
-  const networkFee = feeBreakdown.networkFee || Number(transaction?.networkFee) || 0;
-  const complianceFee = feeBreakdown.complianceFee || Number(transaction?.complianceFee) || 0;
-  const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
-
-  let totalFee: number;
-
-  if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
-    totalFee = Number(feeBreakdown.totalFee);
-  } else {
-    const calculatedTotalFees =
-      rukapayFee +
-      partnerFee +
-      governmentTax +
-      processingFee +
-      networkFee +
-      complianceFee +
-      telecomBankCharge;
-
-    totalFee =
-      calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction?.fee) || 0);
-  }
-
-  if (rukapayFee === 0 && totalFee > 0) {
-    const otherComponents =
-      partnerFee +
-      governmentTax +
-      processingFee +
-      networkFee +
-      complianceFee +
-      telecomBankCharge;
-    const remaining = totalFee - otherComponents;
-    if (remaining > 0) {
-      rukapayFee = remaining;
-    }
-  }
-
-  return {
-    rukapayFee,
-    partnerFee,
-    governmentTax,
-    totalFee,
-  };
 }
 
 export const TransactionDetailsModal = ({
@@ -435,52 +376,20 @@ export const TransactionDetailsModal = ({
                       // For CREDIT transactions: netAmount (amount received)
                       if (transaction.direction === 'DEBIT') {
                         const amount = Number(transaction.amount) || 0;
-                        
-                        // Use feeBreakdown as source of truth if available
-                        const feeBreakdown = transaction.metadata?.feeBreakdown || {};
-                        
-                        // Check for totalFee in feeBreakdown first
-                        if (feeBreakdown.totalFee !== undefined && feeBreakdown.totalFee !== null) {
-                          return formatAmount(amount + Number(feeBreakdown.totalFee));
+
+                        if (totalFee > 0) {
+                          return formatAmount(amount + totalFee);
                         }
-                        
-                        // Calculate total fees from feeBreakdown, falling back to transaction fields
-                        const rukapayFeeFromBreakdown = feeBreakdown.rukapayFee || 0;
-                        const rukapayFee = rukapayFeeFromBreakdown > 0 
-                          ? rukapayFeeFromBreakdown 
-                          : (Number(transaction.rukapayFee) || 0);
-                        
-                        const partnerFeeFromBreakdown = feeBreakdown.partnerFee || feeBreakdown.thirdPartyFee || 0;
-                        const thirdPartyFee = partnerFeeFromBreakdown > 0 
-                          ? partnerFeeFromBreakdown 
-                          : (Number(transaction.thirdPartyFee) || 0);
-                        
-                        const govTaxFromBreakdown = feeBreakdown.governmentTax || feeBreakdown.govTax || 0;
-                        const governmentTax = govTaxFromBreakdown > 0 
-                          ? govTaxFromBreakdown 
-                          : (Number(transaction.governmentTax) || 0);
-                        
-                        const processingFee = feeBreakdown.processingFee || Number(transaction.processingFee) || 0;
-                        const networkFee = feeBreakdown.networkFee || Number(transaction.networkFee) || 0;
-                        const complianceFee = feeBreakdown.complianceFee || Number(transaction.complianceFee) || 0;
-                        const telecomBankCharge = feeBreakdown.telecomBankCharge || 0;
-                        
-                        // Sum all fees (including telecomBankCharge)
-                        const calculatedTotalFees = rukapayFee + thirdPartyFee + governmentTax + processingFee + networkFee + complianceFee + telecomBankCharge;
-                        
-                        // Use calculated total fees if available, otherwise fall back to transaction.fee
-                        const totalFee = calculatedTotalFees > 0 ? calculatedTotalFees : (Number(transaction.fee) || 0);
-                        
-                        // If still 0 but there's a difference, calculate it
-                        if (totalFee === 0 && amount > 0) {
+
+                        if (amount > 0) {
                           const netAmount = Number(transaction.netAmount) || 0;
                           if (netAmount > 0 && amount !== netAmount) {
                             const calculatedFee = amount - netAmount;
                             return formatAmount(amount + calculatedFee);
                           }
                         }
-                        
-                        return formatAmount(amount + totalFee);
+
+                        return formatAmount(amount);
                       } else {
                         // For collection CREDIT transactions, net should be amount minus charges.
                         const isCollectionCredit =
