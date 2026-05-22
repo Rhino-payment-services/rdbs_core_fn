@@ -374,6 +374,67 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     direction === 'CREDIT' &&
     !!(metadata?.merchantCode || metadata?.merchantName || metadata?.isPublicPayment)
 
+  const isMerchantOutboundDebit =
+    direction === 'DEBIT' &&
+    (type.includes('WALLET_TO_MNO') ||
+      type.includes('WALLET_TO_BANK') ||
+      type === 'BILL_PAYMENT' ||
+      type === 'UTILITIES' ||
+      type.includes('UTILIT')) &&
+    (upper(tx?.channel) === 'MERCHANT_PORTAL' ||
+      !!tx?.bulkTransactionId ||
+      metadata?.bulkPayment === true)
+
+  if (side === 'sender' && isMerchantOutboundDebit && info?.type === 'MERCHANT') {
+    const merchantName =
+      info?.merchantName ||
+      info?.name ||
+      (metadata?.merchantCode ? `Merchant (${metadata.merchantCode})` : null) ||
+      'Merchant'
+    return {
+      ...info,
+      type: 'MERCHANT',
+      name: merchantName,
+      contact: null,
+      merchantCode: info?.merchantCode || metadata?.merchantCode || null,
+      merchantName: info?.merchantName || metadata?.merchantName || null,
+    }
+  }
+
+  if (side === 'receiver' && isMerchantOutboundDebit) {
+    const beneficiaryName = firstMeaningfulName(
+      [
+        info?.name,
+        metadata?.recipientName,
+        metadata?.receiverName,
+        metadata?.accountName,
+        metadata?.customerName,
+        metadata?.validationResult?.customerName,
+        metadata?.mnoReceiverValidation?.data?.customerName,
+        metadata?.mnoReceiverValidation?.data?.name,
+      ],
+      contact,
+    )
+    const beneficiaryContact =
+      contact ||
+      String(
+        metadata?.phoneNumber ||
+          metadata?.recipientPhone ||
+          metadata?.utilityAccountNumber ||
+          metadata?.customerRef ||
+          '',
+      ).trim() ||
+      null
+
+    return {
+      ...info,
+      name: beneficiaryName || info?.name || 'Recipient',
+      contact: beneficiaryContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
   // For merchant collections, sender is always the paying customer (not merchant account).
   if (side === 'sender' && isMerchantCollectionFlow) {
     const customerName =
@@ -427,7 +488,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
-        metadata.merchantName,
+        ...(isMerchantOutboundDebit ? [] : [metadata.merchantName]),
         metadata.receiverName,
         metadata.recipientName,
         metadata.customerName,
