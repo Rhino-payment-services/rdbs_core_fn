@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState, Suspense } from 'react'
+import React, { useEffect, useRef, useState, Suspense } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -66,6 +66,13 @@ interface ApiPartner {
 const NETWORK_TELECOM_BANK_CHARGE: Record<'MTN' | 'AIRTEL', number> = {
   MTN: 1.5,
   AIRTEL: 2,
+}
+
+function computeMnoRukapayFee(
+  feePercentage: number | undefined,
+  telecomBankCharge: number | undefined,
+): number {
+  return Number((Number(feePercentage ?? 0) - Number(telecomBankCharge ?? 0)).toFixed(4))
 }
 
 function CreateTariffPage() {
@@ -220,27 +227,47 @@ function CreateTariffPage() {
 
   const partners: Partner[] = partnersData || []
   const apiPartners: ApiPartner[] = apiPartnersData || []
+  const prevNetworkRef = useRef<string | undefined>(undefined)
 
+  const isExternalMnoToWallet =
+    form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+
+  // Prefill telecom charge from network default only when network changes
   useEffect(() => {
-    const isExternalMnoToWallet = form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
-    if (!isExternalMnoToWallet || !form.network || form.feePercentage === undefined || form.feePercentage === null) {
+    if (!isExternalMnoToWallet || !form.network) {
+      prevNetworkRef.current = undefined
+      return
+    }
+
+    if (form.network === prevNetworkRef.current) {
       return
     }
 
     const telecomCharge = NETWORK_TELECOM_BANK_CHARGE[form.network]
-    const computedRukapayFee = Number((Number(form.feePercentage) - telecomCharge).toFixed(4))
+    prevNetworkRef.current = form.network
+
+    setForm((prev) => ({
+      ...prev,
+      telecomBankCharge: telecomCharge,
+      rukapayFee: computeMnoRukapayFee(prev.feePercentage, telecomCharge),
+    }))
+  }, [isExternalMnoToWallet, form.network])
+
+  // Always recalculate RukaPay fee when fee percentage or telecom charge changes
+  useEffect(() => {
+    if (!isExternalMnoToWallet || form.feePercentage === undefined || form.feePercentage === null) {
+      return
+    }
+
+    const computedRukapayFee = computeMnoRukapayFee(form.feePercentage, form.telecomBankCharge)
 
     setForm((prev) => {
-      if (prev.telecomBankCharge === telecomCharge && prev.rukapayFee === computedRukapayFee) {
+      if (prev.rukapayFee === computedRukapayFee) {
         return prev
       }
-      return {
-        ...prev,
-        telecomBankCharge: telecomCharge,
-        rukapayFee: computedRukapayFee,
-      }
+      return { ...prev, rukapayFee: computedRukapayFee }
     })
-  }, [form.tariffType, form.transactionType, form.network, form.feePercentage])
+  }, [isExternalMnoToWallet, form.feePercentage, form.telecomBankCharge])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -376,6 +403,19 @@ function CreateTariffPage() {
       ...prev,
       [field]: value,
     }))
+  }
+
+  const handleTelecomBankChargeChange = (value: number) => {
+    if (isExternalMnoToWallet) {
+      setForm((prev) => ({
+        ...prev,
+        telecomBankCharge: value,
+        rukapayFee: computeMnoRukapayFee(prev.feePercentage, value),
+      }))
+      return
+    }
+
+    handleInputChange('telecomBankCharge', value)
   }
 
   if (!canCreateTariffs) {
@@ -1064,11 +1104,10 @@ function CreateTariffPage() {
                           onChange={(e) => handleInputChange('rukapayFee', parseFloat(e.target.value) || 0)}
                           placeholder="0"
                           step="0.001"
-                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
-                            ? 'Auto-calculated as Fee Percentage - Telecom/Bank Charge. Can be negative.'
+                          {isExternalMnoToWallet
+                            ? 'Auto-calculated as Fee Percentage − Telecom/Bank Charge whenever either changes. Can be negative.'
                             : 'Decimal percentage. Can be negative (e.g., -0.002).'}
                         </p>
                       </div>
@@ -1079,14 +1118,15 @@ function CreateTariffPage() {
                           id="telecomBankCharge"
                           type="number"
                           value={form.telecomBankCharge}
-                          onChange={(e) => handleInputChange('telecomBankCharge', parseFloat(e.target.value) || 0)}
+                          onChange={(e) =>
+                            handleTelecomBankChargeChange(parseFloat(e.target.value) || 0)
+                          }
                           placeholder="0"
                           step="0.001"
-                          disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          {form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
-                            ? 'Auto-set by network: MTN = 1.5%, AIRTEL = 2.0%.'
+                          {isExternalMnoToWallet
+                            ? 'Defaults from network (MTN 1.5%, AIRTEL 2%) but editable when rates change.'
                             : 'Optional decimal percentage (e.g., 0.001 = 0.1%).'}
                         </p>
                       </div>

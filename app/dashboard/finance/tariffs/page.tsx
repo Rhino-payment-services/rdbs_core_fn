@@ -826,20 +826,8 @@ const TariffsPage = () => {
                         : '-'
                       }
                     </TableCell>
-                    <TableCell className="max-w-[220px] min-w-[10rem] align-top text-sm whitespace-normal break-words">
-                      <Badge variant="outline" className="whitespace-nowrap">
-                        {getTransactionTypeLabel(tariff.transactionType, tariff)}
-                      </Badge>
-                      {(() => {
-                        const spreadLine =
-                          tariff.transactionType === 'WALLET_TO_PARTNER_INSTITUTION'
-                            ? formatInstitutionSpreadFromMetadata(tariff.metadata) ??
-                              'SACCO: full principal (no spread in metadata)'
-                            : null
-                        return spreadLine ? (
-                          <p className="mt-1 text-xs leading-snug text-muted-foreground">{spreadLine}</p>
-                        ) : null
-                      })()}
+                    <TableCell className="text-sm">
+                      <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType, tariff)}</Badge>
                     </TableCell>
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
