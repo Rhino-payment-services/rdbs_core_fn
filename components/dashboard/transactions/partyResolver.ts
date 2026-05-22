@@ -402,16 +402,20 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   }
 
   if (side === 'receiver' && isMerchantOutboundDebit) {
+    let receiverLabel = String(metadata?.receiverName || '').trim()
+    if (receiverLabel.includes(' · ')) {
+      receiverLabel = receiverLabel.split(' · ')[0].trim()
+    }
     const beneficiaryName = firstMeaningfulName(
       [
-        info?.name,
         metadata?.recipientName,
-        metadata?.receiverName,
         metadata?.accountName,
         metadata?.customerName,
         metadata?.validationResult?.customerName,
         metadata?.mnoReceiverValidation?.data?.customerName,
         metadata?.mnoReceiverValidation?.data?.name,
+        receiverLabel,
+        info?.name,
       ],
       contact,
     )

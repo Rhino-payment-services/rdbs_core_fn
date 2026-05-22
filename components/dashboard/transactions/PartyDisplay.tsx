@@ -15,8 +15,10 @@ export const PartyDisplay = ({ info, nameClassName, extras }: PartyDisplayProps)
         {info.institutionLine}
       </span>
     )}
-    {info.contact && (
-      <span className="text-xs text-gray-500">📱 {info.contact}</span>
+    {(info.smsRecipientPhone || info.contact) && (
+      <span className="text-xs text-gray-500">
+        📱 {info.smsRecipientPhone ? `SMS: ${info.smsRecipientPhone}` : info.contact}
+      </span>
     )}
     {info.merchantCode && !info.institutionLine && (
       <span className="text-xs text-gray-500">🏪 Code: {info.merchantCode}</span>
