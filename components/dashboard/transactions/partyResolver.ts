@@ -553,11 +553,21 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   }
 
   if (side === 'receiver' && isMerchantToWalletCredit) {
+    const merchantBiz = String(
+      metadata?.merchantName || metadata?.initiatingMerchantName || info?.merchantName || '',
+    ).trim().toLowerCase()
+    const isMerchantLabel = (value: unknown) => {
+      const label = String(value ?? '').trim().toLowerCase()
+      if (!label) return true
+      if (merchantBiz && label === merchantBiz) return true
+      if (merchantBiz && merchantBiz.length >= 4 && label.includes(merchantBiz)) return true
+      return false
+    }
     const subscriberName = firstMeaningfulName(
       [
-        info?.name,
-        metadata?.recipientName,
-        metadata?.receiverName,
+        !isMerchantLabel(info?.name) ? info?.name : null,
+        !isMerchantLabel(metadata?.recipientName) ? metadata?.recipientName : null,
+        !isMerchantLabel(metadata?.receiverName) ? metadata?.receiverName : null,
         userProfileName,
       ],
       contact,
