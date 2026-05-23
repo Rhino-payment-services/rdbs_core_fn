@@ -10,8 +10,6 @@ import api from '@/lib/axios'
 import { useSweepCollectionToDisbursement } from '@/lib/hooks/useWallets'
 import toast from 'react-hot-toast'
 
-const SWEEP_FEE_PERCENT = 2.5
-
 interface LiquidateToDisbursementModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -95,9 +93,7 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
 
   const currency = collectionWallet?.currency || disbursementWallet?.currency || 'UGX'
 
-  const gross = parseFloat(amountInput) || 0
-  const fee = Number((gross * SWEEP_FEE_PERCENT / 100).toFixed(0))
-  const net = gross - fee
+  const amount = parseFloat(amountInput) || 0
 
   const canLiquidate =
     !!collectionWallet &&
@@ -105,10 +101,9 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
     collectionWallet.id !== disbursementWallet.id
 
   const isValidAmount =
-    gross > 0 &&
-    net > 0 &&
-    gross <= collectionBalance &&
-    !Number.isNaN(gross) &&
+    amount > 0 &&
+    amount <= collectionBalance &&
+    !Number.isNaN(amount) &&
     canLiquidate
 
   const handleClose = () => {
@@ -120,16 +115,15 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
   const handleConfirm = async () => {
     if (!isValidAmount || !userId) return
     try {
-      await sweepMutation.mutateAsync({
+      const result = await sweepMutation.mutateAsync({
         userId,
-        amount: gross,
+        amount,
         merchantCode,
       })
+      const credited =
+        (result as { netToDisbursement?: number })?.netToDisbursement ?? amount
       toast.success(
-        `Liquidated ${formatCurrency(gross, currency)} gross → ${formatCurrency(
-          net,
-          currency,
-        )} to disbursement`,
+        `Transferred ${formatCurrency(credited, currency)} to disbursement (no transfer fee)`,
       )
       setAmountInput('')
       onOpenChange(false)
@@ -186,7 +180,7 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
               </div>
 
               <div>
-                <Label htmlFor="liquidate-amount">Gross amount ({currency})</Label>
+                <Label htmlFor="liquidate-amount">Amount ({currency})</Label>
                 <Input
                   id="liquidate-amount"
                   type="number"
@@ -194,10 +188,10 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
                   max={collectionBalance}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  placeholder="Enter gross amount to liquidate"
+                  placeholder="Enter amount to transfer"
                   className="mt-2"
                 />
-                {gross > collectionBalance && (
+                {amount > collectionBalance && (
                   <p className="mt-1 flex items-center gap-1 text-xs text-red-600">
                     <AlertCircle className="h-3 w-3" />
                     Amount exceeds collection balance
@@ -205,22 +199,13 @@ const LiquidateToDisbursementModal: React.FC<LiquidateToDisbursementModalProps> 
                 )}
               </div>
 
-              {gross > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1 text-sm">
-                  <div className="flex justify-between text-gray-700">
-                    <span>Gross amount</span>
-                    <span className="font-medium">
-                      {formatCurrency(gross, currency)}
-                    </span>
+              {amount > 0 && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <div className="flex justify-between font-semibold">
+                    <span>To disbursement</span>
+                    <span>{formatCurrency(amount, currency)}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>RukaPay fee ({SWEEP_FEE_PERCENT}%)</span>
-                    <span>− {formatCurrency(fee, currency)}</span>
-                  </div>
-                  <div className="mt-1 flex justify-between border-t border-amber-200 pt-1 font-semibold text-green-700">
-                    <span>Net to disbursement</span>
-                    <span>{formatCurrency(net, currency)}</span>
-                  </div>
+                  <p className="text-xs mt-1">No transfer fee (collection fees already applied).</p>
                 </div>
               )}
 
