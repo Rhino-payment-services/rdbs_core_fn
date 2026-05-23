@@ -369,10 +369,25 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   const userProfileName = fullNameFromProfile(tx?.user?.profile)
   const counterpartyProfileName = fullNameFromProfile(tx?.counterpartyUser?.profile)
 
+  const walletType = upper(
+    tx?.wallet?.walletType || metadata?.walletType || metadata?.recipientWalletType,
+  )
+  const isBusinessWallet =
+    walletType === 'BUSINESS' ||
+    walletType === 'BUSINESS_COLLECTION' ||
+    walletType === 'BUSINESS_DISBURSEMENT' ||
+    walletType === 'BUSINESS_LIQUIDATION' ||
+    walletType === 'ESCROW' ||
+    walletType === 'PARTNER'
+
   const isMerchantCollectionFlow =
     type.includes('MNO_TO_WALLET') &&
     direction === 'CREDIT' &&
-    !!(metadata?.merchantCode || metadata?.merchantName || metadata?.isPublicPayment)
+  (metadata?.paymentType === 'MERCHANT_COLLECTION' ||
+      metadata?.isPublicPayment === true ||
+      (isBusinessWallet &&
+        !!(metadata?.merchantCode || metadata?.merchantName)) ||
+      upper(tx?.channel) === 'MERCHANT_PORTAL')
 
   const isMerchantOutboundDebit =
     direction === 'DEBIT' &&
@@ -383,7 +398,8 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       type.includes('UTILIT')) &&
     (upper(tx?.channel) === 'MERCHANT_PORTAL' ||
       !!tx?.bulkTransactionId ||
-      metadata?.bulkPayment === true)
+      metadata?.bulkPayment === true ||
+      isBusinessWallet)
 
   if (side === 'sender' && isMerchantOutboundDebit && info?.type === 'MERCHANT') {
     const merchantName =
@@ -441,13 +457,31 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   // For merchant collections, sender is always the paying customer (not merchant account).
   if (side === 'sender' && isMerchantCollectionFlow) {
+    const portalUser = String(metadata?.userName || '').trim().toLowerCase()
+    const merchantBiz = String(metadata?.merchantName || '').trim().toLowerCase()
+    const senderRaw = String(metadata?.senderName || '').trim()
+    const senderLower = senderRaw.toLowerCase()
+    const senderLooksLikeMerchant =
+      !!senderLower &&
+      (senderLower === portalUser ||
+        senderLower === merchantBiz ||
+        (portalUser && portalUser.includes(senderLower)) ||
+        (portalUser && senderLower.split(/\s+/).length === 1 && portalUser.startsWith(senderLower)))
+
     const customerName =
       firstMeaningfulName(
         [
           metadata?.customerName,
-          metadata?.senderName,
+          metadata?.payerName,
+          metadata?.mnoReceiverValidation?.data?.customerName,
+          metadata?.mnoReceiverValidation?.data?.name,
+          metadata?.validationResult?.customerName,
+          metadata?.validationResult?.data?.customerName,
+          metadata?.senderType === 'EXTERNAL_MNO' && !senderLooksLikeMerchant
+            ? metadata?.senderName
+            : null,
         ],
-        contact
+        contact,
       ) || 'Customer'
     const customerContact =
       contact ||

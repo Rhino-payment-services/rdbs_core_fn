@@ -353,9 +353,20 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
       merchantCode = metadata.merchantCode || null
       badgeType = 'MERCHANT'
     } else if (transaction.type === 'MNO_TO_WALLET' || transaction.type?.includes('MNO_TO_WALLET')) {
-      name = metadata.mnoProvider ? `${metadata.mnoProvider} Mobile Money` : (metadata.userName || metadata.phoneNumber || 'Mobile Money')
-      contact = metadata.phoneNumber || null
-      badgeType = metadata.mnoProvider ? 'EXTERNAL_MNO' : null
+      const payerName = String(metadata.customerName || metadata.payerName || '').trim()
+      const portalUser = String(metadata.userName || '').trim().toLowerCase()
+      const looksLikeOwner =
+        payerName &&
+        portalUser &&
+        (payerName.toLowerCase() === portalUser ||
+          portalUser.startsWith(payerName.toLowerCase()))
+      name =
+        (payerName && !looksLikeOwner ? payerName : null) ||
+        (metadata.mnoProvider ? `${metadata.mnoProvider} Mobile Money` : null) ||
+        metadata.phoneNumber ||
+        'Customer'
+      contact = metadata.customerPhone || metadata.phoneNumber || null
+      badgeType = 'EXTERNAL_MNO'
     } else if (transaction.type === 'WALLET_TO_WALLET' || transaction.counterpartyUser || transaction.counterpartyId) {
       name = transaction.counterpartyUser?.profile?.firstName && transaction.counterpartyUser?.profile?.lastName
         ? `${transaction.counterpartyUser.profile.firstName} ${transaction.counterpartyUser.profile.lastName}`
