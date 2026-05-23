@@ -501,9 +501,81 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
-  const isMerchantToWalletDebit =
-    direction === 'DEBIT' &&
-    (type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET')
+  const isMerchantToWallet =
+    type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET'
+  const isMerchantToWalletDebit = direction === 'DEBIT' && isMerchantToWallet
+  const isMerchantToWalletCredit = direction === 'CREDIT' && isMerchantToWallet
+
+  // Merchant MNO collection (and similar) must run before MERCHANT_TO_WALLET overrides.
+  if (side === 'receiver' && isMerchantCollectionFlow) {
+    const merchantName =
+      metadata?.merchantName ||
+      (metadata?.merchantCode ? `Merchant (${metadata.merchantCode})` : null) ||
+      info?.merchantName ||
+      info?.name
+    return {
+      ...info,
+      type: 'MERCHANT',
+      name: merchantName,
+      merchantCode: metadata?.merchantCode || info?.merchantCode || null,
+      merchantName: metadata?.merchantName || info?.merchantName || null,
+      contact: null,
+    }
+  }
+
+  if (side === 'sender' && isMerchantToWalletCredit) {
+    const merchantName =
+      metadata?.initiatingMerchantName ||
+      metadata?.merchantName ||
+      metadata?.senderName ||
+      info?.merchantName ||
+      info?.name ||
+      (metadata?.initiatingMerchantCode || metadata?.merchantCode
+        ? `Merchant (${metadata.initiatingMerchantCode || metadata.merchantCode})`
+        : null) ||
+      'Merchant'
+    return {
+      ...info,
+      type: 'MERCHANT',
+      name: merchantName,
+      contact: null,
+      merchantCode:
+        metadata?.initiatingMerchantCode ||
+        metadata?.merchantCode ||
+        info?.merchantCode ||
+        null,
+      merchantName:
+        metadata?.initiatingMerchantName ||
+        metadata?.merchantName ||
+        info?.merchantName ||
+        merchantName,
+    }
+  }
+
+  if (side === 'receiver' && isMerchantToWalletCredit) {
+    const subscriberName = firstMeaningfulName(
+      [
+        info?.name,
+        metadata?.recipientName,
+        metadata?.receiverName,
+        userProfileName,
+      ],
+      contact,
+    )
+    const subscriberContact =
+      contact ||
+      String(metadata?.receiverPhone || metadata?.recipientPhone || '').trim() ||
+      tx?.user?.phone ||
+      null
+    return {
+      ...info,
+      type: 'SUBSCRIBER',
+      name: subscriberName || 'RukaPay User',
+      contact: subscriberContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
 
   if (side === 'sender' && isMerchantToWalletDebit) {
     const merchantName =
@@ -548,22 +620,6 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
-  if (side === 'receiver' && isMerchantCollectionFlow) {
-    const merchantName =
-      metadata?.merchantName ||
-      (metadata?.merchantCode ? `Merchant (${metadata.merchantCode})` : null) ||
-      info?.merchantName ||
-      info?.name
-    return {
-      ...info,
-      type: 'MERCHANT',
-      name: merchantName,
-      merchantCode: metadata?.merchantCode || info?.merchantCode || null,
-      merchantName: metadata?.merchantName || info?.merchantName || null,
-      contact: null,
-    }
-  }
-
   const roleSpecificCandidates = side === 'sender'
     ? [
         metadata.senderName,
@@ -573,7 +629,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
-        ...(isMerchantOutboundDebit ? [] : [metadata.merchantName]),
+        ...(isMerchantOutboundDebit || isMerchantToWalletCredit ? [] : [metadata.merchantName]),
         metadata.receiverName,
         metadata.recipientName,
         metadata.customerName,
