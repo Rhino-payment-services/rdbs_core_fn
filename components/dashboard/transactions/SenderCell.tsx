@@ -46,8 +46,41 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
     )
   }
 
-  const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
+  const isSweep =
+    metadata?.sweepToDisbursement ||
+    metadata?.sweepFromCollection ||
+    metadata?.internalWalletTransfer ||
+    (transaction.reference && String(transaction.reference).startsWith('SWEEP_'))
   const debitLabel = isSweep && (metadata?.debitWalletType || 'Collection')
+
+  if (isSweep) {
+    const business =
+      String(metadata?.merchantName || '').trim() ||
+      transaction.wallet?.merchant?.businessTradeName ||
+      transaction.user?.merchants?.find(
+        (m: { merchantCode?: string }) =>
+          m?.merchantCode && m.merchantCode === metadata?.merchantCode,
+      )?.businessTradeName ||
+      transaction.user?.merchant?.businessTradeName ||
+      'Merchant'
+    const direction = String(transaction.direction || '').toUpperCase()
+    const name =
+      direction === 'DEBIT'
+        ? business
+        : `${String(metadata?.debitWalletType || 'Collection').trim()} wallet`
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <span className="font-medium">{name}</span>
+          {debitLabel && (
+            <span className="text-xs text-amber-700 font-medium">
+              Debited: {metadata.debitWalletType || 'Collection'} wallet
+            </span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
 
   // LIQUIDATION: always show API partner + which SACCO (institution) — do not fall through to phone-only partner row.
   if (String(transaction.type || '').toUpperCase() === 'LIQUIDATION') {
