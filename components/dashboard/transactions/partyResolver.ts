@@ -501,6 +501,53 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
+  const isMerchantToWalletDebit =
+    direction === 'DEBIT' &&
+    (type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET')
+
+  if (side === 'sender' && isMerchantToWalletDebit) {
+    const merchantName =
+      metadata?.merchantName ||
+      (metadata?.merchantCode ? `Merchant (${metadata.merchantCode})` : null) ||
+      info?.merchantName ||
+      info?.name
+    return {
+      ...info,
+      type: 'MERCHANT',
+      name: merchantName || 'Merchant',
+      contact: null,
+      merchantCode: metadata?.merchantCode || info?.merchantCode || null,
+      merchantName: metadata?.merchantName || info?.merchantName || null,
+    }
+  }
+
+  if (side === 'receiver' && isMerchantToWalletDebit) {
+    const receiverLabel = firstMeaningfulName(
+      [
+        metadata?.recipientName,
+        metadata?.counterpartyInfo?.name,
+        tx?.counterpartyUser?.profile?.firstName &&
+        tx?.counterpartyUser?.profile?.lastName
+          ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.trim()
+          : null,
+      ],
+      contact,
+    )
+    const beneficiaryContact =
+      String(metadata?.recipientPhone || metadata?.recipientPhoneNumber || '').trim() ||
+      tx?.counterpartyUser?.phone ||
+      contact ||
+      null
+    return {
+      ...info,
+      type: 'SUBSCRIBER',
+      name: receiverLabel || 'RukaPay User',
+      contact: beneficiaryContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
   if (side === 'receiver' && isMerchantCollectionFlow) {
     const merchantName =
       metadata?.merchantName ||
