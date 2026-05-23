@@ -57,8 +57,41 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
     )
   }
 
-  const isSweep = metadata?.sweepToDisbursement || metadata?.sweepFromCollection
+  const isSweep =
+    metadata?.sweepToDisbursement ||
+    metadata?.sweepFromCollection ||
+    metadata?.internalWalletTransfer ||
+    (transaction.reference && String(transaction.reference).startsWith('SWEEP_'))
   const creditLabel = isSweep && (metadata?.creditWalletType || 'Disbursement')
+
+  if (isSweep) {
+    const business =
+      String(metadata?.merchantName || '').trim() ||
+      transaction.wallet?.merchant?.businessTradeName ||
+      transaction.user?.merchants?.find(
+        (m: { merchantCode?: string }) =>
+          m?.merchantCode && m.merchantCode === metadata?.merchantCode,
+      )?.businessTradeName ||
+      transaction.user?.merchant?.businessTradeName ||
+      'Merchant'
+    const direction = String(transaction.direction || '').toUpperCase()
+    const name =
+      direction === 'CREDIT'
+        ? business
+        : `${String(metadata?.creditWalletType || 'Disbursement').trim()} wallet`
+    return (
+      <TableCell>
+        <div className="flex flex-col gap-[0.5px]">
+          <span className="font-medium">{name}</span>
+          {creditLabel && (
+            <span className="text-xs text-green-700 font-medium">
+              Credited: {metadata.creditWalletType || 'Disbursement'} wallet
+            </span>
+          )}
+        </div>
+      </TableCell>
+    )
+  }
 
   // Prefer API-provided receiverInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.receiverInfo) {
