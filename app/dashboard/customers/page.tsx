@@ -227,90 +227,77 @@ const CustomersPage = () => {
     }
   }
 
-  // Export merchants to CSV - fetches all merchants
+  // Merchant export: original profile columns + activity / TPV columns
   const exportMerchantsToCSV = async () => {
     try {
-      // Fetch all merchants (no pagination for export)
       const response = await api({
-        url: '/merchant-kyc/all',
+        url: '/merchant-kyc/activity-export',
         method: 'GET',
-        params: {
-          pageSize: 10000, // Large page size to get all merchants
-        },
       })
-      
-      const merchantsData = response.data?.merchants || response.data?.data || []
-      
-      if (!merchantsData || merchantsData.length === 0) {
+
+      const payload = response.data?.data ?? response.data
+      const rows = payload?.rows ?? []
+
+      if (!rows.length) {
         toast.error('No merchants to export')
         return
       }
-      
-      // Debug: Log first merchant structure to understand data format
-      if (merchantsData.length > 0) {
-        console.log('📊 First merchant data structure:', merchantsData[0])
-        console.log('📊 Available fields:', Object.keys(merchantsData[0]))
+
+      const escapeCSV = (value: string | number) => {
+        const s = String(value ?? '')
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return `"${s.replace(/"/g, '""')}"`
+        }
+        return s
       }
 
-    // Define CSV headers
-    const headers = ['Name', 'Owner', 'Status', 'Joined', 'Phone', 'Email', 'Merchant Code']
-    
-    // Convert merchants data to CSV rows
-    const csvRows = merchantsData.map((merchant: any) => {
-      const name = merchant.businessTradeName || 'Unknown Business'
-      const owner = `${merchant.ownerFirstName || ''} ${merchant.ownerLastName || ''}`.trim() || 'N/A'
-      const status = merchant.isVerified ? 'Verified' : 'Pending'
-      const joined = merchant.onboardedAt 
-        ? new Date(merchant.onboardedAt).toLocaleDateString('en-US', {
+      const formatJoined = (joined: string) => {
+        if (!joined) return 'N/A'
+        try {
+          return new Date(joined).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
-            day: 'numeric'
+            day: 'numeric',
           })
-        : 'N/A'
-      
-      // API returns phone and email directly on merchant object (mapped from registeredPhoneNumber and businessEmail)
-      // Try phone first (API response), then fallback to registeredPhoneNumber (direct DB field)
-      const phone = merchant.phone 
-        || merchant.registeredPhoneNumber 
-        || merchant.user?.phone 
-        || merchant.user?.registeredPhoneNumber
-        || 'N/A'
-      
-      // Try email first (API response), then fallback to businessEmail (direct DB field)
-      const email = merchant.email 
-        || merchant.businessEmail 
-        || merchant.user?.email 
-        || merchant.user?.businessEmail
-        || 'N/A'
-      
-      const merchantCode = merchant.merchantCode || 'N/A'
-      
-      // Escape commas and quotes in CSV values
-      const escapeCSV = (value: string) => {
-        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-          return `"${value.replace(/"/g, '""')}"`
+        } catch {
+          return joined
         }
-        return value
       }
-      
-      return [
-        escapeCSV(name),
-        escapeCSV(owner),
-        escapeCSV(status),
-        escapeCSV(joined),
-        escapeCSV(phone),
-        escapeCSV(email),
-        escapeCSV(merchantCode)
-      ].join(',')
-    })
-    
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(','),
-      ...csvRows
-    ].join('\n')
-    
-      // Create blob and download
+
+      const headers = [
+        'Name',
+        'Owner',
+        'Status',
+        'Joined',
+        'Phone',
+        'Email',
+        'Merchant Code',
+        'Activation Status',
+        'Total Processed Value (UGX)',
+        'Activity Status',
+        'Total Fees (UGX)',
+        'Transaction Count',
+      ]
+
+      const csvRows = rows.map((row: any) =>
+        [
+          escapeCSV(row.name ?? row.merchantName),
+          escapeCSV(row.owner),
+          escapeCSV(row.status),
+          escapeCSV(formatJoined(row.joined)),
+          escapeCSV(row.phone),
+          escapeCSV(row.email),
+          escapeCSV(row.merchantCode ?? row.merchantId),
+          escapeCSV(row.activationStatus),
+          escapeCSV(row.totalProcessedValueUgx),
+          escapeCSV(row.activityStatus),
+          escapeCSV(row.totalFeesUgx),
+          escapeCSV(row.transactionCount),
+        ].join(','),
+      )
+
+      const csvContent = [headers.join(','), ...csvRows].join('\n')
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
@@ -320,6 +307,8 @@ const CustomersPage = () => {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported ${rows.length} merchants with activity data`)
     } catch (error) {
       console.error('Error exporting merchants:', error)
       throw error
