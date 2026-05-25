@@ -389,7 +389,13 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         !!(metadata?.merchantCode || metadata?.merchantName)) ||
       upper(tx?.channel) === 'MERCHANT_PORTAL')
 
+  const isPartnerOutboundSend =
+    side === 'sender' &&
+    isApiDrivenTransaction(tx) &&
+    getPartnerRole(tx) === 'sender'
+
   const isMerchantOutboundDebit =
+    !isPartnerOutboundSend &&
     direction === 'DEBIT' &&
     (type.includes('WALLET_TO_MNO') ||
       type.includes('WALLET_TO_BANK') ||
@@ -400,6 +406,17 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       !!tx?.bulkTransactionId ||
       metadata?.bulkPayment === true ||
       isBusinessWallet)
+
+  if (isPartnerOutboundSend) {
+    return {
+      ...info,
+      type: 'PARTNER',
+      name: partnerDisplay.primary,
+      contact: contact || partnerDisplay.secondary || null,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
 
   if (side === 'sender' && isMerchantOutboundDebit && info?.type === 'MERCHANT') {
     const merchantName =
