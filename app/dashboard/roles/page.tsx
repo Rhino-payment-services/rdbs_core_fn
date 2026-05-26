@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import {
   Shield,
   Plus,
@@ -21,6 +22,13 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { useRoles, useCreateRole, useUpdateRole, useDeleteRole } from '@/lib/hooks/useApi'
 import { useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import { PERMISSION_GROUPS } from '@/lib/constants/permissionCatalog'
@@ -397,8 +405,8 @@ export default function RolesPage() {
       fallback={
         <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <main className="p-6">
-            <div className="dashboard-shell flex items-center justify-center py-24">
+          <main className={DASHBOARD_MAIN_CLASS}>
+          <div className={`${dashboardPageShellClass} flex items-center justify-center py-24`}>
               <div className="text-center">
                 <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
@@ -411,8 +419,8 @@ export default function RolesPage() {
     >
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell space-y-6">
+        <main className={DASHBOARD_MAIN_CLASS}>
+          <div className={`${dashboardPageShellClass} space-y-6`}>
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>

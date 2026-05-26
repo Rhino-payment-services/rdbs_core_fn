@@ -3,6 +3,14 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { CustomerProfileContent } from '@/components/dashboard/customers/profile/CustomerProfileContent'
 import { CustomerProfileError } from '@/components/dashboard/customers/profile/CustomerProfileError'
 import { CustomerProfileLoading } from '@/components/dashboard/customers/profile/CustomerProfileLoading'
@@ -258,11 +266,14 @@ const CustomerProfilePage = () => {
   const ownerName = merchantData ? `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() : undefined
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="px-4 py-6">
-        <div className="dashboard-shell">
-          {/* Super Merchant confirmation modals */}
+    <DashboardPageLayout>
+      <DashboardBreadcrumbs
+        items={[
+          ...getDashboardPageCrumbs('customers'),
+          { label: type === 'partner' ? 'Partner' : type === 'merchant' ? 'Merchant' : 'Subscriber' },
+        ]}
+      />
+        {/* Super Merchant confirmation modals */}
           <SuperMerchantConfirmModal
             open={grantModalOpen}
             onOpenChange={setGrantModalOpen}
@@ -321,9 +332,7 @@ const CustomerProfilePage = () => {
             isSuperAdmin={isSuperAdmin}
             partnerWallets={partnerWallets || []}
           />
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

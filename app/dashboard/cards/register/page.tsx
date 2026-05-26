@@ -10,6 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { useCreateSystemCard } from '@/lib/hooks/useCards'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import toast from 'react-hot-toast'
 
 export default function RegisterCardPage() {
@@ -71,9 +79,8 @@ export default function RegisterCardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="dashboard-shell dashboard-shell--form p-6">
+    <DashboardPageLayout variant="form">
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('cards/register')} />
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
             <CreditCard className="h-8 w-8 text-[#08163d]" />
@@ -226,8 +233,7 @@ export default function RegisterCardPage() {
             </CardContent>
           </Card>
         </form>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

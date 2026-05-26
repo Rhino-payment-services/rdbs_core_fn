@@ -4,9 +4,12 @@ import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'reac
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import {
   Dialog,
   DialogContent,
@@ -266,31 +269,22 @@ function TariffsNewPageContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6 flex items-center justify-center min-h-[60vh]">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/tariffs-new')} />
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-3" />
             <p className="text-gray-600 mb-4">Could not load tariffs</p>
             <Button onClick={handleRefresh}>Try again</Button>
           </div>
-        </main>
-      </div>
+        </div>
+      </DashboardPageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className={DASHBOARD_MAIN_CLASS}>
-        <div className={dashboardPageShellClass}>
-          <nav className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <Link href="/dashboard/finance" className="hover:text-[#08163d]">
-              Finance
-            </Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-900 font-medium">Tariffs (new)</span>
-          </nav>
+    <DashboardPageLayout>
+      <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/tariffs-new')} />
 
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
             <div className="flex items-start gap-3">
@@ -420,8 +414,6 @@ function TariffsNewPageContent() {
               )}
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
 
       <TariffViewDialog tariff={viewTariff} open={viewOpen} onOpenChange={setViewOpen} />
 
@@ -482,7 +474,7 @@ function TariffsNewPageContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

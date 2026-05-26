@@ -2,19 +2,23 @@
 
 import React from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import PermissionsDemo from '@/components/PermissionsDemo'
 
 const TestPermissionsPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell dashboard-shell--form">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Permissions Test Page</h1>
+    <DashboardPageLayout variant="form">
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('test-permissions')} />
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Permissions Test Page</h1>
           <PermissionsDemo />
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

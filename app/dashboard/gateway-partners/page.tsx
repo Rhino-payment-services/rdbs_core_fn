@@ -2,6 +2,14 @@
 
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -90,60 +98,43 @@ const GatewayPartnersPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="text-center">
-                <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load Partners</h1>
-                <p className="text-gray-600 mb-4">Unable to retrieve gateway partner data.</p>
-                <Button onClick={() => refetch()}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </Button>
-              </div>
-            </div>
+      <DashboardPageLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load Partners</h1>
+            <p className="text-gray-600 mb-4">Unable to retrieve gateway partner data.</p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
           </div>
-        </main>
-      </div>
+        </div>
+      </DashboardPageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* Breadcrumbs */}
-          <div className="mb-4">
-            <nav className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/dashboard" className="hover:text-gray-800">Dashboard</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span className="font-semibold text-gray-900">Gateway Partners</span>
-            </nav>
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Gateway Partners</h1>
-              <p className="text-gray-600">Manage partners who use RukaPay as a gateway to send money to Uganda</p>
-            </div>
-            <div className="flex space-x-3">
-              <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
+    <DashboardPageLayout>
+      <DashboardBreadcrumbs items={getDashboardPageCrumbs('gateway-partners')} />
+      <DashboardPageHeader
+        title="Gateway Partners"
+        description="Manage partners who use RukaPay as a gateway to send money to Uganda"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            {canManagePartners && (
+              <Button onClick={() => router.push('/dashboard/gateway-partners/create')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Partner
               </Button>
-              {canManagePartners && (
-                <Button onClick={() => router.push('/dashboard/gateway-partners/create')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Partner
-                </Button>
-              )}
-            </div>
-          </div>
+            )}
+          </>
+        }
+      />
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -379,9 +370,7 @@ const GatewayPartnersPage = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

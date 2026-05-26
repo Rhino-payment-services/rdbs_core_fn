@@ -4,6 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/dashboard/Navbar';
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { PermissionGuard } from '@/components/ui/PermissionGuard';
 import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -233,11 +241,9 @@ export default function ProductsPage() {
   // Check if user has permission to view this page
   if (!hasPermission(PERMISSIONS.PRODUCTS_VIEW)) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="text-center py-12">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('products')} />
+        <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
               <p className="text-gray-600 mb-6">
@@ -248,29 +254,13 @@ export default function ProductsPage() {
                 Back to Dashboard
               </Button>
             </div>
-          </div>
-        </main>
-      </div>
+    </DashboardPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* Breadcrumbs */}
-          <div className="mb-4">
-            <nav className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/dashboard" className="hover:text-[#08163d]">
-                Dashboard
-              </Link>
-              <ChevronRight className="h-4 w-4" />
-              <span className="text-gray-900 font-medium">Products</span>
-            </nav>
-          </div>
-
-          {/* Header */}
+    <DashboardPageLayout>
+        {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -553,9 +543,7 @@ export default function ProductsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   );
 }
 

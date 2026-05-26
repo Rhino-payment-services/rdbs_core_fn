@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { 
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
   Wallet, 
   Plus, 
   CreditCard, 
@@ -27,6 +28,13 @@ import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import type { Wallet as WalletType } from '@/lib/types/api'
 import { useRouter } from 'next/navigation'
 
@@ -379,11 +387,9 @@ const WalletPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* Header */}
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('wallet')} />
+        {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
@@ -1411,9 +1417,7 @@ const WalletPage = () => {
               )}
             </DialogContent>
           </Dialog>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

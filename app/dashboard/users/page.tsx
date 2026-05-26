@@ -1,6 +1,14 @@
 "use client"
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -191,49 +199,46 @@ const UsersPage = () => {
         </div>
       }
     >
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-                <p className="text-gray-600 mt-2">Manage your users and their permissions</p>
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('users')} />
+        <DashboardPageHeader
+          title="Users"
+          description="Manage your users and their permissions"
+          actions={
+            <>
+              <div className="text-right hidden sm:block">
+                <p className="text-sm text-gray-600">Available Roles</p>
+                <p className="text-lg font-semibold text-gray-900">{rolesArray.length}</p>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Available Roles</p>
-                  <p className="text-lg font-semibold text-gray-900">{rolesArray.length}</p>
-                </div>
-                <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
-                  <Link href="/dashboard/users/permissions">
-                    <Button variant="outline" className="border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white">
-                      <Key className="w-4 h-4 mr-2" />
-                      Manage Permissions
-                    </Button>
-                  </Link>
-                </PermissionGuard>
-                <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
-                  <Button
-                    variant="outline"
-                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
-                    onClick={() => setMergeModalOpen(true)}
-                  >
-                    <Merge className="w-4 h-4 mr-2" />
-                    Merge Duplicates
+              <PermissionGuard permission={PERMISSIONS.ROLES_ASSIGN}>
+                <Link href="/dashboard/users/permissions">
+                  <Button variant="outline" className="border-[#08163d] text-[#08163d] hover:bg-[#08163d] hover:text-white">
+                    <Key className="w-4 h-4 mr-2" />
+                    Manage Permissions
                   </Button>
-                </PermissionGuard>
-                <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
-                  <Link href="/dashboard/users/create">
-                    <Button className="!bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0">
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Add User
-                    </Button>
-                  </Link>
-                </PermissionGuard>
-              </div>
-            </div>
+                </Link>
+              </PermissionGuard>
+              <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
+                <Button
+                  variant="outline"
+                  className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                  onClick={() => setMergeModalOpen(true)}
+                >
+                  <Merge className="w-4 h-4 mr-2" />
+                  Merge Duplicates
+                </Button>
+              </PermissionGuard>
+              <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
+                <Link href="/dashboard/users/create">
+                  <Button className="!bg-[#08163d] hover:!bg-[#0a1f4f] !text-white border-0">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add User
+                  </Button>
+                </Link>
+              </PermissionGuard>
+            </>
+          }
+        />
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
@@ -457,8 +462,7 @@ const UsersPage = () => {
             </CardContent>
           </Card>
 
-        </div>
-      </main>
+      </DashboardPageLayout>
 
       {/* Permission Editing Modal */}
       {selectedUserForPermissions && (
@@ -475,7 +479,6 @@ const UsersPage = () => {
         isOpen={mergeModalOpen}
         onClose={() => setMergeModalOpen(false)}
       />
-    </div>
     </PermissionGuard>
   )
 }

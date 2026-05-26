@@ -2,6 +2,14 @@
 
 import React, { useMemo, useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -362,11 +370,9 @@ export default function ActivityLogPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* header */}
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('activity')} />
+        {/* header */}
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-1">Activity Log</h1>
@@ -446,8 +452,6 @@ export default function ActivityLogPage() {
               <LogTable tab="internal" timeRange={timeRange} onTimeRangeChange={setTimeRange} />
             </TabsContent>
           </Tabs>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }

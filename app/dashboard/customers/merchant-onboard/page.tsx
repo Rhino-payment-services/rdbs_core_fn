@@ -1,6 +1,14 @@
 "use client"
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardScrollLayout } from '@/components/dashboard/DashboardScrollLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -386,7 +394,7 @@ const MerchantOnboardingPage = () => {
         <Navbar />
         
         <main className="flex-1 overflow-hidden relative">
-          <div className="h-full overflow-y-auto p-6">
+          <div className="h-full overflow-y-auto">
             <div className="dashboard-shell dashboard-shell--form">
               <div className="mb-8">
                 <div className="flex items-center gap-4 mb-4">

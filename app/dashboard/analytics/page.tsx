@@ -1,6 +1,14 @@
 "use client"
 import React, { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardScrollLayout } from '@/components/dashboard/DashboardScrollLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { 
   TrendingUp, 
   Users, 
@@ -146,9 +154,10 @@ const AnalyticsPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="dashboard-shell">
-            <div className="flex items-center justify-center min-h-[60vh]">
+        <main className="flex-1 overflow-y-auto">
+          <div className={dashboardPageShellClass}>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('analytics')} />
+        <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading permissions...</p>
@@ -165,8 +174,8 @@ const AnalyticsPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="dashboard-shell">
+        <main className="flex-1 overflow-y-auto">
+          <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <Card className="w-full max-w-md text-center">
                 <CardContent className="p-12">
@@ -498,9 +507,9 @@ const AnalyticsPage = () => {
       <main className="flex-1 overflow-hidden relative">
         <div 
           ref={scrollContainerRef}
-          className="h-full overflow-y-auto p-6"
+          className="h-full overflow-y-auto"
         >
-        <div className="dashboard-shell">
+        <div className={dashboardPageShellClass}>
             {/* Analytics Header */}
           <div className="mb-8">
               <div className="flex justify-between items-start">

@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -396,11 +404,9 @@ const ApiLogsPage = () => {
   }
 
   return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="mb-8">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('api-logs')} />
+        <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">System Monitoring</h1>
               <p className="text-gray-600 mt-2">Monitor system health, API logs, and analytics</p>
             </div>
@@ -1025,9 +1031,7 @@ const ApiLogsPage = () => {
                 )}
               </TabsContent>
             </Tabs>
-          </div>
-        </main>
-      </div>
+          </DashboardPageLayout>
   )
 }
 

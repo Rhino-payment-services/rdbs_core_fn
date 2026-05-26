@@ -6,6 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { RoleGuard } from '@/components/ui/PermissionGuard';
 import Navbar from '@/components/dashboard/Navbar';
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -307,7 +314,8 @@ export default function SuperMerchantsPage() {
     <RoleGuard role="SUPER_ADMIN" showFallback fallback={<AccessDeniedFallback />}>
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="dashboard-shell py-6 space-y-6">
+      <main className={DASHBOARD_MAIN_CLASS}>
+      <div className={`${dashboardPageShellClass} space-y-6`}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -738,6 +746,7 @@ export default function SuperMerchantsPage() {
         </DialogContent>
       </Dialog>
       </div>
+      </main>
     </div>
     </RoleGuard>
   );

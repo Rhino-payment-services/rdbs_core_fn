@@ -3,6 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/dashboard/Navbar';
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { PermissionGuard } from '@/components/ui/PermissionGuard';
 import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -328,11 +336,9 @@ export default function CarouselPage() {
   // For now, using a general admin permission check
   if (!hasPermission(PERMISSIONS.PRODUCTS_VIEW)) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="text-center py-12">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('carousel')} />
+        <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
               <p className="text-gray-600 mb-6">
@@ -343,18 +349,14 @@ export default function CarouselPage() {
                 Back to Dashboard
               </Button>
             </div>
-          </div>
-        </main>
-      </div>
+    </DashboardPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* Header */}
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('carousel')} />
+        {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Carousel Management</h1>
@@ -878,9 +880,7 @@ export default function CarouselPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   );
 }
 

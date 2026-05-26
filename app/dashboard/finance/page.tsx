@@ -1,6 +1,9 @@
 "use client"
 import React from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import {
   DASHBOARD_MAIN_CLASS,
   dashboardPageShellClass,
@@ -99,10 +102,8 @@ const FinancePage = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className={DASHBOARD_MAIN_CLASS}>
-        <div className={dashboardPageShellClass}>
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance')} />
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Finance</h1>
@@ -163,9 +164,7 @@ const FinancePage = () => {
             </CardContent>
           </Card>
         </div>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

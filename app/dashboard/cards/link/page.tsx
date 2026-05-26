@@ -10,6 +10,14 @@ import { Button } from '@/components/ui/button'
 import { useLinkCardToUser } from '@/lib/hooks/useCards'
 import { useUsers as useUsersList } from '@/lib/hooks/useAuth'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import toast from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 
@@ -128,9 +136,8 @@ function LinkCardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="dashboard-shell dashboard-shell--form py-6">
+    <DashboardPageLayout variant="form">
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('cards/link')} />
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
             <Link className="h-8 w-8 text-[#08163d]" />
@@ -370,8 +377,7 @@ function LinkCardContent() {
             </CardContent>
           </Card>
         </form>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 
@@ -380,13 +386,15 @@ export default function LinkCardPage() {
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="dashboard-shell dashboard-shell--form py-6">
+        <main className={DASHBOARD_MAIN_CLASS}>
+        <div className={dashboardFormShellClass}>
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d] mx-auto mb-4" />
               <p className="text-gray-600">Loading...</p>
             </div>
           </div>
+        </div>
         </main>
       </div>
     }>

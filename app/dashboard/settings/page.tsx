@@ -1,6 +1,14 @@
 "use client"
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GeneralSettings } from '@/components/dashboard/settings/GeneralSettings'
 import { SecuritySettings } from '@/components/dashboard/settings/SecuritySettings'
@@ -310,11 +318,9 @@ const SettingsPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          <div className="mb-8">
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('settings')} />
+        <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
             <p className="text-gray-600 mt-2">Manage your system configuration and preferences</p>
           </div>
@@ -604,9 +610,7 @@ const SettingsPage = () => {
             <BackupSettings />
           </TabsContent>
         </Tabs>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

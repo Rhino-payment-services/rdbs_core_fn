@@ -2,6 +2,8 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1020,7 +1022,8 @@ const TariffsPage = () => {
         <Navbar />
         <main className={DASHBOARD_MAIN_CLASS}>
           <div className={dashboardPageShellClass}>
-            <div className="flex items-center justify-center min-h-[60vh]">
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/tariffs')} />
+        <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load Tariffs</h1>

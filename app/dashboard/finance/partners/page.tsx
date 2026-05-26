@@ -1,6 +1,14 @@
 "use client"
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -138,11 +146,9 @@ const PartnersPage = () => {
 
   if (partnersError) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="flex items-center justify-center min-h-[60vh]">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/partners')} />
+        <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load Partners</h1>
@@ -153,29 +159,14 @@ const PartnersPage = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+          </DashboardPageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell">
-          {/* Breadcrumbs */}
-          <div className="mb-4">
-            <nav className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/dashboard" className="hover:text-gray-800">Dashboard</Link>
-              <ChevronRight className="h-3 w-3" />
-              <Link href="/dashboard/finance" className="hover:text-gray-800">Finance</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span className="font-semibold text-gray-900">Partners</span>
-            </nav>
-          </div>
-
-          {/* Header */}
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/partners')} />
+        {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <Button variant="outline" onClick={() => router.push('/dashboard/finance')} className="mb-4">
@@ -435,9 +426,7 @@ const PartnersPage = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

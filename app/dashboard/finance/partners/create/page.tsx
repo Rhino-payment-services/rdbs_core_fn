@@ -1,6 +1,14 @@
 "use client"
 import React, { useState } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -145,11 +153,9 @@ const CreatePartnerPage = () => {
 
   if (!canCreatePartners) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell">
-            <div className="flex items-center justify-center min-h-[60vh]">
+      <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('finance/partners/create')} />
+        <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
@@ -160,31 +166,13 @@ const CreatePartnerPage = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        </main>
-      </div>
+          </DashboardPageLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="p-6">
-        <div className="dashboard-shell dashboard-shell--form">
-          {/* Breadcrumbs */}
-          <div className="mb-4">
-            <nav className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/dashboard" className="hover:text-gray-800">Dashboard</Link>
-              <ChevronRight className="h-3 w-3" />
-              <Link href="/dashboard/finance" className="hover:text-gray-800">Finance</Link>
-              <ChevronRight className="h-3 w-3" />
-              <Link href="/dashboard/finance/partners" className="hover:text-gray-800">Partners</Link>
-              <ChevronRight className="h-3 w-3" />
-              <span className="font-semibold text-gray-900">Create Partner</span>
-            </nav>
-          </div>
-
-          {/* Header */}
+    <DashboardPageLayout variant="form">
+        {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <Button variant="outline" onClick={() => router.push('/dashboard/finance/partners')} className="mb-4">
@@ -317,9 +305,7 @@ const CreatePartnerPage = () => {
               </Button>
             </div>
           </form>
-        </div>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

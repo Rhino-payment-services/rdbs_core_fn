@@ -3,6 +3,11 @@ import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader'
+import { DashboardScrollLayout } from '@/components/dashboard/DashboardScrollLayout'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CustomerStats } from '@/components/dashboard/customers/CustomerStats'
 import { CustomerFilters } from '@/components/dashboard/customers/CustomerFilters'
@@ -1150,40 +1155,32 @@ const CustomersPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 overflow-hidden relative">
-        <div className="h-full overflow-y-auto px-4 py-6">
-          <div className="dashboard-shell">
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-              <p className="text-gray-600 mt-2">Manage your customer base</p>
-            </div>
-            <div className="flex items-center gap-3">
+    <DashboardScrollLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('customers')} />
+        <DashboardPageHeader
+          title="Customers"
+          description="Manage your customer base"
+          actions={
+            <>
               {isSuperAdmin && (
-                <button
+                <Button
+                  variant="outline"
+                  className="border-yellow-500 text-yellow-800 hover:bg-yellow-50"
                   onClick={() => router.push('/dashboard/customers/super-merchants')}
-                  className="flex items-center gap-2 border border-yellow-500 text-yellow-800 px-4 py-2 rounded-lg hover:bg-yellow-50"
                 >
-                  <Crown className="h-4 w-4" />
+                  <Crown className="h-4 w-4 mr-2" />
                   Super Merchants
-                </button>
+                </Button>
               )}
               <PermissionGuard permission={PERMISSIONS.MERCHANT_KYC_CREATE}>
-                <button
-                  onClick={() => router.push('/dashboard/customers/merchant-onboard')}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="h-4 w-4" />
+                <Button onClick={() => router.push('/dashboard/customers/merchant-onboard')}>
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Merchant
-                </button>
+                </Button>
               </PermissionGuard>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <CustomerStats stats={stats} />
 
@@ -1311,8 +1308,6 @@ const CustomersPage = () => {
             />
           </TabsContent>
         </Tabs>
-          </div>
-        </div>
 
         {/* Customer Details Modal */}
         <CustomerDetailsModal
@@ -1359,8 +1354,7 @@ const CustomersPage = () => {
           superMerchantAccounts={superMerchantAccountsForRevoke}
           onConfirm={handleConfirmRevoke}
         />
-      </main>
-    </div>
+    </DashboardScrollLayout>
   )
 }
 

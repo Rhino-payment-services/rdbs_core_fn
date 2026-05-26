@@ -36,7 +36,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useCards, useUpdateCardStatus, useActivateCard } from '@/lib/hooks/useCards'
-import Navbar from '@/components/dashboard/Navbar'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import toast from 'react-hot-toast'
 
 export default function CardsPage() {
@@ -110,19 +113,14 @@ export default function CardsPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="dashboard-shell">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <CreditCard className="h-8 w-8 text-[#08163d]" />
-              Cards Management
-            </h1>
-            <p className="text-gray-600 mt-2">Manage physical and virtual cards</p>
-          </div>
-          <div className="flex gap-3">
+    <DashboardPageLayout>
+      <DashboardBreadcrumbs items={getDashboardPageCrumbs('cards')} />
+      <DashboardPageHeader
+        title="Cards Management"
+        description="Manage physical and virtual cards"
+        icon={<CreditCard className="h-8 w-8 text-[#08163d]" />}
+        actions={
+          <>
             <Button
               variant="outline"
               onClick={() => router.push('/dashboard/cards/link')}
@@ -134,8 +132,9 @@ export default function CardsPage() {
               <Plus className="h-4 w-4 mr-2" />
               Register Card
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -315,8 +314,7 @@ export default function CardsPage() {
             )}
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </DashboardPageLayout>
   )
 }
 

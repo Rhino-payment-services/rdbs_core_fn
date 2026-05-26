@@ -1,6 +1,14 @@
 "use client"
 import React, { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardScrollLayout } from '@/components/dashboard/DashboardScrollLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { 
   TrendingUp, 
   Users, 
@@ -101,8 +109,8 @@ const DashboardPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="dashboard-shell">
+        <main className="flex-1 overflow-y-auto">
+          <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -120,8 +128,8 @@ const DashboardPage = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="dashboard-shell">
+        <main className="flex-1 overflow-y-auto">
+          <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <Card className="w-full max-w-md text-center">
                 <CardContent className="p-12">
@@ -191,15 +199,8 @@ const DashboardPage = () => {
   const hasData = chartData.some(item => item.volume > 0 || item.transactions > 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 overflow-hidden relative">
-        <div
-          ref={scrollContainerRef}
-          className="h-full overflow-y-auto"
-        >
-          <div className="dashboard-shell py-6">
+    <DashboardScrollLayout scrollRef={scrollContainerRef}>
+      <DashboardBreadcrumbs items={getDashboardPageCrumbs('')} />
             {/* Dashboard Header */}
             <div className="mb-4">
               <h1 className="text-2xl font-bold text-gray-900">
@@ -456,8 +457,6 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </div>
 
         {/* Scroll Direction Buttons */}
         {showScrollButtons && (
@@ -480,8 +479,7 @@ const DashboardPage = () => {
             </Button>
           </div>
         )}
-      </main>
-    </div>
+    </DashboardScrollLayout>
   )
 }
 

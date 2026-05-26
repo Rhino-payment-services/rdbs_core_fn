@@ -4,6 +4,14 @@ import React, { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Wallet as WalletIcon, Loader2, ArrowLeft } from "lucide-react"
 import Navbar from "@/components/dashboard/Navbar"
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -104,9 +112,8 @@ const WalletStatementPage = () => {
   const wallet = (walletResponse as any)?.data || walletResponse || null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="dashboard-shell py-8">
+    <DashboardPageLayout>
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('wallet/[walletId]/statement')} />
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button
@@ -289,8 +296,7 @@ const WalletStatementPage = () => {
             )}
           </CardContent>
         </Card>
-      </main>
-    </div>
+              </DashboardPageLayout>
   )
 }
 

@@ -3,6 +3,14 @@
 import React from 'react'
 import { useParams } from 'next/navigation'
 import Navbar from '@/components/dashboard/Navbar'
+import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
+import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
+import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardFormShellClass,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -45,11 +53,9 @@ export default function UserNavVisibilityPage() {
         </div>
       }
     >
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-6">
-          <div className="dashboard-shell dashboard-shell--form">
-            <div className="flex items-center justify-between mb-8">
+      <DashboardPageLayout variant="form">
+        <DashboardBreadcrumbs items={getDashboardPageCrumbs('users/[userId]/nav-visibility')} />
+        <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Navigation Visibility</h1>
                 <p className="text-gray-600 mt-1">
@@ -135,9 +141,7 @@ export default function UserNavVisibilityPage() {
             <p className="text-xs text-gray-500 mt-4 text-center">
               Note: These settings are stored locally in this browser per-user. Permission-based restrictions still apply.
             </p>
-          </div>
-        </main>
-      </div>
+    </DashboardPageLayout>
     </PermissionGuard>
   )
 }
