@@ -20,6 +20,8 @@ import { TARIFF_CHANNEL_ALL, TARIFF_CHANNEL_OPTIONS } from '@/lib/constants/tari
 import type { CreateTariffForm } from './types'
 import { mapTariffToForm, type ApiTariffRecord } from './mapTariffToForm'
 import { buildTariffSubmitPayload } from './buildTariffSubmitPayload'
+import { TransactionModeSelect } from './TransactionModeSelect'
+import { transactionModeDescription } from './transactionModeLabels'
 import { AlertTriangle } from 'lucide-react'
 
 interface Partner {
@@ -582,12 +584,12 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       <Label htmlFor="transactionModeId">
                         Transaction Mode{isEdit ? '' : ' *'}
                       </Label>
-                      <Select 
-                        value={form.transactionModeId || ''} 
+                      <TransactionModeSelect
+                        modes={transactionModes}
+                        value={form.transactionModeId || ''}
                         onValueChange={(value) => {
                           handleInputChange('transactionModeId', value)
-                          // Auto-set transaction type based on selected mode if available
-                          const selectedMode = transactionModes?.find(m => m.id === value)
+                          const selectedMode = transactionModes?.find((m) => m.id === value)
                           if (selectedMode && selectedMode.code) {
                             // For custom transaction modes, use CUSTOM type and include RTIS metadata
                             if (!selectedMode.isSystem) {
@@ -631,24 +633,16 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             }
                           }
                         }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transaction mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {transactionModes && transactionModes.length > 0 ? (
-                            transactionModes
-                              .map((mode) => (
-                                <SelectItem key={mode.id} value={mode.id}>
-                                  {mode.displayName} ({mode.code})
-                                  {mode.description && ` - ${mode.description}`}
-                                </SelectItem>
-                              ))
-                          ) : (
-                            <div className="px-2 py-1.5 text-sm text-gray-500">Loading transaction modes...</div>
+                      />
+                      {transactionModeDescription(
+                        transactionModes?.find((m) => m.id === form.transactionModeId),
+                      ) && (
+                        <p className="text-xs text-gray-600 mt-1.5 rounded-md bg-gray-50 border border-gray-100 px-2.5 py-2 leading-relaxed">
+                          {transactionModeDescription(
+                            transactionModes?.find((m) => m.id === form.transactionModeId),
                           )}
-                        </SelectContent>
-                      </Select>
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {isEdit ? (
                           <>
