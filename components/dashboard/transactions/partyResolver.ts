@@ -389,7 +389,21 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         !!(metadata?.merchantCode || metadata?.merchantName)) ||
       upper(tx?.channel) === 'MERCHANT_PORTAL')
 
+  const isApiPartnerMnoCollect =
+    isApiDrivenTransaction(tx) &&
+    getPartnerRole(tx) === 'receiver' &&
+    direction === 'CREDIT' &&
+    (type.includes('MNO_TO_WALLET') ||
+      mode.includes('COLLECT') ||
+      mode.includes('RECEIVE'))
+
+  const isPartnerOutboundSend =
+    side === 'sender' &&
+    isApiDrivenTransaction(tx) &&
+    getPartnerRole(tx) === 'sender'
+
   const isMerchantOutboundDebit =
+    !isPartnerOutboundSend &&
     direction === 'DEBIT' &&
     (type.includes('WALLET_TO_MNO') ||
       type.includes('WALLET_TO_BANK') ||
@@ -400,6 +414,17 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       !!tx?.bulkTransactionId ||
       metadata?.bulkPayment === true ||
       isBusinessWallet)
+
+  if (isPartnerOutboundSend) {
+    return {
+      ...info,
+      type: 'PARTNER',
+      name: partnerDisplay.primary,
+      contact: contact || partnerDisplay.secondary || null,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
 
   if (side === 'sender' && isMerchantOutboundDebit && info?.type === 'MERCHANT') {
     const merchantName =
@@ -450,6 +475,70 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       ...info,
       name: beneficiaryName || info?.name || 'Recipient',
       contact: beneficiaryContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
+  // API partner collect: payer is external MNO customer; partner is receiver only.
+  if (side === 'sender' && isApiPartnerMnoCollect) {
+    const partnerLabels = [
+      metadata?.apiPartnerName,
+      metadata?.partnerName,
+      tx?.partner?.partnerName,
+    ]
+      .map((v) => String(v ?? '').trim().toLowerCase())
+      .filter(Boolean)
+    const isPartnerLabel = (value: unknown) => {
+      const label = String(value ?? '').trim().toLowerCase()
+      if (!label) return true
+      return partnerLabels.some((p) => p === label || label.includes(p))
+    }
+    const provider = String(metadata?.mnoProvider || metadata?.network || '').trim()
+    const customerName =
+      firstMeaningfulName(
+        [
+          metadata?.customerName,
+          metadata?.payerName,
+          metadata?.mnoReceiverValidation?.data?.customerName,
+          metadata?.mnoReceiverValidation?.data?.name,
+          metadata?.validationResult?.customerName,
+          metadata?.validationResult?.data?.customerName,
+          metadata?.recipientName,
+          metadata?.senderType === 'EXTERNAL_MNO' && !isPartnerLabel(metadata?.senderName)
+            ? metadata?.senderName
+            : null,
+          info?.type === 'EXTERNAL_MNO' && !isPartnerLabel(info?.name) ? info?.name : null,
+        ],
+        contact,
+      ) ||
+      (provider ? `${provider} Mobile Money` : 'Customer')
+    const customerContact =
+      contact ||
+      String(
+        metadata?.customerPhone ||
+          metadata?.phoneNumber ||
+          metadata?.senderPhone ||
+          '',
+      ).trim() ||
+      null
+
+    return {
+      ...info,
+      type: 'EXTERNAL_MNO',
+      name: customerName,
+      contact: customerContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
+  if (side === 'receiver' && isApiPartnerMnoCollect) {
+    return {
+      ...info,
+      type: 'PARTNER',
+      name: partnerDisplay.primary,
+      contact: partnerDisplay.secondary || null,
       merchantCode: null,
       merchantName: null,
     }
@@ -632,7 +721,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const roleSpecificCandidates = side === 'sender'
     ? [
-        metadata.senderName,
+        ...(isApiPartnerMnoCollect ? [] : [metadata.senderName]),
         metadata.userName,
         metadata.counterpartyInfo?.name,
         counterpartyProfileName,
