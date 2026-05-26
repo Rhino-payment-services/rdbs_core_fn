@@ -292,7 +292,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/finance" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/tariffs-new') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
                             ? 'active'
                             : ''
                         }`}
@@ -511,17 +511,33 @@ const Navbar = () => {
                   >
                     Overview
                   </Link> */}
-                  <Link 
-                    href="/dashboard/finance/tariffs" 
-                    className={`block px-4 py-2 text-sm transition-colors ${
-                      isActive('/dashboard/finance/tariffs')
-                        ? 'text-[#08163d] bg-[#08163d]/10'
-                        : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
-                    }`}
-                    onClick={() => setIsFinanceDropdownOpen(false)}
-                  >
-                    Tariffs
-                  </Link>
+                  <PermissionGuard permissions={[PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE]} requireAll={false}>
+                    <Link 
+                      href="/dashboard/finance/tariffs-new" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/finance/tariffs-new')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Tariff schedules
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permissions={[PERMISSIONS.TARIFF_VIEW, PERMISSIONS.TARIFF_CREATE, PERMISSIONS.TARIFF_UPDATE]} requireAll={false}>
+                    <Link 
+                      href="/dashboard/finance/tariffs" 
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/finance/tariffs') &&
+                        !pathname.startsWith('/dashboard/finance/tariffs-new')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsFinanceDropdownOpen(false)}
+                    >
+                      Tariffs (classic)
+                    </Link>
+                  </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.TRANSACTIONS_VIEW}>
                     <Link 
                       href="/dashboard/transactions" 

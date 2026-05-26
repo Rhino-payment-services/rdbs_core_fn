@@ -39,7 +39,8 @@ import {
   Clock,
   FileText,
   TrendingUp,
-  Download
+  Download,
+  Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -1081,6 +1082,12 @@ const TariffsPage = () => {
                   <Building2 className="h-4 w-4 mr-2" />
                   Manage Partners
                 </Button>
+                <Link href="/dashboard/finance/tariffs-new">
+                  <Button variant="outline" size="sm" title="Partner-first tariff schedules (beta)">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    New view
+                  </Button>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

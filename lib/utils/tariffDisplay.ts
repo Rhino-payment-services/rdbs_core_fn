@@ -40,8 +40,12 @@ export function formatTariffSplitField(
     return `${n.toLocaleString()} ${currency}`
   }
 
-  if (Math.abs(n) <= 1 && n !== 0) {
+  // Decimal rate stored as 0.017 → 1.7%; human point 0.5 or 2 → 0.5% / 2%
+  if (n !== 0 && Math.abs(n) < 0.1) {
     return `${(n * 100).toFixed(3)}%`
+  }
+  if (Math.abs(n) <= 1 && n !== 0) {
+    return `${n}%`
   }
   if ((n > 1 && n <= 100) || (n < -1 && n >= -100)) {
     return `${n}%`
