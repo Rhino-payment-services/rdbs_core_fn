@@ -56,6 +56,10 @@ import {
   formatTariffGovernmentTax,
   formatTariffSplitField,
 } from '@/lib/utils/tariffDisplay'
+import {
+  DASHBOARD_GUTTER_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 
 interface Tariff {
   id: string
@@ -1014,8 +1018,8 @@ const TariffsPage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+          <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -1036,8 +1040,8 @@ const TariffsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+        <div className={dashboardPageShellClass}>
           {/* Breadcrumbs */}
           <div className="mb-4">
             <nav className="flex items-center space-x-2 text-sm text-gray-600">
@@ -1730,7 +1734,7 @@ export default function TariffsPageWrapper() {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>

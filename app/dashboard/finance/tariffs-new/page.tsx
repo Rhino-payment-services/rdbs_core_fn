@@ -48,6 +48,10 @@ import { ExternalPartnerSidebar } from '@/components/dashboard/tariffs-new/Exter
 import { ExternalPartnerPanel } from '@/components/dashboard/tariffs-new/ExternalPartnerPanel'
 import { InternalTariffsView } from '@/components/dashboard/tariffs-new/InternalTariffsView'
 import { TariffViewDialog } from '@/components/dashboard/tariffs-new/TariffViewDialog'
+import {
+  DASHBOARD_GUTTER_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 
 function TariffsNewPageContent() {
   const router = useRouter()
@@ -278,8 +282,8 @@ function TariffsNewPageContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-4 md:p-6">
-        <div className="max-w-[1600px] mx-auto">
+      <main className={`${DASHBOARD_GUTTER_CLASS} py-4 md:py-6`}>
+        <div className={dashboardPageShellClass}>
           <nav className="flex items-center gap-2 text-sm text-gray-600 mb-4">
             <Link href="/dashboard/finance" className="hover:text-[#08163d]">
               Finance

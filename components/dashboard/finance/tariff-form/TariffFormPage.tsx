@@ -23,6 +23,10 @@ import { buildTariffSubmitPayload } from './buildTariffSubmitPayload'
 import { TransactionModeSelect } from './TransactionModeSelect'
 import { transactionModeDescription } from './transactionModeLabels'
 import { AlertTriangle } from 'lucide-react'
+import {
+  DASHBOARD_GUTTER_CLASS,
+  dashboardFormShellClass,
+} from '@/lib/constants/dashboard-layout'
 
 interface Partner {
   id: string
@@ -482,8 +486,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="p-6">
-        <div className="max-w-4xl mx-auto">
+      <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+        <div className={dashboardFormShellClass}>
           {/* Breadcrumbs */}
           <div className="mb-4">
             <nav className="flex items-center space-x-2 text-sm text-gray-600">
