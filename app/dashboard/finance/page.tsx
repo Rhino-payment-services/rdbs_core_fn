@@ -1,6 +1,10 @@
 "use client"
 import React from 'react'
 import Navbar from '@/components/dashboard/Navbar'
+import {
+  DASHBOARD_MAIN_CLASS,
+  dashboardPageShellClass,
+} from '@/lib/constants/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { 
@@ -97,7 +101,8 @@ const FinancePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <main className={DASHBOARD_MAIN_CLASS}>
+        <div className={dashboardPageShellClass}>
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Finance</h1>
@@ -158,7 +163,8 @@ const FinancePage = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

@@ -799,6 +799,28 @@ select:disabled {
   background-color: hsl(var(--background));
 }
 
+/* Centered dashboard column — navbar + page content (90% viewport, not edge-to-edge) */
+.dashboard-shell {
+  width: 90%;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .dashboard-shell {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.dashboard-shell--form {
+  max-width: min(90%, 56rem);
+}
+
 /* Navigation slider styles */
 .nav-slider-container {
   position: relative;

@@ -1,15 +1,14 @@
 /**
  * Shared layout: navbar and page content use the same centered 90% column.
+ * Uses `.dashboard-shell` in globals.css (Tailwind does not scan this file for arbitrary classes).
  */
-export const DASHBOARD_SHELL_WIDTH_CLASS = 'w-[90%]'
+export const DASHBOARD_SHELL_CLASS = 'dashboard-shell'
 
-/** Navbar inner row + page content wrapper */
-export const dashboardShellClass = `${DASHBOARD_SHELL_WIDTH_CLASS} mx-auto`
+export const dashboardShellClass = DASHBOARD_SHELL_CLASS
 
-export const dashboardPageShellClass = dashboardShellClass
+export const dashboardPageShellClass = DASHBOARD_SHELL_CLASS
 
-/** Forms: same horizontal alignment, readable max line length */
-export const dashboardFormShellClass = `${DASHBOARD_SHELL_WIDTH_CLASS} max-w-4xl mx-auto`
+export const dashboardFormShellClass = `${DASHBOARD_SHELL_CLASS} dashboard-shell--form`
 
-/** Vertical padding only — horizontal alignment comes from the 90% shell */
+/** Vertical padding only — horizontal alignment comes from `.dashboard-shell` */
 export const DASHBOARD_MAIN_CLASS = 'py-4 md:py-6'
