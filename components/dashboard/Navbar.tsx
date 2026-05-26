@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { useNavVisibility } from '@/lib/hooks/useNavVisibility'
-import { DASHBOARD_MAX_WIDTH_CLASS } from '@/lib/constants/dashboard-layout'
+import { dashboardShellClass } from '@/lib/constants/dashboard-layout'
 // import NotificationsModal from './NotificationsModal'
 
 const Navbar = () => {
@@ -169,8 +169,8 @@ const Navbar = () => {
   return (
       <div className="bg-white border-b border-gray-200 relative z-[9999]">
       {/* Main Navbar */}
-      <nav className="px-4 py-3">
-        <div className={`${DASHBOARD_MAX_WIDTH_CLASS} mx-auto w-full flex items-center justify-between`}>
+      <nav className="py-3">
+        <div className={`${dashboardShellClass} flex items-center justify-between`}>
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
@@ -238,8 +238,8 @@ const Navbar = () => {
       </nav>
 
       {/* Menu Bar */}
-      <div className="border-t border-gray-100 bg-gray-50 px-4">
-        <div className={`${DASHBOARD_MAX_WIDTH_CLASS} mx-auto w-full`}>
+      <div className="border-t border-gray-100 bg-gray-50">
+        <div className={dashboardShellClass}>
           <div className="relative">
             {/* Scrollable Menu Container */}
             <div 

@@ -24,7 +24,7 @@ import { TransactionModeSelect } from './TransactionModeSelect'
 import { transactionModeDescription } from './transactionModeLabels'
 import { AlertTriangle } from 'lucide-react'
 import {
-  DASHBOARD_GUTTER_CLASS,
+  DASHBOARD_MAIN_CLASS,
   dashboardFormShellClass,
 } from '@/lib/constants/dashboard-layout'
 
@@ -486,7 +486,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+      <main className={DASHBOARD_MAIN_CLASS}>
         <div className={dashboardFormShellClass}>
           {/* Breadcrumbs */}
           <div className="mb-4">

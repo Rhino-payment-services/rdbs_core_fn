@@ -1,13 +1,15 @@
 /**
- * Shared layout width for the top navbar and dashboard page content.
- * Keep these in sync so Finance (and other) pages line up with the menu bar.
+ * Shared layout: navbar and page content use the same centered 90% column.
  */
-export const DASHBOARD_MAX_WIDTH_CLASS = 'max-w-[90rem]' // 1440px (was 1280px / max-w-7xl)
+export const DASHBOARD_SHELL_WIDTH_CLASS = 'w-[90%]'
 
-export const DASHBOARD_GUTTER_CLASS = 'px-4 sm:px-6'
+/** Navbar inner row + page content wrapper */
+export const dashboardShellClass = `${DASHBOARD_SHELL_WIDTH_CLASS} mx-auto`
 
-/** Inner page column — use inside `<main>` after gutter padding */
-export const dashboardPageShellClass = `${DASHBOARD_MAX_WIDTH_CLASS} mx-auto w-full`
+export const dashboardPageShellClass = dashboardShellClass
 
-/** Narrow forms (tariff create/edit) — same horizontal alignment, readable line length */
-export const dashboardFormShellClass = `${DASHBOARD_MAX_WIDTH_CLASS} mx-auto w-full max-w-4xl`
+/** Forms: same horizontal alignment, readable max line length */
+export const dashboardFormShellClass = `${DASHBOARD_SHELL_WIDTH_CLASS} max-w-4xl mx-auto`
+
+/** Vertical padding only — horizontal alignment comes from the 90% shell */
+export const DASHBOARD_MAIN_CLASS = 'py-4 md:py-6'

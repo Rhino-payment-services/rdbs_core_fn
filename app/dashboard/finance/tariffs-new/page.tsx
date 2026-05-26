@@ -49,7 +49,7 @@ import { ExternalPartnerPanel } from '@/components/dashboard/tariffs-new/Externa
 import { InternalTariffsView } from '@/components/dashboard/tariffs-new/InternalTariffsView'
 import { TariffViewDialog } from '@/components/dashboard/tariffs-new/TariffViewDialog'
 import {
-  DASHBOARD_GUTTER_CLASS,
+  DASHBOARD_MAIN_CLASS,
   dashboardPageShellClass,
 } from '@/lib/constants/dashboard-layout'
 
@@ -282,7 +282,7 @@ function TariffsNewPageContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className={`${DASHBOARD_GUTTER_CLASS} py-4 md:py-6`}>
+      <main className={DASHBOARD_MAIN_CLASS}>
         <div className={dashboardPageShellClass}>
           <nav className="flex items-center gap-2 text-sm text-gray-600 mb-4">
             <Link href="/dashboard/finance" className="hover:text-[#08163d]">

@@ -57,7 +57,7 @@ import {
   formatTariffSplitField,
 } from '@/lib/utils/tariffDisplay'
 import {
-  DASHBOARD_GUTTER_CLASS,
+  DASHBOARD_MAIN_CLASS,
   dashboardPageShellClass,
 } from '@/lib/constants/dashboard-layout'
 
@@ -1018,7 +1018,7 @@ const TariffsPage = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+        <main className={DASHBOARD_MAIN_CLASS}>
           <div className={dashboardPageShellClass}>
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
@@ -1040,7 +1040,7 @@ const TariffsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className={`${DASHBOARD_GUTTER_CLASS} py-6`}>
+      <main className={DASHBOARD_MAIN_CLASS}>
         <div className={dashboardPageShellClass}>
           {/* Breadcrumbs */}
           <div className="mb-4">
