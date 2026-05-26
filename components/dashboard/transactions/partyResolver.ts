@@ -1,5 +1,16 @@
+import {
+  isMerchantToWalletType,
+  isPersonalOutboundExternalDebit,
+  isWalletToMerchantType,
+  isWalletToSubscriberType,
+  resolveMerchantBusinessName,
+  shouldUseMerchantPartyLabel,
+} from '@/lib/utils/transactionPartyClassification'
+
 export type PartnerRole = 'sender' | 'receiver'
 export type PartySide = 'sender' | 'receiver'
+
+export { isPersonalOutboundExternalDebit } from '@/lib/utils/transactionPartyClassification'
 
 function upper(v: any) {
   return String(v ?? '').toUpperCase()
@@ -444,6 +455,47 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
+  // Personal wallet → MNO: beneficiary is external MM; never use owner merchant metadata.
+  if (side === 'receiver' && isPersonalOutboundExternalDebit(tx)) {
+    let receiverLabel = String(metadata?.receiverName || '').trim()
+    if (receiverLabel.includes(' · ')) {
+      receiverLabel = receiverLabel.split(' · ')[0].trim()
+    }
+    const beneficiaryName =
+      firstMeaningfulName(
+        [
+          info?.name,
+          metadata?.recipientName,
+          metadata?.receiverName,
+          metadata?.accountName,
+          metadata?.customerName,
+          metadata?.validationResult?.customerName,
+          metadata?.mnoReceiverValidation?.data?.customerName,
+          metadata?.mnoReceiverValidation?.data?.name,
+          receiverLabel,
+        ],
+        contact,
+      ) || info?.name || 'Recipient'
+    const beneficiaryContact =
+      contact ||
+      String(
+        metadata?.phoneNumber ||
+          metadata?.recipientPhone ||
+          metadata?.receiverPhone ||
+          '',
+      ).trim() ||
+      null
+
+    return {
+      ...info,
+      name: beneficiaryName,
+      contact: beneficiaryContact,
+      type: info?.type || 'EXTERNAL_MNO',
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
   if (side === 'receiver' && isMerchantOutboundDebit) {
     let receiverLabel = String(metadata?.receiverName || '').trim()
     if (receiverLabel.includes(' · ')) {
@@ -594,10 +646,82 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
-  const isMerchantToWallet =
-    type === 'MERCHANT_TO_WALLET' || type === 'MERCHANT_TO_INTERNAL_WALLET'
+  const isWalletToSubscriber = isWalletToSubscriberType(type)
+  const isWalletToMerchant = isWalletToMerchantType(type)
+  const isMerchantToWallet = isMerchantToWalletType(type)
   const isMerchantToWalletDebit = direction === 'DEBIT' && isMerchantToWallet
   const isMerchantToWalletCredit = direction === 'CREDIT' && isMerchantToWallet
+
+  // P2P: receiver is always another subscriber wallet, never the sender's merchant business.
+  if (isWalletToSubscriber) {
+    if (side === 'receiver' && direction === 'DEBIT') {
+      const subscriberName =
+        firstMeaningfulName(
+          [
+            info?.name,
+            metadata?.recipientName,
+            metadata?.receiverName,
+            counterpartyProfileName,
+            metadata?.counterpartyInfo?.name,
+          ],
+          contact,
+        ) || 'RukaPay User'
+      const subscriberContact =
+        contact ||
+        String(metadata?.recipientPhone || metadata?.receiverPhone || '').trim() ||
+        tx?.counterpartyUser?.phone ||
+        null
+      return {
+        ...info,
+        type: 'SUBSCRIBER',
+        name: subscriberName,
+        contact: subscriberContact,
+        merchantCode: null,
+        merchantName: null,
+      }
+    }
+    if (side === 'sender' && direction === 'DEBIT') {
+      const senderName =
+        firstMeaningfulName([userProfileName, info?.name, metadata?.senderName], contact) ||
+        'RukaPay User'
+      return {
+        ...info,
+        type: 'SUBSCRIBER',
+        name: senderName,
+        contact: contact || tx?.user?.phone || null,
+        merchantCode: null,
+        merchantName: null,
+      }
+    }
+  }
+
+  // Pay merchant: receiver is the business account; sender is subscriber unless debiting a business wallet.
+  if (isWalletToMerchant) {
+    if (side === 'receiver') {
+      const merchantName = resolveMerchantBusinessName(tx, info)
+      return {
+        ...info,
+        type: 'MERCHANT',
+        name: merchantName,
+        contact: null,
+        merchantCode: String(metadata?.merchantCode || info?.merchantCode || '').trim() || null,
+        merchantName,
+      }
+    }
+    if (side === 'sender' && direction === 'DEBIT' && !isBusinessWallet) {
+      const senderName =
+        firstMeaningfulName([userProfileName, info?.name, metadata?.senderName], contact) ||
+        'RukaPay User'
+      return {
+        ...info,
+        type: 'SUBSCRIBER',
+        name: senderName,
+        contact: contact || tx?.user?.phone || null,
+        merchantCode: null,
+        merchantName: null,
+      }
+    }
+  }
 
   // Merchant MNO collection (and similar) must run before MERCHANT_TO_WALLET overrides.
   if (side === 'receiver' && isMerchantCollectionFlow) {
@@ -723,8 +847,18 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     }
   }
 
+  const useMerchantLabel = shouldUseMerchantPartyLabel(tx, side)
+  const omitMerchantFromCandidates =
+    !useMerchantLabel ||
+    isWalletToSubscriber ||
+    isWalletToMerchant ||
+    isPersonalOutboundExternalDebit(tx) ||
+    isMerchantOutboundDebit ||
+    isMerchantToWalletCredit
+
   const roleSpecificCandidates = side === 'sender'
     ? [
+        ...(omitMerchantFromCandidates ? [] : [metadata.merchantName]),
         ...(isApiPartnerMnoCollect ? [] : [metadata.senderName]),
         metadata.userName,
         metadata.counterpartyInfo?.name,
@@ -732,7 +866,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         userProfileName,
       ]
     : [
-        ...(isMerchantOutboundDebit || isMerchantToWalletCredit ? [] : [metadata.merchantName]),
+        ...(omitMerchantFromCandidates ? [] : [metadata.merchantName]),
         metadata.receiverName,
         metadata.recipientName,
         metadata.customerName,
@@ -771,12 +905,37 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     (info?.type === 'PARTNER' || isPartnerSide ? 'API Partner' : null) ||
     info?.name
 
-  const normalizedType = isPartnerSide ? 'PARTNER' : info?.type
+  let normalizedType = isPartnerSide ? 'PARTNER' : info?.type
+  if (isWalletToSubscriber) {
+    normalizedType = 'SUBSCRIBER'
+  } else if (isWalletToMerchant && side === 'receiver') {
+    normalizedType = 'MERCHANT'
+  } else if (isPersonalOutboundExternalDebit(tx) && side === 'receiver') {
+    normalizedType = info?.type || 'EXTERNAL_MNO'
+  } else if (useMerchantLabel && side === 'receiver') {
+    normalizedType = 'MERCHANT'
+  } else if (
+    !useMerchantLabel &&
+    (side === 'receiver' || isWalletToSubscriber || isMerchantToWalletDebit)
+  ) {
+    normalizedType =
+      info?.type === 'EXTERNAL_MNO' || info?.type === 'EXTERNAL_BANK' || info?.type === 'UTILITY'
+        ? info.type
+        : 'SUBSCRIBER'
+  }
+
+  const isMerchantParty = normalizedType === 'MERCHANT'
 
   return {
     ...info,
     type: normalizedType,
     name: normalizedName,
+    merchantCode: isMerchantParty
+      ? info?.merchantCode || metadata?.merchantCode || null
+      : null,
+    merchantName: isMerchantParty
+      ? info?.merchantName || metadata?.merchantName || null
+      : null,
   }
 }
 

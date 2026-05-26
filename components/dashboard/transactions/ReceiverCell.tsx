@@ -365,7 +365,14 @@ function DebitWalletToWalletReceiver({ transaction, receiverMeta, metadata }: { 
   return (
     <>
       <span className="font-medium">
-        {getDisplayName(transaction.counterpartyUser, receiverMeta, transaction.user) || metadata.counterpartyInfo?.name || metadata.userName || 'RukaPay User'}
+        {getDisplayName(
+          transaction.counterpartyUser,
+          receiverMeta,
+          transaction.user,
+          transaction.counterpartyUser?.wallet,
+          transaction,
+          'receiver',
+        ) || metadata.counterpartyInfo?.name || metadata.userName || 'RukaPay User'}
       </span>
       {transaction.counterpartyUser?.phone && (
         <span className="text-xs text-gray-500">📱 {transaction.counterpartyUser.phone}</span>

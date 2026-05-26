@@ -8,6 +8,10 @@ import {
   School,
   CreditCard
 } from 'lucide-react'
+import {
+  resolveMerchantBusinessName,
+  shouldUseMerchantPartyLabel,
+} from '@/lib/utils/transactionPartyClassification'
 
 /**
  * Shorten long transaction IDs for display
@@ -144,22 +148,43 @@ const resolveMerchantName = (user: any, wallet?: any, metadata?: any) => {
   return user?.merchants?.[0]?.businessTradeName || user?.merchant?.businessTradeName;
 }
 
+export type TransactionDisplayContext = {
+  type?: string | null
+  direction?: string | null
+  channel?: string | null
+  bulkTransactionId?: string | null
+  metadata?: Record<string, unknown> | null
+  wallet?: { walletType?: string | null; merchant?: { businessTradeName?: string | null } | null } | null
+}
+
 /**
  * Get display name - shows merchant business name for merchants, user name for individuals.
- * Pass the transaction wallet as the 4th arg so multi-merchant users resolve correctly.
+ * Pass wallet (4th) and optional transaction context (5th) so P2P/MNO are not labeled as a merchant.
  */
-export const getDisplayName = (user: any, metadata?: any, counterpartyUser?: any, wallet?: any) => {
-  const isMerchant =
-    wallet?.merchant?.businessTradeName ||
-    user?.merchantCode ||
-    user?.merchant?.businessTradeName ||
-    user?.merchants?.[0] ||
-    metadata?.merchantName ||
-    metadata?.merchantCode ||
-    user?.wallet?.merchant?.businessTradeName
-  
+export const getDisplayName = (
+  user: any,
+  metadata?: any,
+  counterpartyUser?: any,
+  wallet?: any,
+  txContext?: TransactionDisplayContext | null,
+  partySide: 'sender' | 'receiver' = 'sender',
+) => {
+  const txForLabel = {
+    type: txContext?.type,
+    direction: txContext?.direction,
+    channel: txContext?.channel,
+    bulkTransactionId: txContext?.bulkTransactionId,
+    metadata: txContext?.metadata ?? metadata,
+    wallet: txContext?.wallet ?? wallet,
+    user,
+  }
+
+  const isMerchant = shouldUseMerchantPartyLabel(txForLabel, partySide)
+
   if (isMerchant) {
-    return metadata?.merchantName ||
+    return (
+           resolveMerchantBusinessName({ user, wallet, metadata }) ||
+           metadata?.merchantName ||
            metadata?.senderName ||
            resolveMerchantName(user, wallet, metadata) ||
            user?.wallet?.merchant?.businessTradeName ||
@@ -168,7 +193,7 @@ export const getDisplayName = (user: any, metadata?: any, counterpartyUser?: any
            user?.profile?.merchant_names ||
            (user?.merchantCode || metadata?.merchantCode
              ? `Merchant (${user?.merchantCode || metadata?.merchantCode})`
-             : 'Merchant')
+             : 'Merchant'))
   } else {
     if (counterpartyUser?.profile?.firstName && counterpartyUser?.profile?.lastName) {
       return `${counterpartyUser.profile.firstName} ${counterpartyUser.profile.lastName}`
