@@ -51,6 +51,10 @@ import { useApproveTariff, useRejectTariff, useSubmitTariffForApproval } from '@
 import { useAuth } from '@/lib/hooks/useAuth'
 import api from '@/lib/axios'
 import { formatTariffChannel } from '@/lib/constants/tariff-channels'
+import {
+  formatTariffGovernmentTax,
+  formatTariffSplitField,
+} from '@/lib/utils/tariffDisplay'
 
 interface Tariff {
   id: string
@@ -601,9 +605,9 @@ const TariffsPage = () => {
           getPartnerExportLabel(t),
           t.group ?? '',
           t.partnerFee !== undefined && t.partnerFee !== null ? t.partnerFee : '',
-          t.rukapayFee !== undefined && t.rukapayFee !== null ? t.rukapayFee : '',
-          t.telecomBankCharge !== undefined && t.telecomBankCharge !== null ? t.telecomBankCharge : '',
-          t.governmentTax !== undefined && t.governmentTax !== null ? t.governmentTax : '',
+          formatTariffSplitField(t.rukapayFee, t) ?? '',
+          formatTariffSplitField(t.telecomBankCharge, t) ?? '',
+          formatTariffGovernmentTax(t.governmentTax) ?? '',
           t.userType,
           t.subscriberType ?? '',
           getTariffStatusExportLabel(t),
@@ -885,8 +889,10 @@ const TariffsPage = () => {
                     )}
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
-                        {tariff.rukapayFee !== undefined ? (
-                          <span className="font-medium">{tariff.rukapayFee}%</span>
+                        {formatTariffSplitField(tariff.rukapayFee, tariff) ? (
+                          <span className="font-medium">
+                            {formatTariffSplitField(tariff.rukapayFee, tariff)}
+                          </span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -894,8 +900,10 @@ const TariffsPage = () => {
                     )}
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
-                        {tariff.telecomBankCharge !== undefined ? (
-                          <span className="font-medium">{tariff.telecomBankCharge}%</span>
+                        {formatTariffSplitField(tariff.telecomBankCharge, tariff) ? (
+                          <span className="font-medium">
+                            {formatTariffSplitField(tariff.telecomBankCharge, tariff)}
+                          </span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -903,8 +911,10 @@ const TariffsPage = () => {
                     )}
                     {!isInternalTariff && (
                       <TableCell className="text-sm">
-                        {tariff.governmentTax ? (
-                          <span className="font-medium">{tariff.governmentTax}%</span>
+                        {formatTariffGovernmentTax(tariff.governmentTax) ? (
+                          <span className="font-medium">
+                            {formatTariffGovernmentTax(tariff.governmentTax)}
+                          </span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -1560,19 +1570,25 @@ const TariffsPage = () => {
                     {viewTariff.rukapayFee !== undefined && (
                       <div>
                         <Label className="text-xs text-gray-500">RukaPay Fee</Label>
-                        <p className="text-sm">{viewTariff.rukapayFee}%</p>
+                        <p className="text-sm">
+                          {formatTariffSplitField(viewTariff.rukapayFee, viewTariff) ?? '-'}
+                        </p>
                       </div>
                     )}
                     {viewTariff.telecomBankCharge !== undefined && (
                       <div>
                         <Label className="text-xs text-gray-500">Telecom/Bank Charge</Label>
-                        <p className="text-sm">{viewTariff.telecomBankCharge}%</p>
+                        <p className="text-sm">
+                          {formatTariffSplitField(viewTariff.telecomBankCharge, viewTariff) ?? '-'}
+                        </p>
                       </div>
                     )}
                     {viewTariff.governmentTax !== undefined && (
                       <div>
                         <Label className="text-xs text-gray-500">Government Tax</Label>
-                        <p className="text-sm">{viewTariff.governmentTax}%</p>
+                        <p className="text-sm">
+                          {formatTariffGovernmentTax(viewTariff.governmentTax) ?? '-'}
+                        </p>
                       </div>
                     )}
                   </div>
