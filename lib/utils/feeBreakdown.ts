@@ -46,6 +46,8 @@ export function normalizeFeeBreakdown(transaction: {
   metadata?: {
     feeBreakdown?: Record<string, unknown>
     gatewayPartnerRukapayFee?: number | string | null
+    gatewayPartnerMnoFee?: number | string | null
+    gatewayPartnerTelecomCharge?: number | string | null
   } | null
 }): NormalizedFeeBreakdown {
   const metadata = transaction?.metadata || {}
@@ -63,6 +65,7 @@ export function normalizeFeeBreakdown(transaction: {
   const partnerFee = pickFee(
     feeBreakdown.partnerFee ?? feeBreakdown.thirdPartyFee,
     transaction?.thirdPartyFee,
+    metadata.gatewayPartnerMnoFee ?? metadata.gatewayPartnerTelecomCharge,
   )
 
   const governmentTax = pickFee(
@@ -77,7 +80,9 @@ export function normalizeFeeBreakdown(transaction: {
   const complianceFee = finiteOrZero(
     feeBreakdown.complianceFee ?? transaction?.complianceFee,
   )
-  const telecomBankCharge = finiteOrZero(feeBreakdown.telecomBankCharge)
+  const telecomBankCharge = finiteOrZero(
+    feeBreakdown.telecomBankCharge ?? metadata.gatewayPartnerTelecomCharge,
+  )
 
   let totalFee: number
   if (feeBreakdown.totalFee != null && Number.isFinite(Number(feeBreakdown.totalFee))) {
@@ -97,8 +102,8 @@ export function normalizeFeeBreakdown(transaction: {
         : finiteOrZero(transaction?.fee)
   }
 
-  // When only aggregate fee is persisted, attribute residual to RukaPay fee
-  if (!hasExplicitRukapayInBreakdown && rukapayFee === 0 && totalFee > 0) {
+  // When only aggregate fee is persisted, attribute residual to RukaPay fee (signed)
+  if (!hasExplicitRukapayInBreakdown && rukapayFee === 0 && totalFee !== 0) {
     const otherComponents =
       partnerFee +
       governmentTax +
@@ -107,7 +112,7 @@ export function normalizeFeeBreakdown(transaction: {
       complianceFee +
       telecomBankCharge
     const remaining = totalFee - otherComponents
-    if (remaining > 0) {
+    if (remaining !== 0) {
       rukapayFee = remaining
     }
   }
