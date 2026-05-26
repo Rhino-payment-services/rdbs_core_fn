@@ -342,7 +342,14 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
       if (contact === 'N/A') contact = null
       badgeType = transaction.user?.userType === 'SUBSCRIBER' ? 'SUBSCRIBER' : null
     } else {
-      name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
+      name = getDisplayName(
+        transaction.user,
+        transaction.metadata,
+        transaction.counterpartyUser,
+        transaction.wallet,
+        transaction,
+        'sender',
+      )
       contact = !isMerchantSender
         ? getContactInfo(transaction.user, senderMeta, transaction.counterpartyUser)
         : null
@@ -389,7 +396,14 @@ function LegacySenderDisplay({ transaction, derived }: SenderCellProps) {
       name = metadata.counterpartyInfo.name
       badgeType = null
     } else {
-      name = getDisplayName(transaction.user, transaction.metadata, transaction.counterpartyUser, transaction.wallet)
+      name = getDisplayName(
+        transaction.user,
+        transaction.metadata,
+        transaction.counterpartyUser,
+        transaction.wallet,
+        transaction,
+        'sender',
+      )
     }
   }
 
