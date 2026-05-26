@@ -241,6 +241,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const metadata = tx?.metadata || {}
   const type = upper(tx?.type)
+  const mode = upper(tx?.mode || metadata?.mode || metadata?.transactionModeCode)
 
   if (type === 'LIQUIDATION' && side === 'sender') {
     const code = String(
