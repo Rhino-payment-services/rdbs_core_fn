@@ -450,11 +450,15 @@ function CounterpartyInfoReceiver({ transaction, metadata }: { transaction: any;
 }
 
 function FallbackDebitReceiver({ transaction, metadata }: { transaction: any; metadata: any }) {
+  const txType = String(transaction?.type || '').toUpperCase()
+  const isWalletToMno = txType === 'WALLET_TO_MNO' || txType.includes('WALLET_TO_MNO')
   const resolvedMobileName =
     metadata.customerName ||
     metadata.receiverName ||
     metadata.recipientName ||
-    metadata.userName ||
+    // For wallet->MNO sends, userName can be the sender/merchant owner and must never be
+    // shown as the receiver label.
+    (!isWalletToMno ? metadata.userName : null) ||
     metadata?.validationResult?.customerName ||
     metadata?.mnoReceiverValidation?.data?.customerName ||
     metadata?.mnoReceiverValidation?.data?.name ||
