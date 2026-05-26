@@ -208,7 +208,7 @@ const ProfilePage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <span className="ml-2">Loading profile...</span>
@@ -224,7 +224,7 @@ const ProfilePage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <Card>
               <CardContent className="p-8">
                 <div className="flex items-center justify-center text-red-600">
@@ -243,7 +243,7 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="dashboard-shell">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Settings</h1>
             <p className="text-gray-600">Manage your account settings and preferences</p>

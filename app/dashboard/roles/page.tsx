@@ -398,7 +398,7 @@ export default function RolesPage() {
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <main className="p-6">
-            <div className="max-w-7xl mx-auto flex items-center justify-center py-24">
+            <div className="dashboard-shell flex items-center justify-center py-24">
               <div className="text-center">
                 <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
@@ -412,7 +412,7 @@ export default function RolesPage() {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="dashboard-shell space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>

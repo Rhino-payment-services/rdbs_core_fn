@@ -48,7 +48,7 @@ export default function UserNavVisibilityPage() {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-3xl mx-auto">
+          <div className="dashboard-shell dashboard-shell--form">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Navigation Visibility</h1>

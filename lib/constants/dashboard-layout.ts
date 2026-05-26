@@ -8,6 +8,7 @@ export const dashboardShellClass = DASHBOARD_SHELL_CLASS
 
 export const dashboardPageShellClass = DASHBOARD_SHELL_CLASS
 
+/** Same 90% column as list pages; --form marker for optional inner constraints */
 export const dashboardFormShellClass = `${DASHBOARD_SHELL_CLASS} dashboard-shell--form`
 
 /** Vertical padding only — horizontal alignment comes from `.dashboard-shell` */

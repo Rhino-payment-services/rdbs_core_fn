@@ -196,7 +196,7 @@ const GatewayPartnerDetailsPage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <RefreshCw className="h-16 w-16 text-blue-500 mx-auto mb-4 animate-spin" />
@@ -214,7 +214,7 @@ const GatewayPartnerDetailsPage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -255,7 +255,7 @@ const GatewayPartnerDetailsPage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="dashboard-shell">
           {/* Breadcrumbs */}
           <div className="mb-4">
             <nav className="flex items-center space-x-2 text-sm text-gray-600">

@@ -130,7 +130,7 @@ function LinkCardContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="max-w-3xl mx-auto p-6">
+      <main className="dashboard-shell dashboard-shell--form py-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
             <Link className="h-8 w-8 text-[#08163d]" />
@@ -380,7 +380,7 @@ export default function LinkCardPage() {
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <main className="max-w-3xl mx-auto p-6">
+        <main className="dashboard-shell dashboard-shell--form py-6">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d] mx-auto mb-4" />

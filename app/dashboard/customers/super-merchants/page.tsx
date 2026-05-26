@@ -307,7 +307,7 @@ export default function SuperMerchantsPage() {
     <RoleGuard role="SUPER_ADMIN" showFallback fallback={<AccessDeniedFallback />}>
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="w-full max-w-7xl mx-auto px-4 py-6 space-y-6">
+      <div className="dashboard-shell py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>

@@ -817,8 +817,21 @@ select:disabled {
   }
 }
 
-.dashboard-shell--form {
+/* Form pages: keep the same 90% column as the navbar (do not shrink to 56rem) */
+.dashboard-shell.dashboard-shell--form {
+  width: 90%;
+  max-width: 90%;
+}
+
+/* Standalone form shell (single wrapper without .dashboard-shell) */
+.dashboard-shell--form:not(.dashboard-shell) {
+  width: 90%;
   max-width: min(90%, 56rem);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
 }
 
 /* Navigation slider styles */

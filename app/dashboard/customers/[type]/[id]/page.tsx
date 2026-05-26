@@ -261,7 +261,7 @@ const CustomerProfilePage = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="px-4 py-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="dashboard-shell">
           {/* Super Merchant confirmation modals */}
           <SuperMerchantConfirmModal
             open={grantModalOpen}

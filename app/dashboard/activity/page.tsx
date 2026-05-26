@@ -365,7 +365,7 @@ export default function ActivityLogPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="dashboard-shell">
           {/* header */}
           <div className="mb-6 flex items-center justify-between">
             <div>

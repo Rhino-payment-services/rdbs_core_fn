@@ -399,7 +399,7 @@ const ApiLogsPage = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <main className="p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">System Monitoring</h1>
               <p className="text-gray-600 mt-2">Monitor system health, API logs, and analytics</p>

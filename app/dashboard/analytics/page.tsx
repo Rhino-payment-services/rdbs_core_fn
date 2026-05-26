@@ -147,7 +147,7 @@ const AnalyticsPage = () => {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="flex items-center justify-center min-h-[60vh]">
               <div className="text-center">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -166,7 +166,7 @@ const AnalyticsPage = () => {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <Navbar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="dashboard-shell">
             <div className="flex items-center justify-center min-h-[60vh]">
               <Card className="w-full max-w-md text-center">
                 <CardContent className="p-12">
@@ -500,7 +500,7 @@ const AnalyticsPage = () => {
           ref={scrollContainerRef}
           className="h-full overflow-y-auto p-6"
         >
-        <div className="max-w-7xl mx-auto">
+        <div className="dashboard-shell">
             {/* Analytics Header */}
           <div className="mb-8">
               <div className="flex justify-between items-start">

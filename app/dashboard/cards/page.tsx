@@ -112,7 +112,7 @@ export default function CardsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="max-w-7xl mx-auto p-6">
+      <main className="dashboard-shell">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
