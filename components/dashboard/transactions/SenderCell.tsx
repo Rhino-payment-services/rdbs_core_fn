@@ -153,7 +153,20 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
 
   // Prefer API-provided senderInfo when available (backend builds correct sender/receiver for SCHOOL_FEES etc.)
   if (transaction.senderInfo) {
-    const senderInfo = normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
+    const trustApiCollectSender =
+      getPartnerRole(transaction) === 'receiver' &&
+      transaction.senderInfo.type === 'EXTERNAL_MNO' &&
+      String(transaction.senderInfo.name || '').trim()
+    const senderInfo = trustApiCollectSender
+      ? {
+          ...transaction.senderInfo,
+          contact:
+            transaction.senderInfo.contact ||
+            metadata?.customerPhone ||
+            metadata?.phoneNumber ||
+            null,
+        }
+      : normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
     const isPlatformRevenue =
       metadata?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
       transaction.platformRevenueSettlement === true ||

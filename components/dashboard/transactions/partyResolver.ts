@@ -241,6 +241,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const metadata = tx?.metadata || {}
   const type = upper(tx?.type)
+  const mode = upper(tx?.mode || metadata?.mode || metadata?.transactionModeCode)
 
   if (type === 'LIQUIDATION' && side === 'sender') {
     const code = String(
@@ -380,7 +381,16 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     walletType === 'ESCROW' ||
     walletType === 'PARTNER'
 
+  const isApiPartnerMnoCollect =
+    isApiDrivenTransaction(tx) &&
+    getPartnerRole(tx) === 'receiver' &&
+    direction === 'CREDIT' &&
+    (type.includes('MNO_TO_WALLET') ||
+      mode.includes('COLLECT') ||
+      mode.includes('RECEIVE'))
+
   const isMerchantCollectionFlow =
+    !isApiPartnerMnoCollect &&
     type.includes('MNO_TO_WALLET') &&
     direction === 'CREDIT' &&
   (metadata?.paymentType === 'MERCHANT_COLLECTION' ||
@@ -467,6 +477,72 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
       ...info,
       name: beneficiaryName || info?.name || 'Recipient',
       contact: beneficiaryContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
+  // API partner collect: payer is external MNO customer; partner is receiver only.
+  if (side === 'sender' && isApiPartnerMnoCollect) {
+    const partnerLabels = [
+      metadata?.apiPartnerName,
+      metadata?.partnerName,
+      tx?.partner?.partnerName,
+    ]
+      .map((v) => String(v ?? '').trim().toLowerCase())
+      .filter(Boolean)
+    const isPartnerLabel = (value: unknown) => {
+      const label = String(value ?? '').trim().toLowerCase()
+      if (!label) return true
+      return partnerLabels.some((p) => p === label || label.includes(p))
+    }
+    const provider = String(metadata?.mnoProvider || metadata?.network || '').trim()
+    const apiSenderName = String(info?.name || '').trim()
+    const customerName =
+      (apiSenderName && info?.type === 'EXTERNAL_MNO' && !isPartnerLabel(apiSenderName)
+        ? apiSenderName
+        : null) ||
+      firstMeaningfulName(
+        [
+          metadata?.customerName,
+          metadata?.payerName,
+          metadata?.mnoReceiverValidation?.data?.customerName,
+          metadata?.mnoReceiverValidation?.data?.name,
+          metadata?.validationResult?.customerName,
+          metadata?.validationResult?.data?.customerName,
+          metadata?.senderType === 'EXTERNAL_MNO' && !isPartnerLabel(metadata?.senderName)
+            ? metadata?.senderName
+            : null,
+        ],
+        contact,
+      ) ||
+      (provider ? `${provider} Mobile Money` : 'Customer')
+    const customerContact =
+      String(info?.contact || '').trim() ||
+      String(
+        metadata?.customerPhone ||
+          metadata?.phoneNumber ||
+          metadata?.senderPhone ||
+          '',
+      ).trim() ||
+      null
+
+    return {
+      ...info,
+      type: 'EXTERNAL_MNO',
+      name: customerName,
+      contact: customerContact,
+      merchantCode: null,
+      merchantName: null,
+    }
+  }
+
+  if (side === 'receiver' && isApiPartnerMnoCollect) {
+    return {
+      ...info,
+      type: 'PARTNER',
+      name: partnerDisplay.primary,
+      contact: partnerDisplay.secondary || null,
       merchantCode: null,
       merchantName: null,
     }
@@ -649,7 +725,7 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   const roleSpecificCandidates = side === 'sender'
     ? [
-        metadata.senderName,
+        ...(isApiPartnerMnoCollect ? [] : [metadata.senderName]),
         metadata.userName,
         metadata.counterpartyInfo?.name,
         counterpartyProfileName,
@@ -681,6 +757,12 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   ]
 
   const normalizedName =
+    (side === 'sender' &&
+    isApiPartnerMnoCollect &&
+    info?.type === 'EXTERNAL_MNO' &&
+    String(info?.name || '').trim()
+      ? String(info.name).trim()
+      : null) ||
     ((info?.type === 'PARTNER' || isPartnerSide)
       ? firstMeaningfulName(partnerCandidates, contact)
       : null) ||
