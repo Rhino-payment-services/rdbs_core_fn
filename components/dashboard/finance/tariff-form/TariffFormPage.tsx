@@ -231,6 +231,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   // schedule an extra re-render, so the guard below calls only ONE setState
   // (setForm), which is the safe in-render pattern React documents.
   const hydratedTariffIdRef = useRef<string | null>(null)
+  const modeReconciledTariffIdRef = useRef<string | null>(null)
 
   const {
     data: existingTariff,
@@ -257,18 +258,37 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   // ref so its mutation does not itself trigger a re-render — using a state
   // variable for the guard would produce two batched-or-sequential setState
   // calls, which can leave form at defaults if not batched together.
-  if (
+  if (isEdit && existingTariff?.id && hydratedTariffIdRef.current !== existingTariff.id) {
+    hydratedTariffIdRef.current = existingTariff.id
+    modeReconciledTariffIdRef.current = null
+    prevNetworkRef.current = existingTariff.network ?? undefined
+    skipMnoAutoCalcRef.current = true
+    // Hydrate immediately even if modes are still loading so core fields always prefill.
+    setForm(mapTariffToForm(existingTariff, transactionModes))
+  } else if (
     isEdit &&
     existingTariff?.id &&
     transactionModes?.length &&
-    hydratedTariffIdRef.current !== existingTariff.id
+    modeReconciledTariffIdRef.current !== existingTariff.id
   ) {
-    hydratedTariffIdRef.current = existingTariff.id   // mut ref — no extra render
-    prevNetworkRef.current = existingTariff.network ?? undefined
-    skipMnoAutoCalcRef.current = true
-    const mapped = mapTariffToForm(existingTariff, transactionModes)
-    console.log('[TariffForm] hydrating', { raw: existingTariff, mapped })
-    setForm(mapped)  // SINGLE setState
+    modeReconciledTariffIdRef.current = existingTariff.id
+    const remapped = mapTariffToForm(existingTariff, transactionModes)
+    setForm((prev) => {
+      if (
+        prev.transactionModeId === remapped.transactionModeId &&
+        prev.tariffType === remapped.tariffType &&
+        prev.transactionType === remapped.transactionType
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        tariffType: remapped.tariffType,
+        transactionType: remapped.transactionType,
+        transactionModeId: remapped.transactionModeId,
+        metadata: remapped.metadata,
+      }
+    })
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -288,6 +308,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   // tariff's data is picked up by the derived-state block above.
   useEffect(() => {
     hydratedTariffIdRef.current = null
+    modeReconciledTariffIdRef.current = null
     skipMnoAutoCalcRef.current = true
   }, [tariffId])
 
@@ -308,6 +329,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
   const isExternalMnoToWallet =
     form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
+  const showPercentLabels = form.feeType === 'PERCENTAGE'
 
   // Prefill telecom charge from network default only when network changes
   useEffect(() => {
@@ -1206,7 +1228,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       </div>
 
                       <div>
-                        <Label htmlFor="rukapayFee">RukaPay Fee (%)</Label>
+                        <Label htmlFor="rukapayFee">
+                          {showPercentLabels ? 'RukaPay Fee (%)' : 'RukaPay Fee'}
+                        </Label>
                         <Input
                           id="rukapayFee"
                           type="number"
@@ -1223,7 +1247,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       </div>
 
                       <div>
-                        <Label htmlFor="telecomBankCharge">Telecom/Bank Charge (%)</Label>
+                        <Label htmlFor="telecomBankCharge">
+                          {showPercentLabels ? 'Telecom/Bank Charge (%)' : 'Telecom/Bank Charge'}
+                        </Label>
                         <Input
                           id="telecomBankCharge"
                           type="number"
@@ -1242,7 +1268,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       </div>
 
                       <div>
-                        <Label htmlFor="governmentTax">Government Tax (%)</Label>
+                        <Label htmlFor="governmentTax">
+                          {showPercentLabels ? 'Government Tax (%)' : 'Government Tax'}
+                        </Label>
                         <Input
                           id="governmentTax"
                           type="number"
@@ -1269,7 +1297,11 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         RukaPay Fee: {form.currency} {(form.rukapayFee || 0).toFixed(2)} + 
                         Telecom/Bank Charge: {form.currency} {(form.telecomBankCharge || 0).toFixed(2)}
                         {form.governmentTax && form.governmentTax > 0 && (
-                          <span> + Gov Tax: {(form.governmentTax || 0).toFixed(2)}%</span>
+                          <span>
+                            {' '}
+                            + Gov Tax: {(form.governmentTax || 0).toFixed(2)}
+                            {showPercentLabels ? '%' : ''}
+                          </span>
                         )}
                       </div>
                     </div>
