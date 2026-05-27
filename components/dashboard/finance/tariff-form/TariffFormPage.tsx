@@ -470,7 +470,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     )
 
     if (isEdit) {
-      updateTariffMutation.mutate(submitData)
+      const { transactionModeId: _omit, ...updatePayload } = submitData
+      updateTariffMutation.mutate(updatePayload)
     } else {
       createTariffMutation.mutate(submitData as unknown as CreateTariffForm)
     }
