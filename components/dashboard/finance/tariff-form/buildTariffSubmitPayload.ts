@@ -62,16 +62,26 @@ export function buildTariffSubmitPayload(
         ? 'PERCENTAGE'
         : form.feeType,
     feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
-    feePercentage: form.feePercentage
-      ? form.partnerType === 'API_PARTNER'
-        ? Number(form.feePercentage) / 100
-        : Number(form.feePercentage)
-      : undefined,
-    governmentTax: form.governmentTax || undefined,
+    feePercentage:
+      form.feePercentage !== undefined && form.feePercentage !== null
+        ? form.partnerType === 'API_PARTNER'
+          ? Number(form.feePercentage) / 100
+          : Number(form.feePercentage)
+        : undefined,
+    governmentTax:
+      form.governmentTax !== undefined && form.governmentTax !== null
+        ? Number(form.governmentTax)
+        : undefined,
     metadata: institutionMetadata,
     description: form.description || undefined,
-    minAmount: form.minAmount || undefined,
-    maxAmount: form.maxAmount || undefined,
+    minAmount:
+      form.minAmount !== undefined && form.minAmount !== null
+        ? Number(form.minAmount)
+        : undefined,
+    maxAmount:
+      form.maxAmount !== undefined && form.maxAmount !== null
+        ? Number(form.maxAmount)
+        : undefined,
     userType: form.userType || undefined,
     subscriberType: form.subscriberType || undefined,
     network: form.network || undefined,

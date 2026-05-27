@@ -37,6 +37,11 @@ function num(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+function roundTo(value: number, decimals = 6): number {
+  const factor = 10 ** decimals
+  return Math.round((value + Number.EPSILON) * factor) / factor
+}
+
 function resolveTransactionModeId(
   tariff: ApiTariffRecord,
   transactionModes?: TransactionMode[],
@@ -183,6 +188,7 @@ export function mapTariffToForm(
       feePercentage = rawPct > 0 && rawPct <= 1 ? rawPct * 100 : rawPct
     }
   }
+  feePercentage = roundTo(feePercentage, 6)
 
   const txType = normalizeTransactionType(tariff.transactionType)
 

@@ -9,23 +9,9 @@ function finiteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-/** True when FIXED tariff stores split fields as UGX (e.g. 500) not percent points (e.g. 2). */
-export function tariffSplitFieldsAreFixedUgx(tariff: TariffFeeDisplayInput & {
-  rukapayFee?: unknown
-  telecomBankCharge?: unknown
-  partnerFee?: unknown
-}): boolean {
-  if (tariff.feeType !== 'FIXED') return false
-  const fields = [tariff.rukapayFee, tariff.telecomBankCharge, tariff.partnerFee]
-  return fields.some((field) => {
-    const n = finiteNumber(field)
-    return n !== null && Math.abs(n) > 100
-  })
-}
-
 /**
  * Format rukapay / telecom / partner split for tariff tables.
- * FIXED tiers with large values → UGX; otherwise human percent points or decimal %.
+ * Non-percentage tariffs are shown in currency amounts.
  */
 export function formatTariffSplitField(
   value: unknown,
@@ -36,7 +22,7 @@ export function formatTariffSplitField(
 
   const currency = tariff.currency || 'UGX'
 
-  if (tariffSplitFieldsAreFixedUgx(tariff)) {
+  if (tariff.feeType && tariff.feeType !== 'PERCENTAGE') {
     return `${n.toLocaleString()} ${currency}`
   }
 
