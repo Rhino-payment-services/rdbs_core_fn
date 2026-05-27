@@ -1,6 +1,13 @@
 import type { PartnerBucket, Tariff } from './types'
 import { TRANSACTION_TYPE_LABELS } from './constants'
 
+function formatPercentValue(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(value)
+}
+
 export function parseTariffsFromResponse(data: unknown): Tariff[] {
   const d = data as Record<string, unknown> | undefined
   if (!d) return []
@@ -32,7 +39,7 @@ export function formatFeeAmount(tariff: Tariff): string {
     if (tariff.feePercentage !== undefined && tariff.feePercentage !== null) {
       const n = Number(tariff.feePercentage)
       const pct = n > 0 && n <= 1 ? n * 100 : n
-      return `${pct}%`
+      return `${formatPercentValue(pct)}%`
     }
     return 'N/A'
   }
@@ -40,9 +47,9 @@ export function formatFeeAmount(tariff: Tariff): string {
     const n = Number(tariff.feePercentage)
     const pct =
       tariff.feePercentage != null && n > 0 && n <= 1
-        ? `${(n * 100).toFixed(2)}%`
+        ? `${formatPercentValue(n * 100)}%`
         : tariff.feePercentage != null
-          ? `${n}%`
+          ? `${formatPercentValue(n)}%`
           : 'N/A'
     return `${Number(tariff.feeAmount).toLocaleString()} ${tariff.currency} + ${pct}`
   }
