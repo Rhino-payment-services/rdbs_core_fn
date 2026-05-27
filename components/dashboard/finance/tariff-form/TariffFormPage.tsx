@@ -592,6 +592,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <div>
                       <Label htmlFor="tariffType">Tariff Type *</Label>
                       <Select 
+                        key={form.tariffType}
                         value={form.tariffType} 
                         onValueChange={(value) => {
                           handleInputChange('tariffType', value)
@@ -695,6 +696,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <div>
                       <Label htmlFor="transactionType">Transaction Type *</Label>
                       <Select 
+                        key={form.transactionType}
                         value={form.transactionType} 
                       onValueChange={(value) => {
                         handleInputChange('transactionType', value)
@@ -756,6 +758,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       <div>
                         <Label htmlFor="network">Network *</Label>
                         <Select
+                          key={form.network || ''}
                           value={form.network || ''}
                           onValueChange={(value) => handleInputChange('network', value as 'MTN' | 'AIRTEL')}
                         >
@@ -775,7 +778,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
                     <div>
                       <Label htmlFor="currency">Currency *</Label>
-                      <Select value={form.currency} onValueChange={(value) => handleInputChange('currency', value)}>
+                      <Select key={form.currency} value={form.currency} onValueChange={(value) => handleInputChange('currency', value)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -790,6 +793,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <div>
                       <Label htmlFor="channel">Channel (optional)</Label>
                       <Select
+                        key={form.channel ?? ''}
                         value={form.channel ?? ''}
                         onValueChange={(value) => handleInputChange('channel', value)}
                       >
@@ -822,6 +826,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <div>
                           <Label htmlFor="partnerType">Partner Type *</Label>
                           <Select 
+                            key={form.partnerType || ''}
                             value={form.partnerType || ''} 
                             onValueChange={(value) => {
                               handleInputChange('partnerType', value)
@@ -844,6 +849,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           <div>
                             <Label htmlFor="partnerId">External Payment Partner *</Label>
                             <Select 
+                              key={form.partnerId || ''}
                               value={form.partnerId || ''} 
                               onValueChange={(value) => {
                                 handleInputChange('partnerId', value)
@@ -872,6 +878,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           <div>
                             <Label htmlFor="apiPartnerId">API Partner (Gateway) *</Label>
                             <Select 
+                              key={form.apiPartnerId || ''}
                               value={form.apiPartnerId || ''} 
                               onValueChange={(value) => {
                                 handleInputChange('apiPartnerId', value)
@@ -912,6 +919,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <div>
                       <Label htmlFor="feeType">Fee Type *</Label>
                       <Select
+                        key={form.feeType}
                         value={form.feeType}
                         onValueChange={(value) => handleInputChange('feeType', value)}
                         disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
@@ -1146,7 +1154,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label htmlFor="userType">User Type</Label>
-                    <Select value={form.userType || ''} onValueChange={(value) => handleInputChange('userType', value)}>
+                    <Select key={form.userType || ''} value={form.userType || ''} onValueChange={(value) => handleInputChange('userType', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select user type" />
                       </SelectTrigger>
@@ -1159,7 +1167,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
                   <div>
                     <Label htmlFor="subscriberType">Subscriber Type</Label>
-                    <Select value={form.subscriberType || ''} onValueChange={(value) => handleInputChange('subscriberType', value)}>
+                    <Select key={form.subscriberType || ''} value={form.subscriberType || ''} onValueChange={(value) => handleInputChange('subscriberType', value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select subscriber type" />
                       </SelectTrigger>
