@@ -318,7 +318,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tariffs'] })
       queryClient.invalidateQueries({ queryKey: ['tariff', tariffId] })
-      toast.success('Tariff updated successfully')
+      toast.success('Tariff update submitted for approval')
       router.push('/dashboard/finance/tariffs-new')
     },
     onError: (error: unknown) => {
@@ -470,8 +470,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     )
 
     if (isEdit) {
-      const { transactionModeId: _omit, ...updatePayload } = submitData
-      updateTariffMutation.mutate(updatePayload)
+      updateTariffMutation.mutate(submitData)
     } else {
       createTariffMutation.mutate(submitData as unknown as CreateTariffForm)
     }
