@@ -103,7 +103,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   })
 
   // Fetch transaction modes for selection
-  const { data: transactionModes } = useTransactionModes({ isActive: true })
+  const { data: transactionModes, isLoading: transactionModesLoading } = useTransactionModes({ isActive: true })
 
   // Calculate total fee amount (create external); edit may use stored feeAmount for FIXED
   const splitTotal =
@@ -241,16 +241,46 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     enabled: isEdit && !!tariffId,
   })
 
+  // Primary hydration: fires as soon as the tariff record is available, even before
+  // transactionModes resolves. This ensures all non-mode fields (name, tariffType,
+  // transactionType, feeType, amounts, etc.) are pre-filled immediately.
   useEffect(() => {
-    if (!isEdit || !existingTariff?.id || !transactionModes) return
+    if (!isEdit || !existingTariff?.id) return
     if (hydratedTariffIdRef.current === existingTariff.id) return
     hydratedTariffIdRef.current = existingTariff.id
     skipMnoAutoCalcRef.current = true
     prevNetworkRef.current = existingTariff.network ?? undefined
+    // Pass transactionModes if already available; resolveTransactionModeId handles undefined gracefully
     setForm(mapTariffToForm(existingTariff, transactionModes))
     setTimeout(() => {
       skipMnoAutoCalcRef.current = false
     }, 0)
+  }, [isEdit, existingTariff]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Secondary patch: once transactionModes loads (after primary hydration ran without them),
+  // update just the transactionModeId so the mode selector reflects the saved value.
+  useEffect(() => {
+    if (!isEdit || !existingTariff?.id || !transactionModes?.length) return
+    // Only patch if the primary hydration already ran without modes
+    if (!hydratedTariffIdRef.current) return
+    setForm((prev) => {
+      if (prev.transactionModeId) return prev // already resolved
+      const resolvedId = (() => {
+        const meta = existingTariff.metadata as Record<string, unknown> | undefined
+        const candidates = [
+          existingTariff.transactionModeCode,
+          meta?.transactionModeCode,
+          meta?.mode,
+        ].filter((c): c is string => typeof c === 'string' && c.length > 0)
+        for (const code of candidates) {
+          const mode = transactionModes.find((m) => m.code === code)
+          if (mode) return mode.id
+        }
+        return undefined
+      })()
+      if (!resolvedId) return prev
+      return { ...prev, transactionModeId: resolvedId }
+    })
   }, [isEdit, existingTariff, transactionModes])
 
   useEffect(() => {
@@ -458,7 +488,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     )
   }
 
-  if (isEdit && tariffLoading) {
+  if (isEdit && (tariffLoading || transactionModesLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#08163d]" />
