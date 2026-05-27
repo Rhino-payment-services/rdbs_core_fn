@@ -42,37 +42,6 @@ interface ApiPartner {
   country?: string
 }
 
-const TRANSACTION_TYPE_LABEL: Record<string, string> = {
-  WALLET_TO_WALLET: 'Wallet to Wallet',
-  WALLET_TO_INTERNAL_MERCHANT: 'Wallet to Internal Merchant',
-  WALLET_INIT: 'Wallet Initialization',
-  SCHOOL_FEES: 'School Fees',
-  FEE_CHARGE: 'Fee Charge',
-  REVERSAL: 'Reversal',
-  DEPOSIT: 'Deposit',
-  WITHDRAWAL: 'Withdrawal',
-  BILL_PAYMENT: 'Bill Payment',
-  WALLET_TO_EXTERNAL_MERCHANT: 'Wallet to External Merchant',
-  MERCHANT_WITHDRAWAL: 'Merchant Withdrawal',
-  MERCHANT_TO_WALLET: 'Merchant to Wallet',
-  WALLET_TO_MNO: 'Wallet to MNO',
-  WALLET_TO_UTILITY: 'Wallet to Utility',
-  WALLET_TO_BANK: 'Wallet to Bank',
-  BANK_TO_WALLET: 'Bank to Wallet',
-  MNO_TO_WALLET: 'MNO to Wallet',
-  CARD_TO_WALLET: 'Card to Wallet',
-  WALLET_TO_PARTNER_INSTITUTION: 'Wallet to Partner Institution (SACCO settlement in)',
-  PARTNER_INSTITUTION_TO_WALLET: 'Partner Institution to Wallet (SACCO settlement out)',
-  CUSTOM: 'Custom',
-}
-
-const FEE_TYPE_LABEL: Record<string, string> = {
-  FIXED: 'Fixed Amount',
-  PERCENTAGE: 'Percentage',
-  TIERED: 'Tiered',
-  HYBRID: 'Fixed + Percentage',
-}
-
 const NETWORK_TELECOM_BANK_CHARGE: Record<'MTN' | 'AIRTEL', number> = {
   MTN: 1.5,
   AIRTEL: 2,
@@ -256,7 +225,10 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const apiPartners: ApiPartner[] = apiPartnersData || []
   const prevNetworkRef = useRef<string | undefined>(undefined)
   const skipMnoAutoCalcRef = useRef(true)
-  const hydratedTariffIdRef = useRef<string | null>(null)
+
+  // Track which tariff ID has already been hydrated so we only do it once per tariff.
+  // Stored as state (not a ref) so that the derived-state check below can react to it.
+  const [hydratedTariffId, setHydratedTariffId] = useState<string | null>(null)
 
   const {
     data: existingTariff,
@@ -272,25 +244,31 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     enabled: isEdit && !!tariffId,
   })
 
-  // Single hydration effect: waits for BOTH the tariff record and transaction modes before
-  // populating the form. This ensures transactionModeId is always resolved on first hydration.
-  useEffect(() => {
-    if (!isEdit || !existingTariff?.id || !transactionModes) return
-    if (hydratedTariffIdRef.current === existingTariff.id) return
-    hydratedTariffIdRef.current = existingTariff.id
+  // ─── Derived-state initialisation ────────────────────────────────────────────
+  // React allows calling setState during render when guarded by a changed-value
+  // check (see React docs: "Storing information from previous renders").
+  // React will throw away the current render output and immediately re-render with
+  // the new state, so Selects ALWAYS see the correct value on their very first
+  // visible render — no post-render effects or key-remounting needed.
+  if (
+    isEdit &&
+    existingTariff?.id &&
+    transactionModes &&
+    hydratedTariffId !== existingTariff.id
+  ) {
+    setHydratedTariffId(existingTariff.id)
     skipMnoAutoCalcRef.current = true
     prevNetworkRef.current = existingTariff.network ?? undefined
-    const mapped = mapTariffToForm(existingTariff, transactionModes)
-    setForm(mapped)
-    setTimeout(() => {
-      skipMnoAutoCalcRef.current = false
-    }, 0)
-  }, [isEdit, existingTariff, transactionModes]) // eslint-disable-line react-hooks/exhaustive-deps
+    setForm(mapTariffToForm(existingTariff, transactionModes))
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
+  // Reset skipMnoAutoCalcRef after hydration so the MNO fee auto-calc works again
   useEffect(() => {
-    hydratedTariffIdRef.current = null
-    skipMnoAutoCalcRef.current = true
-  }, [tariffId])
+    if (!hydratedTariffId) return
+    const t = setTimeout(() => { skipMnoAutoCalcRef.current = false }, 0)
+    return () => clearTimeout(t)
+  }, [hydratedTariffId])
 
   const updateTariffMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -609,13 +587,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select tariff type">
-                            {form.tariffType === 'INTERNAL'
-                              ? 'Internal (RukaPay operations)'
-                              : form.tariffType === 'EXTERNAL'
-                                ? 'External (Partner integrations)'
-                                : undefined}
-                          </SelectValue>
+                          <SelectValue placeholder="Select tariff type" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="INTERNAL">Internal (RukaPay operations)</SelectItem>
@@ -718,9 +690,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         required
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select transaction type">
-                            {TRANSACTION_TYPE_LABEL[form.transactionType] ?? form.transactionType ?? undefined}
-                          </SelectValue>
+                          <SelectValue placeholder="Select transaction type" />
                         </SelectTrigger>
                         <SelectContent>
                           {form.tariffType === 'INTERNAL' ? (
@@ -929,9 +899,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select fee type">
-                            {FEE_TYPE_LABEL[form.feeType] ?? form.feeType ?? undefined}
-                          </SelectValue>
+                          <SelectValue placeholder="Select fee type" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="FIXED">Fixed Amount</SelectItem>
