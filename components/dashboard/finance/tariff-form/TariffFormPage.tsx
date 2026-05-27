@@ -265,19 +265,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     if (!hydratedTariffIdRef.current) return
     setForm((prev) => {
       if (prev.transactionModeId) return prev // already resolved
-      const resolvedId = (() => {
-        const meta = existingTariff.metadata as Record<string, unknown> | undefined
-        const candidates = [
-          existingTariff.transactionModeCode,
-          meta?.transactionModeCode,
-          meta?.mode,
-        ].filter((c): c is string => typeof c === 'string' && c.length > 0)
-        for (const code of candidates) {
-          const mode = transactionModes.find((m) => m.code === code)
-          if (mode) return mode.id
-        }
-        return undefined
-      })()
+      const resolvedId = mapTariffToForm(existingTariff, transactionModes).transactionModeId
       if (!resolvedId) return prev
       return { ...prev, transactionModeId: resolvedId }
     })

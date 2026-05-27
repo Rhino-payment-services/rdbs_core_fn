@@ -43,6 +43,20 @@ function resolveTransactionModeId(
 ): string | undefined {
   if (!transactionModes?.length) return undefined
 
+  const normalizeCode = (value: unknown): string =>
+    String(value ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[\s-]+/g, '_')
+
+  const matchModeByCode = (rawCode: unknown): string | undefined => {
+    const code = normalizeCode(rawCode)
+    if (!code) return undefined
+    const exact = transactionModes.find((m) => normalizeCode(m.code) === code)
+    if (exact) return exact.id
+    return undefined
+  }
+
   const meta = tariff.metadata as Record<string, unknown> | undefined
   const candidateIds = [
     tariff.transactionModeId,
@@ -66,9 +80,41 @@ function resolveTransactionModeId(
   }
 
   for (const code of candidates) {
-    const mode = transactionModes.find((m) => m.code === code)
-    if (mode) return mode.id
+    const matchedId = matchModeByCode(code)
+    if (matchedId) return matchedId
   }
+
+  // Legacy aliases for older tariff rows where transactionType doesn't match modern mode codes exactly.
+  const aliases: Record<string, string[]> = {
+    WALLET_INIT: ['WALLET_CREATION'],
+    WALLET_CREATION: ['WALLET_INIT'],
+    WALLET_TO_EXTERNAL_MERCHANT: ['WALLET_TO_MERCHANT'],
+    WALLET_TO_MERCHANT: ['WALLET_TO_EXTERNAL_MERCHANT'],
+    MERCHANT_WITHDRAWAL: ['MERCHANT_TO_WALLET'],
+  }
+  const normalizedTxType = normalizeCode(tariff.transactionType)
+  for (const alias of aliases[normalizedTxType] ?? []) {
+    const matchedId = matchModeByCode(alias)
+    if (matchedId) return matchedId
+  }
+
+  // Last fallback: use the first system mode mapped from transactionType semantics.
+  const txToModeCode: Record<string, string> = {
+    DEPOSIT: 'MNO_TO_WALLET',
+    WITHDRAWAL: 'WALLET_TO_MNO',
+    BILL_PAYMENT: 'BILL_PAYMENT',
+    WALLET_TO_WALLET: 'WALLET_TO_WALLET',
+    WALLET_TO_BANK: 'WALLET_TO_BANK',
+    BANK_TO_WALLET: 'BANK_TO_WALLET',
+    WALLET_TO_PARTNER_INSTITUTION: 'WALLET_TO_PARTNER_INSTITUTION',
+    PARTNER_INSTITUTION_TO_WALLET: 'PARTNER_INSTITUTION_TO_WALLET',
+  }
+  const mappedCode = txToModeCode[normalizedTxType]
+  if (mappedCode) {
+    const matchedId = matchModeByCode(mappedCode)
+    if (matchedId) return matchedId
+  }
+
   return undefined
 }
 
