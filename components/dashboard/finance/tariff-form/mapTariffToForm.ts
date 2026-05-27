@@ -6,7 +6,7 @@ export type ApiTariffRecord = {
   id: string
   name: string
   description?: string | null
-  tariffType: 'INTERNAL' | 'EXTERNAL'
+  tariffType: 'INTERNAL' | 'EXTERNAL' | string
   transactionType: string
   network?: 'MTN' | 'AIRTEL' | null
   currency?: string
@@ -27,6 +27,7 @@ export type ApiTariffRecord = {
   telecomBankCharge?: number | string | null
   governmentTax?: number | string | null
   transactionModeCode?: string | null
+  transactionModeId?: string | null
   metadata?: Record<string, unknown> | null
   channel?: string | null
 }
@@ -43,10 +44,20 @@ function resolveTransactionModeId(
   if (!transactionModes?.length) return undefined
 
   const meta = tariff.metadata as Record<string, unknown> | undefined
+  const candidateIds = [
+    tariff.transactionModeId,
+    meta?.transactionModeId,
+  ].filter((c): c is string => typeof c === 'string' && c.length > 0)
+  for (const id of candidateIds) {
+    const mode = transactionModes.find((m) => m.id === id)
+    if (mode) return mode.id
+  }
+
   const candidates = [
     tariff.transactionModeCode,
     meta?.transactionModeCode,
     meta?.mode,
+    tariff.transactionType,
   ].filter((c): c is string => typeof c === 'string' && c.length > 0)
 
   if (tariff.description) {
@@ -61,6 +72,48 @@ function resolveTransactionModeId(
   return undefined
 }
 
+const VALID_TRANSACTION_TYPES = new Set<CreateTariffForm['transactionType']>([
+  'DEPOSIT',
+  'WITHDRAWAL',
+  'BILL_PAYMENT',
+  'SCHOOL_FEES',
+  'WALLET_INIT',
+  'WALLET_TO_INTERNAL_MERCHANT',
+  'WALLET_TO_EXTERNAL_MERCHANT',
+  'MERCHANT_WITHDRAWAL',
+  'MERCHANT_TO_WALLET',
+  'WALLET_TO_WALLET',
+  'WALLET_TO_MNO',
+  'WALLET_TO_UTILITY',
+  'MNO_TO_WALLET',
+  'WALLET_TO_MERCHANT',
+  'WALLET_TO_BANK',
+  'BANK_TO_WALLET',
+  'CARD_TO_WALLET',
+  'REVERSAL',
+  'FEE_CHARGE',
+  'CUSTOM',
+  'WALLET_TO_PARTNER_INSTITUTION',
+  'PARTNER_INSTITUTION_TO_WALLET',
+])
+
+function normalizeTariffType(
+  tariffType: string | undefined,
+  partnerId?: string,
+  apiPartnerId?: string,
+): CreateTariffForm['tariffType'] {
+  if (tariffType === 'INTERNAL' || tariffType === 'EXTERNAL') return tariffType
+  return partnerId || apiPartnerId ? 'EXTERNAL' : 'INTERNAL'
+}
+
+function normalizeTransactionType(transactionType: string): CreateTariffForm['transactionType'] {
+  if (transactionType === 'WALLET_CREATION') return 'WALLET_INIT'
+  if (VALID_TRANSACTION_TYPES.has(transactionType as CreateTariffForm['transactionType'])) {
+    return transactionType as CreateTariffForm['transactionType']
+  }
+  return 'CUSTOM'
+}
+
 /** Map API tariff → form state (inverse of create submit, aligned with create form fields). */
 export function mapTariffToForm(
   tariff: ApiTariffRecord,
@@ -68,6 +121,7 @@ export function mapTariffToForm(
 ): CreateTariffForm {
   const apiPartnerId = tariff.apiPartnerId || tariff.apiPartner?.id || undefined
   const partnerId = tariff.partnerId || tariff.partner?.id || undefined
+  const normalizedTariffType = normalizeTariffType(tariff.tariffType, partnerId, apiPartnerId)
   const partnerType = apiPartnerId
     ? ('API_PARTNER' as const)
     : partnerId
@@ -84,10 +138,7 @@ export function mapTariffToForm(
     }
   }
 
-  const txType =
-    tariff.transactionType === 'WALLET_CREATION'
-      ? 'WALLET_INIT'
-      : (tariff.transactionType as CreateTariffForm['transactionType'])
+  const txType = normalizeTransactionType(tariff.transactionType)
 
   const bps = (tariff.metadata as { institutionSpreadBps?: { rukapay?: number; nexen?: number } })
     ?.institutionSpreadBps
@@ -95,7 +146,7 @@ export function mapTariffToForm(
   return {
     name: tariff.name || '',
     description: tariff.description || '',
-    tariffType: tariff.tariffType,
+    tariffType: normalizedTariffType,
     transactionType: txType,
     network: tariff.network ?? undefined,
     transactionModeId: resolveTransactionModeId(tariff, transactionModes),
