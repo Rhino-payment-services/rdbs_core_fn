@@ -226,9 +226,11 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const prevNetworkRef = useRef<string | undefined>(undefined)
   const skipMnoAutoCalcRef = useRef(true)
 
-  // Track which tariff ID has already been hydrated so we only do it once per tariff.
-  // Stored as state (not a ref) so that the derived-state check below can react to it.
-  const [hydratedTariffId, setHydratedTariffId] = useState<string | null>(null)
+  // Tracks which tariff has been hydrated into form state.
+  // A ref (not state) is used deliberately: mutating it during render doesn't
+  // schedule an extra re-render, so the guard below calls only ONE setState
+  // (setForm), which is the safe in-render pattern React documents.
+  const hydratedTariffIdRef = useRef<string | null>(null)
 
   const {
     data: existingTariff,
@@ -247,28 +249,47 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   // ─── Derived-state initialisation ────────────────────────────────────────────
   // React allows calling setState during render when guarded by a changed-value
   // check (see React docs: "Storing information from previous renders").
-  // React will throw away the current render output and immediately re-render with
-  // the new state, so Selects ALWAYS see the correct value on their very first
-  // visible render — no post-render effects or key-remounting needed.
+  // React discards the in-progress render output and immediately re-renders with
+  // the new form state, so Select components ALWAYS see the correct value on
+  // their very first visible render — no async effects or key-remounting needed.
+  //
+  // IMPORTANT: only ONE setState call (setForm) is made here. The guard uses a
+  // ref so its mutation does not itself trigger a re-render — using a state
+  // variable for the guard would produce two batched-or-sequential setState
+  // calls, which can leave form at defaults if not batched together.
   if (
     isEdit &&
     existingTariff?.id &&
-    transactionModes &&
-    hydratedTariffId !== existingTariff.id
+    transactionModes?.length &&
+    hydratedTariffIdRef.current !== existingTariff.id
   ) {
-    setHydratedTariffId(existingTariff.id)
-    skipMnoAutoCalcRef.current = true
+    hydratedTariffIdRef.current = existingTariff.id   // mut ref — no extra render
     prevNetworkRef.current = existingTariff.network ?? undefined
-    setForm(mapTariffToForm(existingTariff, transactionModes))
+    skipMnoAutoCalcRef.current = true
+    const mapped = mapTariffToForm(existingTariff, transactionModes)
+    console.log('[TariffForm] hydrating', { raw: existingTariff, mapped })
+    setForm(mapped)  // SINGLE setState
   }
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Reset skipMnoAutoCalcRef after hydration so the MNO fee auto-calc works again
+  // Reset skipMnoAutoCalcRef so MNO fee auto-calc works after hydration.
+  // Each MNO effect runs once right after the hydration render; they each check
+  // skipMnoAutoCalcRef and also have their own equality guards so they won't
+  // overwrite correctly stored fee values. Reset here so they work normally
+  // thereafter when the user changes tariff type, network, or fee percentage.
   useEffect(() => {
-    if (!hydratedTariffId) return
+    if (!isEdit) return
     const t = setTimeout(() => { skipMnoAutoCalcRef.current = false }, 0)
     return () => clearTimeout(t)
-  }, [hydratedTariffId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existingTariff?.id, transactionModes])
+
+  // When navigating between edit pages, reset the hydration guard so the new
+  // tariff's data is picked up by the derived-state block above.
+  useEffect(() => {
+    hydratedTariffIdRef.current = null
+    skipMnoAutoCalcRef.current = true
+  }, [tariffId])
 
   const updateTariffMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
