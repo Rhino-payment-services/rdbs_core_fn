@@ -28,7 +28,7 @@ export function TransactionModeSelect({
   const selected = modes?.find((m) => m.id === value)
 
   return (
-    <Select value={value || undefined} onValueChange={onValueChange} disabled={disabled}>
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger className="w-full max-w-full [&_[data-slot=select-value]]:truncate">
         <SelectValue placeholder={placeholder}>
           {selected ? transactionModeShortLabel(selected) : undefined}
