@@ -1,19 +1,12 @@
 'use client'
 
 import type { Tariff } from '@/lib/tariffs-new/types'
-import { formatTariffGovernmentTax, formatTariffSplitField } from '@/lib/utils/tariffDisplay'
+import {
+  formatTariffGovernmentTax,
+  formatTariffSplitField,
+  shouldShowRukapayResidual,
+} from '@/lib/utils/tariffDisplay'
 import { hasFeeSplit } from '@/lib/tariffs-new/utils'
-
-/**
- * Returns true when the telecom split is a fixed UGX deduction from a percentage fee
- * (e.g. "1.5% total, 600 UGX to telecom, remainder to RukaPay").
- * Mirrors backend tariffSplitFieldsAreFixedUgx logic.
- */
-function isPercentageWithFixedUgxTelecom(tariff: Tariff): boolean {
-  if (tariff.feeType !== 'PERCENTAGE') return false
-  const n = Number(tariff.telecomBankCharge)
-  return Number.isFinite(n) && Math.abs(n) > 100
-}
 
 export function TariffFeeSplit({ tariff, compact }: { tariff: Tariff; compact?: boolean }) {
   if (!hasFeeSplit(tariff)) {
@@ -25,12 +18,17 @@ export function TariffFeeSplit({ tariff, compact }: { tariff: Tariff; compact?: 
   const rukapay = formatTariffSplitField(tariff.rukapayFee, tariff)
   const telecom = formatTariffSplitField(tariff.telecomBankCharge, tariff)
   const gov = formatTariffGovernmentTax(tariff.governmentTax)
-
-  const residualRukapay = !rukapay && isPercentageWithFixedUgxTelecom(tariff)
+  const residualRukapay = shouldShowRukapayResidual(tariff)
 
   if (partner) lines.push({ label: 'Partner', value: partner })
   if (rukapay) lines.push({ label: 'RukaPay', value: rukapay })
-  else if (residualRukapay) lines.push({ label: 'RukaPay', value: 'Residual', dim: true })
+  else if (residualRukapay) {
+    lines.push({
+      label: 'RukaPay',
+      value: 'Residual (total fee − MNO)',
+      dim: true,
+    })
+  }
   if (telecom) lines.push({ label: 'Telecom', value: telecom })
   if (gov) lines.push({ label: 'Gov tax', value: gov })
 

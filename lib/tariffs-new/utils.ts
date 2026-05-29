@@ -1,5 +1,9 @@
 import type { PartnerBucket, Tariff } from './types'
 import { TRANSACTION_TYPE_LABELS } from './constants'
+import {
+  formatTariffPercentRate,
+  tariffUsesPercentageWithFixedMnoDeduction,
+} from '@/lib/utils/tariffDisplay'
 
 function formatPercentValue(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -44,6 +48,10 @@ export function formatFeeAmount(tariff: Tariff): string {
     return 'N/A'
   }
   if (tariff.feeType === 'HYBRID') {
+    // LIPAD-style: 1.5% customer fee; fixed UGX in split is MNO deduction, not added to the %.
+    if (tariffUsesPercentageWithFixedMnoDeduction(tariff)) {
+      return formatTariffPercentRate(tariff.feePercentage) ?? 'N/A'
+    }
     const n = Number(tariff.feePercentage)
     const pct =
       tariff.feePercentage != null && n > 0 && n <= 1

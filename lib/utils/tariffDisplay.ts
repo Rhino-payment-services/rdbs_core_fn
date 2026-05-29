@@ -1,6 +1,11 @@
-type TariffFeeDisplayInput = {
+export type TariffFeeDisplayInput = {
   feeType?: string
   currency?: string
+  feeAmount?: unknown
+  feePercentage?: unknown
+  telecomBankCharge?: unknown
+  rukapayFee?: unknown
+  partnerFee?: unknown
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -38,6 +43,46 @@ export function formatTariffSplitField(
 
   // Human percent point: 0.5, 2, 1.5 → shown as-is with %
   return `${n}%`
+}
+
+/** Split field stored as fixed UGX (e.g. 600), not a percent point. Mirrors backend. */
+export function tariffSplitFieldIsFixedUgx(value: unknown): boolean {
+  const n = finiteNumber(value)
+  return n !== null && n !== 0 && Math.abs(n) > 100
+}
+
+/**
+ * Customer fee is a % of principal; a fixed UGX share goes to MNO; RukaPay keeps the remainder.
+ * Applies to PERCENTAGE and HYBRID tariffs (LIPAD G3/G5 are often still HYBRID in the DB).
+ */
+export function tariffUsesPercentageWithFixedMnoDeduction(
+  tariff: TariffFeeDisplayInput,
+): boolean {
+  if (!tariffSplitFieldIsFixedUgx(tariff.telecomBankCharge)) {
+    return false
+  }
+  const pct = finiteNumber(tariff.feePercentage)
+  if (pct === null || pct === 0) {
+    return false
+  }
+  return tariff.feeType === 'PERCENTAGE' || tariff.feeType === 'HYBRID'
+}
+
+export function formatTariffPercentRate(feePercentage: unknown): string | null {
+  const n = finiteNumber(feePercentage)
+  if (n === null) return null
+  const pct = n > 0 && n <= 1 ? n * 100 : n
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(pct) + '%'
+}
+
+/** RukaPay share is not stored; computed as total fee minus fixed MNO amount. */
+export function shouldShowRukapayResidual(tariff: TariffFeeDisplayInput): boolean {
+  const rukapay = finiteNumber(tariff.rukapayFee)
+  if (rukapay !== null && rukapay !== 0) return false
+  return tariffUsesPercentageWithFixedMnoDeduction(tariff)
 }
 
 /** Government tax is always shown as a percentage. */
