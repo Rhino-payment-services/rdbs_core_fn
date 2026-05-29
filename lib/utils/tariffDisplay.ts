@@ -11,33 +11,33 @@ function finiteNumber(value: unknown): number | null {
 
 /**
  * Format rukapay / telecom / partner split for tariff tables.
- * Non-percentage tariffs are shown in currency amounts.
+ *
+ * Detection logic mirrors the backend `tariffSplitFieldsAreFixedUgx`:
+ *   - abs(value) > 100  → fixed UGX amount (shown as "600 UGX")
+ *   - abs(value) ≤ 100  → human percent point (shown as "2%")
+ *   - value === 0       → null (zero means "no configured split" or "residual — computed at runtime")
  */
 export function formatTariffSplitField(
   value: unknown,
   tariff: TariffFeeDisplayInput,
 ): string | null {
   const n = finiteNumber(value)
-  if (n === null) return null
+  if (n === null || n === 0) return null
 
   const currency = tariff.currency || 'UGX'
 
-  if (tariff.feeType && tariff.feeType !== 'PERCENTAGE') {
+  // Fixed UGX: any non-zero value whose magnitude exceeds 100 is a currency amount.
+  if (Math.abs(n) > 100) {
     return `${n.toLocaleString()} ${currency}`
   }
 
-  // Decimal rate stored as 0.017 → 1.7%; human point 0.5 or 2 → 0.5% / 2%
-  if (n !== 0 && Math.abs(n) < 0.1) {
+  // Decimal rate stored as 0.017 → 1.7%
+  if (Math.abs(n) < 0.1) {
     return `${(n * 100).toFixed(3)}%`
   }
-  if (Math.abs(n) <= 1 && n !== 0) {
-    return `${n}%`
-  }
-  if ((n > 1 && n <= 100) || (n < -1 && n >= -100)) {
-    return `${n}%`
-  }
 
-  return `${n.toLocaleString()} ${currency}`
+  // Human percent point: 0.5, 2, 1.5 → shown as-is with %
+  return `${n}%`
 }
 
 /** Government tax is always shown as a percentage. */
