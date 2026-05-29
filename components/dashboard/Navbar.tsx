@@ -419,7 +419,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/settings" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/settings') || isActive('/dashboard/backups') || isActive('/dashboard/carousel') || isActive('/dashboard/settings/nav-visibility'))
+                          (isActive('/dashboard/settings') || isActive('/dashboard/backups') || isActive('/dashboard/carousel') || isActive('/dashboard/settings/nav-visibility') || isActive('/dashboard/settings/mobile-app-versions'))
                             ? 'active'
                             : ''
                         }`}
@@ -759,7 +759,7 @@ const Navbar = () => {
                     <Link 
                       href="/dashboard/settings" 
                       className={`block px-4 py-2 text-sm transition-colors ${
-                        isActive('/dashboard/settings') && !isActive('/dashboard/carousel')
+                        isActive('/dashboard/settings') && !isActive('/dashboard/carousel') && !isActive('/dashboard/settings/mobile-app-versions')
                           ? 'text-[#08163d] bg-[#08163d]/10'
                           : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
                       }`}
@@ -792,6 +792,19 @@ const Navbar = () => {
                       onClick={() => setIsSettingsDropdownOpen(false)}
                     >
                       Carousel
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
+                    <Link
+                      href="/dashboard/settings/mobile-app-versions"
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/settings/mobile-app-versions')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      Mobile app versions
                     </Link>
                   </PermissionGuard>
                   {/* Nav Visibility moved to per-user configuration under Users → Permissions */}
