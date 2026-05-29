@@ -152,6 +152,11 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
     }
   }
 
+  const isStaffUser =
+    user.userType === 'STAFF' ||
+    user.userType === 'STAFF_USER' ||
+    (user as any).profile?.profileType === 'STAFF'
+
   const getUserTypeBadge = (userType: string) => {
     switch (userType) {
       case 'END_USER':
@@ -262,7 +267,11 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await updateUser.mutateAsync({ id: user.id, userData: formData })
+      const { firstName, lastName, email, status } = formData
+      const userData = isStaffUser
+        ? { firstName, lastName, email, status }
+        : formData
+      await updateUser.mutateAsync({ id: user.id, userData })
       toast.success('User profile updated successfully!')
     } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error)
@@ -350,15 +359,21 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                         placeholder="Enter email address"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Enter phone number"
-                      />
-                    </div>
+                    {isStaffUser ? (
+                      <div className="text-sm text-muted-foreground self-end pb-2">
+                        Staff accounts use email login only. Phone is not stored on staff users.
+                      </div>
+                    ) : (
+                      <div>
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>

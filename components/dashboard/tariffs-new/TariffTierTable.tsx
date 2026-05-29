@@ -11,7 +11,12 @@ import {
 } from '@/components/ui/table'
 import { formatTariffChannel } from '@/lib/constants/tariff-channels'
 import type { Tariff } from '@/lib/tariffs-new/types'
-import { formatAmountRange, formatFeeAmount } from '@/lib/tariffs-new/utils'
+import {
+  formatAmountRange,
+  formatFeeAmount,
+  isTariffPendingApproval,
+} from '@/lib/tariffs-new/utils'
+import { cn } from '@/lib/utils'
 import { TariffActionsMenu } from './TariffActionsMenu'
 import { TariffFeeSplit } from './TariffFeeSplit'
 import { TariffStatusBadge } from './TariffStatusBadge'
@@ -68,7 +73,13 @@ export function TariffTierTable({
         </TableHeader>
         <TableBody>
           {tariffs.map((tariff) => (
-            <TableRow key={tariff.id} className="hover:bg-gray-50/50">
+            <TableRow
+              key={tariff.id}
+              className={cn(
+                'hover:bg-gray-50/50',
+                isTariffPendingApproval(tariff) && 'bg-amber-50/80 hover:bg-amber-50',
+              )}
+            >
               <TableCell className="font-medium text-sm">
                 {tariff.group ? (
                   <Badge variant="outline" className="font-mono">

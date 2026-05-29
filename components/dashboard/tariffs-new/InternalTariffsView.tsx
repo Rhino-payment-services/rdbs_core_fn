@@ -5,7 +5,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Plus } from 'lucide-react'
 import type { Tariff } from '@/lib/tariffs-new/types'
 import { INTERNAL_TRANSACTION_TYPES } from '@/lib/tariffs-new/constants'
-import { groupTariffsByTransactionType } from '@/lib/tariffs-new/utils'
+import {
+  countTariffStatuses,
+  groupTariffsByTransactionType,
+} from '@/lib/tariffs-new/utils'
+import { PendingApprovalBanner } from './PendingApprovalBanner'
 import { TransactionTypeScheduleCard } from './TransactionTypeScheduleCard'
 
 type InternalTariffsViewProps = {
@@ -38,6 +42,7 @@ export function InternalTariffsView({
   const typeKeys = Object.keys(INTERNAL_TRANSACTION_TYPES)
   const byType = groupTariffsByTransactionType(tariffs, typeKeys)
   const activeTypes = typeKeys.filter((k) => (byType[k]?.length ?? 0) > 0)
+  const stats = countTariffStatuses(tariffs)
 
   if (tariffs.length === 0) {
     return (
@@ -57,9 +62,21 @@ export function InternalTariffsView({
 
   return (
     <div className="space-y-4">
+      <PendingApprovalBanner
+        tariffs={tariffs}
+        canApprove={canApprove}
+        onView={onView}
+        onApprove={onApprove}
+      />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-600">
           {activeTypes.length} categories · {tariffs.length} tariffs
+          {stats.pending > 0 && (
+            <span className="text-amber-800 font-medium">
+              {' '}
+              · {stats.pending} pending approval
+            </span>
+          )}
         </p>
         {canManage && (
           <Button size="sm" variant="outline" onClick={onCreateTariff}>

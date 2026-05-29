@@ -27,6 +27,8 @@ export interface ActivityLog {
   metadata: Record<string, any>
   channel: string
   requestId: string
+  endpoint?: string
+  sessionId?: string
   ipAddress?: string
   userAgent?: string
   createdAt: string
@@ -58,6 +60,8 @@ export interface ActivityLogFilters {
   limit?: number
   userId?: string
   action?: string
+  /** Server-side prefix match on action, e.g. "HTTP_", "USSD_", "PARTNER_", "SACCO_". */
+  actionPrefix?: string
   category?: string
   status?: 'SUCCESS' | 'FAILED' | 'PENDING'
   startDate?: string
@@ -118,6 +122,7 @@ async function getActivityLogs(filters: ActivityLogFilters = {}): Promise<Activi
   params.append('limit', String(limit))
   if (filters.userId) params.append('userId', filters.userId)
   if (filters.action) params.append('action', filters.action)
+  if (filters.actionPrefix) params.append('actionPrefix', filters.actionPrefix)
   if (filters.category) params.append('category', filters.category)
   if (filters.status) params.append('status', filters.status)
   if (filters.startDate) params.append('startDate', filters.startDate)

@@ -45,9 +45,9 @@ export function TariffStatusBadge({ tariff }: { tariff: Tariff }) {
     case 'PENDING_APPROVAL':
     case 'PENDING':
       return (
-        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+        <Badge className="bg-amber-100 text-amber-900 border-amber-300">
           <Clock className="w-3 h-3 mr-1" />
-          Pending
+          Pending approval
         </Badge>
       )
     case 'REJECTED':

@@ -159,18 +159,51 @@ export function buildExternalPartnerBuckets(externalTariffs: Tariff[]): PartnerB
   })
 }
 
+export function isTariffPendingApproval(tariff: Tariff): boolean {
+  return (
+    tariff.status === 'PENDING_APPROVAL' ||
+    tariff.approvalStatus === 'PENDING'
+  )
+}
+
+export function isTariffDraft(tariff: Tariff): boolean {
+  if (tariff.status === 'DRAFT') return true
+  if (!tariff.status && !tariff.approvalStatus && tariff.isActive === false) return true
+  return false
+}
+
+export function isTariffRejected(tariff: Tariff): boolean {
+  return tariff.status === 'REJECTED' || tariff.approvalStatus === 'REJECTED'
+}
+
 export function countTariffStatuses(tariffs: Tariff[]) {
   let active = 0
   let draft = 0
   let pending = 0
+  let rejected = 0
   for (const t of tariffs) {
+    if (isTariffPendingApproval(t)) {
+      pending++
+      continue
+    }
+    if (isTariffRejected(t)) {
+      rejected++
+      continue
+    }
+    if (isTariffDraft(t)) {
+      draft++
+      continue
+    }
     const status = String(t.status || t.approvalStatus || '')
     if (status === 'ACTIVE' || status === 'APPROVED' || (!status && t.isActive)) active++
-    else if (status === 'DRAFT') draft++
     else if (!status && !t.isActive) draft++
-    else if (status === 'PENDING_APPROVAL' || status === 'PENDING') pending++
+    else active++
   }
-  return { active, draft, pending, total: tariffs.length }
+  return { active, draft, pending, rejected, total: tariffs.length }
+}
+
+export function filterPendingApprovalTariffs(tariffs: Tariff[]): Tariff[] {
+  return tariffs.filter(isTariffPendingApproval)
 }
 
 export function hasFeeSplit(tariff: Tariff): boolean {

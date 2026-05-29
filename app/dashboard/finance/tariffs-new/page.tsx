@@ -99,7 +99,12 @@ function TariffsNewPageContent() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['tariffs'],
-    queryFn: () => api.get('/finance/tariffs', { params: { limit: 1000 } }).then((res) => res.data),
+    queryFn: () =>
+      api
+        .get('/finance/tariffs', {
+          params: { limit: 1000, isActive: 'all', status: 'all' },
+        })
+        .then((res) => res.data),
     staleTime: 0,
     refetchOnMount: 'always',
   })
@@ -340,8 +345,13 @@ function TariffsNewPageContent() {
             <StatChip
               label="Pending approval"
               value={internalStats.pending + externalStats.pending}
-              sub="Across all tariffs"
+              sub={
+                internalStats.pending + externalStats.pending > 0
+                  ? 'Shown in schedules below'
+                  : 'None awaiting review'
+              }
               accent="amber"
+              highlight={internalStats.pending + externalStats.pending > 0}
             />
             <StatChip
               label="Draft"
@@ -492,23 +502,29 @@ function StatChip({
   value,
   sub,
   accent,
+  highlight,
 }: {
   label: string
   value: number
   sub: string
   accent?: 'amber' | 'gray'
+  highlight?: boolean
 }) {
   const border =
     accent === 'amber'
-      ? 'border-amber-200'
+      ? 'border-amber-300'
       : accent === 'gray'
         ? 'border-gray-300'
         : 'border-gray-200'
   return (
-    <Card className={`${border}`}>
+    <Card className={`${border} ${highlight ? 'bg-amber-50/50' : ''}`}>
       <CardContent className="px-4 py-3">
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-xl font-bold text-gray-900">{value}</p>
+        <p
+          className={`text-xl font-bold ${highlight ? 'text-amber-900' : 'text-gray-900'}`}
+        >
+          {value}
+        </p>
         <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
       </CardContent>
     </Card>
