@@ -68,6 +68,11 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Settings', href: '/dashboard/settings' },
     { label: 'Nav Visibility' },
   ],
+  'settings/mobile-app-versions': [
+    root,
+    { label: 'Settings', href: '/dashboard/settings' },
+    { label: 'Mobile app versions' },
+  ],
   'system-logs': [root, { label: 'System Logs' }],
   'test-permissions': [root, { label: 'Permissions Test' }],
   'transaction-modes': [root, { label: 'Transaction Modes' }],
