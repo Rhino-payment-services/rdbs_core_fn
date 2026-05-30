@@ -92,7 +92,31 @@ export const TransactionDetailsModal = ({
 
   if (!transaction) return null
 
-  const { rukapayFee, partnerFee, governmentTax, totalFee } = normalizeFeeBreakdown(transaction)
+  const {
+    rukapayFee,
+    partnerFee,
+    governmentTax,
+    totalFee,
+    telecomBankCharge,
+  } = normalizeFeeBreakdown(transaction)
+
+  // Telecom/MNO share: metadata first; else infer from total when partner fee line is empty.
+  const inferredTelecom =
+    totalFee > 0 && Math.abs(partnerFee) < 0.01
+      ? Number(
+          (totalFee - rukapayFee - governmentTax).toFixed(2),
+        )
+      : 0
+  const telecomDisplay =
+    Math.abs(telecomBankCharge) >= 0.01
+      ? telecomBankCharge
+      : inferredTelecom >= 0.01
+        ? inferredTelecom
+        : 0
+  const showTelecomCharge = Math.abs(telecomDisplay) >= 0.01
+  const showPartnerFee =
+    Math.abs(partnerFee) >= 0.01 &&
+    (!showTelecomCharge || Math.abs(partnerFee - telecomDisplay) >= 0.01)
   const partnerRole = getPartnerRole(transaction)
   const senderInfo = transaction.senderInfo
     ? normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
@@ -349,12 +373,22 @@ export const TransactionDetailsModal = ({
                     {formatAmount(rukapayFee)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-orange-600">Partner Fee:</span>
-                  <span className="font-medium text-orange-600">
-                    {formatAmount(partnerFee)}
-                  </span>
-                </div>
+                {showTelecomCharge && (
+                  <div className="flex justify-between">
+                    <span className="text-violet-600">Telecom / MNO Charge:</span>
+                    <span className="font-medium text-violet-600">
+                      {formatAmount(telecomDisplay)}
+                    </span>
+                  </div>
+                )}
+                {showPartnerFee && (
+                  <div className="flex justify-between">
+                    <span className="text-orange-600">Partner Fee:</span>
+                    <span className="font-medium text-orange-600">
+                      {formatAmount(partnerFee)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-red-600">Government Tax:</span>
                   <span className="font-medium text-red-600">
