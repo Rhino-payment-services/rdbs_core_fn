@@ -10,6 +10,9 @@ export type PhoneAccountSummary = {
   id: string
   email: string | null
   phone: string | null
+  firstName?: string | null
+  lastName?: string | null
+  country?: string | null
   userType: string
   status: string
   walletCount: number
@@ -102,6 +105,8 @@ function accountFromSearchUser(user: UserSearchResult): PhoneAccountSummary {
     id: user.id,
     email: user.email ?? null,
     phone: user.phone ?? null,
+    firstName: user.profile?.firstName || user.firstName || null,
+    lastName: user.profile?.lastName || user.lastName || null,
     userType: user.userType,
     status: user.status,
     walletCount: user.wallets?.length ?? 0,
@@ -118,6 +123,25 @@ function accountFromSearchUser(user: UserSearchResult): PhoneAccountSummary {
 function canGrantOnAccount(account: PhoneAccountSummary): boolean {
   if (account.userType === 'STAFF') return false
   return account.userType === 'SUBSCRIBER' || account.walletCount > 0
+}
+
+/** Names/country from a linked customer phone check (Step 1 → Step 2 prefill). */
+export function getLinkedCustomerPrefill(
+  result: PhoneAvailabilityResult,
+): { firstName: string; lastName: string; country?: string } | null {
+  if (!result.canGrantStaffOnExisting) return null
+  const account =
+    result.accounts?.find((a) => a.id === result.existingUserId) ?? result.accounts?.[0]
+  if (!account) return null
+  const firstName = (account.firstName ?? '').trim()
+  const lastName = (account.lastName ?? '').trim()
+  const country = (account.country ?? '').trim()
+  if (!firstName && !lastName && !country) return null
+  return {
+    firstName,
+    lastName,
+    ...(country.length === 2 ? { country: country.toUpperCase() } : {}),
+  }
 }
 
 async function checkEmailViaSearch(email: string): Promise<EmailAvailabilityResult> {

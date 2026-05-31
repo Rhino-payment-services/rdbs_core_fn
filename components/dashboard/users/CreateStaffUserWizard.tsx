@@ -27,7 +27,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useCreateUser, useSendWelcomeEmail } from '@/lib/hooks/useApi'
 import { useGrantStaffAccess } from '@/lib/hooks/useDuplicateAccounts'
-import { useUserAvailabilityCheck } from '@/lib/hooks/useUserAvailabilityCheck'
+import {
+  getLinkedCustomerPrefill,
+  useUserAvailabilityCheck,
+  type PhoneAvailabilityResult,
+} from '@/lib/hooks/useUserAvailabilityCheck'
 import { extractErrorMessage } from '@/lib/utils'
 import { formatUgandaPhoneDisplay, isMeaningfulUgandaPhone } from '@/lib/utils/uganda-phone'
 
@@ -132,6 +136,17 @@ export function CreateStaffUserWizard() {
 
   const canProceedStep1 = emailVerified && emailResult.status === 'available' && phoneOk
 
+  const applyLinkedCustomerPrefill = (phoneCheck: PhoneAvailabilityResult) => {
+    const prefill = getLinkedCustomerPrefill(phoneCheck)
+    if (!prefill) return
+    setFormData((prev) => ({
+      ...prev,
+      ...(prefill.firstName ? { firstName: prefill.firstName } : {}),
+      ...(prefill.lastName ? { lastName: prefill.lastName } : {}),
+      ...(prefill.country ? { country: prefill.country } : {}),
+    }))
+  }
+
   const handleVerifyEmail = async () => {
     setEmailVerified(false)
     const result = await checkEmail(email)
@@ -154,6 +169,7 @@ export function CreateStaffUserWizard() {
     if (result.canGrantStaffOnExisting && result.existingUserId) {
       setGrantStaffOnExisting(true)
       setExistingUserId(result.existingUserId)
+      applyLinkedCustomerPrefill(result)
     }
     setPhoneVerified(true)
   }
@@ -414,6 +430,11 @@ export function CreateStaffUserWizard() {
               <User className="h-5 w-5" />
               Step 2 — Staff details
             </CardTitle>
+            {grantStaffOnExisting && (formData.firstName || formData.lastName) && (
+              <CardDescription>
+                Name pre-filled from the linked customer profile — you can edit before continuing.
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -619,11 +640,14 @@ export function CreateStaffUserWizard() {
                     if (phoneRes.canGrantStaffOnExisting && phoneRes.existingUserId) {
                       setGrantStaffOnExisting(true)
                       setExistingUserId(phoneRes.existingUserId)
+                      applyLinkedCustomerPrefill(phoneRes)
                     } else {
                       setGrantStaffOnExisting(false)
                       setExistingUserId(null)
                     }
                     setPhoneVerified(true)
+                  } else if (phoneVerified && grantStaffOnExisting) {
+                    applyLinkedCustomerPrefill(phoneResult)
                   }
                 }
                 if (step === 2 && !validateStep2()) return
