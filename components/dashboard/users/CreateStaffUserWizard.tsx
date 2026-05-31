@@ -327,7 +327,7 @@ export function CreateStaffUserWizard() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="staff-phone">Phone (optional — conflict check only)</Label>
+              <Label htmlFor="staff-phone">Customer phone (optional — link existing wallet)</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -358,12 +358,13 @@ export function CreateStaffUserWizard() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Optional. If this number belongs to a single customer account, you can grant staff
-                login on that profile. Multiple accounts on one number must be merged first — see{' '}
+                Enter their mobile number if they already have a Rukapay wallet. Staff login is added
+                on the same profile — balance and phone stay as-is. Leave blank only for brand-new
+                staff with no wallet. Multiple accounts on one number must be merged first (
                 <Link href="/dashboard/users/duplicates" className="text-blue-600 underline">
-                  duplicate accounts
+                  duplicates
                 </Link>
-                .
+                ).
               </p>
               {phoneEntered && !isMeaningfulUgandaPhone(phone) && (
                 <p className="text-xs text-amber-700">Enter a complete Uganda mobile number before checking.</p>
@@ -373,9 +374,7 @@ export function CreateStaffUserWizard() {
                 message={phoneResult.message}
                 variant={
                   phoneResult.status === 'available'
-                    ? grantStaffOnExisting
-                      ? 'warning'
-                      : 'success'
+                    ? 'success'
                     : phoneResult.status === 'taken'
                       ? 'error'
                       : phoneResult.status === 'invalid' || phoneResult.status === 'error'
