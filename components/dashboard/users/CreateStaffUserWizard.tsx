@@ -607,13 +607,22 @@ export function CreateStaffUserWizard() {
                   if (phoneEntered) {
                     const phoneRes = phoneVerified ? phoneResult : await checkPhone(phone)
                     if (
-                      phoneRes.isSubscriberConflict ||
                       phoneRes.status === 'invalid' ||
-                      phoneRes.status === 'error'
+                      phoneRes.status === 'error' ||
+                      phoneRes.status === 'taken'
                     ) {
                       setPhoneVerified(false)
+                      setGrantStaffOnExisting(false)
+                      setExistingUserId(null)
                       toast.error(phoneRes.message || 'Phone check failed')
                       return
+                    }
+                    if (phoneRes.canGrantStaffOnExisting && phoneRes.existingUserId) {
+                      setGrantStaffOnExisting(true)
+                      setExistingUserId(phoneRes.existingUserId)
+                    } else {
+                      setGrantStaffOnExisting(false)
+                      setExistingUserId(null)
                     }
                     setPhoneVerified(true)
                   }
