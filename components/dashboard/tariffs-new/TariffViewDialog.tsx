@@ -19,6 +19,7 @@ import { formatTariffChannel } from '@/lib/constants/tariff-channels'
 import {
   formatTariffGovernmentTax,
   formatTariffSplitField,
+  shouldShowRukapayResidual,
 } from '@/lib/utils/tariffDisplay'
 import { TariffStatusBadge } from './TariffStatusBadge'
 import { TariffFeeSplit } from './TariffFeeSplit'
@@ -139,10 +140,14 @@ export function TariffViewDialog({ tariff, open, onOpenChange }: TariffViewDialo
                     </p>
                   </div>
                 )}
-                {tariff.rukapayFee != null && (
+                {(tariff.rukapayFee != null || shouldShowRukapayResidual(tariff)) && (
                   <div>
                     <span className="text-gray-500 text-xs">RukaPay</span>
-                    <p>{formatTariffSplitField(tariff.rukapayFee, tariff)}</p>
+                    <p className={shouldShowRukapayResidual(tariff) ? 'text-gray-400 italic' : undefined}>
+                      {shouldShowRukapayResidual(tariff)
+                        ? 'Residual (total fee − MNO)'
+                        : formatTariffSplitField(tariff.rukapayFee, tariff)}
+                    </p>
                   </div>
                 )}
                 {tariff.telecomBankCharge != null && (
