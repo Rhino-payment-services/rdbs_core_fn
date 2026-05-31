@@ -122,6 +122,11 @@ export interface CreateUserRequest {
   password?: string
   role: string
   userType: string
+  department?: string
+  position?: string
+  country?: string
+  sendOtpViaEmail?: boolean
+  sendOtpViaSms?: boolean
 }
 
 export interface UpdateUserRequest {
