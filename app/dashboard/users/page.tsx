@@ -219,14 +219,15 @@ const UsersPage = () => {
                 </Link>
               </PermissionGuard>
               <PermissionGuard permission={PERMISSIONS.USERS_UPDATE}>
-                <Button
-                  variant="outline"
-                  className="border-amber-500 text-amber-700 hover:bg-amber-50"
-                  onClick={() => setMergeModalOpen(true)}
-                >
-                  <Merge className="w-4 h-4 mr-2" />
-                  Merge Duplicates
-                </Button>
+                <Link href="/dashboard/users/duplicates">
+                  <Button
+                    variant="outline"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                  >
+                    <Merge className="w-4 h-4 mr-2" />
+                    Duplicate accounts
+                  </Button>
+                </Link>
               </PermissionGuard>
               <PermissionGuard permission={PERMISSIONS.USERS_CREATE}>
                 <Link href="/dashboard/users/create">

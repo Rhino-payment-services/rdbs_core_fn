@@ -1,51 +1,57 @@
 import { useCallback, useState } from 'react'
 import api from '@/lib/axios'
-import { normalizePhoneForSearch } from '@/lib/utils'
 import { isMeaningfulUgandaPhone } from '@/lib/utils/uganda-phone'
-import type { UserSearchResult } from './useUserSearch'
 
 export type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error'
 
+export type PhoneAccountSummary = {
+  id: string
+  email: string | null
+  phone: string | null
+  userType: string
+  status: string
+  walletCount: number
+  wallets: Array<{
+    id: string
+    walletType: string
+    balance: number
+    currency: string
+    isActive: boolean
+  }>
+}
+
 export type EmailAvailabilityResult = {
   status: AvailabilityStatus
-  user?: UserSearchResult
   message?: string
 }
 
 export type PhoneAvailabilityResult = {
   status: AvailabilityStatus
-  user?: UserSearchResult
   message?: string
-  /** True when number belongs to a subscriber (wallet) account */
-  isSubscriberConflict?: boolean
+  accounts?: PhoneAccountSummary[]
+  /** Grant staff portal login on existing subscriber (keeps phone & wallets) */
+  canGrantStaffOnExisting?: boolean
+  existingUserId?: string
+  /** Multiple accounts on same phone — use duplicates page */
+  hasDuplicateAccounts?: boolean
+}
+
+type CheckAvailabilityResponse = {
+  email?: {
+    available: boolean
+    message: string
+  }
+  phone?: {
+    canonical: string
+    accounts: PhoneAccountSummary[]
+    canGrantStaffOnExisting: boolean
+    message: string
+  }
 }
 
 function extractApiErrorMessage(err: unknown): string {
   const e = err as { response?: { data?: { message?: string } }; message?: string }
   return e?.response?.data?.message || e?.message || 'Check failed'
-}
-
-async function fetchUserByEmail(email: string): Promise<UserSearchResult | null> {
-  try {
-    const response = await api.get(`/users/search?email=${encodeURIComponent(email.trim())}`)
-    return response.data
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404) return null
-    throw err
-  }
-}
-
-async function fetchUserByPhone(phone: string): Promise<UserSearchResult | null> {
-  const normalized = normalizePhoneForSearch(phone)
-  try {
-    const response = await api.get(`/users/search?phone=${encodeURIComponent(normalized)}`)
-    return response.data
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 404) return null
-    throw err
-  }
 }
 
 export function useUserAvailabilityCheck() {
@@ -67,27 +73,31 @@ export function useUserAvailabilityCheck() {
 
     setEmailResult({ status: 'checking' })
     try {
-      const user = await fetchUserByEmail(trimmed)
-      if (user) {
+      const { data } = await api.get<CheckAvailabilityResponse>(
+        `/admin/users/check-availability?email=${encodeURIComponent(trimmed)}`,
+      )
+      const block = data.email
+      if (!block) {
+        const r: EmailAvailabilityResult = { status: 'error', message: 'No email check result from server' }
+        setEmailResult(r)
+        return r
+      }
+      if (block.available) {
         const r: EmailAvailabilityResult = {
-          status: 'taken',
-          user,
-          message: `This email is already registered (${user.userType || 'user'}).`,
+          status: 'available',
+          message: block.message || 'Email is available.',
         }
         setEmailResult(r)
         return r
       }
       const r: EmailAvailabilityResult = {
-        status: 'available',
-        message: 'Email is available for a new staff account.',
+        status: 'taken',
+        message: block.message || 'Email is already registered.',
       }
       setEmailResult(r)
       return r
     } catch (err) {
-      const r: EmailAvailabilityResult = {
-        status: 'error',
-        message: extractApiErrorMessage(err),
-      }
+      const r: EmailAvailabilityResult = { status: 'error', message: extractApiErrorMessage(err) }
       setEmailResult(r)
       return r
     }
@@ -98,7 +108,7 @@ export function useUserAvailabilityCheck() {
     if (!trimmed || trimmed === '+256') {
       const r: PhoneAvailabilityResult = {
         status: 'available',
-        message: 'No phone check needed — staff accounts sign in with email only.',
+        message: 'No phone on file — staff will sign in with email only.',
       }
       setPhoneResult(r)
       return r
@@ -115,28 +125,48 @@ export function useUserAvailabilityCheck() {
 
     setPhoneResult({ status: 'checking' })
     try {
-      const user = await fetchUserByPhone(trimmed)
-      if (!user) {
+      const { data } = await api.get<CheckAvailabilityResponse>(
+        `/admin/users/check-availability?phone=${encodeURIComponent(trimmed)}`,
+      )
+      const block = data.phone
+      if (!block) {
+        const r: PhoneAvailabilityResult = { status: 'error', message: 'No phone check result from server' }
+        setPhoneResult(r)
+        return r
+      }
+
+      const accounts = block.accounts || []
+      if (accounts.length === 0) {
         const r: PhoneAvailabilityResult = {
           status: 'available',
-          message: 'This number is not registered as a customer wallet.',
+          message: block.message,
         }
         setPhoneResult(r)
         return r
       }
 
-      const isSubscriber =
-        user.userType === 'SUBSCRIBER' ||
-        user.subscriberType != null ||
-        (user.wallets && user.wallets.length > 0)
-
-      if (isSubscriber) {
+      if (accounts.length > 1) {
         const r: PhoneAvailabilityResult = {
           status: 'taken',
-          user,
-          isSubscriberConflict: true,
+          message: block.message,
+          accounts,
+          hasDuplicateAccounts: true,
+          canGrantStaffOnExisting: false,
+        }
+        setPhoneResult(r)
+        return r
+      }
+
+      const only = accounts[0]
+      if (block.canGrantStaffOnExisting && only.userType === 'SUBSCRIBER') {
+        const r: PhoneAvailabilityResult = {
+          status: 'available',
           message:
-            'This phone belongs to a customer (subscriber) account. Staff users cannot use a customer phone number.',
+            block.message ||
+            'Customer account found — you can grant staff portal access on this profile (phone and wallet stay as-is).',
+          accounts,
+          canGrantStaffOnExisting: true,
+          existingUserId: only.id,
         }
         setPhoneResult(r)
         return r
@@ -144,16 +174,13 @@ export function useUserAvailabilityCheck() {
 
       const r: PhoneAvailabilityResult = {
         status: 'taken',
-        user,
-        message: `This phone is already linked to an existing ${user.userType || 'user'} account.`,
+        message: block.message || 'This phone is already linked to another account.',
+        accounts,
       }
       setPhoneResult(r)
       return r
     } catch (err) {
-      const r: PhoneAvailabilityResult = {
-        status: 'error',
-        message: extractApiErrorMessage(err),
-      }
+      const r: PhoneAvailabilityResult = { status: 'error', message: extractApiErrorMessage(err) }
       setPhoneResult(r)
       return r
     }

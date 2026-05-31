@@ -89,6 +89,11 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
   ],
   users: [root, { label: 'Users' }],
   'users/create': [root, { label: 'Users', href: '/dashboard/users' }, { label: 'Create' }],
+  'users/duplicates': [
+    root,
+    { label: 'Users', href: '/dashboard/users' },
+    { label: 'Duplicates' },
+  ],
   'users/permissions': [root, { label: 'Users', href: '/dashboard/users' }, { label: 'Permissions' }],
   'users/[userId]/nav-visibility': [
     root,

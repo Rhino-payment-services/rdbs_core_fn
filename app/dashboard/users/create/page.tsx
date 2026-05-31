@@ -24,8 +24,8 @@ const CreateUserPage = () => {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Staff User</h1>
         <p className="text-gray-600">
-          Verify email and phone availability first, then complete staff details. Staff accounts
-          sign in with email only.
+          Verify work email, optionally link an existing customer by phone, then complete staff
+          details. Staff sign in with email; customer wallets stay on the same profile when linked.
         </p>
       </div>
       <CreateStaffUserWizard />
