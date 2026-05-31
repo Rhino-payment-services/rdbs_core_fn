@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useCreateUser, useSendWelcomeEmail } from '@/lib/hooks/useApi'
+import { useGrantStaffAccess } from '@/lib/hooks/useDuplicateAccounts'
 import { useUserAvailabilityCheck } from '@/lib/hooks/useUserAvailabilityCheck'
 import { extractErrorMessage } from '@/lib/utils'
 import { formatUgandaPhoneDisplay, isMeaningfulUgandaPhone } from '@/lib/utils/uganda-phone'
@@ -99,6 +100,7 @@ function StatusBanner({
 export function CreateStaffUserWizard() {
   const router = useRouter()
   const createUserMutation = useCreateUser()
+  const grantStaffMutation = useGrantStaffAccess()
   const sendWelcomeEmailMutation = useSendWelcomeEmail()
   const { emailResult, phoneResult, checkEmail, checkPhone } = useUserAvailabilityCheck()
 
@@ -116,15 +118,17 @@ export function CreateStaffUserWizard() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true)
+  const [grantStaffOnExisting, setGrantStaffOnExisting] = useState(false)
+  const [existingUserId, setExistingUserId] = useState<string | null>(null)
 
   const phoneEntered = phone.trim().length > 0 && phone.trim() !== '+256'
 
   const phoneOk =
     !phoneEntered ||
     (phoneVerified &&
-      !phoneResult.isSubscriberConflict &&
       phoneResult.status !== 'invalid' &&
-      phoneResult.status !== 'error')
+      phoneResult.status !== 'error' &&
+      phoneResult.status !== 'taken')
 
   const canProceedStep1 = emailVerified && emailResult.status === 'available' && phoneOk
 
@@ -136,14 +140,20 @@ export function CreateStaffUserWizard() {
 
   const handleVerifyPhone = async () => {
     setPhoneVerified(false)
+    setGrantStaffOnExisting(false)
+    setExistingUserId(null)
     if (!phoneEntered) {
       setPhoneVerified(true)
       return
     }
     const result = await checkPhone(phone)
-    if (result.isSubscriberConflict || result.status === 'invalid' || result.status === 'error') {
+    if (result.status === 'invalid' || result.status === 'error' || result.status === 'taken') {
       setPhoneVerified(false)
       return
+    }
+    if (result.canGrantStaffOnExisting && result.existingUserId) {
+      setGrantStaffOnExisting(true)
+      setExistingUserId(result.existingUserId)
     }
     setPhoneVerified(true)
   }
@@ -177,18 +187,33 @@ export function CreateStaffUserWizard() {
     }
 
     try {
-      const userResponse = await createUserMutation.mutateAsync({
-        email: email.trim(),
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        department: formData.department,
-        position: formData.position,
-        country: formData.country,
-        role: 'ADMIN',
-        userType: 'STAFF_USER',
-        password: 'temp-password-will-be-set-via-otp',
-      })
-      const createdUser = (userResponse.data || userResponse) as { id: string }
+      let createdUser: { id: string }
+
+      if (grantStaffOnExisting && existingUserId) {
+        const granted = await grantStaffMutation.mutateAsync({
+          existingUserId,
+          email: email.trim(),
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          department: formData.department,
+          position: formData.position,
+          country: formData.country,
+        })
+        createdUser = (granted.data || granted) as { id: string }
+      } else {
+        const userResponse = await createUserMutation.mutateAsync({
+          email: email.trim(),
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          department: formData.department,
+          position: formData.position,
+          country: formData.country,
+          role: 'ADMIN',
+          userType: 'STAFF_USER',
+          password: 'temp-password-will-be-set-via-otp',
+        })
+        createdUser = (userResponse.data || userResponse) as { id: string }
+      }
 
       if (sendWelcomeEmail) {
         try {
@@ -198,7 +223,11 @@ export function CreateStaffUserWizard() {
             userId: createdUser.id,
             metadata: { channel: 'BACKOFFICE', referralCode: `REF${Date.now()}` },
           })
-          toast.success('Staff user created. They will receive an email to set their password.')
+          toast.success(
+            grantStaffOnExisting
+              ? 'Staff portal access granted. They will receive an email to set their password.'
+              : 'Staff user created. They will receive an email to set their password.',
+          )
         } catch (emailError: unknown) {
           toast.error(
             `Staff user created, but welcome email failed: ${extractErrorMessage(emailError)}`,
@@ -246,8 +275,8 @@ export function CreateStaffUserWizard() {
               Step 1 — Verify contact details
             </CardTitle>
             <CardDescription>
-              Check that the email is free and that the phone is not already a customer wallet.
-              Staff sign in with email only; phone is not stored on the account.
+              Check that the work email is free. If the person already has a customer wallet, enter
+              their phone to grant staff portal access on the same profile.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -329,8 +358,12 @@ export function CreateStaffUserWizard() {
                 </Button>
               </div>
               <p className="text-xs text-gray-500">
-                Optional. We verify the number is not tied to an existing customer wallet. It will
-                not be saved on the staff profile.
+                Optional. If this number belongs to a single customer account, you can grant staff
+                login on that profile. Multiple accounts on one number must be merged first — see{' '}
+                <Link href="/dashboard/users/duplicates" className="text-blue-600 underline">
+                  duplicate accounts
+                </Link>
+                .
               </p>
               {phoneEntered && !isMeaningfulUgandaPhone(phone) && (
                 <p className="text-xs text-amber-700">Enter a complete Uganda mobile number before checking.</p>
@@ -340,24 +373,35 @@ export function CreateStaffUserWizard() {
                 message={phoneResult.message}
                 variant={
                   phoneResult.status === 'available'
-                    ? 'success'
-                    : phoneResult.isSubscriberConflict
+                    ? grantStaffOnExisting
+                      ? 'warning'
+                      : 'success'
+                    : phoneResult.status === 'taken'
                       ? 'error'
-                      : phoneResult.status === 'taken'
-                        ? 'warning'
-                        : phoneResult.status === 'invalid' || phoneResult.status === 'error'
-                          ? 'error'
-                          : 'muted'
+                      : phoneResult.status === 'invalid' || phoneResult.status === 'error'
+                        ? 'error'
+                        : 'muted'
                 }
               />
+              {phoneResult.hasDuplicateAccounts && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertCircle className="h-4 w-4 text-amber-700" />
+                  <AlertDescription className="text-amber-900 text-sm">
+                    Resolve duplicate accounts on this phone before granting staff access.{' '}
+                    <Link href="/dashboard/users/duplicates" className="font-medium underline">
+                      Open duplicate accounts
+                    </Link>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             <Alert className="border-blue-200 bg-blue-50">
               <Shield className="h-4 w-4" />
               <AlertTitle className="text-blue-900">Staff login policy</AlertTitle>
               <AlertDescription className="text-blue-800 text-sm">
-                Internal staff use email and a password setup link. Customer phone numbers cannot be
-                reused for staff accounts.
+                Staff sign in with work email and a password setup link. For existing customers,
+                portal access is added to their current profile — wallet and phone stay unchanged.
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -469,9 +513,21 @@ export function CreateStaffUserWizard() {
         <Card>
           <CardHeader>
             <CardTitle>Step 3 — Review</CardTitle>
-            <CardDescription>Confirm details before creating the staff account</CardDescription>
+            <CardDescription>
+              {grantStaffOnExisting
+                ? 'Grant staff portal access on the existing customer profile'
+                : 'Confirm details before creating a new staff account'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {grantStaffOnExisting && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertDescription className="text-amber-900 text-sm">
+                  Work email and admin role will be added to the existing customer account. Phone and
+                  wallet balances are unchanged.
+                </AlertDescription>
+              </Alert>
+            )}
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-gray-500">Email</dt>
@@ -551,13 +607,22 @@ export function CreateStaffUserWizard() {
                   if (phoneEntered) {
                     const phoneRes = phoneVerified ? phoneResult : await checkPhone(phone)
                     if (
-                      phoneRes.isSubscriberConflict ||
                       phoneRes.status === 'invalid' ||
-                      phoneRes.status === 'error'
+                      phoneRes.status === 'error' ||
+                      phoneRes.status === 'taken'
                     ) {
                       setPhoneVerified(false)
+                      setGrantStaffOnExisting(false)
+                      setExistingUserId(null)
                       toast.error(phoneRes.message || 'Phone check failed')
                       return
+                    }
+                    if (phoneRes.canGrantStaffOnExisting && phoneRes.existingUserId) {
+                      setGrantStaffOnExisting(true)
+                      setExistingUserId(phoneRes.existingUserId)
+                    } else {
+                      setGrantStaffOnExisting(false)
+                      setExistingUserId(null)
                     }
                     setPhoneVerified(true)
                   }
