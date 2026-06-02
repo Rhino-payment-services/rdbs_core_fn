@@ -24,6 +24,8 @@ import { ReversalModal } from '@/components/dashboard/transactions/ReversalModal
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
 
+const EXPORT_ALL_TRANSACTIONS_LIMIT = 50000
+
 const TransactionsPage = () => {
   // Pagination and filtering state
   const [currentPage, setCurrentPage] = useState(1)
@@ -362,7 +364,7 @@ const TransactionsPage = () => {
           url: '/transactions/all',
           method: 'GET',
           params: {
-            limit: 10000, // Large limit to get all transactions
+            limit: EXPORT_ALL_TRANSACTIONS_LIMIT, // Export-specific cap
             status: statusFilter || undefined,
             type: typeFilter || undefined,
             startDate: exportStart || undefined,
