@@ -7,7 +7,11 @@ import type { PartnerBucket } from '@/lib/tariffs-new/types'
 import {
   EXTERNAL_TRANSACTION_TYPES,
 } from '@/lib/tariffs-new/constants'
-import { groupTariffsByTransactionType } from '@/lib/tariffs-new/utils'
+import {
+  countTariffStatuses,
+  groupTariffsByTransactionType,
+} from '@/lib/tariffs-new/utils'
+import { PendingApprovalBanner } from './PendingApprovalBanner'
 import { TransactionTypeScheduleCard } from './TransactionTypeScheduleCard'
 import type { Tariff } from '@/lib/tariffs-new/types'
 
@@ -41,6 +45,7 @@ export function ExternalPartnerPanel({
   const typeKeys = Object.keys(EXTERNAL_TRANSACTION_TYPES)
   const byType = groupTariffsByTransactionType(partner.tariffs, typeKeys)
   const activeTypes = typeKeys.filter((k) => (byType[k]?.length ?? 0) > 0)
+  const stats = countTariffStatuses(partner.tariffs)
 
   const apiPartnerId = partner.key.startsWith('api:')
     ? partner.key.replace('api:', '')
@@ -71,6 +76,12 @@ export function ExternalPartnerPanel({
           <p className="text-sm text-gray-600 mt-2">
             {activeTypes.length} product{activeTypes.length === 1 ? '' : 's'} ·{' '}
             {partner.tariffs.length} tier{partner.tariffs.length === 1 ? '' : 's'}
+            {stats.pending > 0 && (
+              <span className="text-amber-800 font-medium">
+                {' '}
+                · {stats.pending} pending approval
+              </span>
+            )}
           </p>
         </div>
         {canManage && (
@@ -84,6 +95,13 @@ export function ExternalPartnerPanel({
           </Button>
         )}
       </div>
+
+      <PendingApprovalBanner
+        tariffs={partner.tariffs}
+        canApprove={canApprove}
+        onView={onView}
+        onApprove={onApprove}
+      />
 
       {activeTypes.length === 0 ? (
         <p className="text-gray-500 text-sm">No tariffs for this partner.</p>

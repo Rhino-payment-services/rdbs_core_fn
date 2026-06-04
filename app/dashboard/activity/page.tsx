@@ -128,6 +128,7 @@ interface LogTableProps {
 function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [auditFilter, setAuditFilter] = useState<'all' | 'ussd' | 'http' | 'partner'>('all')
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -143,11 +144,28 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
       startDate,
       endDate,
       status: statusFilter === 'all' ? undefined : (statusFilter as ActivityLogFilters['status']),
-      category: categoryFilter === 'all' ? undefined : categoryFilter,
+      // Server-side action prefix filters (HTTP_, USSD_, PARTNER_/SACCO_)
+      actionPrefix:
+        auditFilter === 'http' ? 'HTTP_'
+        : auditFilter === 'ussd' ? 'USSD_'
+        : undefined,
+      category:
+        auditFilter === 'partner'
+          ? undefined
+          : auditFilter === 'ussd'
+            ? 'USSD'
+            : categoryFilter === 'all'
+              ? undefined
+              : categoryFilter,
+      // Partner/SACCO: filter by action prefix server-side
+      ...(auditFilter === 'partner'
+        ? { actionPrefix: undefined, category: undefined }
+        : {}),
     }),
-    [tab, page, limit, startDate, endDate, statusFilter, categoryFilter],
+    [tab, page, limit, startDate, endDate, statusFilter, categoryFilter, auditFilter],
   )
 
+  // For partner/sacco filter, we use actionPrefix with regex OR; handled client-side for now
   const searchFilters: ActivityLogFilters = useMemo(
     () => ({ ...filters, query: searchQuery || undefined }),
     [filters, searchQuery],
@@ -164,9 +182,19 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
   const isError = useSearch ? searchError : listError
   const activeError: any = useSearch ? undefined : listErrObj
 
-  const logs = data?.logs ?? []
-  const total = data?.total ?? 0
-  const totalPages = data?.totalPages ?? 0
+  const rawLogs = data?.logs ?? []
+  const logs = useMemo(() => {
+    if (auditFilter === 'partner') {
+      return rawLogs.filter(
+        (log) =>
+          log.action?.startsWith('PARTNER_') ||
+          log.action?.startsWith('SACCO_'),
+      )
+    }
+    return rawLogs
+  }, [rawLogs, auditFilter])
+  const total = auditFilter === 'partner' ? logs.length : (data?.total ?? 0)
+  const totalPages = auditFilter === 'partner' ? Math.max(1, Math.ceil(logs.length / limit)) : (data?.totalPages ?? 0)
 
   const categories = useMemo(() => {
     const set = new Set<string>()
@@ -233,7 +261,45 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
               <SelectItem value="PENDING">Pending</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(1) }}>
+          <div className="flex gap-1 flex-wrap">
+            <Button
+              type="button"
+              size="sm"
+              variant={auditFilter === 'all' ? 'default' : 'outline'}
+              onClick={() => { setAuditFilter('all'); setCategoryFilter('all'); setPage(1) }}
+            >
+              All
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={auditFilter === 'ussd' ? 'default' : 'outline'}
+              onClick={() => { setAuditFilter('ussd'); setCategoryFilter('all'); setPage(1) }}
+            >
+              USSD
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={auditFilter === 'partner' ? 'default' : 'outline'}
+              onClick={() => { setAuditFilter('partner'); setCategoryFilter('all'); setPage(1) }}
+            >
+              Partner / SACCO
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={auditFilter === 'http' ? 'default' : 'outline'}
+              onClick={() => { setAuditFilter('http'); setCategoryFilter('all'); setPage(1) }}
+            >
+              HTTP audit
+            </Button>
+          </div>
+          <Select
+            value={categoryFilter}
+            onValueChange={(v) => { setCategoryFilter(v); setAuditFilter('all'); setPage(1) }}
+            disabled={auditFilter === 'ussd' || auditFilter === 'http' || auditFilter === 'partner'}
+          >
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="All Categories" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
@@ -285,6 +351,7 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
                   <TableHead>Category</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Action</TableHead>
+                  <TableHead>Session / Endpoint</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>IP Address</TableHead>
                 </TableRow>
@@ -303,6 +370,12 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
                     </TableCell>
                     <TableCell className="text-sm font-medium">
                       {log.action?.replace(/_/g, ' ') || '—'}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-gray-500 max-w-[140px] truncate">
+                      {log.sessionId ||
+                        log.metadata?.sessionId ||
+                        log.endpoint ||
+                        '—'}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600 max-w-xs truncate">
                       {log.description || '—'}

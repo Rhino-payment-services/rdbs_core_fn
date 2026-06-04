@@ -100,7 +100,7 @@ export const PhoneSearchForm: React.FC<PhoneSearchFormProps> = ({
               <div className="flex gap-2">
                 <Input
                   id="phoneSearch"
-                  placeholder="e.g., +256700000000 or 0742600203"
+                  placeholder="e.g., 256700000000 or 0742600203"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}

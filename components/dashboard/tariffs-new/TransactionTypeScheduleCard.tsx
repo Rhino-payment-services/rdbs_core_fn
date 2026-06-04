@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import type { TransactionTypeConfig } from '@/lib/tariffs-new/types'
 import type { Tariff } from '@/lib/tariffs-new/types'
-import { getTransactionTypeLabel } from '@/lib/tariffs-new/utils'
+import {
+  filterPendingApprovalTariffs,
+  getTransactionTypeLabel,
+} from '@/lib/tariffs-new/utils'
 import { TariffTierTable } from './TariffTierTable'
 
 type TransactionTypeScheduleCardProps = {
@@ -48,6 +51,7 @@ export function TransactionTypeScheduleCard({
   const [open, setOpen] = useState(defaultOpen)
   const Icon = config.icon
   const label = getTransactionTypeLabel(transactionType, tariffs[0])
+  const pendingCount = filterPendingApprovalTariffs(tariffs).length
 
   return (
     <Card className="border-gray-200 shadow-sm">
@@ -65,6 +69,11 @@ export function TransactionTypeScheduleCard({
                 <Badge variant="secondary" className="text-xs font-normal">
                   {tariffs.length} tier{tariffs.length === 1 ? '' : 's'}
                 </Badge>
+                {pendingCount > 0 && (
+                  <Badge className="text-xs font-normal bg-amber-100 text-amber-900 border-amber-300">
+                    {pendingCount} pending approval
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-gray-500 truncate">{config.description}</p>
             </div>
