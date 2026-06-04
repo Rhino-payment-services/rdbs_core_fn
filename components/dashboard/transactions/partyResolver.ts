@@ -708,6 +708,44 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         merchantName,
       }
     }
+    if (side === 'sender' && direction === 'CREDIT') {
+      const payeeMerchant = String(
+        metadata?.merchantName || metadata?.receiverName || info?.merchantName || '',
+      )
+        .trim()
+        .toLowerCase()
+      const payerMerchant = String(metadata?.senderMerchantName || '').trim().toLowerCase()
+      const isPayeeOrPayerBusinessLabel = (value: unknown) => {
+        const label = String(value ?? '').trim().toLowerCase()
+        if (!label) return true
+        if (payeeMerchant && label === payeeMerchant) return true
+        if (payerMerchant && label === payerMerchant) return true
+        if (payeeMerchant && payeeMerchant.length >= 4 && label.includes(payeeMerchant)) return true
+        if (payerMerchant && payerMerchant.length >= 4 && label.includes(payerMerchant)) return true
+        return false
+      }
+      const payerName = firstMeaningfulName(
+        [
+          !isPayeeOrPayerBusinessLabel(metadata?.senderName) ? metadata?.senderName : null,
+          counterpartyProfileName,
+          !isPayeeOrPayerBusinessLabel(info?.name) ? info?.name : null,
+        ],
+        contact,
+      )
+      const payerContact =
+        String(metadata?.senderPhone || metadata?.senderPhoneNumber || '').trim() ||
+        tx?.counterpartyUser?.phone ||
+        contact ||
+        null
+      return {
+        ...info,
+        type: 'SUBSCRIBER',
+        name: payerName || 'RukaPay User',
+        contact: payerContact,
+        merchantCode: null,
+        merchantName: null,
+      }
+    }
     if (side === 'sender' && direction === 'DEBIT' && !isBusinessWallet) {
       const senderName =
         firstMeaningfulName([userProfileName, info?.name, metadata?.senderName], contact) ||
