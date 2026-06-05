@@ -10,7 +10,7 @@ import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
-import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
+import { normalizeFeeBreakdown, resolveExportFeeColumns } from '@/lib/utils/feeBreakdown'
 import * as XLSX from 'xlsx'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
@@ -462,24 +462,6 @@ const TransactionsPage = () => {
         return 'Direct'
       }
 
-      /**
-       * Check whether the underlying payment RAIL is an MNO (Airtel/MTN).
-       * We look at partnerMapping and metadata — NOT tx.partner, which is the
-       * API/gateway business partner (e.g. BOBPLUS, LIPAD) and is not the rail.
-       */
-      const isRailMno = (tx: any): boolean => {
-        const mappingCode = String(tx.partnerMapping?.partner?.partnerCode || '').toUpperCase()
-        if (/^(MTN|AIRTEL)/.test(mappingCode)) return true
-        const mappingNetwork = String(tx.partnerMapping?.network || '').toUpperCase()
-        if (/^(MTN|AIRTEL)/.test(mappingNetwork)) return true
-        const meta = tx.metadata || {}
-        const mnoProvider = String(meta.mnoProvider || meta.network || '').toLowerCase()
-        if (mnoProvider.includes('mtn') || mnoProvider.includes('airtel')) return true
-        const collBreakdown = meta.collectionFeeBreakdown
-        if (collBreakdown && Number(collBreakdown.mnoPartnerFee) > 0) return true
-        return false
-      }
-
       // Convert transactions to Excel rows
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
@@ -573,72 +555,12 @@ const TransactionsPage = () => {
         // Wallet-to-bank specific fields from metadata
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         const amount = Number(tx.amount) || 0
-        const isSweepTransaction = Boolean(
-          metadata?.sweepToDisbursement || metadata?.sweepFromCollection,
-        )
-        const isLiquidationLike =
-          isSweepTransaction ||
-          (tx?.channel === 'BACKOFFICE' &&
-            tx?.type === 'WALLET_TO_WALLET' &&
-            /liquidate:/i.test(String(tx?.description || '')))
-
         const fees = normalizeFeeBreakdown(tx)
-
-        // --- Fee split into Telecom Fee / Partner Fee / RukaPay Fee ---
-        let rukapayFee: number
-        let telecomFee: number
-        let partnerFeeValue: number
-
-        if (isSweepTransaction) {
-          // Legacy sweeps: sweepRukapayFeeAmount is set after correction script runs.
-          // Fall back to computing 0.5/2.5 split from sweepFeeAmount for old rows.
-          const sweepFeeAmount = Number(metadata.sweepFeeAmount) || 0
-
-          if (tx.direction === 'CREDIT') {
-            rukapayFee = 0
-            telecomFee = 0
-            partnerFeeValue = 0
-          } else if (sweepFeeAmount > 0) {
-            // Use corrected split if available, otherwise compute inline
-            rukapayFee =
-              Number(metadata.sweepRukapayFeeAmount) ||
-              Number(tx.rukapayFee) ||
-              Number((sweepFeeAmount * 0.2).toFixed(2))
-            const thirdParty =
-              Number(metadata.sweepPartnerFeeAmount) ||
-              Number(tx.thirdPartyFee) ||
-              Number((sweepFeeAmount * 0.8).toFixed(2))
-            // Sweeps are always MNO-originated — put thirdParty into telecomFee
-            telecomFee = thirdParty
-            partnerFeeValue = 0
-          } else {
-            rukapayFee = 0
-            telecomFee = 0
-            partnerFeeValue = 0
-          }
-        } else if (isLiquidationLike && fees.rukapayFee === 0) {
-          rukapayFee = Number(tx.fee) || 0
-          telecomFee = 0
-          partnerFeeValue = 0
-        } else {
-          rukapayFee = fees.rukapayFee
-          const thirdParty = fees.partnerFee || Number(tx.thirdPartyFee) || 0
-
-          if (fees.telecomBankCharge > 0) {
-            // API gateway transaction (e.g. BOBPLUS via Airtel/MTN):
-            // telecomBankCharge = MNO rail cost, partnerFee = gateway's own cut
-            telecomFee = fees.telecomBankCharge
-            partnerFeeValue = fees.partnerFee
-          } else if (isRailMno(tx)) {
-            // Direct MNO collection (Airtel/MTN via partnerMapping or metadata)
-            telecomFee = thirdParty
-            partnerFeeValue = 0
-          } else {
-            // Non-MNO external partner (ABC, Pegasus, etc.)
-            telecomFee = 0
-            partnerFeeValue = thirdParty
-          }
-        }
+        const exportFees = resolveExportFeeColumns({
+          ...tx,
+          metadata: { ...metadata, description: tx.description },
+        })
+        const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
 
         const governmentTax = fees.governmentTax
 
