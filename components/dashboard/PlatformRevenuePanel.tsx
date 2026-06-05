@@ -45,6 +45,7 @@ import {
 } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
+import { extractValidationRecipientName } from '@/lib/utils/validation-response'
 import toast from 'react-hot-toast'
 
 /** Match ledger formatting: show decimals when the amount is not a whole number. */
@@ -484,14 +485,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(payload?.error || 'Bank account validation failed')
-      const name =
-        (payload?.beneficiary?.name ||
-          payload?.validationResult?.data?.name ||
-          'Account validated') as string
-      setValidationMessage(name)
+      const name = extractValidationRecipientName(payload)
       setDestinationValidated(true)
-      if (name && name !== 'Account validated') {
+      if (name) {
         setLiquidateForm((prev) => ({ ...prev, bankAccountName: name }))
+        setValidationMessage(`Validated: ${name}`)
+      } else {
+        setValidationMessage('Account validated successfully')
       }
     } catch (e: unknown) {
       setValidationError(e instanceof Error ? e.message : 'Validation failed')
@@ -521,14 +521,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(payload?.error || 'Mobile money validation failed')
-      const name =
-        (payload?.beneficiary?.name ||
-          payload?.validationResult?.data?.name ||
-          'Mobile number validated') as string
-      setValidationMessage(name)
+      const name = extractValidationRecipientName(payload)
       setDestinationValidated(true)
-      if (name && name !== 'Mobile number validated') {
+      if (name) {
         setLiquidateForm((prev) => ({ ...prev, recipientName: name }))
+        setValidationMessage(`Validated: ${name}`)
+      } else {
+        setValidationMessage('Mobile number validated successfully')
       }
     } catch (e: unknown) {
       setValidationError(e instanceof Error ? e.message : 'Validation failed')
