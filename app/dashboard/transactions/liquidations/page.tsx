@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatAmount, formatDate, getStatusBadgeConfig, shortenTransactionId } from "@/lib/utils/transactions"
+import { extractValidationRecipientName } from "@/lib/utils/validation-response"
 import { PERMISSIONS, usePermissions } from "@/lib/hooks/usePermissions"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import toast from "react-hot-toast"
@@ -123,8 +124,8 @@ export default function LiquidationApprovalsPage() {
         })
         const payload = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(payload?.error || "Bank validation failed")
-        const name = (payload?.beneficiary?.name || payload?.validationResult?.data?.name || "Bank account validated") as string
-        setApproveValidationMessage(name)
+        const name = extractValidationRecipientName(payload)
+        setApproveValidationMessage(name ? `Validated: ${name}` : "Bank account validated successfully")
         setApproveValidated(true)
         return
       }
@@ -146,8 +147,8 @@ export default function LiquidationApprovalsPage() {
         })
         const payload = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(payload?.error || "Mobile money validation failed")
-        const name = (payload?.beneficiary?.name || payload?.validationResult?.data?.name || "Mobile number validated") as string
-        setApproveValidationMessage(name)
+        const name = extractValidationRecipientName(payload)
+        setApproveValidationMessage(name ? `Validated: ${name}` : "Mobile number validated successfully")
         setApproveValidated(true)
         return
       }
