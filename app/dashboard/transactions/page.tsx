@@ -556,9 +556,11 @@ const TransactionsPage = () => {
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         const amount = Number(tx.amount) || 0
         const fees = normalizeFeeBreakdown(tx)
+        const partnerLabel = getPartnerLabel(tx)
         const exportFees = resolveExportFeeColumns({
           ...tx,
           metadata: { ...metadata, description: tx.description },
+          partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
 
@@ -620,7 +622,7 @@ const TransactionsPage = () => {
           'Receiver Name': walletToBankReceiverName || receiverName,
           'Receiver Contact': receiverContact,
           'Bank Name': bankName,
-          Partner: getPartnerLabel(tx),
+          Partner: partnerLabel,
           'Date & Time': dateTime,
           Description: tx.description || '',
           'Error Message': tx.errorMessage || '',

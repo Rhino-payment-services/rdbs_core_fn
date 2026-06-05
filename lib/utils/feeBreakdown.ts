@@ -149,24 +149,43 @@ function feesAreSame(a: number, b: number): boolean {
   return a > 0 && b > 0 && Math.abs(a - b) < 0.02
 }
 
+function isMnoCodeOrName(value: string): boolean {
+  const normalized = value.trim().toUpperCase()
+  if (!normalized) return false
+  return (
+    /^(MTN|AIRTEL)$/.test(normalized) ||
+    /\bMTN\b/.test(normalized) ||
+    /\bAIRTEL\b/.test(normalized)
+  )
+}
+
 /** External payment integrator (ABC, Pegasus) — not the MNO rail. */
 function isExternalIntegratorCode(code: string): boolean {
   const normalized = code.trim().toUpperCase()
-  if (!normalized || /^(MTN|AIRTEL)$/.test(normalized)) return false
+  if (!normalized || isMnoCodeOrName(normalized)) return false
   return /^(ABC|PEGASUS|NEXEN)/.test(normalized) || normalized.includes('PEGASUS')
 }
 
+type ExternalFeeRailKind = 'mno' | 'integrator' | 'unknown'
+
 /** Underlying payment rail is Airtel/MTN (not BOBPLUS/LIPAD gateway). */
 export function isMnoRailTransaction(tx: {
-  partnerMapping?: { partner?: { partnerCode?: string | null }; network?: string | null } | null
+  partnerMapping?: {
+    partner?: { partnerCode?: string | null; partnerName?: string | null }
+    network?: string | null
+  } | null
   metadata?: Record<string, unknown> | null
 }): boolean {
-  const mappingCode = String(tx.partnerMapping?.partner?.partnerCode || '').toUpperCase()
-  if (/^(MTN|AIRTEL)$/.test(mappingCode)) return true
-  const mappingNetwork = String(tx.partnerMapping?.network || '').toUpperCase()
-  if (/^(MTN|AIRTEL)$/.test(mappingNetwork)) return true
+  const mappingCode = String(tx.partnerMapping?.partner?.partnerCode || '')
+  if (isMnoCodeOrName(mappingCode)) return true
+  const mappingName = String(tx.partnerMapping?.partner?.partnerName || '')
+  if (isMnoCodeOrName(mappingName)) return true
+  const mappingNetwork = String(tx.partnerMapping?.network || '')
+  if (isMnoCodeOrName(mappingNetwork)) return true
   const meta = tx.metadata || {}
-  const mnoProvider = String(meta.mnoProvider || meta.network || '').toLowerCase()
+  const mnoProvider = String(
+    meta.mnoProvider || meta.network || meta.mnoNetwork || '',
+  ).toLowerCase()
   if (mnoProvider.includes('mtn') || mnoProvider.includes('airtel')) return true
   const collBreakdown = meta.collectionFeeBreakdown as Record<string, unknown> | undefined
   if (collBreakdown && exportFinite(collBreakdown.mnoPartnerFee) > 0) return true
@@ -211,6 +230,54 @@ function resolveExternalIntegratorPartnerCode(tx: {
   return ''
 }
 
+function resolveExternalFeeRailKind(
+  tx: Parameters<typeof resolveExportFeeColumns>[0],
+  partnerLabel?: string,
+): ExternalFeeRailKind {
+  if (resolveExternalIntegratorPartnerCode(tx)) return 'integrator'
+  if (isMnoRailTransaction(tx) || isApiGatewayMnoTransaction(tx)) return 'mno'
+  if (partnerLabel && isMnoCodeOrName(partnerLabel)) return 'mno'
+  return 'unknown'
+}
+
+/**
+ * Collapse duplicate external fees into a single bucket.
+ * Both columns are only kept when telecom and partner are genuinely different
+ * (e.g. Pegasus integrator fee + separate MNO rail charge).
+ */
+function collapseExternalFeeBuckets(
+  telecomFee: number,
+  partnerFee: number,
+  thirdPartyFee: number,
+  railKind: ExternalFeeRailKind,
+): { telecomFee: number; partnerFee: number } {
+  const hasDistinctTripleSplit =
+    telecomFee > 0 && partnerFee > 0 && !feesAreSame(telecomFee, partnerFee)
+
+  if (hasDistinctTripleSplit) {
+    return { telecomFee, partnerFee }
+  }
+
+  const externalShare = Math.max(telecomFee, partnerFee, thirdPartyFee)
+  if (externalShare <= 0) {
+    return { telecomFee: 0, partnerFee: 0 }
+  }
+
+  if (railKind === 'mno') {
+    return { telecomFee: externalShare, partnerFee: 0 }
+  }
+  if (railKind === 'integrator') {
+    return { telecomFee: 0, partnerFee: externalShare }
+  }
+
+  // Unknown rail: never double-count the same external fee in both columns.
+  if (feesAreSame(telecomFee, partnerFee) || partnerFee === 0 || telecomFee === 0) {
+    return { telecomFee: externalShare, partnerFee: 0 }
+  }
+
+  return { telecomFee, partnerFee }
+}
+
 /**
  * Export columns: Telecom Fee / Partner Fee / RukaPay Fee.
  * Usually only one of telecom or partner is populated — both only when the tariff
@@ -225,8 +292,12 @@ export function resolveExportFeeColumns(tx: {
   type?: string | null
   partnerId?: string | null
   partner?: { partnerCode?: string | null; partnerName?: string | null } | null
-  partnerMapping?: { partner?: { partnerCode?: string | null }; network?: string | null } | null
+  partnerMapping?: {
+    partner?: { partnerCode?: string | null; partnerName?: string | null }
+    network?: string | null
+  } | null
   metadata?: Record<string, unknown> | null
+  partnerLabel?: string
 }): ExportFeeColumns {
   const metadata = tx.metadata || {}
   const feeBreakdown = (metadata.feeBreakdown as Record<string, unknown>) || {}
@@ -275,34 +346,24 @@ export function resolveExportFeeColumns(tx: {
     feeBreakdown.partnerFee ?? feeBreakdown.thirdPartyFee ?? tx.thirdPartyFee,
   )
 
-  // gatewayPartnerMnoFee is the MNO rail share — not a separate gateway cut when it
-  // duplicates telecomBankCharge.
+  // gatewayPartnerMnoFee is always the MNO rail share — belongs in telecom, never partner.
   const gwMnoFee = exportFinite(metadata.gatewayPartnerMnoFee)
-  if (partnerFee === 0 && gwMnoFee > 0) {
-    partnerFee = gwMnoFee
+  if (gwMnoFee > 0) {
+    telecomFee = Math.max(telecomFee, gwMnoFee)
   }
 
-  const thirdPartyFallback = exportFinite(tx.thirdPartyFee) || normalized.partnerFee
-  if (telecomFee === 0 && partnerFee === 0 && thirdPartyFallback > 0) {
-    if (resolveExternalIntegratorPartnerCode(tx)) {
-      partnerFee = thirdPartyFallback
-    } else if (isMnoRailTransaction(tx) || isApiGatewayMnoTransaction(tx)) {
-      telecomFee = thirdPartyFallback
-    } else {
-      partnerFee = thirdPartyFallback
-    }
-  }
+  const thirdPartyFee =
+    exportFinite(tx.thirdPartyFee) || normalized.partnerFee || normalized.telecomBankCharge
 
-  // Same value stored twice (common for BOBPLUS/LIPAD API MNO) — keep one bucket only.
-  if (feesAreSame(telecomFee, partnerFee)) {
-    if (resolveExternalIntegratorPartnerCode(tx)) {
-      telecomFee = 0
-    } else if (isMnoRailTransaction(tx) || isApiGatewayMnoTransaction(tx)) {
-      partnerFee = 0
-    } else {
-      partnerFee = 0
-    }
-  }
+  const railKind = resolveExternalFeeRailKind(tx, tx.partnerLabel)
+  const collapsed = collapseExternalFeeBuckets(
+    telecomFee,
+    partnerFee,
+    thirdPartyFee,
+    railKind,
+  )
+  telecomFee = collapsed.telecomFee
+  partnerFee = collapsed.partnerFee
 
   if (rukapayFee === 0 && normalized.rukapayFee !== 0) {
     rukapayFee = normalized.rukapayFee
