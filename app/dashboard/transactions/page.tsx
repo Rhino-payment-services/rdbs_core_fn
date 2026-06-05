@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
+import * as XLSX from 'xlsx'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
 // Import extracted components
@@ -461,35 +462,26 @@ const TransactionsPage = () => {
         return 'Direct'
       }
 
-      // Define CSV headers
-      const headers = [
-        'Reference',
-        'External Reference',
-        'Transaction ID',
-        'Type',
-        'Channel',
-        'Status',
-        'Direction',
-        'Amount',
-        'Currency',
-        'RukaPay Fee',
-        'Partner Fee',
-        'Government Tax',
-        'Total Fee',
-        'Net Amount',
-        'Sender Name',
-        'Sender Contact',
-        'Receiver Name',
-        'Receiver Contact',
-        'Bank Name',
-        'Partner',
-        'Date & Time',
-        'Description',
-        'Error Message'
-      ]
-      
-      // Convert transactions to CSV rows
-      const csvRows = transactionsToExport.map((tx: any) => {
+      /**
+       * Check whether the underlying payment RAIL is an MNO (Airtel/MTN).
+       * We look at partnerMapping and metadata — NOT tx.partner, which is the
+       * API/gateway business partner (e.g. BOBPLUS, LIPAD) and is not the rail.
+       */
+      const isRailMno = (tx: any): boolean => {
+        const mappingCode = String(tx.partnerMapping?.partner?.partnerCode || '').toUpperCase()
+        if (/^(MTN|AIRTEL)/.test(mappingCode)) return true
+        const mappingNetwork = String(tx.partnerMapping?.network || '').toUpperCase()
+        if (/^(MTN|AIRTEL)/.test(mappingNetwork)) return true
+        const meta = tx.metadata || {}
+        const mnoProvider = String(meta.mnoProvider || meta.network || '').toLowerCase()
+        if (mnoProvider.includes('mtn') || mnoProvider.includes('airtel')) return true
+        const collBreakdown = meta.collectionFeeBreakdown
+        if (collBreakdown && Number(collBreakdown.mnoPartnerFee) > 0) return true
+        return false
+      }
+
+      // Convert transactions to Excel rows
+      const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
 
         const isPartnerCollectMno =
@@ -541,7 +533,6 @@ const TransactionsPage = () => {
         // Get receiver info
         let receiverName: string
         let receiverContact: string
-        
 
         if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
           if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
@@ -578,6 +569,7 @@ const TransactionsPage = () => {
           }
           receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
         }
+
         // Wallet-to-bank specific fields from metadata
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         const amount = Number(tx.amount) || 0
@@ -591,19 +583,63 @@ const TransactionsPage = () => {
             /liquidate:/i.test(String(tx?.description || '')))
 
         const fees = normalizeFeeBreakdown(tx)
-        let rukapayFee = fees.rukapayFee
+
+        // --- Fee split into Telecom Fee / Partner Fee / RukaPay Fee ---
+        let rukapayFee: number
+        let telecomFee: number
+        let partnerFeeValue: number
+
         if (isSweepTransaction) {
-          const sweepFee = Number(metadata.sweepFeeAmount) || 0
-          if (sweepFee > 0 && tx.direction === 'DEBIT') {
-            rukapayFee = sweepFee
-          } else if (tx.direction === 'CREDIT') {
+          // Legacy sweeps: sweepRukapayFeeAmount is set after correction script runs.
+          // Fall back to computing 0.5/2.5 split from sweepFeeAmount for old rows.
+          const sweepFeeAmount = Number(metadata.sweepFeeAmount) || 0
+
+          if (tx.direction === 'CREDIT') {
             rukapayFee = 0
+            telecomFee = 0
+            partnerFeeValue = 0
+          } else if (sweepFeeAmount > 0) {
+            // Use corrected split if available, otherwise compute inline
+            rukapayFee =
+              Number(metadata.sweepRukapayFeeAmount) ||
+              Number(tx.rukapayFee) ||
+              Number((sweepFeeAmount * 0.2).toFixed(2))
+            const thirdParty =
+              Number(metadata.sweepPartnerFeeAmount) ||
+              Number(tx.thirdPartyFee) ||
+              Number((sweepFeeAmount * 0.8).toFixed(2))
+            // Sweeps are always MNO-originated — put thirdParty into telecomFee
+            telecomFee = thirdParty
+            partnerFeeValue = 0
+          } else {
+            rukapayFee = 0
+            telecomFee = 0
+            partnerFeeValue = 0
           }
-        } else if (isLiquidationLike && rukapayFee === 0) {
+        } else if (isLiquidationLike && fees.rukapayFee === 0) {
           rukapayFee = Number(tx.fee) || 0
+          telecomFee = 0
+          partnerFeeValue = 0
+        } else {
+          rukapayFee = fees.rukapayFee
+          const thirdParty = fees.partnerFee || Number(tx.thirdPartyFee) || 0
+
+          if (fees.telecomBankCharge > 0) {
+            // API gateway transaction (e.g. BOBPLUS via Airtel/MTN):
+            // telecomBankCharge = MNO rail cost, partnerFee = gateway's own cut
+            telecomFee = fees.telecomBankCharge
+            partnerFeeValue = fees.partnerFee
+          } else if (isRailMno(tx)) {
+            // Direct MNO collection (Airtel/MTN via partnerMapping or metadata)
+            telecomFee = thirdParty
+            partnerFeeValue = 0
+          } else {
+            // Non-MNO external partner (ABC, Pegasus, etc.)
+            telecomFee = 0
+            partnerFeeValue = thirdParty
+          }
         }
 
-        const partnerFee = fees.partnerFee
         const governmentTax = fees.governmentTax
 
         let finalTotalFee = fees.totalFee
@@ -619,85 +655,99 @@ const TransactionsPage = () => {
           }
         }
 
-        // Net Amount: must match TransactionTable NetAmountCell (getDisplayNetAmount + sweep rows)
-        const netAmountForCsv = (() => {
+        // Net Amount: must match TransactionTable NetAmountCell
+        const netAmountForExport = (() => {
           if (metadata.sweepToDisbursement || metadata.sweepFromCollection) {
             return (metadata.netToDisbursement ?? Number(tx.netAmount)) || 0
           }
           const n = getDisplayNetAmount(tx)
-          return n == null ? '-' : n
+          return n == null ? '' : n
         })()
 
-        // Format date
-        const dateTime = tx.createdAt 
-          ? new Date(tx.createdAt).toLocaleString('en-US', {
+        // Format date in EAT (UTC+3)
+        const dateTime = tx.createdAt
+          ? new Date(tx.createdAt).toLocaleString('en-GB', {
+              timeZone: 'Africa/Kampala',
               year: 'numeric',
               month: '2-digit',
               day: '2-digit',
               hour: '2-digit',
               minute: '2-digit',
-              second: '2-digit'
+              second: '2-digit',
             })
-          : 'N/A'
-        
-        // Escape commas and quotes in CSV values
-        const escapeCSV = (value: any) => {
-          const str = value?.toString() || 'N/A'
-          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-            return `"${str.replace(/"/g, '""')}"`
-          }
-          return str
+          : ''
+
+        return {
+          Reference: tx.reference || tx.id,
+          'External Reference': tx.externalReference || '',
+          'Transaction ID': tx.id,
+          Type: tx.type || '',
+          Channel: getChannelDisplay(tx.channel, tx.metadata).label,
+          Status: tx.status || '',
+          Direction: tx.direction || '',
+          Amount: amount,
+          Currency: tx.currency || 'UGX',
+          'Telecom Fee': telecomFee,
+          'Partner Fee': partnerFeeValue,
+          'RukaPay Fee': rukapayFee,
+          'Government Tax': governmentTax,
+          'Total Fee': finalTotalFee,
+          'Net Amount': netAmountForExport,
+          'Sender Name': senderName,
+          'Sender Contact': senderContact,
+          'Receiver Name': walletToBankReceiverName || receiverName,
+          'Receiver Contact': receiverContact,
+          'Bank Name': bankName,
+          Partner: getPartnerLabel(tx),
+          'Date & Time': dateTime,
+          Description: tx.description || '',
+          'Error Message': tx.errorMessage || '',
         }
-        
-        return [
-          escapeCSV(tx.reference || tx.id),
-          escapeCSV(tx.externalReference || ''),
-          escapeCSV(tx.id),
-          escapeCSV(tx.type || 'N/A'),
-          escapeCSV(getChannelDisplay(tx.channel, tx.metadata).label),
-          escapeCSV(tx.status || 'N/A'),
-          escapeCSV(tx.direction || 'N/A'),
-          escapeCSV(amount),
-          escapeCSV(tx.currency || 'UGX'),
-          escapeCSV(rukapayFee),
-          escapeCSV(partnerFee),
-          escapeCSV(governmentTax),
-          escapeCSV(finalTotalFee),
-          escapeCSV(netAmountForCsv),
-          escapeCSV(senderName),
-          escapeCSV(senderContact),
-          escapeCSV(walletToBankReceiverName || receiverName),
-          escapeCSV(receiverContact),
-          escapeCSV(bankName),
-          escapeCSV(getPartnerLabel(tx)),
-          escapeCSV(dateTime),
-          escapeCSV(tx.description || 'N/A'),
-          escapeCSV(tx.errorMessage || 'N/A')
-        ].join(',')
       })
-      
-      // Combine headers and rows
-      const csvContent = [
-        headers.join(','),
-        ...csvRows
-      ].join('\n')
-      
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const link = document.createElement('a')
-      const url = URL.createObjectURL(blob)
-      link.setAttribute('href', url)
+
+      // Build Excel workbook
+      const worksheet = XLSX.utils.json_to_sheet(excelRows)
+
+      // Set column widths for readability
+      worksheet['!cols'] = [
+        { wch: 30 }, // Reference
+        { wch: 24 }, // External Reference
+        { wch: 32 }, // Transaction ID
+        { wch: 22 }, // Type
+        { wch: 14 }, // Channel
+        { wch: 10 }, // Status
+        { wch: 10 }, // Direction
+        { wch: 14 }, // Amount
+        { wch: 8 },  // Currency
+        { wch: 14 }, // Telecom Fee
+        { wch: 14 }, // Partner Fee
+        { wch: 14 }, // RukaPay Fee
+        { wch: 14 }, // Government Tax
+        { wch: 12 }, // Total Fee
+        { wch: 14 }, // Net Amount
+        { wch: 26 }, // Sender Name
+        { wch: 18 }, // Sender Contact
+        { wch: 26 }, // Receiver Name
+        { wch: 18 }, // Receiver Contact
+        { wch: 18 }, // Bank Name
+        { wch: 22 }, // Partner
+        { wch: 22 }, // Date & Time
+        { wch: 40 }, // Description
+        { wch: 30 }, // Error Message
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions')
+
       const exportType = exportAll ? 'all' : 'current_page'
-      const dateStr = exportStart && exportEnd 
+      const dateStr = exportStart && exportEnd
         ? `${exportStart}_to_${exportEnd}`.replace(/\//g, '-')
         : new Date().toISOString().split('T')[0]
-      link.setAttribute('download', `transactions_${exportType}_${dateStr}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-      toast.success(`Exported ${transactionsToExport.length} transaction(s) as CSV`)
+      const fileName = `transactions_${exportType}_${dateStr}.xlsx`
+
+      XLSX.writeFile(workbook, fileName)
+
+      toast.success(`Exported ${transactionsToExport.length} transaction(s) as Excel`)
     } catch (error) {
       console.error('Export error:', error)
       toast.error('Failed to export transactions')
@@ -723,11 +773,17 @@ const TransactionsPage = () => {
     const fees = normalizeFeeBreakdown(tx)
     let effectiveRukapayFee = fees.rukapayFee
     if (isSweepTransaction) {
-      const sweepFee = Number(metadata.sweepFeeAmount) || 0
-      if (sweepFee > 0 && tx.direction === 'DEBIT') {
-        effectiveRukapayFee = sweepFee
-      } else if (tx.direction === 'CREDIT') {
+      if (tx.direction === 'CREDIT') {
         effectiveRukapayFee = 0
+      } else {
+        const sweepFeeAmount = Number(metadata.sweepFeeAmount) || 0
+        if (sweepFeeAmount > 0) {
+          // Use corrected split if available, otherwise compute 0.5/2.5 ratio
+          effectiveRukapayFee =
+            Number(metadata.sweepRukapayFeeAmount) ||
+            Number(tx.rukapayFee) ||
+            Number((sweepFeeAmount * 0.2).toFixed(2))
+        }
       }
     } else if (isLiquidationLike && effectiveRukapayFee === 0) {
       effectiveRukapayFee = Number(tx.fee) || 0
