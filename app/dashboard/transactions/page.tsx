@@ -10,7 +10,12 @@ import api from '@/lib/axios'
 import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
-import { normalizeFeeBreakdown, resolveExportFeeColumns } from '@/lib/utils/feeBreakdown'
+import {
+  isAirtimeFaceValueLedger,
+  normalizeFeeBreakdown,
+  resolveExportFeeColumns,
+} from '@/lib/utils/feeBreakdown'
+import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
@@ -422,46 +427,6 @@ const TransactionsPage = () => {
         }
       }
 
-      // Helper: get partner label for CSV/export
-      const getPartnerLabel = (tx: any) => {
-        const isNumericLikeCode = (value: any) => {
-          const s = String(value || '').trim()
-          if (!s) return false
-          return /^\+?\d[\d\s-]{5,}$/.test(s)
-        }
-
-        // 1) External payment partners (ABC, PEGASUS, etc.) via PartnerMapping
-        const mappingName = tx.partnerMapping?.partner?.partnerName
-        const mappingCode = tx.partnerMapping?.partner?.partnerCode
-        if (mappingName) {
-          return mappingName
-        }
-        if (mappingCode && !isNumericLikeCode(mappingCode)) {
-          return mappingCode
-        }
-
-        // 2) API partners (gateway partners) – baseTransactionService adds apiPartnerName into metadata
-        if (tx.metadata?.apiPartnerName && !isNumericLikeCode(tx.metadata.apiPartnerName)) {
-          return tx.metadata.apiPartnerName
-        }
-
-        // 3) Direct ApiPartner relation on the transaction (fallback)
-        if (tx.partner?.partnerName) {
-          return tx.partner.partnerName
-        }
-        if (tx.partner?.partnerCode && !isNumericLikeCode(tx.partner.partnerCode)) {
-          return tx.partner.partnerCode
-        }
-
-        // 4) Any other metadata-based partner name
-        if (tx.metadata?.partnerName && !isNumericLikeCode(tx.metadata.partnerName)) {
-          return tx.metadata.partnerName
-        }
-
-        // 5) Default when no partner info is attached (purely internal)
-        return 'Direct'
-      }
-
       // Convert transactions to Excel rows
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
@@ -556,7 +521,7 @@ const TransactionsPage = () => {
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         const amount = Number(tx.amount) || 0
         const fees = normalizeFeeBreakdown(tx)
-        const partnerLabel = getPartnerLabel(tx)
+        const partnerLabel = getBasicPartnerDisplayLabel(tx)
         const exportFees = resolveExportFeeColumns({
           ...tx,
           metadata: { ...metadata, description: tx.description },
@@ -565,9 +530,12 @@ const TransactionsPage = () => {
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
 
         const governmentTax = fees.governmentTax
+        const isAirtimeLedger = isAirtimeFaceValueLedger(tx)
 
-        let finalTotalFee = fees.totalFee
-        if (finalTotalFee === 0) {
+        let finalTotalFee = isAirtimeLedger
+          ? rukapayFee
+          : fees.totalFee
+        if (!isAirtimeLedger && finalTotalFee === 0) {
           const feeField = Number(tx.fee) || 0
           if (feeField > 0) {
             finalTotalFee = feeField
