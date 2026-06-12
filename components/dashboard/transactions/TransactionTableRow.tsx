@@ -11,6 +11,10 @@ import {
   getChannelDisplay,
   isPlatformRevenueLiquidationTx,
 } from '@/lib/utils/transactions'
+import {
+  isOwnWalletTransfer,
+  normalizeOwnWalletReference,
+} from '@/lib/utils/transactionPartyClassification'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
 import { RukapayFeeCell, NetAmountCell } from './FeeCell'
@@ -28,6 +32,9 @@ export const TransactionTableRow = ({
 }: TransactionTableRowProps) => {
   const derived = useTransactionDerived(transaction)
   const { paymentPartnerLabel, paymentPartnerTitle } = derived
+  const displayReference = isOwnWalletTransfer(transaction)
+    ? normalizeOwnWalletReference(transaction.reference)
+    : transaction.reference
   const txMeta = transaction.metadata || {}
   const bulkQueuePosition =
     txMeta.bulkQueuePosition ??
@@ -38,9 +45,9 @@ export const TransactionTableRow = ({
 
   return (
     <TableRow key={transaction.id}>
-      <TableCell className="font-medium font-mono text-sm" title={transaction.reference || transaction.id}>
+      <TableCell className="font-medium font-mono text-sm" title={displayReference || transaction.id}>
         <div className="flex flex-col">
-          <span>{shortenTransactionId(transaction.reference || transaction.id)}</span>
+          <span>{shortenTransactionId(displayReference || transaction.id)}</span>
           {(bulkQueuePosition != null || hasDebitAudit || hasRefundAudit) && (
             <span className="text-[10px] text-gray-500 mt-0.5">
               {bulkQueuePosition != null ? `Q#${String(bulkQueuePosition)} ` : ''}

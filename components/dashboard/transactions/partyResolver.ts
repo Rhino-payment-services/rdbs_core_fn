@@ -1,5 +1,7 @@
 import {
+  buildOwnWalletPartyForSide,
   isMerchantToWalletType,
+  isOwnWalletTransfer,
   isPersonalOutboundExternalDebit,
   isWalletToMerchantType,
   isWalletToSubscriberType,
@@ -253,6 +255,10 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
   const metadata = tx?.metadata || {}
   const type = upper(tx?.type)
   const mode = upper(tx?.mode || metadata?.mode || metadata?.transactionModeCode)
+
+  if (isOwnWalletTransfer(tx)) {
+    return buildOwnWalletPartyForSide(info, tx, side)
+  }
 
   if (type === 'LIQUIDATION' && side === 'sender') {
     const code = String(

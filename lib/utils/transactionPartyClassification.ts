@@ -1,5 +1,7 @@
 /** Classify transaction rails so ledger/UI never mix merchant business vs subscriber wallet parties. */
 
+export type PartySide = 'sender' | 'receiver'
+
 function upper(value: unknown): string {
   return String(value ?? '').trim().toUpperCase()
 }
@@ -7,6 +9,138 @@ function upper(value: unknown): string {
 export function isWalletToSubscriberType(type: string | null | undefined): boolean {
   const t = upper(type)
   return t === 'WALLET_TO_WALLET' || t.includes('WALLET_TO_WALLET')
+}
+
+export function isOwnWalletTransfer(tx: {
+  type?: string | null
+  mode?: string | null
+  direction?: string | null
+  metadata?: Record<string, unknown> | null
+}): boolean {
+  const metadata = (tx?.metadata as Record<string, unknown>) || {}
+  const type = upper(tx?.type || metadata?.type)
+  const mode = upper(tx?.mode || metadata?.mode || metadata?.transactionModeCode)
+  const direction = upper(metadata?.direction)
+  return (
+    type === 'WALLET_TO_OWN_WALLET' ||
+    mode === 'WALLET_TO_OWN_WALLET' ||
+    direction === 'OWN_WALLET_OUT' ||
+    direction === 'OWN_WALLET_IN'
+  )
+}
+
+export function formatOwnWalletPartyLabel(
+  label: string | null | undefined,
+  publicWalletId: string | null | undefined,
+): string {
+  const name = String(label || '').trim()
+  const pid = String(publicWalletId || '').trim()
+  if (!name) return pid || 'Wallet'
+  if (pid && !name.includes(pid)) return `${name} ${pid}`
+  return name
+}
+
+export function normalizeOwnWalletReference(reference: string | null | undefined): string {
+  const ref = String(reference || '').trim()
+  if (!ref) return ref
+  if (ref.endsWith('-CR')) return ref.slice(0, -3)
+  return ref
+}
+
+export function buildOwnWalletPartyForSide(
+  info: {
+    name?: string | null
+    contact?: string | null
+    type?: string | null
+    walletId?: string | null
+    walletType?: string | null
+    merchantCode?: string | null
+    merchantName?: string | null
+  },
+  tx: {
+    type?: string | null
+    direction?: string | null
+    description?: string | null
+    publicWalletId?: string | null
+    metadata?: Record<string, unknown> | null
+    user?: {
+      phone?: string | null
+      email?: string | null
+      profile?: { firstName?: string | null; lastName?: string | null }
+    }
+  },
+  side: PartySide,
+): typeof info {
+  const metadata = (tx?.metadata as Record<string, unknown>) || {}
+  const txDirection = upper(tx?.direction || metadata?.direction)
+  const isDebitLeg =
+    txDirection === 'DEBIT' || metadata?.direction === 'OWN_WALLET_OUT'
+
+  const userName = (() => {
+    const profile = tx?.user?.profile
+    if (profile?.firstName && profile?.lastName) {
+      return `${profile.firstName} ${profile.lastName}`.trim()
+    }
+    return String(info?.name || tx?.user?.phone || tx?.user?.email || 'RukaPay User').trim()
+  })()
+
+  const subscriberParty = (
+    name: string,
+    contact: string | null = null,
+  ) => ({
+    ...info,
+    name,
+    contact,
+    type: 'SUBSCRIBER',
+    merchantCode: null,
+    merchantName: null,
+  })
+
+  if (side === 'sender') {
+    if (isDebitLeg) {
+      return subscriberParty(userName, info?.contact || tx?.user?.phone || null)
+    }
+    const desc = String(tx?.description || '').trim()
+    const fromDesc = desc.match(/^Transfer from\s+(.+)$/i)?.[1]?.trim()
+    let senderLabel = String(
+      metadata?.senderName || metadata?.senderPublicWalletId || fromDesc || '',
+    ).trim()
+    const senderPublicId = String(metadata?.senderPublicWalletId || '').trim()
+    if (
+      (!senderLabel || senderLabel === userName) &&
+      fromDesc &&
+      fromDesc !== userName
+    ) {
+      senderLabel = fromDesc
+    }
+    if (!senderLabel) senderLabel = String(info?.name || 'Wallet').trim()
+    return subscriberParty(
+      formatOwnWalletPartyLabel(
+        senderLabel,
+        senderPublicId || (/^RP\d+/i.test(senderLabel) ? senderLabel : null),
+      ),
+      null,
+    )
+  }
+
+  if (isDebitLeg) {
+    const recipientLabel = String(
+      metadata?.recipientName ||
+        info?.name ||
+        String(tx?.description || '').replace(/^Transfer to\s+/i, '') ||
+        '',
+    ).trim()
+    return subscriberParty(
+      formatOwnWalletPartyLabel(
+        recipientLabel,
+        String(metadata?.recipientPublicWalletId || tx?.publicWalletId || '').trim() ||
+          null,
+      ),
+      null,
+    )
+  }
+
+  return subscriberParty(userName, info?.contact || tx?.user?.phone || null)
 }
 
 export function isWalletToMerchantType(type: string | null | undefined): boolean {
@@ -75,8 +209,6 @@ export function isPersonalOutboundExternalDebit(tx: {
     metadata?.bulkPayment !== true
   )
 }
-
-export type PartySide = 'sender' | 'receiver'
 
 /**
  * Whether a party column should show merchant business identity (vs subscriber / external).
