@@ -1,3 +1,5 @@
+import { isAirtimeFaceValueLedger, normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
+
 /**
  * Single definition for "Net Amount" / total wallet impact shown in admin UI and CSV exports.
  * Aligns with backend: disbursement netAmount = amount + fees (total debited).
@@ -13,6 +15,12 @@ export function getDisplayNetAmount(transaction: {
   const status = String(transaction.status ?? '').toUpperCase()
   if (status === 'FAILED' || status === 'CANCELLED') {
     return null
+  }
+
+  if (isAirtimeFaceValueLedger(transaction as { metadata?: Record<string, unknown> | null })) {
+    const amount = Number(transaction.amount) || 0
+    const rukapayFee = normalizeFeeBreakdown(transaction).rukapayFee
+    return Math.max(0, amount - rukapayFee)
   }
 
   const amount = Number(transaction.amount) || 0

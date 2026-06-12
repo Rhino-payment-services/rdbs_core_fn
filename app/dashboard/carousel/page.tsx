@@ -68,6 +68,13 @@ import {
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
+import {
+  fromDateTimeLocalValue,
+  getApiErrorMessage,
+  resolveCarouselImageUrl,
+  toDateTimeLocalValue,
+  uploadCarouselImage,
+} from '@/lib/carousel-upload';
 
 interface CarouselImage {
   id: string;
@@ -75,6 +82,9 @@ interface CarouselImage {
   orderId: number;
   title?: string;
   description?: string;
+  actionUrl?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -85,6 +95,9 @@ interface CreateCarouselImageDto {
   orderId: number;
   title?: string;
   description?: string;
+  actionUrl?: string;
+  startsAt?: string;
+  endsAt?: string;
   isActive?: boolean;
 }
 
@@ -93,6 +106,9 @@ interface UpdateCarouselImageDto {
   orderId?: number;
   title?: string;
   description?: string;
+  actionUrl?: string;
+  startsAt?: string;
+  endsAt?: string;
   isActive?: boolean;
 }
 
@@ -116,6 +132,9 @@ export default function CarouselPage() {
     orderId: 1,
     title: '',
     description: '',
+    actionUrl: '',
+    startsAt: '',
+    endsAt: '',
     isActive: true,
   });
 
@@ -166,8 +185,8 @@ export default function CarouselPage() {
       setIsCreateModalOpen(false);
       resetForm();
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create carousel image');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to create carousel image'));
     },
   });
 
@@ -184,8 +203,8 @@ export default function CarouselPage() {
       setSelectedCarousel(null);
       resetForm();
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update carousel image');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update carousel image'));
     },
   });
 
@@ -200,8 +219,8 @@ export default function CarouselPage() {
       setIsDeleteModalOpen(false);
       setSelectedCarousel(null);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete carousel image');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to delete carousel image'));
     },
   });
 
@@ -215,8 +234,8 @@ export default function CarouselPage() {
       queryClient.invalidateQueries({ queryKey: ['carousel'] });
       toast.success('Carousel image status updated');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update status');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Failed to update status'));
     },
   });
 
@@ -227,41 +246,24 @@ export default function CarouselPage() {
       orderId: 1,
       title: '',
       description: '',
+      actionUrl: '',
+      startsAt: '',
+      endsAt: '',
       isActive: true,
     });
     setImagePreview(null);
   };
 
-  // Handle image upload to Cloudinary
   const handleImageUpload = async (file: File) => {
     setUploadingImage(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '');
-      formData.append('cloud_name', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '');
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Image upload failed');
-      }
-
-      const data = await response.json();
-      const imageUrl = data.secure_url;
-
+      const imageUrl = await uploadCarouselImage(file);
       setFormData((prev) => ({ ...prev, imageUrl }));
       setImagePreview(imageUrl);
       toast.success('Image uploaded successfully');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error uploading image:', error);
-      toast.error(error.message || 'Failed to upload image');
+      toast.error(getApiErrorMessage(error, 'Failed to upload image'));
     } finally {
       setUploadingImage(false);
     }
@@ -293,9 +295,12 @@ export default function CarouselPage() {
       orderId: carousel.orderId,
       title: carousel.title || '',
       description: carousel.description || '',
+      actionUrl: carousel.actionUrl || '',
+      startsAt: toDateTimeLocalValue(carousel.startsAt),
+      endsAt: toDateTimeLocalValue(carousel.endsAt),
       isActive: carousel.isActive,
     });
-    setImagePreview(carousel.imageUrl);
+    setImagePreview(resolveCarouselImageUrl(carousel.imageUrl));
     setIsEditModalOpen(true);
   };
 
@@ -306,7 +311,11 @@ export default function CarouselPage() {
       toast.error('Please upload an image');
       return;
     }
-    createCarousel.mutate(formData);
+    createCarousel.mutate({
+      ...formData,
+      startsAt: fromDateTimeLocalValue(formData.startsAt),
+      endsAt: fromDateTimeLocalValue(formData.endsAt),
+    });
   };
 
   // Handle update submit
@@ -317,7 +326,14 @@ export default function CarouselPage() {
       toast.error('Please upload an image');
       return;
     }
-    updateCarousel.mutate({ id: selectedCarousel.id, dto: formData });
+    updateCarousel.mutate({
+      id: selectedCarousel.id,
+      dto: {
+        ...formData,
+        startsAt: fromDateTimeLocalValue(formData.startsAt),
+        endsAt: fromDateTimeLocalValue(formData.endsAt),
+      },
+    });
   };
 
   // Handle delete
@@ -385,7 +401,7 @@ export default function CarouselPage() {
                         {imagePreview ? (
                           <div className="relative">
                             <Image
-                              src={imagePreview}
+                              src={resolveCarouselImageUrl(imagePreview)}
                               alt="Preview"
                               width={400}
                               height={200}
@@ -488,6 +504,43 @@ export default function CarouselPage() {
                       />
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="actionUrl">Redirect URL (Optional)</Label>
+                      <Input
+                        id="actionUrl"
+                        value={formData.actionUrl}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, actionUrl: e.target.value }))
+                        }
+                        placeholder="https://rukapay.co.ug/..."
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="startsAt">Start date (Optional)</Label>
+                        <Input
+                          id="startsAt"
+                          type="datetime-local"
+                          value={formData.startsAt}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, startsAt: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="endsAt">End date (Optional)</Label>
+                        <Input
+                          id="endsAt"
+                          type="datetime-local"
+                          value={formData.endsAt}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, endsAt: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
+
                     {/* Active Status */}
                     <div className="flex items-center justify-between">
                       <Label htmlFor="isActive">Active</Label>
@@ -533,7 +586,10 @@ export default function CarouselPage() {
             <Alert variant="destructive" className="mb-6">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Failed to load carousel images. Please try again.
+                {getApiErrorMessage(
+                  error,
+                  'Failed to load carousel images. Please try again.',
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -591,6 +647,8 @@ export default function CarouselPage() {
                       <TableHead>Order</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Link</TableHead>
+                      <TableHead>Schedule</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -599,7 +657,7 @@ export default function CarouselPage() {
                   <TableBody>
                     {filteredCarouselImages?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                           No carousel images found
                         </TableCell>
                       </TableRow>
@@ -609,7 +667,7 @@ export default function CarouselPage() {
                           <TableCell>
                             <div className="relative w-20 h-20">
                               <Image
-                                src={carousel.imageUrl}
+                                src={resolveCarouselImageUrl(carousel.imageUrl)}
                                 alt={carousel.title || 'Carousel image'}
                                 fill
                                 className="object-cover rounded"
@@ -629,6 +687,35 @@ export default function CarouselPage() {
                               </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">No description</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {carousel.actionUrl ? (
+                              <a
+                                href={carousel.actionUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm text-blue-600 truncate max-w-[160px] inline-block"
+                              >
+                                {carousel.actionUrl}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {carousel.startsAt || carousel.endsAt ? (
+                              <div>
+                                {carousel.startsAt
+                                  ? new Date(carousel.startsAt).toLocaleString()
+                                  : 'Anytime'}
+                                <br />
+                                {carousel.endsAt
+                                  ? new Date(carousel.endsAt).toLocaleString()
+                                  : 'No end'}
+                              </div>
+                            ) : (
+                              'Always'
                             )}
                           </TableCell>
                           <TableCell>
@@ -713,7 +800,7 @@ export default function CarouselPage() {
                     {imagePreview ? (
                       <div className="relative">
                         <Image
-                          src={imagePreview}
+                          src={resolveCarouselImageUrl(imagePreview)}
                           alt="Preview"
                           width={400}
                           height={200}
@@ -811,6 +898,43 @@ export default function CarouselPage() {
                     placeholder="Enter carousel description"
                     rows={3}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-actionUrl">Redirect URL (Optional)</Label>
+                  <Input
+                    id="edit-actionUrl"
+                    value={formData.actionUrl}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, actionUrl: e.target.value }))
+                    }
+                    placeholder="https://rukapay.co.ug/..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-startsAt">Start date (Optional)</Label>
+                    <Input
+                      id="edit-startsAt"
+                      type="datetime-local"
+                      value={formData.startsAt}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, startsAt: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-endsAt">End date (Optional)</Label>
+                    <Input
+                      id="endsAt"
+                      type="datetime-local"
+                      value={formData.endsAt}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, endsAt: e.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
 
                 {/* Active Status */}

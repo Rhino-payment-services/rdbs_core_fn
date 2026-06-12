@@ -14,6 +14,60 @@ function finiteOrZero(value: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+/** Airtime sold via Africa's Talking: face value is split (RukaPay margin vs partner settlement), not customer fees. */
+export function isAirtimeFaceValueLedger(transaction: {
+  type?: string | null
+  externalReference?: string | null
+  amount?: number | string | null
+  metadata?: Record<string, unknown> | null
+}): boolean {
+  const meta = transaction?.metadata || {}
+  const fb = (meta.feeBreakdown as Record<string, unknown>) || {}
+  if (fb.allocationOfFaceValue === true) {
+    const util = String(meta.utilityProvider || '').toUpperCase()
+    const pt = String(meta.payment_type || '').toLowerCase()
+    return util === 'AIRTIME' || pt === 'airtime'
+  }
+
+  const type = String(transaction?.type || '').toUpperCase()
+  if (type !== 'BILL_PAYMENT' && type !== 'UTILITIES') return false
+
+  const util = String(meta.utilityProvider || '').toUpperCase()
+  const pt = String(meta.payment_type || '').toLowerCase()
+  if (util !== 'AIRTIME' && pt !== 'airtime') return false
+
+  const code = String(meta.partnerCode || '').toUpperCase()
+  const atRef =
+    String(transaction?.externalReference || '').startsWith('ATQid_') ||
+    String(transaction?.externalReference || '').startsWith('ATPid_')
+  const partnerName = String(meta.partnerName || '').toLowerCase()
+
+  return (
+    code === 'AFRICASTALKING' ||
+    atRef ||
+    partnerName.includes("africa's talking") ||
+    partnerName.includes('africastalking')
+  )
+}
+
+function resolveAirtimeFaceValueRukapayFee(
+  transaction: {
+    amount?: number | string | null
+    rukapayFee?: number | string | null
+    metadata?: Record<string, unknown> | null
+  },
+  feeBreakdown: Record<string, unknown>,
+): number {
+  const amount = Number(transaction.amount) || 0
+  const fromStored = Number(feeBreakdown.rukapayFee ?? transaction.rukapayFee)
+  if (Number.isFinite(fromStored) && fromStored > 0) {
+    return fromStored
+  }
+  const marginPct = Number(feeBreakdown.marginPercent)
+  const pct = Number.isFinite(marginPct) && marginPct > 0 ? marginPct : 3
+  return Math.round((amount * pct) / 100)
+}
+
 function pickFee(
   breakdownValue: unknown,
   transactionValue: unknown,
@@ -52,6 +106,20 @@ export function normalizeFeeBreakdown(transaction: {
 }): NormalizedFeeBreakdown {
   const metadata = transaction?.metadata || {}
   const feeBreakdown = metadata.feeBreakdown || {}
+
+  if (isAirtimeFaceValueLedger(transaction)) {
+    const rukapayFee = resolveAirtimeFaceValueRukapayFee(transaction, feeBreakdown)
+    return {
+      rukapayFee,
+      partnerFee: 0,
+      governmentTax: 0,
+      totalFee: rukapayFee,
+      processingFee: 0,
+      networkFee: 0,
+      complianceFee: 0,
+      telecomBankCharge: 0,
+    }
+  }
 
   const hasExplicitRukapayInBreakdown =
     feeBreakdown.rukapayFee != null && Number.isFinite(Number(feeBreakdown.rukapayFee))
@@ -302,6 +370,11 @@ export function resolveExportFeeColumns(tx: {
   const metadata = tx.metadata || {}
   const feeBreakdown = (metadata.feeBreakdown as Record<string, unknown>) || {}
   const normalized = normalizeFeeBreakdown(tx)
+
+  if (isAirtimeFaceValueLedger(tx)) {
+    const rukapayFee = resolveAirtimeFaceValueRukapayFee(tx, feeBreakdown)
+    return { rukapayFee, telecomFee: 0, partnerFee: 0 }
+  }
 
   const isSweep =
     metadata.sweepToDisbursement === true || metadata.sweepFromCollection === true
