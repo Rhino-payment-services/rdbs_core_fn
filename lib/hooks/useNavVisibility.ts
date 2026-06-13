@@ -6,7 +6,7 @@ export const NAV_ITEMS = [
   { key: 'analytics', label: 'Analytics', description: 'Analytics & reporting overview' },
   { key: 'finance', label: 'Finance', description: 'Tariffs, transactions, wallets & reports' },
   { key: 'gateway-partners', label: 'Gateway Partners', description: 'External gateway partner management' },
-  { key: 'saccos', label: 'Onboarded SACCOs', description: 'View SACCO institutions onboarded under partners' },
+  { key: 'saccos', label: 'SACCOs', description: 'View SACCO institutions onboarded under partners' },
   { key: 'users', label: 'Users', description: 'Staff user management' },
   { key: 'customers', label: 'Customers', description: 'Customer account management' },
   { key: 'cards', label: 'Cards', description: 'Physical and virtual card management' },

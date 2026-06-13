@@ -83,7 +83,7 @@ export default function SaccoDetailPage() {
       <DashboardBreadcrumbs
         items={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Onboarded SACCOs', href: '/dashboard/saccos' },
+          { label: 'SACCOs', href: '/dashboard/saccos' },
           { label: sacco?.name ?? 'SACCO Details' },
         ]}
       />

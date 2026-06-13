@@ -346,7 +346,7 @@ const Navbar = () => {
                       }`}
                     >
                       <Building2 className="nav-icon" />
-                      <span>Onboarded SACCOs</span>
+                      <span>SACCOs</span>
                     </Link>
                   </PermissionGuard>
                 )}
