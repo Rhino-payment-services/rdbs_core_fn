@@ -1,6 +1,9 @@
 
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { toUserFacingMessage } from './user-facing-error'
+
+export { toUserFacingMessage }
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -107,48 +110,20 @@ export function getFriendlyErrorMessage(error: unknown): string {
     
     if (errorObj.isNetworkError || statusCode === 0) {
       if (errorObj.isTimeout) {
-        return 'Request timeout - server took too long to respond. Please try again.'
+        return 'Request timed out. Please try again.'
       }
-      // Use the message from axios if available, otherwise provide a generic one
       if (message && message !== 'Network error - no response received' && message !== 'An unexpected error occurred') {
-        return message
+        return toUserFacingMessage(message, statusCode)
       }
-      return 'Cannot connect to server. Please check your internet connection and ensure the server is running.'
+      return 'Connection problem. Check your network and try again.'
     }
   }
 
-  // If we have a specific message from the backend, use it
   if (message && message !== 'An unexpected error occurred' && message !== 'Network error - no response received') {
-    return message
+    return toUserFacingMessage(message, statusCode)
   }
 
-  // Otherwise, provide user-friendly messages based on status code
-  switch (statusCode) {
-    case 0:
-      return 'Network error - unable to connect to server. Please check your connection.'
-    case 400:
-      return 'Invalid request. Please check your input and try again.'
-    case 401:
-      return 'Authentication failed. Please log in again.'
-    case 403:
-      return 'You do not have permission to perform this action.'
-    case 404:
-      return 'The requested resource was not found.'
-    case 409:
-      return 'This action conflicts with the current state of the resource.'
-    case 422:
-      return 'The request was well-formed but contains invalid data.'
-    case 429:
-      return 'Too many requests. Please try again later.'
-    case 500:
-      return 'Server error. Please try again later.'
-    case 502:
-      return 'Bad gateway. Please try again later.'
-    case 503:
-      return 'Service temporarily unavailable. Please try again later.'
-    default:
-      return 'An unexpected error occurred. Please try again.'
-  }
+  return toUserFacingMessage(null, statusCode)
 }
 
 /**

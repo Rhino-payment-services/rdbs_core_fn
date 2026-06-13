@@ -14,7 +14,7 @@ export const useErrorHandler = () => {
    */
   const handleError = useCallback((error: unknown, fallbackMessage?: string) => {
     console.error('Error occurred:', error)
-    const errorMessage = extractErrorMessage(error) || fallbackMessage || 'An unexpected error occurred'
+    const errorMessage = getFriendlyErrorMessage(error) || fallbackMessage || 'An unexpected error occurred'
     toast.error(errorMessage)
   }, [])
 
@@ -62,7 +62,7 @@ export const useErrorHandler = () => {
    */
   const handleApiError = useCallback((error: unknown, retryAction?: () => void) => {
     console.error('API Error occurred:', error)
-    const errorMessage = extractErrorMessage(error)
+    const errorMessage = getFriendlyErrorMessage(error)
     
     // Show error with retry option if provided
     if (retryAction) {
