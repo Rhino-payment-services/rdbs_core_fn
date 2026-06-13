@@ -251,7 +251,7 @@ const Navbar = () => {
                   <Link 
                     href="/dashboard" 
                     className={`nav-slider-item ${
-                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/carousel')
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos') && !isActive('/dashboard/carousel')
                         ? 'active'
                         : ''
                     }`}
@@ -293,7 +293,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/finance" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/tariffs-new') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners')
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/tariffs-new') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos')
                             ? 'active'
                             : ''
                         }`}
@@ -333,6 +333,20 @@ const Navbar = () => {
                     >
                       <Globe className="nav-icon" />
                       <span>Gateway Partners</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
+                {isVisible('saccos') && (
+                  <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
+                    <Link
+                      href="/dashboard/saccos"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/saccos') ? 'active' : ''
+                      }`}
+                    >
+                      <Building2 className="nav-icon" />
+                      <span>Onboarded SACCOs</span>
                     </Link>
                   </PermissionGuard>
                 )}
