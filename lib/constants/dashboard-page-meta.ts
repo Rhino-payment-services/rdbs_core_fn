@@ -54,10 +54,10 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Gateway Partners', href: '/dashboard/gateway-partners' },
     { label: 'Create' },
   ],
-  saccos: [root, { label: 'Onboarded SACCOs' }],
+  saccos: [root, { label: 'SACCOs' }],
   'saccos/[id]': [
     root,
-    { label: 'Onboarded SACCOs', href: '/dashboard/saccos' },
+    { label: 'SACCOs', href: '/dashboard/saccos' },
     { label: 'Details' },
   ],
   kyc: [root, { label: 'KYC' }],

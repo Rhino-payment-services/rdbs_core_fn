@@ -125,7 +125,7 @@ const SaccosPage = () => {
     <DashboardPageLayout>
       <DashboardBreadcrumbs items={getDashboardPageCrumbs('saccos')} />
       <DashboardPageHeader
-        title="Onboarded SACCOs"
+        title="SACCOs"
         description="View SACCO institutions onboarded under gateway partners"
         actions={
           <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
