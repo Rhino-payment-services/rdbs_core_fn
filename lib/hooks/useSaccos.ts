@@ -47,6 +47,40 @@ export interface Sacco {
   owner?: SaccoOwner | null
 }
 
+export interface SaccoMemberUser {
+  id: string
+  email?: string | null
+  phone?: string | null
+  profile?: {
+    firstName?: string | null
+    lastName?: string | null
+  } | null
+}
+
+export interface SaccoMember {
+  id: string
+  institutionId: string
+  userId: string
+  accountNo?: string | null
+  clientId?: string | null
+  displayName?: string | null
+  status: string
+  metadata?: Record<string, unknown> | null
+  createdAt: string
+  user?: SaccoMemberUser | null
+}
+
+export interface SaccoMembersResponse {
+  institution: {
+    id: string
+    apiPartnerId: string
+    name: string
+    code: string
+  }
+  total: number
+  members: SaccoMember[]
+}
+
 export function useSaccos(apiPartnerId?: string) {
   return useQuery({
     queryKey: ['saccos', apiPartnerId ?? 'all'],
@@ -65,6 +99,20 @@ export function useSacco(institutionId: string) {
     queryFn: async () => {
       const response = await api.get(`/api/v1/admin/partner-management/saccos/${institutionId}`)
       return response.data as Sacco
+    },
+    enabled: Boolean(institutionId),
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useSaccoMembers(institutionId: string) {
+  return useQuery({
+    queryKey: ['saccos', institutionId, 'members'],
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/v1/admin/partner-management/saccos/${institutionId}/users`,
+      )
+      return response.data as SaccoMembersResponse
     },
     enabled: Boolean(institutionId),
     staleTime: 2 * 60 * 1000,
