@@ -27,7 +27,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useSaccos } from '@/lib/hooks/useSaccos'
-import { useGatewayPartners } from '@/lib/hooks/useGatewayPartners'
+import { useGatewayPartners, type GatewayPartner } from '@/lib/hooks/useGatewayPartners'
 import { formatCompactUgx } from '@/lib/utils/transactions'
 
 function formatDate(value?: string) {
@@ -60,7 +60,7 @@ const SaccosPage = () => {
   const canViewSaccos = hasPermission(PERMISSIONS.PARTNERS_VIEW)
 
   const { data: partnersResponse } = useGatewayPartners(1, 200)
-  const partners = partnersResponse?.data ?? []
+  const partners: GatewayPartner[] = partnersResponse?.data ?? []
 
   const selectedPartnerId = partnerFilter === 'all' ? undefined : partnerFilter
   const { data: saccos = [], isLoading, error, refetch } = useSaccos(selectedPartnerId)
