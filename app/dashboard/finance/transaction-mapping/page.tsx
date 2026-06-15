@@ -125,14 +125,13 @@ const TransactionMappingPage = () => {
       tabId: 'mno-to-wallet',
       category: 'Mobile Money'
     },
-    'WALLET_TO_BANK': {
-      name: 'Bank Transfers',
-      description: 'Wallet to Bank account transfers',
-      icon: Building2,
-      color: 'bg-orange-500',
-      tabId: 'bank-transfers',
-      category: 'Banking'
-    },
+  }
+
+  const bankRoutingTab = {
+    name: 'Bank Transfers',
+    description: 'Per-bank partner routing for wallet-to-bank transfers',
+    icon: Building2,
+    tabId: 'bank-transfers',
   }
 
   // Fetch current transaction mappings
@@ -344,7 +343,6 @@ const TransactionMappingPage = () => {
         ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
         ...(serviceType === 'WALLET_TO_MNO' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
         ...(serviceType === 'MNO_TO_WALLET' ? ['MNO_TO_WALLET', 'MNO_TOPUP', 'WALLET_TOPUP_PULL'] : []),
-        ...(serviceType === 'WALLET_TO_BANK' ? ['WALLET_TO_BANK', 'BANK_TRANSFER', 'BANK_TRANSFERS'] : []),
       ]
       
       const supportsServiceType = partner.supportedServices && 
@@ -758,6 +756,14 @@ const TransactionMappingPage = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => router.push('/dashboard/finance/partners/bank-mapping')}
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Bank Routing
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => router.push('/dashboard/finance/partners')}
                   >
                     <Building2 className="h-4 w-4 mr-2" />
@@ -869,6 +875,14 @@ const TransactionMappingPage = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => router.push('/dashboard/finance/partners/bank-mapping')}
+                  >
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Bank Routing
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => router.push('/dashboard/finance/partners')}
                   >
                     <Building2 className="h-4 w-4 mr-2" />
@@ -950,7 +964,7 @@ const TransactionMappingPage = () => {
               <TabsList className="grid w-full grid-cols-1">
                 <TabsTrigger value="external" className="flex items-center space-x-2">
                   <Zap className="w-4 h-4" />
-                  <span>External Transaction Mappings ({Object.keys(externalTransactionTypes).length})</span>
+                  <span>External Transaction Mappings ({Object.keys(externalTransactionTypes).length + 1})</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -965,7 +979,7 @@ const TransactionMappingPage = () => {
                   </Card>
                 ) : (
                   <Tabs value={activeExternalTab} onValueChange={setActiveExternalTab} className="space-y-6">
-                    <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Object.keys(externalTransactionTypes).length}, 1fr)` }}>
+                    <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Object.keys(externalTransactionTypes).length + 1}, 1fr)` }}>
                       {Object.keys(externalTransactionTypes).map((type) => {
                         const config = externalTransactionTypes[type as keyof typeof externalTransactionTypes]
                         return (
@@ -975,6 +989,10 @@ const TransactionMappingPage = () => {
                           </TabsTrigger>
                         )
                       })}
+                      <TabsTrigger value={bankRoutingTab.tabId} className="flex items-center space-x-2">
+                        <bankRoutingTab.icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{bankRoutingTab.name}</span>
+                      </TabsTrigger>
                     </TabsList>
 
                     {Object.keys(externalTransactionTypes).map((type) => {
@@ -986,6 +1004,36 @@ const TransactionMappingPage = () => {
                         </TabsContent>
                       )
                     })}
+
+                    <TabsContent value={bankRoutingTab.tabId}>
+                      <Card>
+                        <CardContent className="py-8">
+                          <div className="flex items-start space-x-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500">
+                              <Building2 className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-xl font-semibold">{bankRoutingTab.name}</h3>
+                              <p className="mt-2 text-gray-600">
+                                Bank transfers are routed per bank. The backend selects ABC, Pegasus, or
+                                Etranzact from each destination bank&apos;s sort code. A global partner
+                                switch no longer applies to wallet-to-bank flows.
+                              </p>
+                              <p className="mt-2 text-gray-600">
+                                Configure which partner handles each Ugandan bank in Bank routing.
+                              </p>
+                              <Button
+                                className="mt-4"
+                                onClick={() => router.push('/dashboard/finance/partners/bank-mapping')}
+                              >
+                                <Building2 className="mr-2 h-4 w-4" />
+                                Configure bank routing
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
                   </Tabs>
                 )}
               </TabsContent>

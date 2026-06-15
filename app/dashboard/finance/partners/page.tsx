@@ -181,6 +181,12 @@ const PartnersPage = () => {
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/dashboard/finance/partners/bank-mapping')}
+              >
+                Bank routing
+              </Button>
               {canManagePartners && (
                 <Button onClick={() => router.push('/dashboard/finance/partners/create')}>
                   <Plus className="w-4 h-4 mr-2" />

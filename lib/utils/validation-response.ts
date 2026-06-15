@@ -30,7 +30,8 @@ export function extractValidationRecipientName(payload: unknown): string | null 
       upper.includes('RECIPIENT NOT FOUND') ||
       upper.includes('NO WALLET') ||
       upper === 'BANK ACCOUNT HOLDER' ||
-      upper === 'PEGASUS ACCOUNT HOLDER'
+      upper === 'PEGASUS ACCOUNT HOLDER' ||
+      upper === 'ETRANZACT ACCOUNT HOLDER'
     ) {
       continue
     }

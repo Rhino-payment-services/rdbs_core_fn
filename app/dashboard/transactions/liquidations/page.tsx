@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatAmount, formatDate, getStatusBadgeConfig, shortenTransactionId } from "@/lib/utils/transactions"
 import { extractValidationRecipientName } from "@/lib/utils/validation-response"
+import { mapBankTransferError } from "@/lib/utils/bankTransferErrors"
 import { PERMISSIONS, usePermissions } from "@/lib/hooks/usePermissions"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import toast from "react-hot-toast"
@@ -109,7 +110,9 @@ export default function LiquidationApprovalsPage() {
     try {
       if (payoutMethod === "BANK_TRANSFER") {
         const accountNumber = String(payoutDetails.bankAccountNumber || "").trim()
-        const bankCode = String(payoutDetails.bankCode || payoutDetails.bankName || "").trim()
+        const bankCode = String(
+          payoutDetails.bankCode || payoutDetails.bankSortCode || "",
+        ).trim()
         if (!accountNumber || !bankCode) {
           throw new Error("Missing bank details for validation.")
         }
@@ -120,10 +123,15 @@ export default function LiquidationApprovalsPage() {
             transactionType: "WALLET_TO_BANK",
             accountNumber,
             bankCode,
+            bankSortCode: bankCode,
           }),
         })
         const payload = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(payload?.error || "Bank validation failed")
+        if (!res.ok) {
+          throw new Error(
+            mapBankTransferError(payload?.error || "Bank validation failed"),
+          )
+        }
         const name = extractValidationRecipientName(payload)
         setApproveValidationMessage(name ? `Validated: ${name}` : "Bank account validated successfully")
         setApproveValidated(true)
@@ -164,7 +172,10 @@ export default function LiquidationApprovalsPage() {
       throw new Error("Unsupported payout method for validation.")
     } catch (e: unknown) {
       setApproveValidated(false)
-      setApproveValidationError(e instanceof Error ? e.message : "Validation failed")
+      const message = e instanceof Error ? e.message : "Validation failed"
+      setApproveValidationError(
+        payoutMethod === "BANK_TRANSFER" ? mapBankTransferError(message) : message,
+      )
     } finally {
       setApproveValidationBusy(false)
     }
