@@ -45,7 +45,7 @@ import {
 } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
-import { extractValidationRecipientName } from '@/lib/utils/validation-response'
+import { extractValidationRecipientName, isValidationPayloadSuccess } from '@/lib/utils/validation-response'
 import toast from 'react-hot-toast'
 
 /** Match ledger formatting: show decimals when the amount is not a whole number. */
@@ -467,8 +467,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const handleValidateBankAccount = async () => {
     const accountNumber = liquidateForm.bankAccountNumber.trim()
     const bankCode = liquidateForm.bankCode.trim()
+    const amount = parseFloat(liquidateForm.amount)
     if (!accountNumber || !bankCode) {
       toast.error('Select a bank and enter the account number')
+      return
+    }
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter the settlement amount before validating the bank account')
       return
     }
     setValidationBusy(true)
@@ -481,10 +486,19 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           transactionType: 'WALLET_TO_BANK',
           accountNumber,
           bankCode,
+          amount,
+          geographicRegion: 'UG',
         }),
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(payload?.error || 'Bank account validation failed')
+      if (!isValidationPayloadSuccess(payload)) {
+        throw new Error(
+          (typeof payload?.error === 'string' && payload.error) ||
+            (typeof payload?.message === 'string' && payload.message) ||
+            'Bank account validation failed',
+        )
+      }
       const name = extractValidationRecipientName(payload)
       setDestinationValidated(true)
       if (name) {
@@ -503,8 +517,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const handleValidateMno = async () => {
     const phoneNumber = liquidateForm.phoneNumber.trim()
     const network = liquidateForm.mnoProvider.trim()
+    const amount = parseFloat(liquidateForm.amount)
     if (!phoneNumber || !network) {
       toast.error('Select a network and enter the mobile number')
+      return
+    }
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Enter the settlement amount before validating the mobile number')
       return
     }
     setValidationBusy(true)
@@ -517,10 +536,19 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           transactionType: 'WALLET_TO_MNO',
           phoneNumber,
           network,
+          amount,
+          geographicRegion: 'UG',
         }),
       })
       const payload = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(payload?.error || 'Mobile money validation failed')
+      if (!isValidationPayloadSuccess(payload)) {
+        throw new Error(
+          (typeof payload?.error === 'string' && payload.error) ||
+            (typeof payload?.message === 'string' && payload.message) ||
+            'Mobile money validation failed',
+        )
+      }
       const name = extractValidationRecipientName(payload)
       setDestinationValidated(true)
       if (name) {
@@ -1273,7 +1301,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 id="liquidateAmount"
                 type="number"
                 value={liquidateForm.amount}
-                onChange={(e) => setLiquidateForm((prev) => ({ ...prev, amount: e.target.value }))}
+                onChange={(e) => {
+                  setLiquidateForm((prev) => ({ ...prev, amount: e.target.value }))
+                  clearValidation()
+                }}
                 className="mt-1"
               />
             </div>

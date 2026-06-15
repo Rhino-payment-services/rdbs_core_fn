@@ -39,3 +39,16 @@ export function extractValidationRecipientName(payload: unknown): string | null 
 
   return null
 }
+
+/** Whether POST /transactions/validate indicates a successful destination check. */
+export function isValidationPayloadSuccess(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false
+
+  const p = payload as Record<string, unknown>
+  if (p.success === false) return false
+
+  const validationResult = p.validationResult as Record<string, unknown> | undefined
+  if (validationResult?.success === false) return false
+
+  return true
+}

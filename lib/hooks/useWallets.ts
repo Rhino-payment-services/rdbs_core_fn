@@ -593,6 +593,7 @@ export const useLiquidatePlatformRevenue = () => {
       apiFetch('/wallet/platform-revenue/liquidate', {
         method: 'POST',
         data,
+        timeout: 120000,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-revenue'] })
