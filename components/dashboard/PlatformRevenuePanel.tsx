@@ -46,6 +46,7 @@ import {
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
 import { extractValidationRecipientName, isValidationPayloadSuccess } from '@/lib/utils/validation-response'
+import { getFriendlyErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 /** Match ledger formatting: show decimals when the amount is not a whole number. */
@@ -254,6 +255,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   })
   const [validationMessage, setValidationMessage] = useState('')
   const [validationError, setValidationError] = useState('')
+  const [settleError, setSettleError] = useState('')
   const [validationBusy, setValidationBusy] = useState(false)
   const [destinationValidated, setDestinationValidated] = useState(false)
   const [detailTransaction, setDetailTransaction] = useState<Record<string, unknown> | null>(null)
@@ -433,6 +435,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     })
     setValidationMessage('')
     setValidationError('')
+    setSettleError('')
     setDestinationValidated(false)
     setShowLiquidate(true)
   }
@@ -455,7 +458,12 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     })
     setValidationMessage('')
     setValidationError('')
+    setSettleError('')
     setDestinationValidated(false)
+  }
+
+  const showSettleError = (message: string) => {
+    setSettleError(message)
   }
 
   const clearValidation = () => {
@@ -565,32 +573,33 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   }
 
   const handleLiquidate = async () => {
+    setSettleError('')
     const amount = parseFloat(liquidateForm.amount)
     if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount')
+      showSettleError('Please enter a valid amount')
       return
     }
     const rowsForSettle = partnerRows.filter(
       (row) => selectedSettleKeys.includes(row.bucketKey) && row.unsettledAmount > 0,
     )
     if (rowsForSettle.length === 0) {
-      toast.error('Select at least one revenue source')
+      showSettleError('Select at least one revenue source')
       return
     }
 
     const maxForTarget = selectedUnsettledTotal
     if (maxForTarget <= 0) {
-      toast.error('Selected sources have no unsettled revenue')
+      showSettleError('Selected sources have no unsettled revenue')
       return
     }
     if (amount > maxForTarget + 0.01) {
-      toast.error('Amount exceeds unsettled revenue for selected sources')
+      showSettleError('Amount exceeds unsettled revenue for selected sources')
       return
     }
 
     const settlementAllocations = buildSettlementAllocations(rowsForSettle, amount)
     if (walletCashBalance != null && amount > walletCashBalance) {
-      toast.error('Amount exceeds cash in the consolidated revenue wallet')
+      showSettleError('Amount exceeds cash in the consolidated revenue wallet')
       return
     }
 
@@ -601,29 +610,29 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
 
     if (isOffset) {
       if (!liquidateForm.narration.trim()) {
-        toast.error('Narration is required (e.g. settled on ABC platform)')
+        showSettleError('Narration is required (e.g. settled on ABC platform)')
         return
       }
     } else if (isMno) {
       if (!liquidateForm.phoneNumber.trim() || !liquidateForm.mnoProvider.trim()) {
-        toast.error('Select a network and enter the mobile number')
+        showSettleError('Select a network and enter the mobile number')
         return
       }
       if (!destinationValidated) {
-        toast.error('Validate the mobile number before sending')
+        showSettleError('Validate the mobile number before sending')
         return
       }
     } else if (isBank) {
       if (!liquidateForm.bankCode || !liquidateForm.bankAccountNumber.trim()) {
-        toast.error('Select a bank and enter the account number')
+        showSettleError('Select a bank and enter the account number')
         return
       }
       if (!liquidateForm.bankAccountName.trim()) {
-        toast.error('Enter the account holder name')
+        showSettleError('Enter the account holder name')
         return
       }
       if (!destinationValidated) {
-        toast.error('Validate the bank account before sending')
+        showSettleError('Validate the bank account before sending')
         return
       }
     }
@@ -670,14 +679,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       refetchSummary()
       refetchEntries()
     } catch (error) {
-      handleError(
-        error,
-        isOffset
-          ? 'Failed to record partner offset'
-          : isMno
-            ? 'Failed to send to mobile money'
-            : 'Failed to send to bank',
-      )
+      const fallback = isOffset
+        ? 'Failed to record partner offset'
+        : isMno
+          ? 'Failed to send to mobile money'
+          : 'Failed to send to bank'
+      showSettleError(getFriendlyErrorMessage(error) || fallback)
+      console.error('Platform revenue settlement failed:', error)
     }
   }
 
@@ -1452,7 +1460,13 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </div>
           </div>
 
-          <div className="flex shrink-0 gap-3 border-t bg-gray-50/80 px-6 py-4">
+          <div className="flex shrink-0 flex-col gap-3 border-t bg-gray-50/80 px-6 py-4">
+              {settleError && (
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  {settleError}
+                </p>
+              )}
+              <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowLiquidate(false)}>
                 Cancel
               </Button>
@@ -1481,6 +1495,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   'Send to bank'
                 )}
               </Button>
+              </div>
           </div>
         </DialogContent>
       </Dialog>
