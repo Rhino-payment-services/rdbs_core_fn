@@ -39,7 +39,7 @@ export const useUsers = () => {
     queryKey: authQueryKeys.users,
     queryFn: async () => {
       console.log('🔍 Fetching users from /users?include=profile')
-      const result = await apiFetch('/users?include=profile')
+      const result = await apiFetch('/users?include=profile', { timeout: 60000 })
       console.log('📊 Raw API Response:', result)
       console.log('📊 Response type:', typeof result, Array.isArray(result) ? 'array' : 'object')
       
