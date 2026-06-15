@@ -408,6 +408,7 @@ export interface LiquidatePlatformRevenueRequest {
   bankAccountNumber?: string
   bankAccountName?: string
   bankCode?: string
+  bankSortCode?: string
   phoneNumber?: string
   mnoProvider?: string
   recipientName?: string

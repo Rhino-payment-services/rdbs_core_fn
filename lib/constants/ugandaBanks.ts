@@ -1,4 +1,7 @@
-/** Uganda bank sort codes for WALLET_TO_BANK / platform revenue settlement (Pegasus format). */
+/**
+ * Fallback Uganda bank sort codes when the catalog API is unavailable.
+ * Source of truth: GET /admin/external-payment-partners/banks?country=UG
+ */
 export const UGANDA_BANKS = [
   { code: '013847', name: 'Barclays (now Absa)' },
   { code: '020147', name: 'Bank of Baroda' },
@@ -8,7 +11,7 @@ export const UGANDA_BANKS = [
   { code: '110147', name: 'I & M Bank' },
   { code: '060147', name: 'Tropical Africa Bank' },
   { code: '080147', name: 'Standard Chartered Bank' },
-  { code: '110147', name: 'Orient Bank' },
+  { code: '140147', name: 'Orient Bank' },
   { code: '130447', name: 'Bank of Africa' },
   { code: '163747', name: 'Centenary Bank' },
   { code: '170147', name: 'Crane Bank' },

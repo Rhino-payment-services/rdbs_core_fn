@@ -432,6 +432,7 @@ export interface MnoTransactionRequest {
 
 export interface BankTransactionRequest {
   bankCode: string
+  bankSortCode?: string
   accountNumber: string
   accountName: string
   amount: number
@@ -709,6 +710,26 @@ export interface SystemStats {
     activeSessions: number
     failedTransactions: number
   }
+}
+
+// Ugandan bank catalog (per-bank routing)
+export interface UgandanBankPartner {
+  id: string
+  partnerName: string
+  partnerCode: 'ABC' | 'PEGASUS' | 'ETRANZACT' | string
+  isActive: boolean
+  isSuspended: boolean
+}
+
+export interface UgandanBank {
+  id: string
+  bankName: string
+  bankSortCode: string
+  country: string
+  isActive: boolean
+  partner: UgandanBankPartner | null
+  mappingId: string | null
+  isRoutable: boolean
 }
 
 // Partner types
