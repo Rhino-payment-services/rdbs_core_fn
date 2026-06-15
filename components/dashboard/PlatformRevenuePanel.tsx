@@ -44,8 +44,10 @@ import {
   type PlatformRevenueSummarySort,
 } from '@/lib/hooks/useWallets'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
-import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
+import { useUgandaBanks } from '@/lib/hooks/useUgandaBanks'
+import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeSelect'
 import { extractValidationRecipientName, isValidationPayloadSuccess } from '@/lib/utils/validation-response'
+import { mapBankTransferError } from '@/lib/utils/bankTransferErrors'
 import { getFriendlyErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -346,7 +348,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
 
   const liquidateMutation = useLiquidatePlatformRevenue()
   const syncAccrualsMutation = useSyncPlatformRevenueAccruals()
-  const selectedBank = UGANDA_BANKS.find((b) => b.code === liquidateForm.bankCode)
+  const { data: ugandaBanks = [] } = useUgandaBanks()
+  const selectedBank = ugandaBanks.find((b) => b.bankSortCode === liquidateForm.bankCode)
 
   // Keep statement in sync when returning from Transaction Management after new fees post.
   useEffect(() => {
@@ -494,6 +497,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           transactionType: 'WALLET_TO_BANK',
           accountNumber,
           bankCode,
+          bankSortCode: bankCode,
           amount,
           geographicRegion: 'UG',
         }),
@@ -516,7 +520,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         setValidationMessage('Account validated successfully')
       }
     } catch (e: unknown) {
-      setValidationError(e instanceof Error ? e.message : 'Validation failed')
+      const message = e instanceof Error ? e.message : 'Validation failed'
+      setValidationError(mapBankTransferError(message))
     } finally {
       setValidationBusy(false)
     }
@@ -637,7 +642,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
       }
     }
 
-    const bankName = selectedBank?.name || liquidateForm.bankCode
+    const bankName = selectedBank?.bankName || liquidateForm.bankCode
+    const bankSortCode = liquidateForm.bankCode.trim()
 
     try {
       const result = await liquidateMutation.mutateAsync({
@@ -658,7 +664,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 bankName,
                 bankAccountNumber: liquidateForm.bankAccountNumber.trim(),
                 bankAccountName: liquidateForm.bankAccountName.trim(),
-                bankCode: liquidateForm.bankCode,
+                bankCode: bankSortCode,
+                bankSortCode,
               }),
       })
       toast.success(
@@ -1321,24 +1328,14 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               <>
                 <div>
                   <Label>Bank *</Label>
-                  <Select
+                  <BankSortCodeSelect
+                    className="mt-1"
                     value={liquidateForm.bankCode || undefined}
                     onValueChange={(code) => {
                       setLiquidateForm((prev) => ({ ...prev, bankCode: code }))
                       clearValidation()
                     }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UGANDA_BANKS.map((bank) => (
-                        <SelectItem key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
                 <div>
                   <Label>Account number *</Label>

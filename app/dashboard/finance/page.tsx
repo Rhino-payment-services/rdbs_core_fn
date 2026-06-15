@@ -74,7 +74,7 @@ const FinancePage = () => {
     },
     {
       title: 'External Payment Partners',
-      description: 'Manage external payment partners (ABC, Pegasus, etc.) and their configurations',
+      description: 'Manage external payment partners and per-bank routing (ABC, Pegasus, Etranzact)',
       icon: Building2,
       href: '/dashboard/finance/partners',
       color: 'text-green-600',

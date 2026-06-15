@@ -231,7 +231,7 @@ function isMnoCodeOrName(value: string): boolean {
 function isExternalIntegratorCode(code: string): boolean {
   const normalized = code.trim().toUpperCase()
   if (!normalized || isMnoCodeOrName(normalized)) return false
-  return /^(ABC|PEGASUS|NEXEN)/.test(normalized) || normalized.includes('PEGASUS')
+  return /^(ABC|PEGASUS|ETRANZACT|NEXEN)/.test(normalized) || normalized.includes('PEGASUS')
 }
 
 type ExternalFeeRailKind = 'mno' | 'integrator' | 'unknown'

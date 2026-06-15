@@ -78,6 +78,14 @@ export {
 } from './usePartners'
 export type { ApiPartner } from './usePartners'
 
+// Uganda bank catalog & per-bank routing
+export {
+  useUgandaBanks,
+  useBankRoutingPartners,
+  useBankPartnerMappingMutations,
+  BANK_ROUTING_PARTNER_CODES,
+} from './useUgandaBanks'
+
 // KYC hooks
 export {
   useKycStatus,

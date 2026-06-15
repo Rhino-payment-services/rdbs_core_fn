@@ -329,21 +329,25 @@ export const useSendToMno = () => {
 export const useSendToBank = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Transaction>, Error, BankTransactionRequest>({
-    mutationFn: (transferData) => apiFetch('/transactions/process', {
-      method: 'POST',
-      data: {
-        reference: `BANK_${Date.now()}`,
-        amount: transferData.amount,
-        currency: transferData.currency || 'UGX',
-        description: transferData.description || `Bank transfer to ${transferData.bankCode}`,
-        mode: 'MERCHANT_WITHDRAWAL',
-        externalMetadata: {
-          bankName: transferData.bankCode,
-          accountNumber: transferData.accountNumber,
-          accountName: transferData.accountName
-        }
-      },
-    }),
+    mutationFn: (transferData) => {
+      const bankSortCode = transferData.bankSortCode || transferData.bankCode
+      return apiFetch('/transactions/process', {
+        method: 'POST',
+        data: {
+          reference: `BANK_${Date.now()}`,
+          amount: transferData.amount,
+          currency: transferData.currency || 'UGX',
+          description: transferData.description || `Bank transfer to ${bankSortCode}`,
+          mode: 'WALLET_TO_BANK',
+          externalMetadata: {
+            bankCode: bankSortCode,
+            bankSortCode,
+            accountNumber: transferData.accountNumber,
+            accountName: transferData.accountName,
+          },
+        },
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
       queryClient.invalidateQueries({ queryKey: ['wallets'] })

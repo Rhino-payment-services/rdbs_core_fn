@@ -39,6 +39,12 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'External Partners', href: '/dashboard/finance/partners' },
     { label: 'Configure Mapping' },
   ],
+  'finance/partners/bank-mapping': [
+    root,
+    finance,
+    { label: 'External Partners', href: '/dashboard/finance/partners' },
+    { label: 'Bank Routing' },
+  ],
   'finance/tariffs': [root, finance, { label: 'Tariffs (classic)' }],
   'finance/tariffs-new': [root, finance, { label: 'Tariffs' }],
   'finance/tariffs/create': [
