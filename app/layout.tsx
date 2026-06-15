@@ -47,6 +47,7 @@ export default function RootLayout({
             <Toaster 
               position="top-center"
               duration={4000}
+              style={{ zIndex: 100001 }}
               toastOptions={{
                 style: {
                   background: '#08163d',
@@ -55,17 +56,20 @@ export default function RootLayout({
                   padding: '16px 20px',
                   fontSize: '14px',
                   fontWeight: '500',
+                  zIndex: 100001,
                 },
               }}
             />
             <HotToaster
               position="top-center"
+              containerStyle={{ zIndex: 100001 }}
               toastOptions={{
                 duration: 5000,
                 style: {
                   background: '#08163d',
                   color: '#fff',
                   borderRadius: '12px',
+                  zIndex: 100001,
                 },
               }}
             />
