@@ -26,6 +26,7 @@ import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
 
 const EXPORT_ALL_TRANSACTIONS_LIMIT = 50000
+const EXPORT_PAGE_SIZE = 5000
 
 const TransactionsPage = () => {
   // Pagination and filtering state
@@ -360,20 +361,36 @@ const TransactionsPage = () => {
       const exportEnd = customEndDate || endDate
       
       if (exportAll) {
-        // Fetch all transactions with current filters
-        const response = await api({
-          url: '/transactions/all',
-          method: 'GET',
-          params: {
-            limit: EXPORT_ALL_TRANSACTIONS_LIMIT, // Export-specific cap
-            status: statusFilter || undefined,
-            type: typeFilter || undefined,
-            startDate: exportStart || undefined,
-            endDate: exportEnd || undefined,
-          },
-        })
-        
-        transactionsToExport = response.data?.transactions || response.data?.data || []
+        // Fetch all transactions in range (paginated) with current filters
+        const allRows: any[] = []
+        let page = 1
+        let total = Number.POSITIVE_INFINITY
+
+        while (allRows.length < EXPORT_ALL_TRANSACTIONS_LIMIT && allRows.length < total) {
+          const response = await api({
+            url: '/transactions/all',
+            method: 'GET',
+            params: {
+              page,
+              limit: EXPORT_PAGE_SIZE,
+              status: statusFilter || undefined,
+              type: typeFilter || undefined,
+              startDate: exportStart || undefined,
+              endDate: exportEnd || undefined,
+            },
+          })
+
+          const payload = response.data?.data ?? response.data
+          const batch = payload?.transactions ?? []
+          total = typeof payload?.total === 'number' ? payload.total : batch.length
+
+          if (!batch.length) break
+          allRows.push(...batch)
+          if (batch.length < EXPORT_PAGE_SIZE) break
+          page += 1
+        }
+
+        transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
         
         // Filter out WALLET_INIT
         transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
