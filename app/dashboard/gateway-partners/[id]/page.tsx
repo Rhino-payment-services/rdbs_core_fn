@@ -45,6 +45,7 @@ import {
   useTopUpPartnerWallet,
   useUpdatePartnerAuthType,
 } from '@/lib/hooks/useGatewayPartners'
+import { GatewayPartnerRoutingPanel } from '@/components/dashboard/gateway-partners/GatewayPartnerRoutingPanel'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -807,6 +808,8 @@ const GatewayPartnerDetailsPage = () => {
               )}
             </CardContent>
           </Card>
+
+          <GatewayPartnerRoutingPanel partnerId={partnerId} className="mt-6" />
         </div>
       </main>
 
