@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Navbar from '@/components/dashboard/Navbar';
 import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout';
 import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs';
 import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta';
 import {
-  DASHBOARD_MAIN_CLASS,
   dashboardFormShellClass,
   dashboardPageShellClass,
 } from '@/lib/constants/dashboard-layout';
@@ -199,65 +197,60 @@ export default function MobileAppVersionsPage() {
 
   return (
     <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <main className={DASHBOARD_MAIN_CLASS}>
-          <DashboardPageLayout className={dashboardPageShellClass}>
-            <DashboardBreadcrumbs
-              items={getDashboardPageCrumbs('settings/mobile-app-versions')}
-            />
+      <DashboardPageLayout className={dashboardPageShellClass}>
+        <DashboardBreadcrumbs
+          items={getDashboardPageCrumbs('settings/mobile-app-versions')}
+        />
 
-            <div className={dashboardFormShellClass}>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Mobile app versions
-                </h1>
-                <p className="mt-1 text-sm text-gray-600">
-                  Configure force-update rules for the RukaPay subscriber mobile app
-                  (iOS and Android). Versions and store links are stored in the database —
-                  not in the Flutter project.
-                </p>
-              </div>
+        <div className={dashboardFormShellClass}>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Mobile app versions
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Configure force-update rules for the RukaPay subscriber mobile app
+              (iOS and Android). Versions and store links are stored in the database —
+              not in the Flutter project.
+            </p>
+          </div>
 
-              {isLoading && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading…
-                </div>
-              )}
-
-              {isError && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {extractErrorMessage(error)}
-                    <Button variant="link" className="ml-2 h-auto p-0" onClick={() => refetch()}>
-                      Retry
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {!isLoading && !isError && (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <PlatformCard platform="ANDROID" title="Android" release={android} />
-                  <PlatformCard platform="IOS" title="iOS" release={ios} />
-                </div>
-              )}
-
-              <Alert>
-                <AlertDescription className="text-sm">
-                  <strong>Flutter app version</strong> is set in{' '}
-                  <code>apps/rukapay_mobile_app/pubspec.yaml</code> (
-                  <code>version: 1.0.0+1</code>). The app sends{' '}
-                  <code>1.0.0</code> to <code>POST /app/version/check</code> on launch.
-                  Bump <code>latestVersion</code> here when you publish a new build users
-                  must install.
-                </AlertDescription>
-              </Alert>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading…
             </div>
-          </DashboardPageLayout>
-        </main>
-      </div>
+          )}
+
+          {isError && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {extractErrorMessage(error)}
+                <Button variant="link" className="ml-2 h-auto p-0" onClick={() => refetch()}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!isLoading && !isError && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <PlatformCard platform="ANDROID" title="Android" release={android} />
+              <PlatformCard platform="IOS" title="iOS" release={ios} />
+            </div>
+          )}
+
+          <Alert>
+            <AlertDescription className="text-sm">
+              <strong>Flutter app version</strong> is set in{' '}
+              <code>apps/rukapay_mobile_app/pubspec.yaml</code> (
+              <code>version: 1.0.0+1</code>). The app sends{' '}
+              <code>1.0.0</code> to <code>POST /app/version/check</code> on launch.
+              Bump <code>latestVersion</code> here when you publish a new build users
+              must install.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DashboardPageLayout>
     </PermissionGuard>
   );
 }

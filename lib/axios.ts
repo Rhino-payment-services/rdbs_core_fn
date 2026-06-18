@@ -1,11 +1,14 @@
 // lib/axios.ts
 import axios from 'axios'
 import { getSession, signOut } from 'next-auth/react'
+import { getApiUrl } from '@/lib/config'
 import { updateSessionTokens } from '@/lib/utils'
+
+const resolveApiBaseUrl = () => getApiUrl() || 'http://localhost:8000'
 
 // Create axios instance with default configuration
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000, // 10 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -40,7 +43,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 const refreshToken = async (refreshToken: string) => {
   try {
     const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/refresh`,
+      `${resolveApiBaseUrl()}/auth/refresh`,
       {
         refreshToken: refreshToken
       },
@@ -292,7 +295,7 @@ api.interceptors.response.use(
       if (isTimeout) {
         errorMessage = 'Request timeout - server took too long to respond'
       } else if (isNetworkError) {
-        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const baseURL = resolveApiBaseUrl()
         errorMessage = `Cannot connect to server at ${baseURL}. Please check if the server is running.`
       }
       
