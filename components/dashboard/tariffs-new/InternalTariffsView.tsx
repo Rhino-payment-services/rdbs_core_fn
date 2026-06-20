@@ -4,13 +4,25 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Plus } from 'lucide-react'
 import type { Tariff } from '@/lib/tariffs-new/types'
-import { INTERNAL_TRANSACTION_TYPES } from '@/lib/tariffs-new/constants'
+import { INTERNAL_TRANSACTION_TYPES, TRANSACTION_TYPE_LABELS } from '@/lib/tariffs-new/constants'
 import {
   countTariffStatuses,
   groupTariffsByTransactionType,
 } from '@/lib/tariffs-new/utils'
 import { PendingApprovalBanner } from './PendingApprovalBanner'
 import { TransactionTypeScheduleCard } from './TransactionTypeScheduleCard'
+import type { TransactionTypeConfig } from '@/lib/tariffs-new/types'
+import { Settings } from 'lucide-react'
+
+function fallbackInternalTypeConfig(type: string): TransactionTypeConfig {
+  return {
+    name: TRANSACTION_TYPE_LABELS[type] || type.replace(/_/g, ' '),
+    description: 'Internal tariff schedule',
+    icon: Settings,
+    color: 'bg-gray-600',
+    tabId: type.toLowerCase().replace(/_/g, '-'),
+  }
+}
 
 type InternalTariffsViewProps = {
   tariffs: Tariff[]
@@ -42,6 +54,10 @@ export function InternalTariffsView({
   const typeKeys = Object.keys(INTERNAL_TRANSACTION_TYPES)
   const byType = groupTariffsByTransactionType(tariffs, typeKeys)
   const activeTypes = typeKeys.filter((k) => (byType[k]?.length ?? 0) > 0)
+  const orphanTypes = Object.keys(byType).filter(
+    (k) => (byType[k]?.length ?? 0) > 0 && !typeKeys.includes(k),
+  )
+  const visibleTypes = [...activeTypes, ...orphanTypes]
   const stats = countTariffStatuses(tariffs)
 
   if (tariffs.length === 0) {
@@ -70,7 +86,7 @@ export function InternalTariffsView({
       />
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-600">
-          {activeTypes.length} categories · {tariffs.length} tariffs
+          {visibleTypes.length} categories · {tariffs.length} tariffs
           {stats.pending > 0 && (
             <span className="text-amber-800 font-medium">
               {' '}
@@ -85,9 +101,9 @@ export function InternalTariffsView({
           </Button>
         )}
       </div>
-      {activeTypes.map((type) => {
-        const config = INTERNAL_TRANSACTION_TYPES[type]
-        if (!config) return null
+      {visibleTypes.map((type) => {
+        const config =
+          INTERNAL_TRANSACTION_TYPES[type] ?? fallbackInternalTypeConfig(type)
         return (
           <TransactionTypeScheduleCard
             key={type}

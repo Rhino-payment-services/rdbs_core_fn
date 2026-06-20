@@ -1,8 +1,17 @@
 import type { TransactionMode } from '@/lib/hooks/useTransactionModes'
 
+/** Prefer product labels over legacy DB display names */
+const TRANSACTION_MODE_DISPLAY_OVERRIDES: Record<string, string> = {
+  MERCHANT_TO_WALLET: 'Merchant Payment',
+}
+
 /** Compact label for trigger and selected value */
 export function transactionModeShortLabel(mode: TransactionMode): string {
-  const title = mode.displayName?.trim() || mode.name?.trim() || mode.code
+  const title =
+    TRANSACTION_MODE_DISPLAY_OVERRIDES[mode.code] ||
+    mode.displayName?.trim() ||
+    mode.name?.trim() ||
+    mode.code
   return `${title} (${mode.code})`
 }
 
