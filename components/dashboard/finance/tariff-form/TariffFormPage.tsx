@@ -676,6 +676,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                                 'BANK_TO_WALLET': 'BANK_TO_WALLET',
                                 'BILL_PAYMENT': 'BILL_PAYMENT',
                                 'WALLET_TO_WALLET': 'WALLET_TO_WALLET',
+                                'MERCHANT_TO_WALLET': 'MERCHANT_TO_WALLET',
                                 'WALLET_TO_PARTNER_INSTITUTION': 'WALLET_TO_PARTNER_INSTITUTION',
                                 'PARTNER_INSTITUTION_TO_WALLET': 'PARTNER_INSTITUTION_TO_WALLET',
                               }
@@ -740,6 +741,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             <>
                               <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
+                              <SelectItem value="MERCHANT_TO_WALLET">Merchant Payment</SelectItem>
                               <SelectItem value="WALLET_INIT">Wallet Initialization</SelectItem>
                               <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
                               <SelectItem value="FEE_CHARGE">Fee Charge</SelectItem>
@@ -754,7 +756,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                               <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
                               <SelectItem value="WALLET_TO_EXTERNAL_MERCHANT">Wallet to External Merchant</SelectItem>
                               <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
-                              <SelectItem value="MERCHANT_TO_WALLET">Merchant to Wallet</SelectItem>
+                              <SelectItem value="MERCHANT_TO_WALLET">Merchant Payment</SelectItem>
                               <SelectItem value="WALLET_TO_MNO">Wallet to MNO</SelectItem>
                               <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
                               <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>

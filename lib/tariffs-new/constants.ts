@@ -28,6 +28,13 @@ export const INTERNAL_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
     color: 'bg-indigo-500',
     tabId: 'wallet-to-internal-merchant',
   },
+  MERCHANT_TO_WALLET: {
+    name: 'Merchant Rukapay Transfer',
+    description: 'Merchant payouts to customer wallets',
+    icon: ArrowLeftRight,
+    color: 'bg-teal-600',
+    tabId: 'merchant-to-wallet',
+  },
   WALLET_INIT: {
     name: 'Wallet Initialization',
     description: 'Fee for initializing wallets',
@@ -137,8 +144,8 @@ export const EXTERNAL_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
     tabId: 'merchant-withdrawal',
   },
   MERCHANT_TO_WALLET: {
-    name: 'Merchant to Wallet',
-    description: 'Merchant to wallet transfers',
+    name: 'Merchant Payment',
+    description: 'Merchant payouts to customer wallets',
     icon: ArrowLeftRight,
     color: 'bg-teal-600',
     tabId: 'merchant-to-wallet',
@@ -192,7 +199,7 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   BILL_PAYMENT: 'Bill Payment',
   SCHOOL_FEES: 'School Fees',
   MERCHANT_WITHDRAWAL: 'Merchant Withdrawal',
-  MERCHANT_TO_WALLET: 'Merchant to Wallet',
+  MERCHANT_TO_WALLET: 'Merchant Payment',
   CARD_TO_WALLET: 'Card to Wallet',
   WALLET_TO_PARTNER_INSTITUTION: 'Wallet to Partner Institution',
   PARTNER_INSTITUTION_TO_WALLET: 'Partner Institution to Wallet',

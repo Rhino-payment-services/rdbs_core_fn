@@ -113,6 +113,7 @@ function resolveTransactionModeId(
     BANK_TO_WALLET: 'BANK_TO_WALLET',
     WALLET_TO_PARTNER_INSTITUTION: 'WALLET_TO_PARTNER_INSTITUTION',
     PARTNER_INSTITUTION_TO_WALLET: 'PARTNER_INSTITUTION_TO_WALLET',
+    MERCHANT_TO_WALLET: 'MERCHANT_TO_WALLET',
   }
   const mappedCode = txToModeCode[normalizedTxType]
   if (mappedCode) {
