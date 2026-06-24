@@ -46,6 +46,7 @@ export default function TransactionReversalsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("PENDING")
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<AnyRecord[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -57,7 +58,7 @@ export default function TransactionReversalsPage() {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [detailsTarget, setDetailsTarget] = useState<AnyRecord | null>(null)
 
-  const filteredCount = items.length
+  const filteredCount = totalCount || items.length
   const showActionButtons = statusFilter === "PENDING"
 
   const load = useCallback(async () => {
@@ -77,13 +78,16 @@ export default function TransactionReversalsPage() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         setItems([])
+        setTotalCount(0)
         setError(data?.error || "Failed to load reversals")
         return
       }
       const all = normalizePendingReversalsPayload(data)
       setItems(all)
+      setTotalCount(Number(data?.total ?? data?.meta?.total ?? all.length))
     } catch (e: any) {
       setItems([])
+      setTotalCount(0)
       setError(e?.message || "Failed to load reversals")
     } finally {
       setLoading(false)
@@ -188,8 +192,12 @@ export default function TransactionReversalsPage() {
       const reason = r?.reason || r?.reversalReason || r?.requestReason || ""
       const status = String(r?.status || "PENDING")
 
-      const originalAmount = Number(r?.originalAmount ?? r?.transaction?.amount ?? 0)
-      const originalFee = Number(r?.originalFee ?? r?.transaction?.fee ?? 0)
+      const originalAmount = Number(
+        r?.originalAmount ?? r?.transaction?.amount ?? 0,
+      )
+      const originalFee = Number(
+        r?.originalFee ?? r?.transaction?.fee ?? 0,
+      )
       const totalRefund = originalAmount + originalFee
 
       const requestedByUser = r?.requestedByUser || null
@@ -212,8 +220,11 @@ export default function TransactionReversalsPage() {
 
       const requesterPartnerLabel = firstNonEmptyString(
         r?.requestedByPartner?.partnerName,
+        r?.partner?.partnerName,
         r?.requestedByPartner?.businessName,
+        r?.partner?.businessName,
         r?.requestedByPartner?.partnerCode,
+        r?.partner?.partnerCode,
         r?.requestedByPartnerMapping?.partner?.partnerName,
         r?.requestedByPartnerMapping?.partner?.partnerCode,
         requestedByUser?.partner?.partnerName,
@@ -300,6 +311,7 @@ export default function TransactionReversalsPage() {
                   <Badge className="bg-gray-900 text-white">{filteredCount}</Badge>
                 </CardTitle>
                 <CardDescription>
+                  Partner-submitted reversal requests from the gateway.{" "}
                   {showActionButtons
                     ? "Approve or reject reversal requests. Reject requires a reason."
                     : "Viewing reversals in the selected status. Approve/Reject is only available for Pending."}
