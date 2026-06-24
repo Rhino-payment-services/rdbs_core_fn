@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
-import axios from 'axios'
+import { fetchPartnerReversalRequests } from '@/lib/server/partner-reversal-api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -16,15 +16,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit')
 
-    const response = await axios.get(`${API_URL}/transactions/reversals/pending`, {
-      params: limit ? { limit } : undefined,
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-        'Content-Type': 'application/json',
+    const { items, total } = await fetchPartnerReversalRequests(
+      API_URL,
+      session.accessToken,
+      {
+        status: 'PENDING',
+        limit: limit ? Number(limit) : undefined,
       },
-    })
+    )
 
-    return NextResponse.json(response.data)
+    return NextResponse.json({
+      success: true,
+      data: items,
+      total,
+      meta: { total },
+    })
   } catch (error: any) {
     console.error('Pending Reversals API Error:', error.response?.data || error.message)
     return NextResponse.json(
