@@ -54,6 +54,7 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Create' },
   ],
   'finance/transaction-mapping': [root, finance, { label: 'Transaction Mapping' }],
+  'finance/routing-rules': [root, finance, { label: 'Amount Routing Rules' }],
   'gateway-partners': [root, { label: 'Gateway Partners' }],
   'gateway-partners/create': [
     root,
