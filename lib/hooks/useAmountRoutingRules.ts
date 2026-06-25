@@ -34,6 +34,7 @@ export interface CreateAmountRoutingRuleRequest {
   maxAmount: number;
   currency: string;
   partnerId: string;
+  apiPartnerId: string;
   priority?: number;
 }
 
@@ -42,6 +43,7 @@ export interface UpdateAmountRoutingRuleRequest {
   maxAmount?: number;
   currency?: string;
   partnerId?: string;
+  apiPartnerId?: string;
   priority?: number;
 }
 
@@ -53,6 +55,7 @@ export interface DeleteAmountRoutingRuleResponse {
 export interface AmountRoutingRulesListParams {
   currency?: string;
   isActive?: boolean;
+  apiPartnerId?: string;
 }
 
 export const amountRoutingRulesQueryKey = (params?: AmountRoutingRulesListParams) =>
@@ -100,6 +103,7 @@ export const useAmountRoutingRules = (params?: AmountRoutingRulesListParams) => 
         params: {
           ...(params?.currency ? { currency: params.currency } : {}),
           ...(params?.isActive !== undefined ? { isActive: params.isActive } : {}),
+          ...(params?.apiPartnerId ? { apiPartnerId: params.apiPartnerId } : {}),
         },
       });
       return unwrapListData(response);
