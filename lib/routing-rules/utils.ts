@@ -5,6 +5,7 @@ export interface AmountBandFormValues {
   minAmount: string;
   maxAmount: string;
   partnerId: string;
+  apiPartnerId: string;
   priority: string;
 }
 
@@ -33,7 +34,7 @@ export function formatAmountValue(amount: number, currency?: string): string {
 
 export function findOverlappingRules(
   rules: AmountRoutingRule[],
-  draft: { min: number; max: number; currency: string },
+  draft: { min: number; max: number; currency: string; apiPartnerId: string },
   excludeId?: string,
 ): AmountRoutingRule[] {
   const currency = draft.currency.toUpperCase();
@@ -41,6 +42,7 @@ export function findOverlappingRules(
     if (!rule.isActive) return false;
     if (excludeId && rule.id === excludeId) return false;
     if (rule.currency.toUpperCase() !== currency) return false;
+    if ((rule.apiPartnerId || '') !== draft.apiPartnerId) return false;
     return bandsOverlap(
       { min: draft.min, max: draft.max },
       { min: rule.minAmount, max: rule.maxAmount },
@@ -54,6 +56,7 @@ export function validateAmountBandForm(values: AmountBandFormValues): string | n
 
   if (values.minAmount.trim() === '') return 'Minimum amount is required';
   if (values.maxAmount.trim() === '') return 'Maximum amount is required';
+  if (!values.apiPartnerId) return 'API partner is required';
   if (!values.partnerId) return 'Partner is required';
 
   const minAmount = Number(values.minAmount);
@@ -82,6 +85,7 @@ export function buildCreatePayload(values: AmountBandFormValues) {
     minAmount: Number(values.minAmount),
     maxAmount: Number(values.maxAmount),
     partnerId: values.partnerId,
+    apiPartnerId: values.apiPartnerId,
     priority: values.priority.trim() === '' ? 1 : Number(values.priority),
   };
 }
@@ -100,6 +104,7 @@ export function buildUpdatePayload(
   if (minAmount !== original.minAmount) payload.minAmount = minAmount;
   if (maxAmount !== original.maxAmount) payload.maxAmount = maxAmount;
   if (values.partnerId !== original.partnerId) payload.partnerId = values.partnerId;
+  if (values.apiPartnerId !== (original.apiPartnerId || '')) payload.apiPartnerId = values.apiPartnerId;
   if (priority !== original.priority) payload.priority = priority;
 
   return payload;
@@ -110,6 +115,7 @@ export const DEFAULT_AMOUNT_BAND_FORM: AmountBandFormValues = {
   minAmount: '',
   maxAmount: '',
   partnerId: '',
+  apiPartnerId: '',
   priority: '1',
 };
 
@@ -119,6 +125,7 @@ export function ruleToFormValues(rule: AmountRoutingRule): AmountBandFormValues 
     minAmount: String(rule.minAmount),
     maxAmount: String(rule.maxAmount),
     partnerId: rule.partnerId,
+    apiPartnerId: rule.apiPartnerId || '',
     priority: String(rule.priority),
   };
 }

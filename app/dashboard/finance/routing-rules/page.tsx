@@ -37,6 +37,7 @@ import { AmountRoutingRuleDeleteDialog } from '@/components/dashboard/routing-ru
 import { formatAmountBand } from '@/lib/routing-rules/utils'
 import { formatDate } from '@/lib/utils/transactions'
 import { cn } from '@/lib/utils'
+import { useApiPartners } from '@/lib/hooks/usePartners'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -56,15 +57,26 @@ function AmountRoutingRulesContent() {
   const canManage = hasPermission(PERMISSIONS.TARIFF_UPDATE)
 
   const [currencyFilter, setCurrencyFilter] = useState<string>('all')
+  const [apiPartnerFilter, setApiPartnerFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const { data: apiPartnersResponse } = useApiPartners({ page: 1, limit: 100 })
+  const apiPartners = useMemo(
+    () => (apiPartnersResponse?.data || []).filter((p) => p.isActive && !p.isSuspended),
+    [apiPartnersResponse],
+  )
+  const apiPartnerNameById = useMemo(
+    () => new Map(apiPartners.map((partner) => [partner.id, partner.partnerName])),
+    [apiPartners],
+  )
 
   const listParams = useMemo((): AmountRoutingRulesListParams | undefined => {
     const params: AmountRoutingRulesListParams = {}
     if (currencyFilter !== 'all') params.currency = currencyFilter
+    if (apiPartnerFilter !== 'all') params.apiPartnerId = apiPartnerFilter
     if (statusFilter === 'active') params.isActive = true
     if (statusFilter === 'inactive') params.isActive = false
     return Object.keys(params).length > 0 ? params : undefined
-  }, [currencyFilter, statusFilter])
+  }, [currencyFilter, apiPartnerFilter, statusFilter])
 
   const {
     data: rules = [],
@@ -140,8 +152,8 @@ function AmountRoutingRulesContent() {
             Amount routing rules
           </h1>
           <p className="text-gray-600 text-sm max-w-2xl">
-            Configure amount bands per currency that route transactions to an external payment
-            partner. When no rule matches, partner mappings are used as fallback.
+            Configure amount band rules for selected API partner. When no rule matches, partner
+            mappings are used as fallback.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -210,6 +222,22 @@ function AmountRoutingRulesContent() {
               </Select>
             </div>
             <div className="w-full sm:w-48">
+              <p className="text-sm text-gray-500 mb-1">API partner</p>
+              <Select value={apiPartnerFilter} onValueChange={setApiPartnerFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All API partners" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All API partners</SelectItem>
+                  {apiPartners.map((partner) => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.partnerName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-48">
               <p className="text-sm text-gray-500 mb-1">Status</p>
               <Select
                 value={statusFilter}
@@ -258,8 +286,8 @@ function AmountRoutingRulesContent() {
               <Route className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-900 font-medium mb-1">No routing rules yet</p>
               <p className="text-gray-600 text-sm mb-4 max-w-md mx-auto">
-                Amount bands route transactions to external payment partners by currency and range.
-                Partner mappings apply when no rule matches.
+                Amount band rules route transactions for the selected API partner by currency and
+                range. Partner mappings apply when no rule matches.
               </p>
               {canManage && (
                 <Button onClick={openCreate}>
@@ -274,6 +302,7 @@ function AmountRoutingRulesContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Currency</TableHead>
+                    <TableHead>API partner</TableHead>
                     <TableHead>Range</TableHead>
                     <TableHead>Partner</TableHead>
                     <TableHead>Priority</TableHead>
@@ -287,6 +316,11 @@ function AmountRoutingRulesContent() {
                   {rules.map((rule) => (
                     <TableRow key={rule.id} className={cn(!rule.isActive && 'opacity-70')}>
                       <TableCell className="font-medium">{rule.currency.toUpperCase()}</TableCell>
+                      <TableCell>
+                        {rule.apiPartnerId
+                          ? (apiPartnerNameById.get(rule.apiPartnerId) || rule.apiPartnerId)
+                          : '—'}
+                      </TableCell>
                       <TableCell>
                         {formatAmountBand(rule.currency, rule.minAmount, rule.maxAmount)}
                       </TableCell>

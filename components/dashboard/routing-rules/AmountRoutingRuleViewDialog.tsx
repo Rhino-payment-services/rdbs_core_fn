@@ -46,7 +46,6 @@ export function AmountRoutingRuleViewDialog({
     { label: 'Transaction type', value: rule.transactionType },
     { label: 'Network', value: rule.network },
     { label: 'Geographic region', value: rule.geographicRegion },
-    { label: 'API partner ID', value: rule.apiPartnerId },
     { label: 'Payment method', value: rule.paymentMethod },
   ].filter((field) => field.value != null && field.value !== '')
 
@@ -56,11 +55,12 @@ export function AmountRoutingRuleViewDialog({
         <DialogHeader>
           <DialogTitle>Amount routing rule</DialogTitle>
           <DialogDescription>
-            Routes {rule.currency} transactions in this amount band to an external payment partner.
+            Amount band rule for selected API partner.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-1">
+          <DetailRow label="API partner ID" value={rule.apiPartnerId || '—'} />
           <DetailRow label="Currency" value={rule.currency.toUpperCase()} />
           <DetailRow
             label="Amount range"
@@ -109,7 +109,7 @@ export function AmountRoutingRuleViewDialog({
           {reservedFields.length > 0 && (
             <>
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide pt-3 pb-1">
-                Reserved scope (read-only)
+                Additional scope (read-only)
               </p>
               {reservedFields.map((field) => (
                 <DetailRow key={field.label} label={field.label} value={field.value} />
