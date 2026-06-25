@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle, Loader2, Search } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import type { AmountRoutingRule } from '@/lib/hooks/useAmountRoutingRules'
 import {
   useCreateAmountRoutingRule,
@@ -28,6 +28,7 @@ import {
   extractAmountRoutingApiMessage,
 } from '@/lib/hooks/useAmountRoutingRules'
 import { useExternalPaymentPartners } from '@/lib/hooks/useGatewayPartnerRouting'
+import { useApiPartners } from '@/lib/hooks/usePartners'
 import {
   buildCreatePayload,
   buildUpdatePayload,
@@ -57,9 +58,16 @@ export function AmountRoutingRuleFormDialog({
   const [form, setForm] = useState<AmountBandFormValues>(DEFAULT_AMOUNT_BAND_FORM)
   const [formError, setFormError] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
-  const [partnerSearch, setPartnerSearch] = useState('')
 
   const { data: partners = [], isLoading: partnersLoading } = useExternalPaymentPartners()
+  const { data: apiPartnersResponse, isLoading: apiPartnersLoading } = useApiPartners({
+    page: 1,
+    limit: 100,
+  })
+  const apiPartners = useMemo(
+    () => (apiPartnersResponse?.data || []).filter((p) => p.isActive && !p.isSuspended),
+    [apiPartnersResponse],
+  )
   const createRule = useCreateAmountRoutingRule()
   const updateRule = useUpdateAmountRoutingRule()
 
@@ -70,19 +78,8 @@ export function AmountRoutingRuleFormDialog({
     if (!open) return
     setFormError(null)
     setApiError(null)
-    setPartnerSearch('')
     setForm(editingRule ? ruleToFormValues(editingRule) : DEFAULT_AMOUNT_BAND_FORM)
   }, [open, editingRule])
-
-  const filteredPartners = useMemo(() => {
-    const q = partnerSearch.trim().toLowerCase()
-    if (!q) return partners
-    return partners.filter(
-      (p) =>
-        p.partnerCode.toLowerCase().includes(q) ||
-        p.partnerName.toLowerCase().includes(q),
-    )
-  }, [partners, partnerSearch])
 
   const overlapWarning = useMemo(() => {
     const validationError = validateAmountBandForm(form)
@@ -92,12 +89,12 @@ export function AmountRoutingRuleFormDialog({
     const max = Number(form.maxAmount)
     const overlaps = findOverlappingRules(
       existingRules,
-      { min, max, currency: form.currency },
+      { min, max, currency: form.currency, apiPartnerId: form.apiPartnerId },
       editingRule?.id,
     )
     if (overlaps.length === 0) return null
 
-    return `This range may overlap with ${overlaps.length} active rule(s) for ${form.currency.toUpperCase()}. The server will reject overlapping bands.`
+    return `This range may overlap with ${overlaps.length} active rule(s) for ${form.currency.toUpperCase()} and the selected API partner. The server will reject overlapping bands.`
   }, [form, existingRules, editingRule?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,7 +136,7 @@ export function AmountRoutingRuleFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit routing rule' : 'Create routing rule'}</DialogTitle>
           <DialogDescription>
-            Configure an amount band that routes transactions to an external payment partner.
+            Configure an amount band rule for selected API partner.
           </DialogDescription>
         </DialogHeader>
 
@@ -199,17 +196,35 @@ export function AmountRoutingRuleFormDialog({
           </div>
 
           <div>
+            <Label htmlFor="api-partner">API partner</Label>
+            <Select
+              value={form.apiPartnerId}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, apiPartnerId: value }))}
+              disabled={apiPartnersLoading}
+            >
+              <SelectTrigger id="api-partner">
+                <SelectValue
+                  placeholder={apiPartnersLoading ? 'Loading API partners…' : 'Select API partner'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {apiPartners.length === 0 ? (
+                  <SelectItem value="__no_api_partners" disabled>
+                    No active API partners available
+                  </SelectItem>
+                ) : (
+                  apiPartners.map((partner) => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.partnerName}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label htmlFor="partner">Partner</Label>
-            {/* <div className="relative mt-1 mb-2">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                id="partner-search"
-                placeholder="Search partners…"
-                value={partnerSearch}
-                onChange={(e) => setPartnerSearch(e.target.value)}
-                className="pl-8"
-              />
-            </div> */}
             <Select
               value={form.partnerId}
               onValueChange={(value) => setForm((prev) => ({ ...prev, partnerId: value }))}
@@ -219,12 +234,12 @@ export function AmountRoutingRuleFormDialog({
                 <SelectValue placeholder={partnersLoading ? 'Loading partners…' : 'Select partner'} />
               </SelectTrigger>
               <SelectContent>
-                {filteredPartners.length === 0 ? (
+                {partners.length === 0 ? (
                   <SelectItem value="__none" disabled>
-                    No partners match your search
+                    No partners available
                   </SelectItem>
                 ) : (
-                  filteredPartners.map((partner) => (
+                  partners.map((partner) => (
                     <SelectItem key={partner.id} value={partner.id}>
                       {partnerLabel(partner)}
                     </SelectItem>
@@ -251,6 +266,9 @@ export function AmountRoutingRuleFormDialog({
             />
             <p className="text-xs text-gray-500 mt-1">Lower number = higher priority</p>
           </div>
+          <p className="text-xs text-gray-500">
+            Overlap checks are evaluated within the selected currency and API partner.
+          </p>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
