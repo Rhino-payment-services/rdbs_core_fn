@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Edit } from 'lucide-react'
 import type { AmountRoutingRule } from '@/lib/hooks/useAmountRoutingRules'
-import { formatAmountBand } from '@/lib/routing-rules/utils'
+import { formatAmountBand, formatRoutingNetwork, formatRoutingTransactionType } from '@/lib/routing-rules/utils'
 import { formatDate } from '@/lib/utils/transactions'
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -41,13 +41,6 @@ export function AmountRoutingRuleViewDialog({
   onEdit,
 }: AmountRoutingRuleViewDialogProps) {
   if (!rule) return null
-
-  const reservedFields = [
-    { label: 'Transaction type', value: rule.transactionType },
-    { label: 'Network', value: rule.network },
-    { label: 'Geographic region', value: rule.geographicRegion },
-    { label: 'Payment method', value: rule.paymentMethod },
-  ].filter((field) => field.value != null && field.value !== '')
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,6 +74,18 @@ export function AmountRoutingRuleViewDialog({
               )
             }
           />
+          <DetailRow
+            label="Transaction type"
+            value={formatRoutingTransactionType(rule.transactionType)}
+          />
+          <DetailRow label="Network" value={formatRoutingNetwork(rule.network)} />
+          <DetailRow
+            label="Geographic region"
+            value={rule.geographicRegion || 'Any'}
+          />
+          {rule.paymentMethod ? (
+            <DetailRow label="Payment method" value={rule.paymentMethod} />
+          ) : null}
           <DetailRow label="Priority" value={rule.priority} />
           <DetailRow
             label="Status"
@@ -105,17 +110,6 @@ export function AmountRoutingRuleViewDialog({
             label="Updated"
             value={rule.updatedAt ? formatDate(rule.updatedAt) : '—'}
           />
-
-          {reservedFields.length > 0 && (
-            <>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide pt-3 pb-1">
-                Additional scope (read-only)
-              </p>
-              {reservedFields.map((field) => (
-                <DetailRow key={field.label} label={field.label} value={field.value} />
-              ))}
-            </>
-          )}
 
           <DetailRow
             label="Rule ID"
