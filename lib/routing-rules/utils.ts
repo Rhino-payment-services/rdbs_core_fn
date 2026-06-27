@@ -1,4 +1,8 @@
-import type { AmountRoutingRule } from '@/lib/hooks/useAmountRoutingRules';
+import type {
+  AmountRoutingRule,
+  CreateAmountRoutingRuleRequest,
+  UpdateAmountRoutingRuleRequest,
+} from '@/lib/hooks/useAmountRoutingRules';
 
 export const AMOUNT_ROUTING_TRANSACTION_TYPES = [
   { value: '', label: 'Any transaction type' },
@@ -124,8 +128,10 @@ function optionalScopeField(value: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-export function buildCreatePayload(values: AmountBandFormValues) {
-  const payload: Record<string, string | number> = {
+export function buildCreatePayload(
+  values: AmountBandFormValues,
+): CreateAmountRoutingRuleRequest {
+  const payload: CreateAmountRoutingRuleRequest = {
     currency: values.currency.trim().toUpperCase(),
     minAmount: Number(values.minAmount),
     maxAmount: Number(values.maxAmount),
@@ -148,8 +154,8 @@ export function buildCreatePayload(values: AmountBandFormValues) {
 export function buildUpdatePayload(
   values: AmountBandFormValues,
   original: AmountRoutingRule,
-) {
-  const payload: Record<string, string | number | null> = {};
+): UpdateAmountRoutingRuleRequest {
+  const payload: UpdateAmountRoutingRuleRequest = {};
   const currency = values.currency.trim().toUpperCase();
   const minAmount = Number(values.minAmount);
   const maxAmount = Number(values.maxAmount);
