@@ -34,7 +34,7 @@ import {
 import { AmountRoutingRuleFormDialog } from '@/components/dashboard/routing-rules/AmountRoutingRuleFormDialog'
 import { AmountRoutingRuleViewDialog } from '@/components/dashboard/routing-rules/AmountRoutingRuleViewDialog'
 import { AmountRoutingRuleDeleteDialog } from '@/components/dashboard/routing-rules/AmountRoutingRuleDeleteDialog'
-import { formatAmountBand } from '@/lib/routing-rules/utils'
+import { formatAmountBand, formatRoutingNetwork, formatRoutingTransactionType } from '@/lib/routing-rules/utils'
 import { formatDate } from '@/lib/utils/transactions'
 import { cn } from '@/lib/utils'
 import { useApiPartners } from '@/lib/hooks/usePartners'
@@ -286,8 +286,8 @@ function AmountRoutingRulesContent() {
               <Route className="h-12 w-12 text-gray-400 mx-auto mb-3" />
               <p className="text-gray-900 font-medium mb-1">No routing rules yet</p>
               <p className="text-gray-600 text-sm mb-4 max-w-md mx-auto">
-                Amount band rules route transactions for the selected API partner by currency and
-                range. Partner mappings apply when no rule matches.
+                Amount band rules route API partner transactions by currency, amount range,
+                transaction type, and network. If no rule matches, gateway partner routing applies.
               </p>
               {canManage && (
                 <Button onClick={openCreate}>
@@ -303,6 +303,8 @@ function AmountRoutingRulesContent() {
                   <TableRow>
                     <TableHead>Currency</TableHead>
                     <TableHead>API partner</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Network</TableHead>
                     <TableHead>Range</TableHead>
                     <TableHead>Partner</TableHead>
                     <TableHead>Priority</TableHead>
@@ -320,6 +322,12 @@ function AmountRoutingRulesContent() {
                         {rule.apiPartnerId
                           ? (apiPartnerNameById.get(rule.apiPartnerId) || rule.apiPartnerId)
                           : '—'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatRoutingTransactionType(rule.transactionType)}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatRoutingNetwork(rule.network)}
                       </TableCell>
                       <TableCell>
                         {formatAmountBand(rule.currency, rule.minAmount, rule.maxAmount)}

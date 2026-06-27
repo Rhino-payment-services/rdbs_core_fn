@@ -30,10 +30,13 @@ import {
 import { useExternalPaymentPartners } from '@/lib/hooks/useGatewayPartnerRouting'
 import { useApiPartners } from '@/lib/hooks/usePartners'
 import {
+  AMOUNT_ROUTING_NETWORKS,
+  AMOUNT_ROUTING_TRANSACTION_TYPES,
   buildCreatePayload,
   buildUpdatePayload,
   DEFAULT_AMOUNT_BAND_FORM,
   findOverlappingRules,
+  isMnoAmountRoutingType,
   partnerLabel,
   ruleToFormValues,
   validateAmountBandForm,
@@ -136,7 +139,8 @@ export function AmountRoutingRuleFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit routing rule' : 'Create routing rule'}</DialogTitle>
           <DialogDescription>
-            Configure an amount band rule for selected API partner.
+            Configure an amount band for an API partner. Scope by transaction type and network so
+            MNO routes match the correct provider.
           </DialogDescription>
         </DialogHeader>
 
@@ -193,6 +197,91 @@ export function AmountRoutingRuleFormDialog({
                 placeholder="50000"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="transactionType">Transaction type</Label>
+              <Select
+                value={form.transactionType || '__any__'}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    transactionType: value === '__any__' ? '' : value,
+                    network: value === '__any__' || !isMnoAmountRoutingType(value) ? '' : prev.network,
+                  }))
+                }
+              >
+                <SelectTrigger id="transactionType" className="mt-1">
+                  <SelectValue placeholder="Any transaction type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AMOUNT_ROUTING_TRANSACTION_TYPES.map((type) => (
+                    <SelectItem
+                      key={type.value || '__any__'}
+                      value={type.value || '__any__'}
+                    >
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="network">Network</Label>
+              <Select
+                value={form.network || '__any__'}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    network: value === '__any__' ? '' : value,
+                  }))
+                }
+                disabled={!isMnoAmountRoutingType(form.transactionType)}
+              >
+                <SelectTrigger id="network" className="mt-1">
+                  <SelectValue
+                    placeholder={
+                      isMnoAmountRoutingType(form.transactionType)
+                        ? 'Select network'
+                        : 'N/A for non-MNO'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {AMOUNT_ROUTING_NETWORKS.filter((n) =>
+                    isMnoAmountRoutingType(form.transactionType) ? n.value !== '' : true,
+                  ).map((network) => (
+                    <SelectItem
+                      key={network.value || '__any__'}
+                      value={network.value || '__any__'}
+                    >
+                      {network.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isMnoAmountRoutingType(form.transactionType) && (
+                <p className="text-xs text-gray-500 mt-1">Required for MNO send/collect rules</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="geographicRegion">Geographic region</Label>
+            <Input
+              id="geographicRegion"
+              className="mt-1 uppercase"
+              value={form.geographicRegion}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  geographicRegion: e.target.value.toUpperCase(),
+                }))
+              }
+              placeholder="UG"
+            />
+            <p className="text-xs text-gray-500 mt-1">Leave blank to match any region</p>
           </div>
 
           <div>
@@ -267,7 +356,8 @@ export function AmountRoutingRuleFormDialog({
             <p className="text-xs text-gray-500 mt-1">Lower number = higher priority</p>
           </div>
           <p className="text-xs text-gray-500">
-            Overlap checks are evaluated within the selected currency and API partner.
+            Overlap checks apply within the same currency and API partner. When no rule matches,
+            gateway partner routing is used (not global partner mappings).
           </p>
 
           <DialogFooter>
