@@ -1,5 +1,34 @@
 import type { AmountRoutingRule } from '@/lib/hooks/useAmountRoutingRules';
 
+export const AMOUNT_ROUTING_TRANSACTION_TYPES = [
+  { value: '', label: 'Any transaction type' },
+  { value: 'WALLET_TO_MNO', label: 'Send (Wallet → MNO)' },
+  { value: 'MNO_TO_WALLET', label: 'Collect (MNO → Wallet)' },
+] as const;
+
+export const AMOUNT_ROUTING_NETWORKS = [
+  { value: '', label: 'Any network' },
+  { value: 'MTN', label: 'MTN' },
+  { value: 'AIRTEL', label: 'Airtel' },
+] as const;
+
+const MNO_TRANSACTION_TYPES = new Set(['WALLET_TO_MNO', 'MNO_TO_WALLET']);
+
+export function isMnoAmountRoutingType(transactionType: string): boolean {
+  return MNO_TRANSACTION_TYPES.has(transactionType);
+}
+
+export function formatRoutingTransactionType(value: string | null | undefined): string {
+  if (!value) return 'Any';
+  const match = AMOUNT_ROUTING_TRANSACTION_TYPES.find((t) => t.value === value);
+  return match?.label ?? value.replace(/_/g, ' ');
+}
+
+export function formatRoutingNetwork(value: string | null | undefined): string {
+  if (!value) return 'Any';
+  return value.toUpperCase() === 'AIRTEL' ? 'Airtel' : value.toUpperCase();
+}
+
 export interface AmountBandFormValues {
   currency: string;
   minAmount: string;
@@ -7,6 +36,9 @@ export interface AmountBandFormValues {
   partnerId: string;
   apiPartnerId: string;
   priority: string;
+  transactionType: string;
+  geographicRegion: string;
+  network: string;
 }
 
 export function bandsOverlap(
@@ -76,11 +108,24 @@ export function validateAmountBandForm(values: AmountBandFormValues): string | n
     return 'Priority must be an integer of at least 1';
   }
 
+  if (isMnoAmountRoutingType(values.transactionType) && !values.network) {
+    return 'Network (MTN or Airtel) is required for MNO send/collect rules';
+  }
+
+  if (values.network && !['MTN', 'AIRTEL'].includes(values.network.toUpperCase())) {
+    return 'Network must be MTN or Airtel';
+  }
+
   return null;
 }
 
+function optionalScopeField(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export function buildCreatePayload(values: AmountBandFormValues) {
-  return {
+  const payload: Record<string, string | number> = {
     currency: values.currency.trim().toUpperCase(),
     minAmount: Number(values.minAmount),
     maxAmount: Number(values.maxAmount),
@@ -88,24 +133,48 @@ export function buildCreatePayload(values: AmountBandFormValues) {
     apiPartnerId: values.apiPartnerId,
     priority: values.priority.trim() === '' ? 1 : Number(values.priority),
   };
+
+  const transactionType = optionalScopeField(values.transactionType);
+  const geographicRegion = optionalScopeField(values.geographicRegion);
+  const network = optionalScopeField(values.network);
+
+  if (transactionType) payload.transactionType = transactionType;
+  if (geographicRegion) payload.geographicRegion = geographicRegion;
+  if (network) payload.network = network.toUpperCase();
+
+  return payload;
 }
 
 export function buildUpdatePayload(
   values: AmountBandFormValues,
   original: AmountRoutingRule,
 ) {
-  const payload: Record<string, string | number> = {};
+  const payload: Record<string, string | number | null> = {};
   const currency = values.currency.trim().toUpperCase();
   const minAmount = Number(values.minAmount);
   const maxAmount = Number(values.maxAmount);
   const priority = values.priority.trim() === '' ? 1 : Number(values.priority);
+  const transactionType = values.transactionType.trim() || null;
+  const geographicRegion = values.geographicRegion.trim() || null;
+  const network = values.network.trim() ? values.network.trim().toUpperCase() : null;
 
   if (currency !== original.currency.toUpperCase()) payload.currency = currency;
   if (minAmount !== original.minAmount) payload.minAmount = minAmount;
   if (maxAmount !== original.maxAmount) payload.maxAmount = maxAmount;
   if (values.partnerId !== original.partnerId) payload.partnerId = values.partnerId;
-  if (values.apiPartnerId !== (original.apiPartnerId || '')) payload.apiPartnerId = values.apiPartnerId;
+  if (values.apiPartnerId !== (original.apiPartnerId || '')) {
+    payload.apiPartnerId = values.apiPartnerId;
+  }
   if (priority !== original.priority) payload.priority = priority;
+  if (transactionType !== (original.transactionType || null)) {
+    payload.transactionType = transactionType;
+  }
+  if (geographicRegion !== (original.geographicRegion || null)) {
+    payload.geographicRegion = geographicRegion;
+  }
+  if (network !== (original.network?.toUpperCase() || null)) {
+    payload.network = network;
+  }
 
   return payload;
 }
@@ -117,6 +186,9 @@ export const DEFAULT_AMOUNT_BAND_FORM: AmountBandFormValues = {
   partnerId: '',
   apiPartnerId: '',
   priority: '1',
+  transactionType: '',
+  geographicRegion: '',
+  network: '',
 };
 
 export function ruleToFormValues(rule: AmountRoutingRule): AmountBandFormValues {
@@ -127,6 +199,9 @@ export function ruleToFormValues(rule: AmountRoutingRule): AmountBandFormValues 
     partnerId: rule.partnerId,
     apiPartnerId: rule.apiPartnerId || '',
     priority: String(rule.priority),
+    transactionType: rule.transactionType || '',
+    geographicRegion: rule.geographicRegion || '',
+    network: rule.network?.toUpperCase() || '',
   };
 }
 

@@ -36,6 +36,9 @@ export interface CreateAmountRoutingRuleRequest {
   partnerId: string;
   apiPartnerId: string;
   priority?: number;
+  transactionType?: string;
+  geographicRegion?: string;
+  network?: string;
 }
 
 export interface UpdateAmountRoutingRuleRequest {
@@ -45,6 +48,9 @@ export interface UpdateAmountRoutingRuleRequest {
   partnerId?: string;
   apiPartnerId?: string;
   priority?: number;
+  transactionType?: string | null;
+  geographicRegion?: string | null;
+  network?: string | null;
 }
 
 export interface DeleteAmountRoutingRuleResponse {
