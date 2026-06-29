@@ -27,6 +27,13 @@ import {
   DASHBOARD_MAIN_CLASS,
   dashboardFormShellClass,
 } from '@/lib/constants/dashboard-layout'
+import {
+  DEFAULT_FEE_SPLIT_MODE,
+  shouldShowFeeSplitModeSelectors,
+  type FeeSplitFieldKey,
+  type FeeSplitFieldMode,
+} from '@/lib/constants/tariff-fee-split'
+import { TariffFeeSplitField } from './TariffFeeSplitField'
 
 interface Partner {
   id: string
@@ -330,6 +337,12 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const isExternalMnoToWallet =
     form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'
   const showPercentLabels = form.feeType === 'PERCENTAGE'
+  const showFeeSplitModeSelectors = shouldShowFeeSplitModeSelectors({
+    tariffType: form.tariffType,
+    feeType: form.feeType,
+    transactionType: form.transactionType,
+    isExternalMnoToWallet,
+  })
 
   // Prefill telecom charge from network default only when network changes
   useEffect(() => {
@@ -485,6 +498,64 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
       ...prev,
       [field]: value,
     }))
+  }
+
+  const ensureDefaultFeeSplitMode = (
+    metadata: Record<string, unknown> | undefined,
+  ): Record<string, unknown> => {
+    const current = (metadata?.feeSplitMode as Record<string, string> | undefined) ?? {}
+    return {
+      ...(metadata ?? {}),
+      feeSplitMode: {
+        ...DEFAULT_FEE_SPLIT_MODE,
+        ...current,
+      },
+    }
+  }
+
+  const handleFeeSplitModeChange = (
+    field: FeeSplitFieldKey,
+    mode: FeeSplitFieldMode,
+  ) => {
+    setForm((prev) => {
+      const metadata = ensureDefaultFeeSplitMode(
+        prev.metadata as Record<string, unknown> | undefined,
+      )
+      const feeSplitMode = {
+        ...(metadata.feeSplitMode as Record<string, FeeSplitFieldMode>),
+        [field]: mode,
+      }
+      return {
+        ...prev,
+        metadata: {
+          ...metadata,
+          feeSplitMode,
+        },
+      }
+    })
+  }
+
+  const initFeeSplitModeIfNeeded = (
+    prev: CreateTariffForm,
+    feeType: CreateTariffForm['feeType'],
+    transactionType: CreateTariffForm['transactionType'],
+  ): CreateTariffForm['metadata'] => {
+    const shouldInit = shouldShowFeeSplitModeSelectors({
+      tariffType: prev.tariffType,
+      feeType,
+      transactionType,
+      isExternalMnoToWallet:
+        prev.tariffType === 'EXTERNAL' && transactionType === 'MNO_TO_WALLET',
+    })
+    if (!shouldInit) {
+      return prev.metadata
+    }
+    const existing = (prev.metadata as { feeSplitMode?: Record<string, string> } | undefined)
+      ?.feeSplitMode
+    if (existing && Object.keys(existing).length > 0) {
+      return prev.metadata
+    }
+    return ensureDefaultFeeSplitMode(prev.metadata as Record<string, unknown> | undefined)
   }
 
   const handleTelecomBankChargeChange = (value: number) => {
@@ -722,13 +793,23 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       <Select 
                         value={form.transactionType} 
                       onValueChange={(value) => {
-                        handleInputChange('transactionType', value)
-                        if (form.tariffType === 'EXTERNAL' && value === 'MNO_TO_WALLET') {
-                          handleInputChange('feeType', 'PERCENTAGE')
-                        }
-                        if (value !== 'MNO_TO_WALLET') {
-                          handleInputChange('network', undefined)
-                        }
+                        setForm((prev) => {
+                          const nextFeeType =
+                            prev.tariffType === 'EXTERNAL' && value === 'MNO_TO_WALLET'
+                              ? 'PERCENTAGE'
+                              : prev.feeType
+                          return {
+                            ...prev,
+                            transactionType: value as CreateTariffForm['transactionType'],
+                            feeType: nextFeeType,
+                            network: value !== 'MNO_TO_WALLET' ? undefined : prev.network,
+                            metadata: initFeeSplitModeIfNeeded(
+                              { ...prev, feeType: nextFeeType },
+                              nextFeeType,
+                              value as CreateTariffForm['transactionType'],
+                            ),
+                          }
+                        })
                       }}
                         required
                       >
@@ -938,7 +1019,17 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       <Label htmlFor="feeType">Fee Type *</Label>
                       <Select
                         value={form.feeType}
-                        onValueChange={(value) => handleInputChange('feeType', value)}
+                        onValueChange={(value) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            feeType: value as CreateTariffForm['feeType'],
+                            metadata: initFeeSplitModeIfNeeded(
+                              prev,
+                              value as CreateTariffForm['feeType'],
+                              prev.transactionType,
+                            ),
+                          }))
+                        }}
                         disabled={form.tariffType === 'EXTERNAL' && form.transactionType === 'MNO_TO_WALLET'}
                       >
                         <SelectTrigger>
@@ -1213,6 +1304,47 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <p className="text-xs text-gray-500 mt-1">Group for partner-specific amount ranges</p>
                       </div>
 
+                      {showFeeSplitModeSelectors ? (
+                        <>
+                          <TariffFeeSplitField
+                            field="partnerFee"
+                            value={form.partnerFee}
+                            currency={form.currency}
+                            metadata={form.metadata as Record<string, unknown> | undefined}
+                            onValueChange={(value) => handleInputChange('partnerFee', value)}
+                            onModeChange={(mode) => handleFeeSplitModeChange('partnerFee', mode)}
+                          />
+                          <TariffFeeSplitField
+                            field="rukapayFee"
+                            value={form.rukapayFee}
+                            currency={form.currency}
+                            metadata={form.metadata as Record<string, unknown> | undefined}
+                            onValueChange={(value) => handleInputChange('rukapayFee', value)}
+                            onModeChange={(mode) => handleFeeSplitModeChange('rukapayFee', mode)}
+                          />
+                          <TariffFeeSplitField
+                            field="telecomBankCharge"
+                            value={form.telecomBankCharge}
+                            currency={form.currency}
+                            metadata={form.metadata as Record<string, unknown> | undefined}
+                            onValueChange={(value) => handleTelecomBankChargeChange(value)}
+                            onModeChange={(mode) =>
+                              handleFeeSplitModeChange('telecomBankCharge', mode)
+                            }
+                          />
+                          <TariffFeeSplitField
+                            field="governmentTax"
+                            value={form.governmentTax}
+                            currency={form.currency}
+                            metadata={form.metadata as Record<string, unknown> | undefined}
+                            onValueChange={(value) => handleInputChange('governmentTax', value)}
+                            onModeChange={(mode) =>
+                              handleFeeSplitModeChange('governmentTax', mode)
+                            }
+                          />
+                        </>
+                      ) : (
+                        <>
                       <div>
                         <Label htmlFor="partnerFee">Partner Fee</Label>
                         <Input
@@ -1266,7 +1398,10 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             : 'Optional decimal percentage (e.g., 0.001 = 0.1%).'}
                         </p>
                       </div>
+                        </>
+                      )}
 
+                      {!showFeeSplitModeSelectors && (
                       <div>
                         <Label htmlFor="governmentTax">
                           {showPercentLabels ? 'Government Tax (%)' : 'Government Tax'}
@@ -1282,6 +1417,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         />
                         <p className="text-xs text-gray-500 mt-1">Optional government tax percentage (e.g., 18 for 18%)</p>
                       </div>
+                      )}
                     </div>
                     
                     {/* Total Fee Display */}
