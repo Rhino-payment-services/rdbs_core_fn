@@ -1,4 +1,9 @@
 import { TARIFF_CHANNEL_ALL } from '@/lib/constants/tariff-channels'
+import {
+  mergeFeeSplitModeIntoMetadata,
+  shouldShowFeeSplitModeSelectors,
+  type FeeSplitModeMetadata,
+} from '@/lib/constants/tariff-fee-split'
 import type { CreateTariffForm } from './types'
 
 const ALLOWED_TRANSACTION_TYPES = [
@@ -50,6 +55,21 @@ export function buildTariffSubmitPayload(
         }
       : form.metadata || undefined
 
+  const persistFeeSplitMode = shouldShowFeeSplitModeSelectors({
+    tariffType: form.tariffType,
+    feeType: form.feeType,
+    transactionType: form.transactionType,
+    isExternalMnoToWallet:
+      form.tariffType === 'EXTERNAL' && validTransactionType === 'MNO_TO_WALLET',
+  })
+  const feeSplitMode = (form.metadata as { feeSplitMode?: FeeSplitModeMetadata } | undefined)
+    ?.feeSplitMode
+  const metadataWithSplit = mergeFeeSplitModeIntoMetadata(
+    institutionMetadata as Record<string, unknown> | undefined,
+    feeSplitMode,
+    persistFeeSplitMode,
+  )
+
   return {
     ...form,
     channel:
@@ -72,7 +92,7 @@ export function buildTariffSubmitPayload(
       form.governmentTax !== undefined && form.governmentTax !== null
         ? Number(form.governmentTax)
         : undefined,
-    metadata: institutionMetadata,
+    metadata: metadataWithSplit,
     description: form.description || undefined,
     minAmount:
       form.minAmount !== undefined && form.minAmount !== null

@@ -14,10 +14,10 @@ export function TariffFeeSplit({ tariff, compact }: { tariff: Tariff; compact?: 
   }
 
   const lines: { label: string; value: string; dim?: boolean }[] = []
-  const partner = formatTariffSplitField(tariff.partnerFee, tariff)
-  const rukapay = formatTariffSplitField(tariff.rukapayFee, tariff)
-  const telecom = formatTariffSplitField(tariff.telecomBankCharge, tariff)
-  const gov = formatTariffGovernmentTax(tariff.governmentTax)
+  const partner = formatTariffSplitField(tariff.partnerFee, tariff, 'partnerFee')
+  const rukapay = formatTariffSplitField(tariff.rukapayFee, tariff, 'rukapayFee')
+  const telecom = formatTariffSplitField(tariff.telecomBankCharge, tariff, 'telecomBankCharge')
+  const gov = formatTariffGovernmentTax(tariff.governmentTax, tariff)
   const residualRukapay = shouldShowRukapayResidual(tariff)
 
   if (partner) lines.push({ label: 'Partner', value: partner })
@@ -25,12 +25,12 @@ export function TariffFeeSplit({ tariff, compact }: { tariff: Tariff; compact?: 
   else if (residualRukapay) {
     lines.push({
       label: 'RukaPay',
-      value: 'Residual (total fee − MNO)',
+      value: 'Residual (remainder of charge)',
       dim: true,
     })
   }
   if (telecom) lines.push({ label: 'Telecom', value: telecom })
-  if (gov) lines.push({ label: 'Gov tax', value: gov })
+  if (gov) lines.push({ label: 'Government', value: gov })
 
   if (lines.length === 0) {
     return <span className="text-gray-400 text-sm">—</span>
