@@ -10,22 +10,7 @@ interface FeeCellProps {
 }
 
 export const RukapayFeeCell = ({ transaction }: FeeCellProps) => {
-  const metadata = transaction.metadata || {}
-
-  // Special case: internal sweep (Liquidate) from collection → disbursement
-  // Use sweepFeeAmount attached in metadata so we see the 2.5% fee clearly.
-  const sweepFee =
-    (metadata.sweepToDisbursement || metadata.sweepFromCollection)
-      ? Number(metadata.sweepFeeAmount) || 0
-      : 0
-
-  // Only show the sweep fee on the DEBIT leg for sweeps; CREDIT leg shows 0 in the RukaPay fee column
-  const effectiveSweepFee =
-    sweepFee > 0 && transaction.direction === 'DEBIT' ? sweepFee : 0
-
-  const rukapayFee = effectiveSweepFee > 0
-    ? effectiveSweepFee
-    : getNormalizedRukapayFee(transaction)
+  const rukapayFee = getNormalizedRukapayFee(transaction)
 
   return (
     <TableCell className="font-medium text-blue-600">

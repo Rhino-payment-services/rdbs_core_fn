@@ -249,9 +249,62 @@ export function normalizeFeeBreakdown(transaction: {
   }
 }
 
-/** RukaPay fee only — used by ledger table column. */
-export function getNormalizedRukapayFee(transaction: Parameters<typeof normalizeFeeBreakdown>[0]): number {
+/** RukaPay fee only — uses platform revenue accrual when booked, else fee breakdown. */
+export function getNormalizedRukapayFee(
+  transaction: Parameters<typeof normalizeFeeBreakdown>[0] & {
+    platformRevenueAccrual?: { amount: number } | null
+  },
+): number {
+  if (transaction.platformRevenueAccrual != null) {
+    return exportFinite(transaction.platformRevenueAccrual.amount)
+  }
   return normalizeFeeBreakdown(transaction).rukapayFee
+}
+
+/** Whether a revenue accrual creditedAt falls within EAT calendar bounds (matches Platform Revenue). */
+export function isPlatformRevenueCreditedInRange(
+  creditedAt: string | Date | null | undefined,
+  startDate?: string,
+  endDate?: string,
+): boolean {
+  if (!creditedAt || (!startDate && !endDate)) return false
+  const credited = creditedAt instanceof Date ? creditedAt : new Date(creditedAt)
+  if (Number.isNaN(credited.getTime())) return false
+  if (startDate) {
+    const start = new Date(`${startDate}T00:00:00.000+03:00`)
+    if (credited < start) return false
+  }
+  if (endDate) {
+    const end = new Date(`${endDate}T23:59:59.999+03:00`)
+    if (credited > end) return false
+  }
+  return true
+}
+
+export function sumPlatformRevenueAccrualsInRange(
+  transactions: Array<{ platformRevenueAccrual?: { amount: number; creditedAt?: string } | null }>,
+  startDate?: string,
+  endDate?: string,
+): number {
+  if (!startDate && !endDate) {
+    return Number(
+      transactions
+        .reduce((sum, tx) => sum + exportFinite(tx.platformRevenueAccrual?.amount), 0)
+        .toFixed(2),
+    )
+  }
+  return Number(
+    transactions
+      .reduce((sum, tx) => {
+        const accrual = tx.platformRevenueAccrual
+        if (!accrual) return sum
+        if (!isPlatformRevenueCreditedInRange(accrual.creditedAt, startDate, endDate)) {
+          return sum
+        }
+        return sum + exportFinite(accrual.amount)
+      }, 0)
+      .toFixed(2),
+  )
 }
 
 export interface ExportFeeColumns {
@@ -418,6 +471,7 @@ export function resolveExportFeeColumns(tx: {
   } | null
   metadata?: Record<string, unknown> | null
   partnerLabel?: string
+  platformRevenueAccrual?: { amount: number } | null
 }): ExportFeeColumns {
   const metadata = tx.metadata || {}
   const feeBreakdown = (metadata.feeBreakdown as Record<string, unknown>) || {}
@@ -504,6 +558,10 @@ export function resolveExportFeeColumns(tx: {
     if (aggregateFee > 0) {
       rukapayFee = aggregateFee
     }
+  }
+
+  if (tx.platformRevenueAccrual != null) {
+    rukapayFee = exportFinite(tx.platformRevenueAccrual.amount)
   }
 
   return { rukapayFee, telecomFee, partnerFee }

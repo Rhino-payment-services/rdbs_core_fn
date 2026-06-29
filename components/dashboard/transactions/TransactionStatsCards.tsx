@@ -95,7 +95,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
           </div>
           <div className="mt-0">
             <span className="text-sm text-blue-600 font-medium">
-              RukaPay fees
+              Booked revenue (matches Platform Revenue)
             </span>
           </div>
         </CardContent>
