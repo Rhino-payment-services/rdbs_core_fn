@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { CreditCard, DollarSign, TrendingUp, Activity } from 'lucide-react'
 import { formatAmount, formatCompactUgx } from '@/lib/utils/transactions'
+import { useRevenueCardSubtitle } from '@/lib/hooks/useRevenueCardSubtitle'
+import { RevenueCardSubtitleLine } from '@/components/dashboard/transactions/RevenueCardSubtitleLine'
 
 interface TransactionStats {
   totalTransactions: number
@@ -14,15 +16,35 @@ interface TransactionStats {
 interface TransactionStatsCardsProps {
   stats?: TransactionStats
   isLoading: boolean
+  startDate?: string
+  endDate?: string
+  typeFilter?: string
+  statusFilter?: string
 }
 
-export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCardsProps) => {
+export const TransactionStatsCards = ({
+  stats,
+  isLoading,
+  startDate,
+  endDate,
+  typeFilter,
+  statusFilter,
+}: TransactionStatsCardsProps) => {
   const totalTransactions = stats?.totalTransactions ?? 0
   const successRate = stats?.successRate ?? 0
   const totalVolume = stats?.totalVolume ?? 0
   const averageAmount = stats?.averageTransactionAmount ?? 0
   const rukapayRevenue = stats?.rukapayRevenue ?? 0
   const partnerFees = stats?.partnerFees ?? 0
+  const hasDateFilter = Boolean(startDate || endDate)
+
+  const revenueSubtitle = useRevenueCardSubtitle({
+    rukapayRevenue,
+    totalTransactions,
+    hasDateFilter,
+    typeFilter,
+    statusFilter,
+  })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-1 mb-4">
@@ -93,6 +115,7 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
               <TrendingUp className="w-4 h-4 text-gray-600" />
             </div>
           </div>
+          <RevenueCardSubtitleLine subtitle={revenueSubtitle} />
         </CardContent>
       </Card>
 

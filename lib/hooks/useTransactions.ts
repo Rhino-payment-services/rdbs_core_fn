@@ -211,6 +211,7 @@ export const useTransactionSystemStats = (filters?: {
   endDate?: string;
   minAmount?: number;
   maxAmount?: number;
+  enabled?: boolean;
 }) => {
   const queryParams = new URLSearchParams();
   if (filters?.type) queryParams.append('type', filters.type);
@@ -226,6 +227,7 @@ export const useTransactionSystemStats = (filters?: {
   return useQuery({
     queryKey: [...transactionQueryKeys.systemStats, filters],
     queryFn: () => apiFetch(`/transactions/system/stats?${queryParams.toString()}`),
+    enabled: filters?.enabled !== false,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
     refetchInterval: false, // No automatic refetching

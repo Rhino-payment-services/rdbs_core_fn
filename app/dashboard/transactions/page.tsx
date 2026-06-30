@@ -794,7 +794,14 @@ const TransactionsPage = () => {
           </div>
 
           {/* Stats Cards */}
-          <TransactionStatsCards stats={stats} isLoading={statsLoading} />
+          <TransactionStatsCards
+            stats={stats}
+            isLoading={statsLoading}
+            startDate={startDate || undefined}
+            endDate={endDate || undefined}
+            typeFilter={typeFilter || undefined}
+            statusFilter={statusFilter || undefined}
+          />
 
           {/* Channel Statistics */}
           <ChannelStatistics

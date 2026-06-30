@@ -43,6 +43,8 @@ import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
 import ChannelStatsCard from '@/components/dashboard/ChannelStatsCard'
 import { formatAmount, formatCompactUgx } from '@/lib/utils/transactions'
+import { useRevenueCardSubtitle } from '@/lib/hooks/useRevenueCardSubtitle'
+import { RevenueCardSubtitleLine } from '@/components/dashboard/transactions/RevenueCardSubtitleLine'
 
 const DashboardPage = () => {
   const { hasPermission, userRole } = usePermissions()
@@ -63,6 +65,12 @@ const DashboardPage = () => {
   // Fetch data from backend
   const { data: transactionStats, isLoading: statsLoading, error: statsError } = useTransactionSystemStats()
   const { data: usersData, isLoading: usersLoading, error: usersError } = useUsers()
+
+  const revenueSubtitle = useRevenueCardSubtitle({
+    rukapayRevenue: transactionStats?.rukapayRevenue ?? 0,
+    totalTransactions: transactionStats?.totalTransactions ?? 0,
+    hasDateFilter: false,
+  })
   
   // Fetch all transactions for the last 7 days to build accurate graphs
   const last7DaysStart = new Date()
@@ -280,6 +288,7 @@ const DashboardPage = () => {
                       <TrendingUp className="w-4 h-4 text-gray-600" />
                     </div>
                   </div>
+                  <RevenueCardSubtitleLine subtitle={revenueSubtitle} />
                 </CardContent>
               </Card>
 
