@@ -421,6 +421,7 @@ export interface PlatformRevenueEntry {
   amount: number
   currency: string
   creditedAt: string
+  status?: string
   partnerLabel?: string | null
   partnerId?: string | null
   externalPartnerId?: string | null
