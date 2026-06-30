@@ -11,9 +11,11 @@ import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import {
+  getNormalizedRukapayFee,
   isAirtimeFaceValueLedger,
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
+  sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
@@ -31,6 +33,7 @@ import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
 
 const EXPORT_ALL_TRANSACTIONS_LIMIT = 50000
+const EXPORT_PAGE_SIZE = 5000
 
 const TransactionsPage = () => {
   // Pagination and filtering state
@@ -365,20 +368,36 @@ const TransactionsPage = () => {
       const exportEnd = customEndDate || endDate
       
       if (exportAll) {
-        // Fetch all transactions with current filters
-        const response = await api({
-          url: '/transactions/all',
-          method: 'GET',
-          params: {
-            limit: EXPORT_ALL_TRANSACTIONS_LIMIT, // Export-specific cap
-            status: statusFilter || undefined,
-            type: typeFilter || undefined,
-            startDate: exportStart || undefined,
-            endDate: exportEnd || undefined,
-          },
-        })
-        
-        transactionsToExport = response.data?.transactions || response.data?.data || []
+        // Fetch all transactions in range (paginated) with current filters
+        const allRows: any[] = []
+        let page = 1
+        let total = Number.POSITIVE_INFINITY
+
+        while (allRows.length < EXPORT_ALL_TRANSACTIONS_LIMIT && allRows.length < total) {
+          const response = await api({
+            url: '/transactions/all',
+            method: 'GET',
+            params: {
+              page,
+              limit: EXPORT_PAGE_SIZE,
+              status: statusFilter || undefined,
+              type: typeFilter || undefined,
+              startDate: exportStart || undefined,
+              endDate: exportEnd || undefined,
+            },
+          })
+
+          const payload = response.data?.data ?? response.data
+          const batch = payload?.transactions ?? []
+          total = typeof payload?.total === 'number' ? payload.total : batch.length
+
+          if (!batch.length) break
+          allRows.push(...batch)
+          if (batch.length < EXPORT_PAGE_SIZE) break
+          page += 1
+        }
+
+        transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
         
         // Filter out WALLET_INIT
         transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
@@ -528,6 +547,17 @@ const TransactionsPage = () => {
           partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
+        const revenueCreditedAt = tx.platformRevenueAccrual?.creditedAt
+          ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
+              timeZone: 'Africa/Kampala',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })
+          : ''
 
         const governmentTax = fees.governmentTax
         const isAirtimeLedger = isAirtimeFaceValueLedger(tx)
@@ -582,6 +612,7 @@ const TransactionsPage = () => {
           'Telecom Fee': telecomFee,
           'Partner Fee': partnerFeeValue,
           'RukaPay Fee': rukapayFee,
+          'Revenue credited at': revenueCreditedAt,
           'Government Tax': governmentTax,
           'Total Fee': finalTotalFee,
           'Net Amount': netAmountForExport,
@@ -597,8 +628,62 @@ const TransactionsPage = () => {
         }
       })
 
+      const revenueCreditedInPeriod = sumPlatformRevenueAccrualsInRange(
+        transactionsToExport,
+        exportStart || undefined,
+        exportEnd || undefined,
+      )
+
+      let platformRevenueAccrued: number | null = null
+      if (exportStart || exportEnd) {
+        try {
+          const params = new URLSearchParams({ currency: 'UGX' })
+          if (exportStart) params.set('startDate', exportStart)
+          if (exportEnd) params.set('endDate', exportEnd)
+          const summaryRes = await api.get(`/wallet/platform-revenue/summary-by-partner?${params}`)
+          const summaryData = summaryRes.data?.data ?? summaryRes.data
+          if (summaryData?.totals?.accruedAmount != null) {
+            platformRevenueAccrued = Number(summaryData.totals.accruedAmount)
+          }
+        } catch {
+          // Platform revenue API may be unavailable on older backends
+        }
+      }
+
+      const revenueSummaryRows = [
+        ...(platformRevenueAccrued != null
+          ? [
+              {
+                Metric: 'Platform Revenue fees accrued (authoritative)',
+                Value: platformRevenueAccrued,
+                Note: 'Same total as Finance → Platform Revenue for this date range',
+              },
+            ]
+          : []),
+        {
+          Metric: 'RukaPay revenue credited in export period (rows in this file)',
+          Value: revenueCreditedInPeriod,
+          Note: 'Sum of RukaPay Fee where Revenue credited at falls in the export date range',
+        },
+        {
+          Metric: 'Sum of RukaPay Fee column (all rows in export)',
+          Value: Number(
+            transactionsToExport
+              .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
+              .toFixed(2),
+          ),
+          Note: 'Transactions filtered by created date; accrual may be credited on a different day',
+        },
+        {
+          Metric: 'Transactions in export',
+          Value: transactionsToExport.length,
+          Note: 'Filtered by transaction created date',
+        },
+      ]
+
       // Build Excel workbook
       const worksheet = XLSX.utils.json_to_sheet(excelRows)
+      const revenueSummarySheet = XLSX.utils.json_to_sheet(revenueSummaryRows)
 
       // Set column widths for readability
       worksheet['!cols'] = [
@@ -614,6 +699,7 @@ const TransactionsPage = () => {
         { wch: 14 }, // Telecom Fee
         { wch: 14 }, // Partner Fee
         { wch: 14 }, // RukaPay Fee
+        { wch: 22 }, // Revenue credited at
         { wch: 14 }, // Government Tax
         { wch: 12 }, // Total Fee
         { wch: 14 }, // Net Amount
@@ -630,6 +716,7 @@ const TransactionsPage = () => {
 
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Transactions')
+      XLSX.utils.book_append_sheet(workbook, revenueSummarySheet, 'Revenue summary')
 
       const exportType = exportAll ? 'all' : 'current_page'
       const dateStr = exportStart && exportEnd
@@ -639,7 +726,13 @@ const TransactionsPage = () => {
 
       XLSX.writeFile(workbook, fileName)
 
-      toast.success(`Exported ${transactionsToExport.length} transaction(s) as Excel`)
+      toast.success(
+        platformRevenueAccrued != null
+          ? `Exported ${transactionsToExport.length} transaction(s). Platform Revenue total: ${platformRevenueAccrued.toLocaleString('en-UG')}`
+          : exportStart || exportEnd
+            ? `Exported ${transactionsToExport.length} transaction(s). Revenue credited in period: ${revenueCreditedInPeriod.toLocaleString('en-UG')}`
+            : `Exported ${transactionsToExport.length} transaction(s) as Excel`,
+      )
     } catch (error) {
       console.error('Export error:', error)
       toast.error('Failed to export transactions')
@@ -652,34 +745,8 @@ const TransactionsPage = () => {
   // Count fees from ALL transactions (fees are charged regardless of status)
   // Only count volume from SUCCESS transactions
   const pageStats = transactions.reduce((acc: any, tx: any) => {
-    const metadata = tx?.metadata || {}
-    const isSweepTransaction = Boolean(
-      metadata.sweepToDisbursement || metadata.sweepFromCollection,
-    )
-    const isLiquidationLike =
-      isSweepTransaction ||
-      (tx?.channel === 'BACKOFFICE' &&
-        tx?.type === 'WALLET_TO_WALLET' &&
-        /liquidate:/i.test(String(tx?.description || '')))
-
     const fees = normalizeFeeBreakdown(tx)
-    let effectiveRukapayFee = fees.rukapayFee
-    if (isSweepTransaction) {
-      if (tx.direction === 'CREDIT') {
-        effectiveRukapayFee = 0
-      } else {
-        const sweepFeeAmount = Number(metadata.sweepFeeAmount) || 0
-        if (sweepFeeAmount > 0) {
-          // Use corrected split if available, otherwise compute 0.5/2.5 ratio
-          effectiveRukapayFee =
-            Number(metadata.sweepRukapayFeeAmount) ||
-            Number(tx.rukapayFee) ||
-            Number((sweepFeeAmount * 0.2).toFixed(2))
-        }
-      }
-    } else if (isLiquidationLike && effectiveRukapayFee === 0) {
-      effectiveRukapayFee = Number(tx.fee) || 0
-    }
+    const effectiveRukapayFee = getNormalizedRukapayFee(tx)
 
     const totalFeeForRow =
       fees.totalFee > 0 ? fees.totalFee : Number(tx.fee) || 0

@@ -85,6 +85,31 @@ function pickFee(
   return 0
 }
 
+/** Internal wallet transfers — fee is RukaPay revenue unless a partner/telecom split is stored. */
+function isInternalRukapayOnlyFeeTransaction(tx: {
+  type?: string | null
+  channel?: string | null
+  metadata?: Record<string, unknown> | null
+}): boolean {
+  const type = String(tx.type || '').toUpperCase()
+  if (
+    type === 'WALLET_TO_OWN_WALLET' ||
+    type === 'MERCHANT_TO_WALLET' ||
+    type === 'MERCHANT_TO_INTERNAL_WALLET'
+  ) {
+    return true
+  }
+  if (type !== 'WALLET_TO_WALLET') return false
+
+  const metadata = tx.metadata || {}
+  return !(
+    metadata.sweepToDisbursement === true ||
+    metadata.sweepFromCollection === true ||
+    (String(tx.channel || '').toUpperCase() === 'BACKOFFICE' &&
+      /liquidate:/i.test(String(metadata.description || '')))
+  )
+}
+
 /**
  * Normalize fee components from metadata.feeBreakdown and transaction fields.
  * Supports negative fees (e.g. gateway partner subsidy on rukapayFee).
@@ -122,13 +147,23 @@ export function normalizeFeeBreakdown(transaction: {
   }
 
   const hasExplicitRukapayInBreakdown =
-    feeBreakdown.rukapayFee != null && Number.isFinite(Number(feeBreakdown.rukapayFee))
+    feeBreakdown.rukapayFee != null &&
+    Number.isFinite(Number(feeBreakdown.rukapayFee)) &&
+    Number(feeBreakdown.rukapayFee) !== 0
 
   let rukapayFee = pickFee(
     feeBreakdown.rukapayFee,
     transaction?.rukapayFee,
     metadata.gatewayPartnerRukapayFee,
   )
+  if (
+    rukapayFee === 0 &&
+    transaction?.rukapayFee != null &&
+    Number.isFinite(Number(transaction.rukapayFee)) &&
+    Number(transaction.rukapayFee) !== 0
+  ) {
+    rukapayFee = Number(transaction.rukapayFee)
+  }
 
   const partnerFee = pickFee(
     feeBreakdown.partnerFee ?? feeBreakdown.thirdPartyFee,
@@ -185,6 +220,23 @@ export function normalizeFeeBreakdown(transaction: {
     }
   }
 
+  if (
+    isInternalRukapayOnlyFeeTransaction(transaction) &&
+    rukapayFee === 0 &&
+    totalFee !== 0
+  ) {
+    const externalShare =
+      partnerFee +
+      governmentTax +
+      processingFee +
+      networkFee +
+      complianceFee +
+      telecomBankCharge
+    if (externalShare === 0) {
+      rukapayFee = totalFee
+    }
+  }
+
   return {
     rukapayFee,
     partnerFee,
@@ -197,9 +249,62 @@ export function normalizeFeeBreakdown(transaction: {
   }
 }
 
-/** RukaPay fee only — used by ledger table column. */
-export function getNormalizedRukapayFee(transaction: Parameters<typeof normalizeFeeBreakdown>[0]): number {
+/** RukaPay fee only — uses platform revenue accrual when booked, else fee breakdown. */
+export function getNormalizedRukapayFee(
+  transaction: Parameters<typeof normalizeFeeBreakdown>[0] & {
+    platformRevenueAccrual?: { amount: number } | null
+  },
+): number {
+  if (transaction.platformRevenueAccrual != null) {
+    return exportFinite(transaction.platformRevenueAccrual.amount)
+  }
   return normalizeFeeBreakdown(transaction).rukapayFee
+}
+
+/** Whether a revenue accrual creditedAt falls within EAT calendar bounds (matches Platform Revenue). */
+export function isPlatformRevenueCreditedInRange(
+  creditedAt: string | Date | null | undefined,
+  startDate?: string,
+  endDate?: string,
+): boolean {
+  if (!creditedAt || (!startDate && !endDate)) return false
+  const credited = creditedAt instanceof Date ? creditedAt : new Date(creditedAt)
+  if (Number.isNaN(credited.getTime())) return false
+  if (startDate) {
+    const start = new Date(`${startDate}T00:00:00.000+03:00`)
+    if (credited < start) return false
+  }
+  if (endDate) {
+    const end = new Date(`${endDate}T23:59:59.999+03:00`)
+    if (credited > end) return false
+  }
+  return true
+}
+
+export function sumPlatformRevenueAccrualsInRange(
+  transactions: Array<{ platformRevenueAccrual?: { amount: number; creditedAt?: string } | null }>,
+  startDate?: string,
+  endDate?: string,
+): number {
+  if (!startDate && !endDate) {
+    return Number(
+      transactions
+        .reduce((sum, tx) => sum + exportFinite(tx.platformRevenueAccrual?.amount), 0)
+        .toFixed(2),
+    )
+  }
+  return Number(
+    transactions
+      .reduce((sum, tx) => {
+        const accrual = tx.platformRevenueAccrual
+        if (!accrual) return sum
+        if (!isPlatformRevenueCreditedInRange(accrual.creditedAt, startDate, endDate)) {
+          return sum
+        }
+        return sum + exportFinite(accrual.amount)
+      }, 0)
+      .toFixed(2),
+  )
 }
 
 export interface ExportFeeColumns {
@@ -366,6 +471,7 @@ export function resolveExportFeeColumns(tx: {
   } | null
   metadata?: Record<string, unknown> | null
   partnerLabel?: string
+  platformRevenueAccrual?: { amount: number } | null
 }): ExportFeeColumns {
   const metadata = tx.metadata || {}
   const feeBreakdown = (metadata.feeBreakdown as Record<string, unknown>) || {}
@@ -440,6 +546,22 @@ export function resolveExportFeeColumns(tx: {
 
   if (rukapayFee === 0 && normalized.rukapayFee !== 0) {
     rukapayFee = normalized.rukapayFee
+  }
+
+  if (
+    isInternalRukapayOnlyFeeTransaction(tx) &&
+    rukapayFee === 0 &&
+    telecomFee === 0 &&
+    partnerFee === 0
+  ) {
+    const aggregateFee = exportFinite(tx.fee) || normalized.totalFee
+    if (aggregateFee > 0) {
+      rukapayFee = aggregateFee
+    }
+  }
+
+  if (tx.platformRevenueAccrual != null) {
+    rukapayFee = exportFinite(tx.platformRevenueAccrual.amount)
   }
 
   return { rukapayFee, telecomFee, partnerFee }

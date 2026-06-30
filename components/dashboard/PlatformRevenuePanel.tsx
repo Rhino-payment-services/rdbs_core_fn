@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { CreditCard, ExternalLink, FileText, Loader2 } from 'lucide-react'
+import { CreditCard, Download, ExternalLink, FileText, Loader2 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import api from '@/lib/axios'
 import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
@@ -49,6 +49,10 @@ import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeS
 import { extractValidationRecipientName, isValidationPayloadSuccess } from '@/lib/utils/validation-response'
 import { mapBankTransferError } from '@/lib/utils/bankTransferErrors'
 import { getFriendlyErrorMessage } from '@/lib/utils'
+import {
+  downloadPlatformRevenueWorkbook,
+  type PlatformRevenueExportPayload,
+} from '@/lib/utils/platformRevenueExport'
 import toast from 'react-hot-toast'
 
 /** Match ledger formatting: show decimals when the amount is not a whole number. */
@@ -263,6 +267,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
   const [detailTransaction, setDetailTransaction] = useState<Record<string, unknown> | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   const { data: balanceRes, refetch: refetchBalance } = usePlatformRevenueBalance()
   const currency = balanceRes?.data?.currency ?? 'UGX'
@@ -696,6 +701,39 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     }
   }
 
+  const handleExportReport = async () => {
+    setIsExporting(true)
+    try {
+      const params = new URLSearchParams({ currency })
+      if (periodStart) params.set('startDate', periodStart)
+      if (periodEnd) params.set('endDate', periodEnd)
+      if (sourceSort) params.set('sortBy', sourceSort)
+
+      const response = await api.get(`/wallet/platform-revenue/export?${params.toString()}`)
+      const payload = (response.data?.data ?? response.data) as PlatformRevenueExportPayload
+      if (!payload?.totals || !Array.isArray(payload.entries)) {
+        throw new Error('Invalid export response')
+      }
+
+      downloadPlatformRevenueWorkbook(payload, {
+        periodStart: periodStart || undefined,
+        periodEnd: periodEnd || undefined,
+      })
+
+      const accruedMatch =
+        Math.abs(payload.entriesTotal - payload.totals.accruedAmount) < 0.01
+      toast.success(
+        accruedMatch
+          ? `Exported ${payload.entryCount} accrual(s); fees accrued total ${formatCurrency(payload.totals.accruedAmount, currency)}`
+          : `Exported ${payload.entryCount} accrual(s)`,
+      )
+    } catch (error) {
+      handleError(error, 'Failed to export platform revenue')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
 
   return (
     <>
@@ -787,7 +825,8 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           <CardTitle>Revenue by source</CardTitle>
           <CardDescription>
             Select sources with the checkboxes, then settle in one payout. Each selected source is
-            updated in this table.
+            updated in this table. Use <strong>Export Excel</strong> to download the same totals
+            and accrual entries shown here (not the Transaction Ledgers export).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -876,6 +915,20 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 Clear dates
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-end"
+              disabled={isExporting || summaryLoading}
+              onClick={handleExportReport}
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Export Excel
+            </Button>
           </div>
 
           {summaryLoading ? (
