@@ -15,7 +15,6 @@ import {
   isAirtimeFaceValueLedger,
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
-  sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
@@ -628,51 +627,42 @@ const TransactionsPage = () => {
         }
       })
 
-      const revenueCreditedInPeriod = sumPlatformRevenueAccrualsInRange(
-        transactionsToExport,
-        exportStart || undefined,
-        exportEnd || undefined,
+      const sumRukapayFeeColumn = Number(
+        transactionsToExport
+          .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
+          .toFixed(2),
       )
 
-      let platformRevenueAccrued: number | null = null
-      if (exportStart || exportEnd) {
-        try {
-          const params = new URLSearchParams({ currency: 'UGX' })
-          if (exportStart) params.set('startDate', exportStart)
-          if (exportEnd) params.set('endDate', exportEnd)
-          const summaryRes = await api.get(`/wallet/platform-revenue/summary-by-partner?${params}`)
-          const summaryData = summaryRes.data?.data ?? summaryRes.data
-          if (summaryData?.totals?.accruedAmount != null) {
-            platformRevenueAccrued = Number(summaryData.totals.accruedAmount)
-          }
-        } catch {
-          // Platform revenue API may be unavailable on older backends
+      let rukapayGrossRevenue: number | null = null
+      try {
+        const statsParams = new URLSearchParams()
+        if (exportStart) statsParams.set('startDate', exportStart)
+        if (exportEnd) statsParams.set('endDate', exportEnd)
+        if (statusFilter) statsParams.set('status', statusFilter)
+        if (typeFilter) statsParams.set('type', typeFilter)
+        const statsRes = await api.get(`/transactions/system/stats?${statsParams}`)
+        const statsPayload = statsRes.data?.data ?? statsRes.data
+        if (statsPayload?.rukapayRevenue != null) {
+          rukapayGrossRevenue = Number(statsPayload.rukapayRevenue)
         }
+      } catch {
+        // Stats API may be unavailable on older backends
       }
 
       const revenueSummaryRows = [
-        ...(platformRevenueAccrued != null
+        ...(rukapayGrossRevenue != null
           ? [
               {
-                Metric: 'Platform Revenue fees accrued (authoritative)',
-                Value: platformRevenueAccrued,
-                Note: 'Same total as Finance → Platform Revenue for this date range',
+                Metric: 'RukaPay Gross Revenue',
+                Value: rukapayGrossRevenue,
+                Note: 'Same total as Dashboard and Transaction Ledgers for this period',
               },
             ]
           : []),
         {
-          Metric: 'RukaPay revenue credited in export period (rows in this file)',
-          Value: revenueCreditedInPeriod,
-          Note: 'Sum of RukaPay Fee where Revenue credited at falls in the export date range',
-        },
-        {
-          Metric: 'Sum of RukaPay Fee column (all rows in export)',
-          Value: Number(
-            transactionsToExport
-              .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
-              .toFixed(2),
-          ),
-          Note: 'Transactions filtered by created date; accrual may be credited on a different day',
+          Metric: 'Sum of RukaPay Fee column (transactions in this file)',
+          Value: sumRukapayFeeColumn,
+          Note: 'Rows filtered by transaction created date',
         },
         {
           Metric: 'Transactions in export',
@@ -727,11 +717,9 @@ const TransactionsPage = () => {
       XLSX.writeFile(workbook, fileName)
 
       toast.success(
-        platformRevenueAccrued != null
-          ? `Exported ${transactionsToExport.length} transaction(s). Platform Revenue total: ${platformRevenueAccrued.toLocaleString('en-UG')}`
-          : exportStart || exportEnd
-            ? `Exported ${transactionsToExport.length} transaction(s). Revenue credited in period: ${revenueCreditedInPeriod.toLocaleString('en-UG')}`
-            : `Exported ${transactionsToExport.length} transaction(s) as Excel`,
+        rukapayGrossRevenue != null
+          ? `Exported ${transactionsToExport.length} transaction(s). RukaPay Gross Revenue: ${rukapayGrossRevenue.toLocaleString('en-UG')}`
+          : `Exported ${transactionsToExport.length} transaction(s) as Excel`,
       )
     } catch (error) {
       console.error('Export error:', error)

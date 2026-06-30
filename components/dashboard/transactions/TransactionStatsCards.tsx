@@ -93,11 +93,6 @@ export const TransactionStatsCards = ({ stats, isLoading }: TransactionStatsCard
               <TrendingUp className="w-4 h-4 text-gray-600" />
             </div>
           </div>
-          <div className="mt-0">
-            <span className="text-sm text-blue-600 font-medium">
-              Booked revenue (matches Platform Revenue)
-            </span>
-          </div>
         </CardContent>
       </Card>
 

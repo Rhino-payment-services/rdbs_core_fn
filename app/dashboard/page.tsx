@@ -42,7 +42,7 @@ import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
 import { useSession } from 'next-auth/react'
 import { TableTabsTest } from '@/components/ui/table-tabs-test'
 import ChannelStatsCard from '@/components/dashboard/ChannelStatsCard'
-import { formatCompactUgx } from '@/lib/utils/transactions'
+import { formatAmount, formatCompactUgx } from '@/lib/utils/transactions'
 
 const DashboardPage = () => {
   const { hasPermission, userRole } = usePermissions()
@@ -270,23 +270,15 @@ const DashboardPage = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600 mb-0">
-                        Total Fees
+                        RukaPay Gross Revenue
                       </p>
                       <p className="text-xl font-bold text-gray-900">
-                        {statsLoading ? '...' : `UGX ${(transactionStats?.totalFees || 0).toLocaleString()}`}
+                        {statsLoading ? '...' : formatAmount(transactionStats?.rukapayRevenue || 0)}
                       </p>
                     </div>
                     <div className="w-8 h-8 flex items-center justify-center">
                       <TrendingUp className="w-4 h-4 text-gray-600" />
                     </div>
-                  </div>
-                  <div className="mt-0">
-                    <span className="text-sm text-blue-600 font-medium">
-                      {transactionStats?.successRate?.toFixed(1) || 0}%
-                    </span>
-                    <span className="text-sm ml-1 text-gray-500">
-                      success rate
-                    </span>
                   </div>
                 </CardContent>
               </Card>
