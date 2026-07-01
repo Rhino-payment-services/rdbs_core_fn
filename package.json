@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
@@ -59,6 +61,7 @@
     "eslint": "^9.36.0",
     "eslint-config-next": "15.5.7",
     "sharp": "^0.34.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

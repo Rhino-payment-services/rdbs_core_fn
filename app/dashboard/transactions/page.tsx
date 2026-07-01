@@ -15,6 +15,7 @@ import {
   isAirtimeFaceValueLedger,
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
+  sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
@@ -31,7 +32,7 @@ import { ReversalModal } from '@/components/dashboard/transactions/ReversalModal
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
 
-const EXPORT_ALL_TRANSACTIONS_LIMIT = 50000
+const EXPORT_ALL_TRANSACTIONS_LIMIT = 100_000
 const EXPORT_PAGE_SIZE = 5000
 
 const TransactionsPage = () => {
@@ -629,11 +630,14 @@ const TransactionsPage = () => {
         }
       })
 
-      const sumRukapayFeeColumn = Number(
-        transactionsToExport
-          .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
-          .toFixed(2),
-      )
+      const isRevenueExport = !!(exportStart || exportEnd)
+      const sumRukapayFeeColumn = isRevenueExport
+        ? sumPlatformRevenueAccrualsInRange(transactionsToExport, exportStart, exportEnd)
+        : Number(
+            transactionsToExport
+              .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
+              .toFixed(2),
+          )
 
       let rukapayGrossRevenue: number | null = null
       try {
