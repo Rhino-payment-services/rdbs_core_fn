@@ -381,8 +381,10 @@ const TransactionsPage = () => {
               limit: EXPORT_PAGE_SIZE,
               status: statusFilter || undefined,
               type: typeFilter || undefined,
-              startDate: exportStart || undefined,
-              endDate: exportEnd || undefined,
+              // Use revenue credited date range so the RukaPay Fee column SUM matches
+              // the Dashboard and Platform Revenue page totals (both filter by creditedAt).
+              revenueStartDate: exportStart || undefined,
+              revenueEndDate: exportEnd || undefined,
             },
           })
 
@@ -662,12 +664,12 @@ const TransactionsPage = () => {
         {
           Metric: 'Sum of RukaPay Fee column (transactions in this file)',
           Value: sumRukapayFeeColumn,
-          Note: 'Rows filtered by transaction created date',
+          Note: 'Rows filtered by revenue credited date — matches Dashboard and Platform Revenue page totals',
         },
         {
           Metric: 'Transactions in export',
           Value: transactionsToExport.length,
-          Note: 'Filtered by transaction created date',
+          Note: 'Filtered by revenue credited date',
         },
       ]
 
