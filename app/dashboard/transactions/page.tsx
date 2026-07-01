@@ -15,7 +15,6 @@ import {
   isAirtimeFaceValueLedger,
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
-  sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
@@ -366,6 +365,8 @@ const TransactionsPage = () => {
       // Use custom dates if provided, otherwise use current filters
       const exportStart = customStartDate || startDate
       const exportEnd = customEndDate || endDate
+      let bookedRevenueTotalFromApi: number | null = null
+      let revenueEntryCountFromApi: number | null = null
       
       if (exportAll) {
         // Fetch all transactions in range (paginated) with current filters
@@ -392,6 +393,14 @@ const TransactionsPage = () => {
           const payload = response.data?.data ?? response.data
           const batch = payload?.transactions ?? []
           total = typeof payload?.total === 'number' ? payload.total : batch.length
+          if (payload?.bookedRevenueTotal != null) {
+            bookedRevenueTotalFromApi = Number(payload.bookedRevenueTotal)
+          }
+          if (payload?.revenueEntryCount != null) {
+            revenueEntryCountFromApi = Number(payload.revenueEntryCount)
+          } else if (typeof payload?.total === 'number') {
+            revenueEntryCountFromApi = Number(payload.total)
+          }
 
           if (!batch.length) break
           allRows.push(...batch)
@@ -401,8 +410,11 @@ const TransactionsPage = () => {
 
         transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
         
-        // Filter out WALLET_INIT
-        transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
+        // Revenue export is driven by platform_revenue_entries — WALLET_INIT has no accruals.
+        const isRevenueAlignedExport = !!(exportStart || exportEnd)
+        if (!isRevenueAlignedExport) {
+          transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
+        }
         
         // Apply search filter if exists
         if (searchTerm) {
@@ -449,6 +461,7 @@ const TransactionsPage = () => {
       }
 
       // Convert transactions to Excel rows
+      const isRevenueExport = !!(exportStart || exportEnd)
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
 
@@ -549,6 +562,11 @@ const TransactionsPage = () => {
           partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
+        // Revenue export: column L must be the booked platform_revenue_entries.amount
+        const rukapayFeeForExport =
+          isRevenueExport && tx.platformRevenueAccrual != null
+            ? Number(tx.platformRevenueAccrual.amount) || 0
+            : rukapayFee
         const revenueCreditedAt = tx.platformRevenueAccrual?.creditedAt
           ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
               timeZone: 'Africa/Kampala',
@@ -565,7 +583,7 @@ const TransactionsPage = () => {
         const isAirtimeLedger = isAirtimeFaceValueLedger(tx)
 
         let finalTotalFee = isAirtimeLedger
-          ? rukapayFee
+          ? rukapayFeeForExport
           : fees.totalFee
         if (!isAirtimeLedger && finalTotalFee === 0) {
           const feeField = Number(tx.fee) || 0
@@ -613,7 +631,7 @@ const TransactionsPage = () => {
           Currency: tx.currency || 'UGX',
           'Telecom Fee': telecomFee,
           'Partner Fee': partnerFeeValue,
-          'RukaPay Fee': rukapayFee,
+          'RukaPay Fee': rukapayFeeForExport,
           'Revenue credited at': revenueCreditedAt,
           'Government Tax': governmentTax,
           'Total Fee': finalTotalFee,
@@ -630,16 +648,27 @@ const TransactionsPage = () => {
         }
       })
 
-      const isRevenueExport = !!(exportStart || exportEnd)
       const sumRukapayFeeColumn = isRevenueExport
-        ? sumPlatformRevenueAccrualsInRange(transactionsToExport, exportStart, exportEnd)
+        ? Number(
+            transactionsToExport
+              .reduce(
+                (sum: number, tx: any) =>
+                  sum + (Number(tx.platformRevenueAccrual?.amount) || 0),
+                0,
+              )
+              .toFixed(2),
+          )
         : Number(
             transactionsToExport
               .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
               .toFixed(2),
           )
 
-      let rukapayGrossRevenue: number | null = null
+      let rukapayGrossRevenue: number | null =
+        typeof bookedRevenueTotalFromApi === 'number' &&
+        Number.isFinite(bookedRevenueTotalFromApi)
+          ? bookedRevenueTotalFromApi
+          : null
       try {
         const statsParams = new URLSearchParams()
         if (exportStart) statsParams.set('startDate', exportStart)
@@ -668,12 +697,23 @@ const TransactionsPage = () => {
         {
           Metric: 'Sum of RukaPay Fee column (transactions in this file)',
           Value: sumRukapayFeeColumn,
-          Note: 'Rows filtered by revenue credited date — matches Dashboard and Platform Revenue page totals',
+          Note: isRevenueExport
+            ? 'Booked platform revenue per row — should match RukaPay Gross Revenue above'
+            : 'Sum of RukaPay Fee column values',
+        },
+        {
+          Metric: 'Revenue accruals in period',
+          Value: isRevenueExport
+            ? (revenueEntryCountFromApi ?? transactionsToExport.length)
+            : transactionsToExport.length,
+          Note: isRevenueExport
+            ? 'Credited platform_revenue_entries — same population as dashboard total'
+            : 'Transaction rows in file',
         },
         {
           Metric: 'Transactions in export',
           Value: transactionsToExport.length,
-          Note: 'Filtered by revenue credited date',
+          Note: isRevenueExport ? 'Hydrated transaction rows for each accrual' : 'Rows in file',
         },
       ]
 
