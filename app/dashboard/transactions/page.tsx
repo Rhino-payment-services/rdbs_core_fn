@@ -368,6 +368,8 @@ const TransactionsPage = () => {
       // Use custom dates if provided, otherwise use current filters
       const exportStart = customStartDate || startDate
       const exportEnd = customEndDate || endDate
+      // Compute once here — used both in the fetch params and in per-row column logic below.
+      const isDatedLedgerExport = !!(exportStart || exportEnd)
       let bookedRevenueTotalFromApi: number | null = null
       let revenueEntryCountFromApi: number | null = null
       
@@ -384,10 +386,14 @@ const TransactionsPage = () => {
             params: {
               page,
               limit: EXPORT_PAGE_SIZE,
-              // Finance export: all transactions in the period (success, failed, pulls).
-              // Revenue totals on the summary sheet still use booked platform_revenue_entries.
-              startDate: exportStart || undefined,
-              endDate: exportEnd || undefined,
+              status: statusFilter || undefined,
+              type: typeFilter || undefined,
+              // Revenue-aligned export: paginates platform_revenue_entries by creditedAt so
+              // that column L sums exactly to bookedRevenueTotal (= the dashboard card).
+              // Without revenueStartDate/revenueEndDate the backend paginates transactions by
+              // createdAt — a different population that will never sum to the same number.
+              revenueStartDate: exportStart || undefined,
+              revenueEndDate: exportEnd || undefined,
             },
           })
 
@@ -411,9 +417,9 @@ const TransactionsPage = () => {
 
         transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
         
-        // Revenue export is driven by platform_revenue_entries — WALLET_INIT has no accruals.
-        const isRevenueAlignedExport = !!(exportStart || exportEnd)
-        if (!isRevenueAlignedExport) {
+        // Revenue-aligned export: WALLET_INIT has no platform_revenue_entries so they never
+        // appear in the results. Non-dated exports filter them client-side.
+        if (!isDatedLedgerExport) {
           transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
         }
         
@@ -462,7 +468,6 @@ const TransactionsPage = () => {
       }
 
       // Convert transactions to Excel rows
-      const isDatedLedgerExport = !!(exportStart || exportEnd)
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
 
@@ -651,6 +656,8 @@ const TransactionsPage = () => {
         const statsParams = new URLSearchParams()
         if (exportStart) statsParams.set('startDate', exportStart)
         if (exportEnd) statsParams.set('endDate', exportEnd)
+        if (statusFilter) statsParams.set('status', statusFilter)
+        if (typeFilter) statsParams.set('type', typeFilter)
         const statsRes = await api.get(`/transactions/system/stats?${statsParams}`)
         const statsPayload = statsRes.data?.data ?? statsRes.data
         if (
