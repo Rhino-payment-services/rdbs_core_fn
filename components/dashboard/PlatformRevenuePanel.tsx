@@ -773,14 +773,14 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                   const res = await syncAccrualsMutation.mutateAsync({
                     currency,
                     days: 365,
-                    transactionType: 'WALLET_TO_WALLET',
                   })
                   const credited = res?.data?.credited ?? 0
+                  const repaired = res?.data?.repaired ?? 0
                   const attempted = res?.data?.attempted ?? 0
                   toast.success(
-                    credited > 0
-                      ? `Synced ${credited} P2P fee accrual(s) (${attempted} debit legs checked)`
-                      : `No missing P2P accruals in the last 365 days (${attempted} checked)`,
+                    credited > 0 || repaired > 0
+                      ? `Synced ${credited} missing fee accrual(s), repaired ${repaired} date(s) (${attempted} transactions checked)`
+                      : `No missing fee accruals in the last 365 days (${attempted} checked)`,
                   )
                   setStatementPage(1)
                   refetchBalance()
@@ -796,7 +796,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               ) : (
                 <FileText className="w-4 h-4 mr-2" />
               )}
-              Sync P2P & internal fees
+              Sync missing fee accruals
             </Button>
             <Button
               variant="outline"

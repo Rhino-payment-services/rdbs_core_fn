@@ -570,7 +570,7 @@ export const useSyncPlatformRevenueAccruals = () => {
     {
       success?: boolean
       message?: string
-      data: { attempted: number; credited: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
+      data: { attempted: number; credited: number; repaired?: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
     },
     Error,
     { currency?: string; days?: number; transactionType?: string }
