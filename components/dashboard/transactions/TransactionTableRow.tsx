@@ -15,6 +15,7 @@ import {
   isOwnWalletTransfer,
   normalizeOwnWalletReference,
 } from '@/lib/utils/transactionPartyClassification'
+import { resolvePaymentPartnerLabel } from './partyResolver'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
 import { RukapayFeeCell, NetAmountCell } from './FeeCell'
@@ -130,12 +131,6 @@ function StatusCell({ transaction }: { transaction: any }) {
 
 function useTransactionDerived(transaction: any): TransactionDerived {
   const metadata = transaction.metadata || {}
-  const isNumericLikePartnerCode = (value: any): boolean => {
-    const s = String(value || '').trim()
-    if (!s) return false
-    // Phone-like / numeric identifiers should not be preferred as a partner label.
-    return /^\+?\d[\d\s-]{5,}$/.test(s)
-  }
 
   const recipientWalletType =
     transaction.wallet?.walletType ||
@@ -167,11 +162,9 @@ function useTransactionDerived(transaction: any): TransactionDerived {
   })()
 
   // ApiPartner: the business/company that uses RukaPay's rails (integrated via API key).
-  // This drives the Sender column for API-initiated transactions.
   const resolvedPartner = transaction.partner || null
 
   // ExternalPaymentPartner: the payment rail/gateway RukaPay routes through (MTN, Airtel, ABC bank).
-  // Accessed only via transaction.partnerMapping?.partner — used solely for paymentPartnerLabel below.
   const extPaymentPartner = transaction.partnerMapping?.partner || null
 
   const resolvedPartnerCode =
@@ -186,106 +179,16 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     metadata.partnerName ||
     null
 
-  // Partner column must represent the external payment rail (e.g. MTN/Airtel/ABC),
-  // NOT the API (gateway) partner company initiating the transaction.
-  //
-  // So we only derive it from:
-  // - partnerMapping.partner (external payment partners like ABC, Pegasus, etc)
-  // - MNO/bank metadata for MNO/BANK transactions
-  const rawMnoProvider =
-    metadata.mnoProvider ||
-    metadata.network ||
-    metadata.operator ||
-    metadata.counterpartyInfo?.provider ||
-    metadata.counterpartyInfo?.providerName ||
-    metadata.counterpartyInfo?.mnoProvider ||
-    null
-
-  // metadata.partnerCode is written once at execution time and is the source of truth
-  // for which rail actually processed the transaction. partnerMapping.partner can be
-  // mutated later (e.g. when the partner-mapping row's partnerId is reassigned), so we
-  // prefer metadata when it carries a real partner code.
-  const paymentPartnerFromMetadata = (() => {
-    const code = String(metadata.partnerCode || '').trim()
-    if (!code || isNumericLikePartnerCode(code)) return null
-    return code.toUpperCase()
-  })()
-
-  const paymentPartnerFromMapping = extPaymentPartner
-    ? (() => {
-        const code = String(extPaymentPartner.partnerCode || '').trim()
-        if (code && !isNumericLikePartnerCode(code)) return code.toUpperCase()
-        const name = String(extPaymentPartner.partnerName || '').trim()
-        if (!name) return null
-        const upperName = name.toUpperCase()
-        if (upperName.includes('ABC')) return 'ABC'
-        if (upperName.includes('PEGASUS')) return 'PEGASUS'
-        if (upperName.includes('AIRTEL')) return 'AIRTEL'
-        if (upperName.includes('MTN')) return 'MTN'
-        const firstToken = name.split(/\s+/)[0]
-        return firstToken ? firstToken.toUpperCase() : name
-      })()
-    : null
-
-  const counterpartyName = String(metadata.counterpartyInfo?.name || '')
-  const paymentPartnerFromMnoName =
-    counterpartyName.toLowerCase().includes('mobile money') ? counterpartyName : null
-
-  const normalizeMno = (label: string) =>
-    label
-      .replace(/\s*mobile money\s*/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-
-  const paymentPartnerFromMno =
-    (paymentPartnerFromMnoName ? normalizeMno(paymentPartnerFromMnoName) : null) ||
-    (rawMnoProvider ? normalizeMno(String(rawMnoProvider)) : null)
-
-  const paymentPartnerFromBank =
-    metadata.bankName ||
-    metadata.bank ||
-    metadata.counterpartyInfo?.bankName ||
-    metadata.counterpartyInfo?.bank ||
-    null
-
-  /** Bill/utility rows where executing rail is on metadata (e.g. Africa's Talking airtime/data). */
-  const paymentPartnerFromExecutedBillMetadata = (() => {
-    const utilUpper = String(metadata.utilityProvider || '').toUpperCase()
-    const ptLower = String(metadata.payment_type || '').toLowerCase()
-    const modeUpper = String(
-      metadata.transactionModeCode || metadata.mode || transaction.mode || ''
-    ).toUpperCase()
-    const isAirtimeOrData =
-      utilUpper === 'AIRTIME' ||
-      utilUpper === 'DATA_BUNDLES' ||
-      ptLower === 'airtime' ||
-      ptLower === 'mobile_data' ||
-      modeUpper.includes('AIRTIME') ||
-      modeUpper.includes('DATA_BUNDLES')
-    if (!isAirtimeOrData) return null
-
-    const code = String(metadata.partnerCode || '').trim()
-    const atRef =
-      String(transaction.externalReference || '').startsWith('ATQid_') ||
-      String(transaction.externalReference || '').startsWith('ATPid_')
-
-    const codeUpper = (code || (atRef ? 'AFRICASTALKING' : '')).toUpperCase()
-    if (codeUpper && !isNumericLikePartnerCode(codeUpper)) return codeUpper
-    // Some failed AT bill rows do not have partnerCode/externalReference yet.
-    // Use utility subtype as deterministic fallback.
-    return isAirtimeOrData ? 'AFRICASTALKING' : null
-  })()
-
-  const paymentPartnerLabel =
-    paymentPartnerFromExecutedBillMetadata ||
-    paymentPartnerFromMetadata ||
-    paymentPartnerFromMapping ||
-    paymentPartnerFromMno ||
-    paymentPartnerFromBank ||
-    null
+  const paymentPartnerLabel = resolvePaymentPartnerLabel(transaction)
 
   const paymentPartnerTitle = (() => {
-    if (paymentPartnerFromExecutedBillMetadata) {
+    if (!paymentPartnerLabel) return undefined
+    const fromExecutedBill =
+      String(metadata.utilityProvider || '').toUpperCase() === 'AIRTIME' ||
+      String(metadata.utilityProvider || '').toUpperCase() === 'DATA_BUNDLES' ||
+      metadata.payment_type === 'airtime' ||
+      metadata.payment_type === 'mobile_data'
+    if (fromExecutedBill) {
       const code = String(metadata.partnerCode || '').trim()
       const name = String(metadata.partnerName || '').trim()
       const pt = metadata.payment_type
@@ -296,18 +199,19 @@ function useTransactionDerived(transaction: any): TransactionDerived {
           : pt === 'mobile_data' || util === 'DATA_BUNDLES'
             ? 'Mobile data'
             : ''
-      const codeDisp = (code || paymentPartnerFromExecutedBillMetadata).toUpperCase()
+      const codeDisp = (code || paymentPartnerLabel).toUpperCase()
       const base = name ? `${name} (${codeDisp})` : codeDisp
       return [base, product].filter(Boolean).join(' · ')
     }
-    if (paymentPartnerFromMetadata) {
+    const code = String(metadata.partnerCode || '').trim()
+    if (code && paymentPartnerLabel === code.toUpperCase()) {
       const name = String(metadata.partnerName || '').trim()
-      return name ? `${name} (${paymentPartnerFromMetadata})` : paymentPartnerFromMetadata
+      return name ? `${name} (${paymentPartnerLabel})` : paymentPartnerLabel
     }
-    if (paymentPartnerFromMapping && extPaymentPartner?.partnerCode) {
+    if (extPaymentPartner?.partnerCode && paymentPartnerLabel) {
       return `${extPaymentPartner.partnerName || extPaymentPartner.partnerCode} (${extPaymentPartner.partnerCode})`
     }
-    return paymentPartnerLabel || undefined
+    return paymentPartnerLabel
   })()
 
   const hasPartnerSignal =

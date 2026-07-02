@@ -16,7 +16,7 @@ import {
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
 } from '@/lib/utils/feeBreakdown'
-import { getBasicPartnerDisplayLabel } from '@/components/dashboard/transactions/partyResolver'
+import { getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
@@ -465,37 +465,24 @@ const TransactionsPage = () => {
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
 
-        const isPartnerCollectMno =
-          (tx.type === 'MNO_TO_WALLET' || tx.type?.includes('MNO_TO_WALLET')) &&
-          (tx.direction === 'CREDIT' || metadata.direction === 'CREDIT') &&
-          (tx.channel === 'API' || metadata.channel === 'API') &&
-          (tx.mode === 'PARTNER_COLLECT_MNO' ||
-            metadata.transactionModeCode === 'PARTNER_COLLECT_MNO' ||
-            metadata.mode === 'PARTNER_COLLECT_MNO') &&
-          (tx.partner ||
-            tx.partnerId ||
-            metadata.isApiPartnerTransaction ||
-            metadata.isPartnerTransaction ||
-            metadata.apiPartnerName)
+        // Use the same sender/receiver resolution as the transaction table (partyResolver).
+        // Gateway partners (LIPAD, BOBPLUS) belong in Partner — external MNO rail is the sender.
+        const senderParty = tx.senderInfo
+          ? normalizePartyInfoForDisplay(tx.senderInfo, tx, 'sender')
+          : null
+        const receiverParty = tx.receiverInfo
+          ? normalizePartyInfoForDisplay(tx.receiverInfo, tx, 'receiver')
+          : null
 
-        // Get sender info
         let senderName: string
         let senderContact: string
 
-        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
+        if (senderParty?.name) {
+          senderName = senderParty.name
+          senderContact = senderParty.contact || 'N/A'
+        } else if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
           senderName = metadata.adminName || 'Admin User'
           senderContact = metadata.adminPhone || metadata.adminEmail || 'Admin'
-        } else if (isPartnerCollectMno) {
-          senderName =
-            tx.partner?.partnerName ||
-            metadata.apiPartnerName ||
-            tx.partner?.partnerCode ||
-            'API Partner'
-          senderContact =
-            tx.partner?.contactPhone ||
-            metadata.partnerPhone ||
-            tx.partner?.contactEmail ||
-            'N/A'
         } else if (tx.direction === 'DEBIT') {
           if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
             senderName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
@@ -511,31 +498,19 @@ const TransactionsPage = () => {
             'N/A'
         }
 
-        // Get receiver info
         let receiverName: string
         let receiverContact: string
 
-        if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
+        if (receiverParty?.name) {
+          receiverName = receiverParty.name
+          receiverContact = receiverParty.contact || 'N/A'
+        } else if (tx.type === 'DEPOSIT' && metadata.fundedByAdmin) {
           if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
             receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
           } else {
             receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
           }
           receiverContact = tx.user?.phone || tx.user?.email || 'N/A'
-        } else if (isPartnerCollectMno) {
-          if (metadata.receiverName) {
-            receiverName = metadata.receiverName
-          } else if (tx.user?.profile?.firstName && tx.user?.profile?.lastName) {
-            receiverName = `${tx.user.profile.firstName} ${tx.user.profile.lastName}`
-          } else {
-            receiverName = tx.user?.phone || tx.user?.email || 'RukaPay User'
-          }
-          receiverContact =
-            metadata.userPhoneNumber ||
-            metadata.receiverPhone ||
-            tx.user?.phone ||
-            tx.user?.email ||
-            'N/A'
         } else if (tx.direction === 'DEBIT') {
           receiverName = metadata.counterpartyInfo?.name || 'External'
           receiverContact =
@@ -555,7 +530,7 @@ const TransactionsPage = () => {
         const { bankName, receiverName: walletToBankReceiverName } = getBankAndReceiverForExport(tx)
         const amount = Number(tx.amount) || 0
         const fees = normalizeFeeBreakdown(tx)
-        const partnerLabel = getBasicPartnerDisplayLabel(tx)
+        const partnerLabel = resolvePaymentPartnerLabel(tx) || getBasicPartnerDisplayLabel(tx)
         const exportFees = resolveExportFeeColumns({
           ...tx,
           metadata: { ...metadata, description: tx.description },

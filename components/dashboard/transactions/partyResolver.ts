@@ -224,6 +224,113 @@ export function getBasicPartnerDisplayLabel(tx: any): string {
   )
 }
 
+/**
+ * Partner column label: external payment rail (MTN, Airtel, ABC, Pegasus, etc.)
+ * — NOT the API/gateway company (LIPAD, BOBPLUS). Matches TransactionTable Partner column.
+ */
+export function resolvePaymentPartnerLabel(tx: any): string | null {
+  const metadata = tx?.metadata || {}
+
+  if (
+    metadata.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    tx?.platformRevenueSettlement === true
+  ) {
+    return 'Platform revenue'
+  }
+  const ref = String(tx?.reference || '')
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) {
+    return 'Platform revenue'
+  }
+
+  const extPaymentPartner = tx?.partnerMapping?.partner || null
+
+  const rawMnoProvider =
+    metadata.mnoProvider ||
+    metadata.network ||
+    metadata.operator ||
+    metadata.counterpartyInfo?.provider ||
+    metadata.counterpartyInfo?.providerName ||
+    metadata.counterpartyInfo?.mnoProvider ||
+    null
+
+  const paymentPartnerFromMetadata = (() => {
+    const code = String(metadata.partnerCode || '').trim()
+    if (!code || isNumericLikeLabel(code)) return null
+    return code.toUpperCase()
+  })()
+
+  const paymentPartnerFromMapping = extPaymentPartner
+    ? (() => {
+        const code = String(extPaymentPartner.partnerCode || '').trim()
+        if (code && !isNumericLikeLabel(code)) return code.toUpperCase()
+        const name = String(extPaymentPartner.partnerName || '').trim()
+        if (!name) return null
+        const upperName = name.toUpperCase()
+        if (upperName.includes('ABC')) return 'ABC'
+        if (upperName.includes('PEGASUS')) return 'PEGASUS'
+        if (upperName.includes('AIRTEL')) return 'AIRTEL'
+        if (upperName.includes('MTN')) return 'MTN'
+        const firstToken = name.split(/\s+/)[0]
+        return firstToken ? firstToken.toUpperCase() : name
+      })()
+    : null
+
+  const counterpartyName = String(metadata.counterpartyInfo?.name || '')
+  const paymentPartnerFromMnoName =
+    counterpartyName.toLowerCase().includes('mobile money') ? counterpartyName : null
+
+  const normalizeMno = (label: string) =>
+    label
+      .replace(/\s*mobile money\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+  const paymentPartnerFromMno =
+    (paymentPartnerFromMnoName ? normalizeMno(paymentPartnerFromMnoName) : null) ||
+    (rawMnoProvider ? normalizeMno(String(rawMnoProvider)) : null)
+
+  const paymentPartnerFromBank =
+    metadata.bankName ||
+    metadata.bank ||
+    metadata.counterpartyInfo?.bankName ||
+    metadata.counterpartyInfo?.bank ||
+    null
+
+  const paymentPartnerFromExecutedBillMetadata = (() => {
+    const utilUpper = String(metadata.utilityProvider || '').toUpperCase()
+    const ptLower = String(metadata.payment_type || '').toLowerCase()
+    const modeUpper = String(
+      metadata.transactionModeCode || metadata.mode || tx?.mode || '',
+    ).toUpperCase()
+    const isAirtimeOrData =
+      utilUpper === 'AIRTIME' ||
+      utilUpper === 'DATA_BUNDLES' ||
+      ptLower === 'airtime' ||
+      ptLower === 'mobile_data' ||
+      modeUpper.includes('AIRTIME') ||
+      modeUpper.includes('DATA_BUNDLES')
+    if (!isAirtimeOrData) return null
+
+    const code = String(metadata.partnerCode || '').trim()
+    const atRef =
+      String(tx?.externalReference || '').startsWith('ATQid_') ||
+      String(tx?.externalReference || '').startsWith('ATPid_')
+
+    const codeUpper = (code || (atRef ? 'AFRICASTALKING' : '')).toUpperCase()
+    if (codeUpper && !isNumericLikeLabel(codeUpper)) return codeUpper
+    return isAirtimeOrData ? 'AFRICASTALKING' : null
+  })()
+
+  return (
+    paymentPartnerFromExecutedBillMetadata ||
+    paymentPartnerFromMetadata ||
+    paymentPartnerFromMapping ||
+    paymentPartnerFromMno ||
+    paymentPartnerFromBank ||
+    null
+  )
+}
+
 function isNumericLikeLabel(value: any): boolean {
   const s = String(value ?? '').trim()
   if (!s) return false
