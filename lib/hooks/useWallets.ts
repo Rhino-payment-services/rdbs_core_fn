@@ -564,6 +564,17 @@ export const usePlatformRevenuePartnerSummary = (
   })
 }
 
+export const usePendingAccrualsCount = (currency = 'UGX', days = 365) => {
+  return useQuery<{ success: boolean; data: { pending: number; estimatedRevenue: number } }>({
+    queryKey: ['platform-revenue', 'pending-accruals-count', currency, days],
+    queryFn: () => {
+      const params = new URLSearchParams({ currency, days: String(days) })
+      return apiFetch(`/wallet/platform-revenue/pending-accruals-count?${params}`)
+    },
+    staleTime: 60_000,
+  })
+}
+
 export const useSyncPlatformRevenueAccruals = () => {
   const queryClient = useQueryClient()
   return useMutation<
