@@ -265,13 +265,9 @@ export function resolvePaymentPartnerLabel(tx: any): string | null {
         if (code && !isNumericLikeLabel(code)) return code.toUpperCase()
         const name = String(extPaymentPartner.partnerName || '').trim()
         if (!name) return null
-        const upperName = name.toUpperCase()
-        if (upperName.includes('ABC')) return 'ABC'
-        if (upperName.includes('PEGASUS')) return 'PEGASUS'
-        if (upperName.includes('AIRTEL')) return 'AIRTEL'
-        if (upperName.includes('MTN')) return 'MTN'
+        // First token of partner name — works for any rail (not limited to MTN/Airtel/ABC).
         const firstToken = name.split(/\s+/)[0]
-        return firstToken ? firstToken.toUpperCase() : name
+        return firstToken ? firstToken.toUpperCase() : name.toUpperCase()
       })()
     : null
 
