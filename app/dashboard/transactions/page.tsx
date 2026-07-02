@@ -370,11 +370,25 @@ const TransactionsPage = () => {
       const exportEnd = customEndDate || endDate
       // Compute once here — used both in the fetch params and in per-row column logic below.
       const isDatedLedgerExport = !!(exportStart || exportEnd)
+
+      // Only statuses that can have platform_revenue_entries should use the revenue-aligned path.
+      // FAILED / PENDING transactions never have revenue entries — sending them to the
+      // revenue-aligned endpoint would return 0 rows.
+      const NON_REVENUE_STATUSES = ['FAILED', 'PENDING', 'CANCELLED']
+      const isNonRevenueStatusFilter = NON_REVENUE_STATUSES.includes(statusFilter)
+      // Revenue-aligned path: use when we have a date range AND the status filter isn't
+      // explicitly a non-revenue status (e.g. SUCCESS, or no filter = "all").
+      const useRevenueAligned = isDatedLedgerExport && !isNonRevenueStatusFilter
+      // Append failed transactions when "All Status" is selected with a date range so that
+      // finance exports show the full picture. Failed rows contribute 0 to column L, so the
+      // RukaPay Fee column sum still equals the dashboard card exactly.
+      const shouldAppendFailed = isDatedLedgerExport && !statusFilter
+
       let bookedRevenueTotalFromApi: number | null = null
       let revenueEntryCountFromApi: number | null = null
       
       if (exportAll) {
-        // Fetch all transactions in range (paginated) with current filters
+        // --- Primary fetch ---
         const allRows: any[] = []
         let page = 1
         let total = Number.POSITIVE_INFINITY
@@ -388,12 +402,12 @@ const TransactionsPage = () => {
               limit: EXPORT_PAGE_SIZE,
               status: statusFilter || undefined,
               type: typeFilter || undefined,
-              // Revenue-aligned export: paginates platform_revenue_entries by creditedAt so
-              // that column L sums exactly to bookedRevenueTotal (= the dashboard card).
-              // Without revenueStartDate/revenueEndDate the backend paginates transactions by
-              // createdAt — a different population that will never sum to the same number.
-              revenueStartDate: exportStart || undefined,
-              revenueEndDate: exportEnd || undefined,
+              // Revenue-aligned: paginates platform_revenue_entries by creditedAt so that
+              // column L sums exactly to bookedRevenueTotal (= the dashboard card).
+              // Non-revenue status filters (FAILED, PENDING) use startDate/endDate instead.
+              ...(useRevenueAligned
+                ? { revenueStartDate: exportStart || undefined, revenueEndDate: exportEnd || undefined }
+                : { startDate: exportStart || undefined, endDate: exportEnd || undefined }),
             },
           })
 
@@ -416,7 +430,44 @@ const TransactionsPage = () => {
         }
 
         transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
-        
+
+        // --- Append failed transactions (when "All Status" is selected with a date range) ---
+        // Failed transactions have no platform_revenue_entries so they are invisible to the
+        // revenue-aligned path above. Appending them keeps the finance ledger complete while
+        // preserving column L alignment: failed rows always show 0 in that column.
+        if (shouldAppendFailed) {
+          const revenueIds = new Set(transactionsToExport.map((tx: any) => tx.id))
+          const failedRows: any[] = []
+          let failedPage = 1
+          let failedTotal = Number.POSITIVE_INFINITY
+          const remainingCap = EXPORT_ALL_TRANSACTIONS_LIMIT - transactionsToExport.length
+
+          while (failedRows.length < remainingCap && failedRows.length < failedTotal) {
+            const failedRes = await api({
+              url: '/transactions/all',
+              method: 'GET',
+              params: {
+                page: failedPage,
+                limit: EXPORT_PAGE_SIZE,
+                status: 'FAILED',
+                type: typeFilter || undefined,
+                startDate: exportStart || undefined,
+                endDate: exportEnd || undefined,
+              },
+            })
+            const fp = failedRes.data?.data ?? failedRes.data
+            const fb = fp?.transactions ?? []
+            failedTotal = typeof fp?.total === 'number' ? fp.total : fb.length
+            if (!fb.length) break
+            // Skip any IDs already present from the revenue-aligned set (e.g. reversed txns).
+            failedRows.push(...fb.filter((tx: any) => !revenueIds.has(tx.id)))
+            if (fb.length < EXPORT_PAGE_SIZE) break
+            failedPage += 1
+          }
+
+          transactionsToExport = [...transactionsToExport, ...failedRows]
+        }
+
         // Revenue-aligned export: WALLET_INIT has no platform_revenue_entries so they never
         // appear in the results. Non-dated exports filter them client-side.
         if (!isDatedLedgerExport) {
@@ -700,7 +751,11 @@ const TransactionsPage = () => {
           Metric: 'Transactions in export',
           Value: transactionsToExport.length,
           Note: isDatedLedgerExport
-            ? 'All transactions by date (success, failed, pulls, etc.)'
+            ? shouldAppendFailed
+              ? 'Revenue transactions (by creditedAt) + failed transactions (by createdAt)'
+              : isNonRevenueStatusFilter
+                ? 'Transactions by created date — no revenue alignment'
+                : 'Transactions with booked revenue in period'
             : 'Rows in file',
         },
       ]
