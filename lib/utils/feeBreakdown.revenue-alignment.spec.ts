@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getBookedRukapayFeeForLedgerExport,
   getNormalizedRukapayFee,
   isPlatformRevenueCreditedInRange,
   resolveExportFeeColumns,
@@ -31,6 +32,37 @@ describe('revenue alignment — export column L vs dashboard booked revenue', ()
   it('resolveExportFeeColumns prefers booked platformRevenueAccrual.amount for the RukaPay Fee column', () => {
     const cols = resolveExportFeeColumns(juneAccrualTx)
     expect(cols.rukapayFee).toBe(500)
+  })
+
+  it('getBookedRukapayFeeForLedgerExport returns 0 for failed tx without accrual', () => {
+    expect(
+      getBookedRukapayFeeForLedgerExport(
+        { id: 'tx-failed', status: 'FAILED', rukapayFee: 500 },
+        '2026-06-01',
+        '2026-06-30',
+      ),
+    ).toBe(0)
+  })
+
+  it('getBookedRukapayFeeForLedgerExport returns booked amount when credited in range', () => {
+    expect(
+      getBookedRukapayFeeForLedgerExport(juneAccrualTx, '2026-06-01', '2026-06-30'),
+    ).toBe(500)
+  })
+
+  it('getBookedRukapayFeeForLedgerExport returns 0 when accrual credited outside range', () => {
+    expect(
+      getBookedRukapayFeeForLedgerExport(
+        {
+          platformRevenueAccrual: {
+            amount: 500,
+            creditedAt: '2026-07-01T00:00:00.000+03:00',
+          },
+        },
+        '2026-06-01',
+        '2026-06-30',
+      ),
+    ).toBe(0)
   })
 
   it('isPlatformRevenueCreditedInRange uses the same EAT calendar window as the dashboard', () => {

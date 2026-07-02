@@ -281,6 +281,24 @@ export function isPlatformRevenueCreditedInRange(
   return true
 }
 
+/** Booked RukaPay fee for ledger export — 0 when no accrual credited in the export period. */
+export function getBookedRukapayFeeForLedgerExport(
+  transaction: {
+    platformRevenueAccrual?: { amount: number; creditedAt?: string } | null
+  },
+  startDate?: string,
+  endDate?: string,
+): number {
+  const accrual = transaction.platformRevenueAccrual
+  if (!accrual) return 0
+  if (startDate || endDate) {
+    if (!isPlatformRevenueCreditedInRange(accrual.creditedAt, startDate, endDate)) {
+      return 0
+    }
+  }
+  return exportFinite(accrual.amount)
+}
+
 export function sumPlatformRevenueAccrualsInRange(
   transactions: Array<{ platformRevenueAccrual?: { amount: number; creditedAt?: string } | null }>,
   startDate?: string,

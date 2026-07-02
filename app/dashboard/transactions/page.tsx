@@ -11,10 +11,13 @@ import toast from 'react-hot-toast'
 import { getChannelDisplay } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import {
+  getBookedRukapayFeeForLedgerExport,
   getNormalizedRukapayFee,
   isAirtimeFaceValueLedger,
+  isPlatformRevenueCreditedInRange,
   normalizeFeeBreakdown,
   resolveExportFeeColumns,
+  sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from '@/components/dashboard/transactions/partyResolver'
 import * as XLSX from 'xlsx'
@@ -381,12 +384,10 @@ const TransactionsPage = () => {
             params: {
               page,
               limit: EXPORT_PAGE_SIZE,
-              status: statusFilter || undefined,
-              type: typeFilter || undefined,
-              // Use revenue credited date range so the RukaPay Fee column SUM matches
-              // the Dashboard and Platform Revenue page totals (both filter by creditedAt).
-              revenueStartDate: exportStart || undefined,
-              revenueEndDate: exportEnd || undefined,
+              // Finance export: all transactions in the period (success, failed, pulls).
+              // Revenue totals on the summary sheet still use booked platform_revenue_entries.
+              startDate: exportStart || undefined,
+              endDate: exportEnd || undefined,
             },
           })
 
@@ -461,7 +462,7 @@ const TransactionsPage = () => {
       }
 
       // Convert transactions to Excel rows
-      const isRevenueExport = !!(exportStart || exportEnd)
+      const isDatedLedgerExport = !!(exportStart || exportEnd)
       const excelRows = transactionsToExport.map((tx: any) => {
         const metadata = tx.metadata || {}
 
@@ -537,13 +538,19 @@ const TransactionsPage = () => {
           partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
-        // Revenue export: column L must be the booked platform_revenue_entries.amount
-        const rukapayFeeForExport =
-          isRevenueExport && tx.platformRevenueAccrual != null
-            ? Number(tx.platformRevenueAccrual.amount) || 0
-            : rukapayFee
-        const revenueCreditedAt = tx.platformRevenueAccrual?.creditedAt
-          ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
+        // Dated ledger export: column L is booked revenue only when credited in the period.
+        const rukapayFeeForExport = isDatedLedgerExport
+          ? getBookedRukapayFeeForLedgerExport(tx, exportStart, exportEnd)
+          : rukapayFee
+        const revenueCreditedAt =
+          tx.platformRevenueAccrual?.creditedAt &&
+          (!isDatedLedgerExport ||
+            isPlatformRevenueCreditedInRange(
+              tx.platformRevenueAccrual.creditedAt,
+              exportStart,
+              exportEnd,
+            ))
+            ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
               timeZone: 'Africa/Kampala',
               year: 'numeric',
               month: '2-digit',
@@ -623,15 +630,11 @@ const TransactionsPage = () => {
         }
       })
 
-      const sumRukapayFeeColumn = isRevenueExport
-        ? Number(
-            transactionsToExport
-              .reduce(
-                (sum: number, tx: any) =>
-                  sum + (Number(tx.platformRevenueAccrual?.amount) || 0),
-                0,
-              )
-              .toFixed(2),
+      const sumRukapayFeeColumn = isDatedLedgerExport
+        ? sumPlatformRevenueAccrualsInRange(
+            transactionsToExport,
+            exportStart,
+            exportEnd,
           )
         : Number(
             transactionsToExport
@@ -648,11 +651,12 @@ const TransactionsPage = () => {
         const statsParams = new URLSearchParams()
         if (exportStart) statsParams.set('startDate', exportStart)
         if (exportEnd) statsParams.set('endDate', exportEnd)
-        if (statusFilter) statsParams.set('status', statusFilter)
-        if (typeFilter) statsParams.set('type', typeFilter)
         const statsRes = await api.get(`/transactions/system/stats?${statsParams}`)
         const statsPayload = statsRes.data?.data ?? statsRes.data
-        if (statsPayload?.rukapayRevenue != null) {
+        if (
+          rukapayGrossRevenue == null &&
+          statsPayload?.rukapayRevenue != null
+        ) {
           rukapayGrossRevenue = Number(statsPayload.rukapayRevenue)
         }
       } catch {
@@ -672,23 +676,25 @@ const TransactionsPage = () => {
         {
           Metric: 'Sum of RukaPay Fee column (transactions in this file)',
           Value: sumRukapayFeeColumn,
-          Note: isRevenueExport
-            ? 'Booked platform revenue per row — should match RukaPay Gross Revenue above'
+          Note: isDatedLedgerExport
+            ? 'Booked revenue on rows in this file where accrual was credited in the period'
             : 'Sum of RukaPay Fee column values',
         },
         {
           Metric: 'Revenue accruals in period',
-          Value: isRevenueExport
-            ? (revenueEntryCountFromApi ?? transactionsToExport.length)
+          Value: isDatedLedgerExport
+            ? (revenueEntryCountFromApi ?? '—')
             : transactionsToExport.length,
-          Note: isRevenueExport
-            ? 'Credited platform_revenue_entries — same population as dashboard total'
+          Note: isDatedLedgerExport
+            ? 'Credited platform_revenue_entries — same count as dashboard booked revenue'
             : 'Transaction rows in file',
         },
         {
           Metric: 'Transactions in export',
           Value: transactionsToExport.length,
-          Note: isRevenueExport ? 'Hydrated transaction rows for each accrual' : 'Rows in file',
+          Note: isDatedLedgerExport
+            ? 'All transactions by date (success, failed, pulls, etc.)'
+            : 'Rows in file',
         },
       ]
 
