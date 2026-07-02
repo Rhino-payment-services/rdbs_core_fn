@@ -573,13 +573,16 @@ export const useSyncPlatformRevenueAccruals = () => {
       data: { attempted: number; credited: number; repaired?: number; skipped: number; errors: Array<{ transactionId: string; reason: string }> }
     },
     Error,
-    { currency?: string; days?: number; transactionType?: string }
+    { currency?: string; days?: number; limit?: number; transactionType?: string }
   >({
-    mutationFn: ({ currency = 'UGX', days = 30, transactionType }) => {
+    mutationFn: ({ currency = 'UGX', days = 30, limit, transactionType }) => {
       const params = new URLSearchParams({ currency, days: String(days) })
+      if (limit != null) params.set('limit', String(limit))
       if (transactionType) params.set('transactionType', transactionType)
       return apiFetch(`/wallet/platform-revenue/sync-missing-accruals?${params}`, {
         method: 'POST',
+        // Each batch can take a while — accruals run serial DB transactions.
+        timeout: 120000,
       })
     },
     onSuccess: () => {

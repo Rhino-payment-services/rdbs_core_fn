@@ -769,24 +769,43 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               variant="outline"
               disabled={syncAccrualsMutation.isPending}
               onClick={async () => {
+                const batchSize = 30
+                const maxBatches = 30
+                let totalCredited = 0
+                let totalRepaired = 0
+                let totalAttempted = 0
+                const loadingToast = toast.loading(
+                  'Syncing missing fee accruals… this may take a few minutes.',
+                )
                 try {
-                  const res = await syncAccrualsMutation.mutateAsync({
-                    currency,
-                    days: 365,
-                  })
-                  const credited = res?.data?.credited ?? 0
-                  const repaired = res?.data?.repaired ?? 0
-                  const attempted = res?.data?.attempted ?? 0
+                  for (let batch = 0; batch < maxBatches; batch += 1) {
+                    const res = await syncAccrualsMutation.mutateAsync({
+                      currency,
+                      days: 365,
+                      limit: batchSize,
+                    })
+                    const credited = res?.data?.credited ?? 0
+                    const repaired = res?.data?.repaired ?? 0
+                    const attempted = res?.data?.attempted ?? 0
+                    totalCredited += credited
+                    totalRepaired += repaired
+                    totalAttempted += attempted
+                    if (attempted === 0) break
+                    if (credited === 0 && repaired === 0) break
+                    if (attempted < batchSize) break
+                  }
+                  toast.dismiss(loadingToast)
                   toast.success(
-                    credited > 0 || repaired > 0
-                      ? `Synced ${credited} missing fee accrual(s), repaired ${repaired} date(s) (${attempted} transactions checked)`
-                      : `No missing fee accruals in the last 365 days (${attempted} checked)`,
+                    totalCredited > 0 || totalRepaired > 0
+                      ? `Synced ${totalCredited} missing fee accrual(s), repaired ${totalRepaired} date(s)`
+                      : `No missing fee accruals in the last 365 days (${totalAttempted} checked)`,
                   )
                   setStatementPage(1)
                   refetchBalance()
                   refetchSummary()
                   refetchEntries()
                 } catch (e) {
+                  toast.dismiss(loadingToast)
                   handleError(e, 'Failed to sync missing fee accruals')
                 }
               }}
