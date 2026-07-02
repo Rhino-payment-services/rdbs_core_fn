@@ -158,6 +158,40 @@ export function isMerchantToWalletType(type: string | null | undefined): boolean
   return t === 'MERCHANT_TO_WALLET' || t === 'MERCHANT_TO_INTERNAL_WALLET'
 }
 
+/** On-platform transfers with no external payment rail (MNO/bank/gateway). */
+export function isInternalPartnerLabelTransaction(tx: {
+  type?: string | null
+  channel?: string | null
+  metadata?: Record<string, unknown> | null
+}): boolean {
+  const metadata = (tx?.metadata as Record<string, unknown>) || {}
+  const type = upper(tx?.type || metadata?.type)
+
+  if (
+    type === 'WALLET_TO_OWN_WALLET' ||
+    type === 'MERCHANT_TO_WALLET' ||
+    type === 'MERCHANT_TO_INTERNAL_WALLET' ||
+    type === 'WALLET_TO_INTERNAL_MERCHANT' ||
+    type === 'WALLET_INIT' ||
+    type === 'WALLET_CREATION' ||
+    type === 'FEE_CHARGE' ||
+    type === 'REVERSAL' ||
+    type === 'MERCHANT_WITHDRAWAL'
+  ) {
+    return true
+  }
+
+  if (type !== 'WALLET_TO_WALLET') return false
+
+  // Sweep / liquidation legs route through external MNO rails.
+  return !(
+    metadata.sweepToDisbursement === true ||
+    metadata.sweepFromCollection === true ||
+    (String(tx?.channel || '').toUpperCase() === 'BACKOFFICE' &&
+      /liquidate:/i.test(String(metadata.description || '')))
+  )
+}
+
 export function isExternalBeneficiaryType(type: string | null | undefined): boolean {
   const t = upper(type)
   return (

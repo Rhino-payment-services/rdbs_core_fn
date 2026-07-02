@@ -1,5 +1,6 @@
 import {
   buildOwnWalletPartyForSide,
+  isInternalPartnerLabelTransaction,
   isMerchantToWalletType,
   isOwnWalletTransfer,
   isPersonalOutboundExternalDebit,
@@ -180,6 +181,10 @@ export function getBasicPartnerDisplayLabel(tx: any): string {
     return 'Platform revenue'
   }
 
+  if (isInternalPartnerLabelTransaction(tx)) {
+    return 'Internal'
+  }
+
   if (upper(tx?.type) === 'BILL_PAYMENT') {
     const pt = m.payment_type
     const util = m.utilityProvider
@@ -240,6 +245,10 @@ export function resolvePaymentPartnerLabel(tx: any): string | null {
   const ref = String(tx?.reference || '')
   if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) {
     return 'Platform revenue'
+  }
+
+  if (isInternalPartnerLabelTransaction(tx)) {
+    return 'Internal'
   }
 
   const extPaymentPartner = tx?.partnerMapping?.partner || null

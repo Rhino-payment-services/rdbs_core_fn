@@ -35,4 +35,30 @@ describe('resolvePaymentPartnerLabel', () => {
     })
     expect(label).toBe('MTN')
   })
+
+  it('shows Internal for wallet-to-wallet even when API partner metadata is present', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'WALLET_TO_WALLET',
+      metadata: { apiPartnerName: 'LIPAD', isApiPartnerTransaction: true },
+      partner: { partnerName: 'LIPAD' },
+    })
+    expect(label).toBe('Internal')
+  })
+
+  it('shows Internal for merchant-to-wallet', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'MERCHANT_TO_WALLET',
+      metadata: { apiPartnerName: 'BOBPLUS' },
+      partner: { partnerName: 'BOBPLUS' },
+    })
+    expect(label).toBe('Internal')
+  })
+
+  it('still resolves external rail for wallet-to-wallet sweeps', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'WALLET_TO_WALLET',
+      metadata: { sweepToDisbursement: true, partnerCode: 'MTN' },
+    })
+    expect(label).toBe('MTN')
+  })
 })
