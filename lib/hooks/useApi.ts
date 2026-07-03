@@ -147,3 +147,22 @@ export const useNotification = (id: string) => {
   console.warn('useNotification is deprecated. Please use specific hooks from separate files.')
   return { data: null, isLoading: false, error: null }
 }
+
+// Merchant Events hooks
+export {
+  useMerchantEventsStatistics,
+  useMerchantEventsList,
+  useMerchantEventDetail,
+  useEventOrders,
+  useEventAttendees,
+  useCheckInStatistics,
+  useGlobalOrders,
+  useOrderDetail,
+  useTicketLookup,
+  useRevenueReport,
+  useUpdateEventStatus,
+  useUpdateTierStatus,
+  useResendTicketEmail,
+  useExportEvents,
+  useExportOrders,
+} from './useMerchantEvents'

@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { key: 'finance', label: 'Finance', description: 'Tariffs, transactions, wallets & reports' },
   { key: 'gateway-partners', label: 'Gateway Partners', description: 'External gateway partner management' },
   { key: 'saccos', label: 'SACCOs', description: 'View SACCO institutions onboarded under partners' },
+  { key: 'merchant-events', label: 'Merchant Events', description: 'Platform-wide merchant events monitoring' },
   { key: 'users', label: 'Users', description: 'Staff user management' },
   { key: 'customers', label: 'Customers', description: 'Customer account management' },
   { key: 'cards', label: 'Cards', description: 'Physical and virtual card management' },
