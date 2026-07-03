@@ -441,6 +441,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               collectionCustomerSharePercent={merchantData?.collectionCustomerSharePercent ?? undefined}
               collectionTotalFeePercent={merchantData?.collectionTotalFeePercent ?? undefined}
               collectionMnoPartnerFeePercent={merchantData?.collectionMnoPartnerFeePercent ?? undefined}
+              canHaveWallet={customer?.canHaveWallet !== false}
               onActionComplete={() => {
                 window.location.reload()
               }}

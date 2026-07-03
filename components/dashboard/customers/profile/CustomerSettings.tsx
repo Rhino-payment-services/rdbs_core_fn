@@ -51,6 +51,8 @@ interface CustomerSettingsProps {
   collectionMnoPartnerFeePercent?: number | null
   /** All wallets for this user (from wallet service). When set, Wallet Management shows each wallet and manual tx can target a chosen wallet. */
   allUserWallets?: WalletItem[]
+  /** When false, wallet creation is disabled for this user. */
+  canHaveWallet?: boolean
 }
 
 function walletTypeLabel(wt: string | undefined): string {
@@ -79,8 +81,10 @@ const CustomerSettings = ({
   collectionTotalFeePercent = null,
   collectionMnoPartnerFeePercent = null,
   allUserWallets = [],
+  canHaveWallet = true,
 }: CustomerSettingsProps) => {
   const [isLoading, setIsLoading] = useState(false)
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false)
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
   const [unsuspendDialogOpen, setUnsuspendDialogOpen] = useState(false)
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
@@ -117,6 +121,32 @@ const CustomerSettings = ({
   const effectiveWalletId = selectedWalletIdForTx || walletId || effectiveWallets[0]?.id
   const effectiveBalance = effectiveWalletId ? (effectiveWallets.find(w => w.id === effectiveWalletId)?.balance ?? walletBalance) : walletBalance
   const effectiveBalanceNum = typeof effectiveBalance === 'number' ? effectiveBalance : parseFloat(String(effectiveBalance ?? 0)) || 0
+  const hasWallet = effectiveWallets.length > 0
+
+  const handleCreateWallet = async () => {
+    if (!customerId) {
+      toast.error('Customer ID is not available.')
+      return
+    }
+    if (!canHaveWallet) {
+      toast.error('This user is not allowed to have a wallet.')
+      return
+    }
+
+    setIsCreatingWallet(true)
+    try {
+      await api.post('/wallet', {
+        userId: customerId,
+        currency: currency || 'UGX',
+      })
+      toast.success('Wallet created successfully.')
+      onActionComplete?.()
+    } catch (error: unknown) {
+      toast.error(extractErrorMessage(error) || 'Failed to create wallet. Please try again.')
+    } finally {
+      setIsCreatingWallet(false)
+    }
+  }
 
   // Merchant collection fee configuration state (synced from props when merchant data is refetched)
   const [collectionMode, setCollectionMode] = useState<
@@ -631,7 +661,36 @@ const CustomerSettings = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {effectiveWallets.length > 1 ? (
+            {!hasWallet ? (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 text-center">
+                <Wallet className="mx-auto mb-3 h-12 w-12 text-yellow-500" />
+                <p className="mb-1 text-base font-semibold text-gray-900">No wallet found</p>
+                <p className="mb-4 text-sm text-gray-600">
+                  {canHaveWallet
+                    ? 'This customer registered without a wallet. Create one to enable funding and transactions.'
+                    : 'This user is not allowed to have a wallet.'}
+                </p>
+                {canHaveWallet && (
+                  <Button
+                    onClick={handleCreateWallet}
+                    disabled={isCreatingWallet}
+                    className="gap-2"
+                  >
+                    {isCreatingWallet ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Creating wallet...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        Create Wallet
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            ) : effectiveWallets.length > 1 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {effectiveWallets.map((w) => {
                   const bal = w.balance != null ? Number(w.balance) : 0
@@ -660,7 +719,8 @@ const CustomerSettings = ({
                 </div>
               </div>
             )}
-            
+
+            {hasWallet && (
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
                 <Plus className="h-4 w-4 text-gray-500" />
@@ -781,6 +841,7 @@ const CustomerSettings = ({
                 </DialogContent>
               </Dialog>
             </div>
+            )}
           </div>
         </CardContent>
       </Card>

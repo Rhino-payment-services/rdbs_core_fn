@@ -63,6 +63,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
   const [sweepModalOpen, setSweepModalOpen] = useState(false)
   const [sweepAmount, setSweepAmount] = useState('')
+  const [creatingWallet, setCreatingWallet] = useState(false)
 
   const sweepMutation = useSweepCollectionToDisbursement()
 
@@ -88,6 +89,24 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
       setTransactions([])
     }
   }, [isOpen, customer?.id])
+
+  const handleCreateWallet = async () => {
+    if (!customer?.id) return
+
+    setCreatingWallet(true)
+    try {
+      await api.post('/wallet', {
+        userId: customer.id,
+        currency: 'UGX',
+      })
+      toast.success('Wallet created successfully.')
+      await fetchUserWallets()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to create wallet')
+    } finally {
+      setCreatingWallet(false)
+    }
+  }
 
   const fetchUserWallets = async () => {
     if (!customer?.id) return
@@ -744,14 +763,23 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                       This user doesn't have any wallet yet. {customer.canHaveWallet ? 'A wallet needs to be created before funding.' : 'This user is not allowed to have a wallet.'}
                     </p>
                     {customer.canHaveWallet && isAdmin && (
-                      <div className="flex flex-col items-center gap-3">
-                        <Badge className="bg-blue-100 text-blue-800">
-                          Balance: {formatCurrency(0)}
-                        </Badge>
-                        <p className="text-xs text-gray-500">
-                          Contact system administrator to create a wallet for this user
-                        </p>
-                      </div>
+                      <Button
+                        onClick={handleCreateWallet}
+                        disabled={creatingWallet}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
+                      >
+                        {creatingWallet ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Creating wallet...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            Create Wallet
+                          </>
+                        )}
+                      </Button>
                     )}
                   </div>
                 </div>
