@@ -86,6 +86,8 @@ const CustomerSettings = ({
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
   const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false)
   const [isResettingPin, setIsResettingPin] = useState(false)
+  const [resetPortalPinDialogOpen, setResetPortalPinDialogOpen] = useState(false)
+  const [isResettingPortalPin, setIsResettingPortalPin] = useState(false)
   const [isSavingFeeMode, setIsSavingFeeMode] = useState(false)
   
   // Suspend form state
@@ -143,6 +145,7 @@ const CustomerSettings = ({
     featureLiquidation: false,
     featurePayroll: false,
     featurePayrollApprovals: false,
+    featurePinLogin: false,
   })
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
   const [savingFlag, setSavingFlag] = useState<string | null>(null)
@@ -305,6 +308,39 @@ const CustomerSettings = ({
       toast.error(errorMessage)
     } finally {
       setIsResettingPin(false)
+    }
+  }
+
+  const handleResetMerchantPortalPin = async () => {
+    if (!merchantId) {
+      toast.error('Merchant information not available.')
+      return
+    }
+
+    setIsResettingPortalPin(true)
+    try {
+      const response = await api.post('/auth/merchant/admin/reset-portal-pin', {
+        merchantId,
+      })
+      const data = response.data
+      if (data?.success) {
+        toast.success(
+          data?.message ||
+            'Merchant portal PIN reset. A temporary PIN was sent via SMS.',
+        )
+        setResetPortalPinDialogOpen(false)
+        onActionComplete?.()
+      } else {
+        throw new Error(data?.message || 'Failed to reset merchant portal PIN')
+      }
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to reset merchant portal PIN.'
+      toast.error(errorMessage)
+    } finally {
+      setIsResettingPortalPin(false)
     }
   }
 
@@ -802,9 +838,9 @@ const CustomerSettings = ({
               <div className="flex items-center gap-3">
                 <Key className="h-4 w-4 text-gray-500" />
                 <div>
-                  <div className="text-sm font-medium">Reset Customer PIN</div>
+                  <div className="text-sm font-medium">Reset Mobile App PIN</div>
                   <div className="text-sm text-gray-600">
-                    Reset the customer's PIN and send a temporary PIN via SMS
+                    Resets the customer&apos;s mobile app PIN and sends a temporary PIN via SMS
                   </div>
                   {customerPhone && (
                     <div className="text-xs text-gray-500 mt-1">
@@ -827,10 +863,9 @@ const CustomerSettings = ({
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Reset Customer PIN</DialogTitle>
+                    <DialogTitle>Reset Mobile App PIN</DialogTitle>
                     <DialogDescription>
-                      This will reset the customer's PIN and send a temporary 5-digit PIN to their phone number via SMS.
-                      The customer should change this PIN after logging in.
+                      This resets the customer&apos;s mobile app PIN (not the merchant dashboard PIN) and sends a temporary 5-digit PIN via SMS.
                     </DialogDescription>
                   </DialogHeader>
                   {customerPhone ? (
@@ -879,6 +914,76 @@ const CustomerSettings = ({
                 </DialogContent>
               </Dialog>
             </div>
+
+            {type === 'merchant' && merchantId && (
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Key className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <div className="text-sm font-medium">Enable PIN login (merchant dashboard)</div>
+                    <div className="text-sm text-gray-600">
+                      Allow the business owner to sign in with phone + portal PIN (OTP remains available)
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={featureFlags.featurePinLogin}
+                  onCheckedChange={(val) => handleFeatureFlagToggle('featurePinLogin', val)}
+                  disabled={savingFlag === 'featurePinLogin'}
+                />
+              </div>
+            )}
+
+            {type === 'merchant' && merchantId && featureFlags.featurePinLogin && (
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Key className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <div className="text-sm font-medium">Reset Merchant Portal PIN</div>
+                    <div className="text-sm text-gray-600">
+                      Resets the merchant dashboard login PIN only — not the mobile app PIN
+                    </div>
+                    {customerPhone && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        SMS to: {customerPhone}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Dialog open={resetPortalPinDialogOpen} onOpenChange={setResetPortalPinDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      disabled={!customerPhone}
+                    >
+                      <Key className="h-4 w-4" />
+                      Reset Portal PIN
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reset Merchant Portal PIN</DialogTitle>
+                      <DialogDescription>
+                        Sends a temporary PIN for the merchant dashboard login. This does not change the mobile app PIN.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setResetPortalPinDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleResetMerchantPortalPin}
+                        disabled={isResettingPortalPin || !customerPhone}
+                      >
+                        {isResettingPortalPin ? 'Resetting…' : 'Reset & Send SMS'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
