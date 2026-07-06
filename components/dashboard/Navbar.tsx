@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff, Ticket } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -251,7 +251,7 @@ const Navbar = () => {
                   <Link 
                     href="/dashboard" 
                     className={`nav-slider-item ${
-                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos') && !isActive('/dashboard/carousel')
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos') && !isActive('/dashboard/merchant-events') && !isActive('/dashboard/carousel')
                         ? 'active'
                         : ''
                     }`}
@@ -350,7 +350,21 @@ const Navbar = () => {
                     </Link>
                   </PermissionGuard>
                 )}
-                
+
+                {isVisible('merchant-events') && (
+                  <PermissionGuard permission={PERMISSIONS.MERCHANT_EVENTS_VIEW}>
+                    <Link
+                      href="/dashboard/merchant-events"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/merchant-events') ? 'active' : ''
+                      }`}
+                    >
+                      <Ticket className="nav-icon" />
+                      <span>Merchant Events</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
                 {isVisible('users') && (
                   <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                     <Link 
