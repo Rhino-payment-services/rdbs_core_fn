@@ -43,6 +43,9 @@ interface CustomerProfileContentProps {
   transactionUserId?: string
   effectiveWalletId?: string
   onExportWalletTransactions?: (walletId: string | undefined, label: string) => Promise<void>
+  onExportCurrentPageTransactions: () => void
+  onExportAllTransactions?: () => void
+  onExportTransactionsByDateRange?: (startDate: string, endDate: string) => void
   activities: any[]
   activityLogsLoading: boolean
   activityLogsError: any
@@ -83,6 +86,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   transactionUserId,
   effectiveWalletId,
   onExportWalletTransactions,
+  onExportCurrentPageTransactions,
+  onExportAllTransactions,
+  onExportTransactionsByDateRange,
   activities,
   activityLogsLoading,
   activityLogsError,
@@ -379,7 +385,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
               )}
               <CustomerTransactions
                 transactions={transactions}
-                onExport={handleExportLegacy}
+                onExportCurrentPage={onExportCurrentPageTransactions}
+                onExportOverall={onExportAllTransactions}
+                onExportDateRange={onExportTransactionsByDateRange}
                 onFilter={() => toast.success('Opening transaction filters...')}
                 isLoading={transactionsLoading}
                 currentPage={currentPage}
