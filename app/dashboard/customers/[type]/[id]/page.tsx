@@ -211,6 +211,69 @@ const CustomerProfilePage = () => {
     }
   }
 
+  const downloadTransactionsCsv = (rows: any[], scopeLabel: string) => {
+    const csv = transactionsToCsv(rows)
+    const safeScope = scopeLabel.replace(/[^\w\s-]+/g, '').replace(/\s+/g, '_').slice(0, 40) || 'export'
+    downloadTextFile(`transactions_${safeScope}_${Date.now()}.csv`, csv)
+  }
+
+  const handleExportCurrentPageTransactions = () => {
+    if (!transactions?.length) {
+      toast.error('No transactions available on this page.')
+      return
+    }
+    downloadTransactionsCsv(transactions, `page_${currentPage}`)
+    toast.success(`Exported ${transactions.length} transaction${transactions.length === 1 ? '' : 's'} from current page`)
+  }
+
+  const handleExportAllTransactions = async () => {
+    if (!transactionUserId) {
+      toast.error('Unable to fetch full transaction history for this profile.')
+      return
+    }
+    const toastId = toast.loading('Preparing full transaction export…')
+    try {
+      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId)
+      downloadTransactionsCsv(rows, 'overall')
+      toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'}`, { id: toastId })
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Export failed'
+      toast.error(msg, { id: toastId })
+    }
+  }
+
+  const handleExportTransactionsByDateRange = async (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) {
+      toast.error('Please select both start and end dates.')
+      return
+    }
+    const start = new Date(`${startDate}T00:00:00`)
+    const end = new Date(`${endDate}T23:59:59.999`)
+    if (start.getTime() > end.getTime()) {
+      toast.error('Start date must be before end date.')
+      return
+    }
+
+    const toastId = toast.loading('Preparing date range export…')
+    try {
+      let sourceRows: any[] = []
+      if (transactionUserId) {
+        sourceRows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId)
+      } else {
+        sourceRows = transactions || []
+      }
+      const rows = sourceRows.filter((tx: any) => {
+        const txDate = new Date(tx?.createdAt || tx?.updatedAt || 0).getTime()
+        return Number.isFinite(txDate) && txDate >= start.getTime() && txDate <= end.getTime()
+      })
+      downloadTransactionsCsv(rows, `${startDate}_to_${endDate}`)
+      toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'} in selected range`, { id: toastId })
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as Error).message) : 'Export failed'
+      toast.error(msg, { id: toastId })
+    }
+  }
+
   // Handle loading state
   if (isLoading) {
     return <CustomerProfileLoading />
@@ -318,9 +381,12 @@ const CustomerProfilePage = () => {
             totalPages={totalPages}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
-            transactionUserId={type !== 'partner' ? transactionUserId : undefined}
+            transactionUserId={transactionUserId}
             effectiveWalletId={type !== 'partner' ? effectiveWalletId : undefined}
             onExportWalletTransactions={handleExportWalletTransactions}
+            onExportCurrentPageTransactions={handleExportCurrentPageTransactions}
+            onExportAllTransactions={transactionUserId ? handleExportAllTransactions : undefined}
+            onExportTransactionsByDateRange={handleExportTransactionsByDateRange}
             activities={activities}
             activityLogsLoading={finalActivityLogsLoading}
             activityLogsError={activityLogsError}
