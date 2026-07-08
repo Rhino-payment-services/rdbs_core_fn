@@ -28,7 +28,9 @@ import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
-  onExport: () => void
+  onExportCurrentPage: () => void
+  onExportOverall?: () => void
+  onExportDateRange?: (startDate: string, endDate: string) => void
   onFilter: () => void
   isLoading?: boolean
   currentPage: number
@@ -50,7 +52,9 @@ function walletRowLabel(w: any): string {
 
 const CustomerTransactions = ({
   transactions,
-  onExport,
+  onExportCurrentPage,
+  onExportOverall,
+  onExportDateRange,
   onFilter,
   isLoading,
   currentPage,
@@ -159,6 +163,16 @@ const CustomerTransactions = ({
     !!onExportWalletTransactions &&
     Array.isArray(allUserWallets) &&
     allUserWallets.length > 0
+  const hasAdvancedExport = !canExportByWallet
+  const [startDate, setStartDate] = React.useState('')
+  const [endDate, setEndDate] = React.useState('')
+  const activeWallet = React.useMemo(
+    () => allUserWallets.find((w: any) => w?.id === statementWalletId),
+    [allUserWallets, statementWalletId],
+  )
+  const activeWalletScopeLabel = activeWallet
+    ? `Selected wallet: ${(activeWallet.walletType || 'Wallet').replace(/_/g, ' ')}`
+    : 'Selected wallet: All wallets'
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
@@ -214,6 +228,45 @@ const CustomerTransactions = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-[min(100vw-2rem,22rem)]">
+                <DropdownMenuLabel>Export transactions</DropdownMenuLabel>
+                <div className="px-2 pb-2 text-xs text-gray-500">{activeWalletScopeLabel}</div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onExportCurrentPage}>
+                  Current page
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!onExportOverall}
+                  onClick={() => onExportOverall?.()}
+                >
+                  Overall (all pages)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-xs text-gray-500">Export by date range</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-8 rounded-md border px-2 text-xs"
+                    />
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-8 rounded-md border px-2 text-xs"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={!startDate || !endDate || !onExportDateRange}
+                    onClick={() => onExportDateRange?.(startDate, endDate)}
+                  >
+                    Export date range
+                  </Button>
+                </div>
+                <DropdownMenuSeparator />
                 <DropdownMenuLabel>Choose wallet for CSV</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {statementWalletId && (
@@ -253,10 +306,58 @@ const CustomerTransactions = ({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button variant="outline" size="sm" onClick={onExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="h-4 w-4 ml-1 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[min(100vw-2rem,22rem)]">
+                <DropdownMenuLabel>Export transactions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onExportCurrentPage}>
+                  Current page
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!onExportOverall}
+                  onClick={() => onExportOverall?.()}
+                >
+                  Overall (all pages)
+                </DropdownMenuItem>
+                {hasAdvancedExport && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+                      <p className="text-xs text-gray-500">Export by date range</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="h-8 rounded-md border px-2 text-xs"
+                        />
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="h-8 rounded-md border px-2 text-xs"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!startDate || !endDate || !onExportDateRange}
+                        onClick={() => onExportDateRange?.(startDate, endDate)}
+                      >
+                        Export date range
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </CardHeader>
