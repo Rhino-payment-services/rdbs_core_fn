@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { 
+import {
   ArrowLeft, 
   Key,
   Plus,
@@ -35,6 +35,7 @@ import {
   Wallet,
   Loader2,
   TrendingUp,
+  Pencil,
 } from 'lucide-react'
 import {
   useGatewayPartner,
@@ -44,6 +45,7 @@ import {
   usePartnerWalletBalance,
   useTopUpPartnerWallet,
   useUpdatePartnerAuthType,
+  useUpdateGatewayPartner,
 } from '@/lib/hooks/useGatewayPartners'
 import { GatewayPartnerRoutingPanel } from '@/components/dashboard/gateway-partners/GatewayPartnerRoutingPanel'
 import Link from 'next/link'
@@ -82,12 +84,26 @@ const GatewayPartnerDetailsPage = () => {
   const [fundReference, setFundReference] = useState('')
   const [fundDescription, setFundDescription] = useState('')
 
+  // Rate limits / tier edit state
+  const [showEditLimitsDialog, setShowEditLimitsDialog] = useState(false)
+  const [editTier, setEditTier] = useState('')
+  const [editIsAggregator, setEditIsAggregator] = useState(false)
+  const [editLimitPerSecond, setEditLimitPerSecond] = useState('')
+  const [editLimitPerMinute, setEditLimitPerMinute] = useState('')
+  const [editLimitPerHour, setEditLimitPerHour] = useState('')
+  const [editLimitPerDay, setEditLimitPerDay] = useState('')
+  const [editDailyTxns, setEditDailyTxns] = useState('')
+  const [editDailyVolume, setEditDailyVolume] = useState('')
+  const [editMonthlyTxns, setEditMonthlyTxns] = useState('')
+  const [editMaxTxnAmount, setEditMaxTxnAmount] = useState('')
+
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
   const suspendPartner = useSuspendGatewayPartner()
   const revokeKey = useRevokeApiKey()
   const topUpWallet = useTopUpPartnerWallet()
   const updateAuthType = useUpdatePartnerAuthType()
+  const updatePartner = useUpdateGatewayPartner()
 
   const { data: escrowBalance, refetch: refetchBalance } = usePartnerWalletBalance(
     partnerId,
@@ -247,11 +263,57 @@ const GatewayPartnerDetailsPage = () => {
 
   const getTierColor = (tier: string) => {
     const colors: Record<string, string> = {
+      BRONZE: 'bg-orange-400',
       SILVER: 'bg-gray-500',
       GOLD: 'bg-yellow-500',
       PLATINUM: 'bg-purple-500',
+      AGGREGATOR: 'bg-blue-600',
     }
     return colors[tier] || 'bg-blue-500'
+  }
+
+  const openEditLimitsDialog = () => {
+    if (!partner) return
+    setEditTier(partner.tier || 'GOLD')
+    setEditIsAggregator((partner as any).isAggregator ?? false)
+    setEditLimitPerSecond(String(partner.rateLimits?.requests_per_second ?? ''))
+    setEditLimitPerMinute(String(partner.rateLimits?.requests_per_minute ?? ''))
+    setEditLimitPerHour(String(partner.rateLimits?.requests_per_hour ?? ''))
+    setEditLimitPerDay(String(partner.rateLimits?.requests_per_day ?? ''))
+    setEditDailyTxns(String(partner.usageQuotas?.daily_transactions ?? ''))
+    setEditDailyVolume(String(partner.usageQuotas?.daily_volume_ugx ?? ''))
+    setEditMonthlyTxns(String(partner.usageQuotas?.monthly_transactions ?? ''))
+    setEditMaxTxnAmount(String(partner.usageQuotas?.max_transaction_amount ?? ''))
+    setShowEditLimitsDialog(true)
+  }
+
+  const handleSaveLimits = async () => {
+    const rateLimits: Record<string, number> = {}
+    if (editLimitPerSecond) rateLimits.requests_per_second = Number(editLimitPerSecond)
+    if (editLimitPerMinute) rateLimits.requests_per_minute = Number(editLimitPerMinute)
+    if (editLimitPerHour) rateLimits.requests_per_hour = Number(editLimitPerHour)
+    if (editLimitPerDay) rateLimits.requests_per_day = Number(editLimitPerDay)
+
+    const usageQuotas: Record<string, number> = {}
+    if (editDailyTxns) usageQuotas.daily_transactions = Number(editDailyTxns)
+    if (editDailyVolume) usageQuotas.daily_volume_ugx = Number(editDailyVolume)
+    if (editMonthlyTxns) usageQuotas.monthly_transactions = Number(editMonthlyTxns)
+    if (editMaxTxnAmount) usageQuotas.max_transaction_amount = Number(editMaxTxnAmount)
+
+    try {
+      await updatePartner.mutateAsync({
+        partnerId,
+        data: {
+          tier: editTier as any,
+          ...(Object.keys(rateLimits).length > 0 ? { rateLimits } : {}),
+          ...(Object.keys(usageQuotas).length > 0 ? { usageQuotas } : {}),
+        },
+      })
+      setShowEditLimitsDialog(false)
+      refetch()
+    } catch {
+      // toast handled by the hook
+    }
   }
 
   return (
@@ -554,7 +616,13 @@ const GatewayPartnerDetailsPage = () => {
             {/* Rate Limits & Quotas */}
             <Card>
               <CardHeader>
-                <CardTitle>Rate Limits & Quotas</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Rate Limits & Quotas</CardTitle>
+                  <Button variant="outline" size="sm" onClick={openEditLimitsDialog}>
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -595,6 +663,12 @@ const GatewayPartnerDetailsPage = () => {
                         <span className="text-gray-600">Daily Transactions:</span>
                         <span className="font-medium">
                           {formatGatewayLimit(partner.usageQuotas?.daily_transactions)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-gray-600">Monthly Transactions:</span>
+                        <span className="font-medium">
+                          {formatGatewayLimit(partner.usageQuotas?.monthly_transactions)}
                         </span>
                       </div>
                       <div className="flex justify-between bg-gray-50 p-2 rounded">
@@ -1098,6 +1172,153 @@ const GatewayPartnerDetailsPage = () => {
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing…</>
               ) : (
                 <><DollarSign className="h-4 w-4 mr-2" /> Confirm Funding</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Rate Limits & Tier Dialog ─────────────────────────────── */}
+      <Dialog open={showEditLimitsDialog} onOpenChange={setShowEditLimitsDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Rate Limits & Quotas</DialogTitle>
+            <DialogDescription>
+              Changes take effect immediately — no restart required. Leave a field
+              blank to keep the current value. Changing the tier resets all limits
+              to that tier&apos;s defaults unless you also fill in custom values below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Tier */}
+            <div className="space-y-1.5">
+              <Label>Partner Tier</Label>
+              <Select value={editTier} onValueChange={setEditTier}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BRONZE">Bronze — 60 req/min</SelectItem>
+                  <SelectItem value="SILVER">Silver — 300 req/min</SelectItem>
+                  <SelectItem value="GOLD">Gold — 1,000 req/min</SelectItem>
+                  <SelectItem value="PLATINUM">Platinum — 3,000 req/min</SelectItem>
+                  <SelectItem value="AGGREGATOR">Aggregator — 5,000 req/min</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Tier sets the baseline. Fill in custom values below to override specific limits.
+              </p>
+            </div>
+
+            {/* Custom rate limits */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">Custom Rate Limits <span className="font-normal text-gray-400">(optional — overrides tier defaults)</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Requests / Second</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder={`tier default`}
+                    value={editLimitPerSecond}
+                    onChange={(e) => setEditLimitPerSecond(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Requests / Minute</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder={`tier default`}
+                    value={editLimitPerMinute}
+                    onChange={(e) => setEditLimitPerMinute(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Requests / Hour</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder={`tier default`}
+                    value={editLimitPerHour}
+                    onChange={(e) => setEditLimitPerHour(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Requests / Day</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder={`tier default`}
+                    value={editLimitPerDay}
+                    onChange={(e) => setEditLimitPerDay(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Usage quotas */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">Usage Quotas <span className="font-normal text-gray-400">(optional)</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Daily Transactions</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="e.g. 5000"
+                    value={editDailyTxns}
+                    onChange={(e) => setEditDailyTxns(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Monthly Transactions</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="e.g. 100000"
+                    value={editMonthlyTxns}
+                    onChange={(e) => setEditMonthlyTxns(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Daily Volume (UGX)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 500000000"
+                    value={editDailyVolume}
+                    onChange={(e) => setEditDailyVolume(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Max Transaction Amount (UGX)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 10000000"
+                    value={editMaxTxnAmount}
+                    onChange={(e) => setEditMaxTxnAmount(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditLimitsDialog(false)}
+              disabled={updatePartner.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLimits} disabled={updatePartner.isPending}>
+              {updatePartner.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              ) : (
+                <><CheckCircle className="h-4 w-4 mr-2" /> Save Changes</>
               )}
             </Button>
           </DialogFooter>

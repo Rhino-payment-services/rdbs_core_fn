@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Calendar, Loader2, Smartphone, Phone, Code, Building2, Store, Users, School } from 'lucide-react'
 import { formatAmount } from '@/lib/utils/transactions'
+import { AnalyticsErrorAlert } from '@/components/dashboard/AnalyticsStates'
+import { extractErrorMessage } from '@/lib/utils'
 
 interface ChannelData {
   channel: string
@@ -13,11 +15,13 @@ interface ChannelData {
 interface ChannelStatisticsProps {
   channelStatsData: any
   isLoading: boolean
+  error?: unknown
+  onRetry?: () => void
   startDate?: string
   endDate?: string
 }
 
-export const ChannelStatistics = ({ channelStatsData, isLoading, startDate, endDate }: ChannelStatisticsProps) => {
+export const ChannelStatistics = ({ channelStatsData, isLoading, error, onRetry, startDate, endDate }: ChannelStatisticsProps) => {
   // Define all possible channels with default values
   const allChannels = [
     { channel: 'APP', label: 'Mobile App', icon: Smartphone, color: 'border-blue-200 bg-blue-50' },
@@ -91,6 +95,14 @@ export const ChannelStatistics = ({ channelStatsData, isLoading, startDate, endD
           </span>
         </div>
       </div>
+      {error ? (
+        <AnalyticsErrorAlert
+          message={extractErrorMessage(error)}
+          context="Transactions by Channel"
+          onRetry={onRetry}
+          isRetrying={isLoading}
+        />
+      ) : null}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
           {[1, 2, 3, 4, 5].map((i) => (
