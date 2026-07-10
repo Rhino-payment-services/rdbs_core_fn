@@ -15,7 +15,11 @@ import {
   isOwnWalletTransfer,
   normalizeOwnWalletReference,
 } from '@/lib/utils/transactionPartyClassification'
-import { resolvePaymentPartnerLabel } from './partyResolver'
+import {
+  hasPartnerApprovalSignal,
+  isPartnerSubscriberWithdraw,
+  resolvePaymentPartnerLabel,
+} from './partyResolver'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
 import { RukapayFeeCell, NetAmountCell } from './FeeCell'
@@ -214,18 +218,7 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     return paymentPartnerLabel
   })()
 
-  const hasPartnerSignal =
-    transaction.partnerId ||
-    resolvedPartner ||
-    metadata.partnerId ||
-    metadata.isApiPartnerTransaction ||
-    metadata.apiPartnerName
-
-  const isPartnerSubscriberWithdraw =
-    transaction.type === 'WITHDRAWAL' &&
-    transaction.direction === 'DEBIT' &&
-    metadata.mode === 'WITHDRAW' &&
-    !!hasPartnerSignal
+  const hasPartnerSignal = hasPartnerApprovalSignal(transaction)
 
   return {
     metadata,
@@ -239,6 +232,6 @@ function useTransactionDerived(transaction: any): TransactionDerived {
     paymentPartnerLabel: paymentPartnerLabel || undefined,
     paymentPartnerTitle,
     hasPartnerSignal,
-    isPartnerSubscriberWithdraw,
+    isPartnerSubscriberWithdraw: isPartnerSubscriberWithdraw(transaction),
   }
 }
