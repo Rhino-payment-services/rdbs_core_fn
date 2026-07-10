@@ -61,4 +61,39 @@ describe('resolvePaymentPartnerLabel', () => {
     })
     expect(label).toBe('MTN')
   })
+
+  it('shows approving API partner for confirmed partner subscriber withdrawal', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'WITHDRAWAL',
+      direction: 'DEBIT',
+      partnerId: 'partner-1',
+      partner: { partnerName: 'NEXT ALIGN B' },
+      metadata: {
+        mode: 'WITHDRAW',
+        confirmedBy: 'PARTNER',
+        partnerName: 'NEXT ALIGN B',
+      },
+    })
+    expect(label).toBe('NEXT ALIGN B')
+  })
+
+  it('shows approving API partner for partner subscriber deposit', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'DEPOSIT',
+      direction: 'CREDIT',
+      partnerId: 'partner-1',
+      partner: { partnerName: 'ABC AGENT' },
+      metadata: { mode: 'DEPOSIT' },
+    })
+    expect(label).toBe('ABC AGENT')
+  })
+
+  it('does not use API partner name for pending customer withdraw without approval', () => {
+    const label = resolvePaymentPartnerLabel({
+      type: 'WITHDRAWAL',
+      direction: 'DEBIT',
+      metadata: { mode: 'WITHDRAW', initiatedBy: 'CUSTOMER' },
+    })
+    expect(label).toBeNull()
+  })
 })
