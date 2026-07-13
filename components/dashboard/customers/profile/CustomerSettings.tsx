@@ -34,6 +34,32 @@ interface WalletItem {
   currency?: string
 }
 
+interface MerchantPaymentSmsTeamMember {
+  id: string
+  walletId: string
+  walletType?: string | null
+  userId: string
+  email: string
+  userEmail?: string | null
+  phone?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  role: string
+  status: string
+  paymentSmsNotificationsEnabled: boolean
+}
+
+interface MerchantPaymentSmsRecipients {
+  owner?: {
+    userId: string
+    phone?: string | null
+    email?: string | null
+    paymentSmsNotificationsEnabled: boolean
+    locked: boolean
+  }
+  teamMembers: MerchantPaymentSmsTeamMember[]
+}
+
 interface CustomerSettingsProps {
   type: string
   customerId: string
@@ -176,6 +202,12 @@ const CustomerSettings = ({
   })
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
   const [savingFlag, setSavingFlag] = useState<string | null>(null)
+  const [paymentSmsRecipients, setPaymentSmsRecipients] =
+    useState<MerchantPaymentSmsRecipients | null>(null)
+  const [paymentSmsRecipientsLoading, setPaymentSmsRecipientsLoading] =
+    useState(false)
+  const [savingPaymentSmsMember, setSavingPaymentSmsMember] =
+    useState<string | null>(null)
 
   useEffect(() => {
     if (type === 'merchant' && merchantId) {
@@ -184,6 +216,18 @@ const CustomerSettings = ({
         .then(res => setFeatureFlags(res.data))
         .catch(() => toast.error('Failed to load feature flags'))
         .finally(() => setFeatureFlagsLoading(false))
+    }
+  }, [type, merchantId])
+
+  useEffect(() => {
+    if (type === 'merchant' && merchantId) {
+      setPaymentSmsRecipientsLoading(true)
+      api.get(`/merchant-kyc/${merchantId}/payment-sms-recipients`)
+        .then(res => setPaymentSmsRecipients(res.data))
+        .catch(() => toast.error('Failed to load payment SMS recipients'))
+        .finally(() => setPaymentSmsRecipientsLoading(false))
+    } else {
+      setPaymentSmsRecipients(null)
     }
   }, [type, merchantId])
 
@@ -200,6 +244,42 @@ const CustomerSettings = ({
       toast.error('Failed to update feature flag')
     } finally {
       setSavingFlag(null)
+    }
+  }
+
+  const handlePaymentSmsToggle = async (memberId: string, enabled: boolean) => {
+    if (!merchantId) return
+    const previous = paymentSmsRecipients
+    setSavingPaymentSmsMember(memberId)
+    setPaymentSmsRecipients(current => current ? {
+      ...current,
+      teamMembers: current.teamMembers.map(member =>
+        member.id === memberId
+          ? { ...member, paymentSmsNotificationsEnabled: enabled }
+          : member,
+      ),
+    } : current)
+
+    try {
+      const res = await api.patch(
+        `/merchant-kyc/${merchantId}/team-members/${memberId}/payment-sms`,
+        { enabled },
+      )
+      const updated = res.data?.teamMember
+      if (updated) {
+        setPaymentSmsRecipients(current => current ? {
+          ...current,
+          teamMembers: current.teamMembers.map(member =>
+            member.id === memberId ? { ...member, ...updated } : member,
+          ),
+        } : current)
+      }
+      toast.success(enabled ? 'Payment SMS enabled for team member' : 'Payment SMS disabled for team member')
+    } catch (error: unknown) {
+      setPaymentSmsRecipients(previous)
+      toast.error(extractErrorMessage(error) || 'Failed to update payment SMS setting')
+    } finally {
+      setSavingPaymentSmsMember(null)
     }
   }
 
@@ -642,6 +722,87 @@ const CustomerSettings = ({
                     </>
                   )}
                 </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Merchant payment SMS recipients (for merchant profiles only) */}
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Payment SMS Recipients
+            </CardTitle>
+            <CardDescription>
+              Merchant owners receive successful payment SMS by default. Team members are disabled until an admin enables them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-100">
+                <div>
+                  <div className="text-sm font-medium">Merchant owner</div>
+                  <div className="text-sm text-gray-600">
+                    {paymentSmsRecipients?.owner?.phone || customerPhone || 'No phone found'}
+                    {paymentSmsRecipients?.owner?.email ? ` • ${paymentSmsRecipients.owner.email}` : ''}
+                  </div>
+                  <p className="text-xs text-green-700 mt-1">
+                    Always receives successful merchant payment SMS notifications.
+                  </p>
+                </div>
+                <Switch checked disabled />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Team members</Label>
+                  {paymentSmsRecipientsLoading && (
+                    <span className="text-xs text-gray-500">Loading...</span>
+                  )}
+                </div>
+
+                {!paymentSmsRecipientsLoading && (paymentSmsRecipients?.teamMembers?.length || 0) === 0 ? (
+                  <div className="text-sm text-gray-500 border rounded-lg p-4">
+                    No active merchant team members found for the business/collection wallet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentSmsRecipients?.teamMembers?.map(member => {
+                      const displayName =
+                        `${member.firstName || ''} ${member.lastName || ''}`.trim() ||
+                        member.email ||
+                        member.userEmail ||
+                        'Team member'
+                      const disabled = savingPaymentSmsMember === member.id || !member.phone
+
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="text-sm font-medium">{displayName}</div>
+                            <div className="text-sm text-gray-600">
+                              {member.phone || 'No registration phone'}
+                              {member.email ? ` • ${member.email}` : ''}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {member.role} • {walletTypeLabel(member.walletType || undefined)} wallet
+                              {!member.phone ? ' • Add a phone number before enabling SMS' : ''}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={member.paymentSmsNotificationsEnabled}
+                            disabled={disabled}
+                            onCheckedChange={(checked) =>
+                              handlePaymentSmsToggle(member.id, checked)
+                            }
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
