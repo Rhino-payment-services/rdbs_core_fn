@@ -20,7 +20,8 @@ import {
   UserCheck,
   Wallet,
   Key,
-  LayoutDashboard
+  LayoutDashboard,
+  Phone,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
@@ -32,6 +33,43 @@ interface WalletItem {
   walletType?: string
   balance?: number | string
   currency?: string
+}
+
+interface MerchantPaymentSmsTeamMember {
+  id: string
+  walletId: string
+  walletType?: string | null
+  userId: string
+  email: string
+  userEmail?: string | null
+  phone?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  role: string
+  status: string
+  paymentSmsNotificationsEnabled: boolean
+}
+
+interface MerchantPaymentSmsRecipients {
+  owner?: {
+    userId: string
+    phone?: string | null
+    email?: string | null
+    paymentSmsNotificationsEnabled: boolean
+    locked: boolean
+  }
+  teamMembers: MerchantPaymentSmsTeamMember[]
+}
+
+interface MerchantUssdEntryPointConfig {
+  merchantId: string
+  merchantCode: string
+  merchantName: string
+  ussdEntryCode: string | null
+  isEnabled: boolean
+  minimumAmount: number
+  maximumAmount: number
+  dialPattern: string | null
 }
 
 interface CustomerSettingsProps {
@@ -179,6 +217,20 @@ const CustomerSettings = ({
   })
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
   const [savingFlag, setSavingFlag] = useState<string | null>(null)
+  const [paymentSmsRecipients, setPaymentSmsRecipients] =
+    useState<MerchantPaymentSmsRecipients | null>(null)
+  const [paymentSmsRecipientsLoading, setPaymentSmsRecipientsLoading] =
+    useState(false)
+  const [savingPaymentSmsMember, setSavingPaymentSmsMember] =
+    useState<string | null>(null)
+  const [ussdEntryPoint, setUssdEntryPoint] =
+    useState<MerchantUssdEntryPointConfig | null>(null)
+  const [ussdEntryPointLoading, setUssdEntryPointLoading] = useState(false)
+  const [isSavingUssdEntryPoint, setIsSavingUssdEntryPoint] = useState(false)
+  const [ussdEntryCodeInput, setUssdEntryCodeInput] = useState('')
+  const [ussdEntryEnabled, setUssdEntryEnabled] = useState(false)
+  const [ussdMinimumAmount, setUssdMinimumAmount] = useState(500)
+  const [ussdMaximumAmount, setUssdMaximumAmount] = useState(5000000)
 
   useEffect(() => {
     if (type === 'merchant' && merchantId) {
@@ -189,6 +241,80 @@ const CustomerSettings = ({
         .finally(() => setFeatureFlagsLoading(false))
     }
   }, [type, merchantId])
+
+  useEffect(() => {
+    if (type === 'merchant' && merchantId) {
+      setPaymentSmsRecipientsLoading(true)
+      api.get(`/merchant-kyc/${merchantId}/payment-sms-recipients`)
+        .then(res => setPaymentSmsRecipients(res.data))
+        .catch(() => toast.error('Failed to load payment SMS recipients'))
+        .finally(() => setPaymentSmsRecipientsLoading(false))
+    } else {
+      setPaymentSmsRecipients(null)
+    }
+  }, [type, merchantId])
+
+  useEffect(() => {
+    if (type === 'merchant' && merchantId) {
+      setUssdEntryPointLoading(true)
+      api.get(`/merchant-kyc/${merchantId}/ussd-entry-point`)
+        .then(res => {
+          const data = res.data as MerchantUssdEntryPointConfig
+          setUssdEntryPoint(data)
+          setUssdEntryCodeInput(data.ussdEntryCode || '')
+          setUssdEntryEnabled(data.isEnabled)
+          setUssdMinimumAmount(data.minimumAmount || 500)
+          setUssdMaximumAmount(data.maximumAmount || 5000000)
+        })
+        .catch(() => toast.error('Failed to load USSD entry point'))
+        .finally(() => setUssdEntryPointLoading(false))
+    } else {
+      setUssdEntryPoint(null)
+    }
+  }, [type, merchantId])
+
+  const handleSaveUssdEntryPoint = async () => {
+    if (!merchantId) return
+
+    const normalizedCode = ussdEntryCodeInput.trim()
+    if (ussdEntryEnabled && !normalizedCode) {
+      toast.error('USSD entry code is required when enabled')
+      return
+    }
+    if (normalizedCode && !/^\d+$/.test(normalizedCode)) {
+      toast.error('USSD entry code must contain digits only')
+      return
+    }
+    if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(normalizedCode)) {
+      toast.error('Codes 1-8 are reserved by the main RukaPay USSD menu')
+      return
+    }
+    if (ussdMaximumAmount < ussdMinimumAmount) {
+      toast.error('Maximum amount must be greater than or equal to minimum amount')
+      return
+    }
+
+    setIsSavingUssdEntryPoint(true)
+    try {
+      const res = await api.patch(`/merchant-kyc/${merchantId}/ussd-entry-point`, {
+        ussdEntryCode: normalizedCode || undefined,
+        isEnabled: ussdEntryEnabled,
+        minimumAmount: ussdMinimumAmount,
+        maximumAmount: ussdMaximumAmount,
+      })
+      const data = res.data as MerchantUssdEntryPointConfig
+      setUssdEntryPoint(data)
+      setUssdEntryCodeInput(data.ussdEntryCode || '')
+      setUssdEntryEnabled(data.isEnabled)
+      setUssdMinimumAmount(data.minimumAmount || 500)
+      setUssdMaximumAmount(data.maximumAmount || 5000000)
+      toast.success('USSD entry point updated')
+    } catch (error: unknown) {
+      toast.error(extractErrorMessage(error) || 'Failed to update USSD entry point')
+    } finally {
+      setIsSavingUssdEntryPoint(false)
+    }
+  }
 
   const handleFeatureFlagToggle = async (flag: keyof typeof featureFlags, value: boolean) => {
     if (!merchantId) return
@@ -203,6 +329,42 @@ const CustomerSettings = ({
       toast.error('Failed to update feature flag')
     } finally {
       setSavingFlag(null)
+    }
+  }
+
+  const handlePaymentSmsToggle = async (memberId: string, enabled: boolean) => {
+    if (!merchantId) return
+    const previous = paymentSmsRecipients
+    setSavingPaymentSmsMember(memberId)
+    setPaymentSmsRecipients(current => current ? {
+      ...current,
+      teamMembers: current.teamMembers.map(member =>
+        member.id === memberId
+          ? { ...member, paymentSmsNotificationsEnabled: enabled }
+          : member,
+      ),
+    } : current)
+
+    try {
+      const res = await api.patch(
+        `/merchant-kyc/${merchantId}/team-members/${memberId}/payment-sms`,
+        { enabled },
+      )
+      const updated = res.data?.teamMember
+      if (updated) {
+        setPaymentSmsRecipients(current => current ? {
+          ...current,
+          teamMembers: current.teamMembers.map(member =>
+            member.id === memberId ? { ...member, ...updated } : member,
+          ),
+        } : current)
+      }
+      toast.success(enabled ? 'Payment SMS enabled for team member' : 'Payment SMS disabled for team member')
+    } catch (error: unknown) {
+      setPaymentSmsRecipients(previous)
+      toast.error(extractErrorMessage(error) || 'Failed to update payment SMS setting')
+    } finally {
+      setSavingPaymentSmsMember(null)
     }
   }
 
@@ -679,6 +841,201 @@ const CustomerSettings = ({
                   )}
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Merchant payment SMS recipients (for merchant profiles only) */}
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Payment SMS Recipients
+            </CardTitle>
+            <CardDescription>
+              Merchant owners receive successful payment SMS by default. Team members are disabled until an admin enables them.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-100">
+                <div>
+                  <div className="text-sm font-medium">Merchant owner</div>
+                  <div className="text-sm text-gray-600">
+                    {paymentSmsRecipients?.owner?.phone || customerPhone || 'No phone found'}
+                    {paymentSmsRecipients?.owner?.email ? ` • ${paymentSmsRecipients.owner.email}` : ''}
+                  </div>
+                  <p className="text-xs text-green-700 mt-1">
+                    Always receives successful merchant payment SMS notifications.
+                  </p>
+                </div>
+                <Switch checked disabled />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Team members</Label>
+                  {paymentSmsRecipientsLoading && (
+                    <span className="text-xs text-gray-500">Loading...</span>
+                  )}
+                </div>
+
+                {!paymentSmsRecipientsLoading && (paymentSmsRecipients?.teamMembers?.length || 0) === 0 ? (
+                  <div className="text-sm text-gray-500 border rounded-lg p-4">
+                    No active merchant team members found for the business/collection wallet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {paymentSmsRecipients?.teamMembers?.map(member => {
+                      const displayName =
+                        `${member.firstName || ''} ${member.lastName || ''}`.trim() ||
+                        member.email ||
+                        member.userEmail ||
+                        'Team member'
+                      const disabled = savingPaymentSmsMember === member.id || !member.phone
+
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <div className="text-sm font-medium">{displayName}</div>
+                            <div className="text-sm text-gray-600">
+                              {member.phone || 'No registration phone'}
+                              {member.email ? ` • ${member.email}` : ''}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {member.role} • {walletTypeLabel(member.walletType || undefined)} wallet
+                              {!member.phone ? ' • Add a phone number before enabling SMS' : ''}
+                            </p>
+                          </div>
+                          <Switch
+                            checked={member.paymentSmsNotificationsEnabled}
+                            disabled={disabled}
+                            onCheckedChange={(checked) =>
+                              handlePaymentSmsToggle(member.id, checked)
+                            }
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              USSD Entry Point
+            </CardTitle>
+            <CardDescription>
+              Assign a merchant-specific shortcut after the main RukaPay shortcode. Example: code <strong>9</strong> becomes <strong>*289*9*{'{amount}'}#</strong>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {ussdEntryPointLoading ? (
+                <div className="text-sm text-gray-500">Loading USSD entry point...</div>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ussdEntryCode">USSD entry code</Label>
+                      <Input
+                        id="ussdEntryCode"
+                        value={ussdEntryCodeInput}
+                        onChange={(e) => setUssdEntryCodeInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="e.g. 9"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Use digits only. Codes 1-8 are reserved by the main RukaPay menu.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Merchant code</Label>
+                      <Input value={merchantCode || ussdEntryPoint?.merchantCode || ''} disabled />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ussdMinimumAmount">Minimum amount (UGX)</Label>
+                      <Input
+                        id="ussdMinimumAmount"
+                        type="number"
+                        min={500}
+                        value={ussdMinimumAmount}
+                        onChange={(e) => setUssdMinimumAmount(Number(e.target.value) || 500)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ussdMaximumAmount">Maximum amount (UGX)</Label>
+                      <Input
+                        id="ussdMaximumAmount"
+                        type="number"
+                        min={500}
+                        value={ussdMaximumAmount}
+                        onChange={(e) => setUssdMaximumAmount(Number(e.target.value) || 5000000)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="text-sm font-medium">Enable USSD entry point</div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Merchant must be active and verified before enabling.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={ussdEntryEnabled}
+                      onCheckedChange={setUssdEntryEnabled}
+                    />
+                  </div>
+
+                  <div className="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
+                    <div className="font-medium">Dial pattern preview</div>
+                    <div className="mt-1 font-mono">
+                      {ussdEntryCodeInput.trim()
+                        ? `*289*${ussdEntryCodeInput.trim()}*{amount}#`
+                        : '*289*{code}*{amount}#' }
+                    </div>
+                    {ussdEntryPoint?.dialPattern && ussdEntryPoint.ussdEntryCode && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Saved pattern: {ussdEntryPoint.dialPattern}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="default"
+                      onClick={handleSaveUssdEntryPoint}
+                      disabled={isSavingUssdEntryPoint}
+                      className="flex items-center gap-2"
+                    >
+                      {isSavingUssdEntryPoint ? (
+                        <>
+                          <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4" />
+                          Save USSD entry point
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
