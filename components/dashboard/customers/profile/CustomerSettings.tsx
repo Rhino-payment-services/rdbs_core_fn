@@ -51,12 +51,14 @@ interface MerchantPaymentSmsTeamMember {
 }
 
 interface MerchantPaymentSmsRecipients {
+  merchantPaymentSmsEnabled?: boolean
+  customerCollectionSuccessSmsEnabled?: boolean
   owner?: {
     userId: string
     phone?: string | null
     email?: string | null
     paymentSmsNotificationsEnabled: boolean
-    locked: boolean
+    locked?: boolean
   }
   teamMembers: MerchantPaymentSmsTeamMember[]
 }
@@ -220,6 +222,8 @@ const CustomerSettings = ({
     useState(false)
   const [savingPaymentSmsMember, setSavingPaymentSmsMember] =
     useState<string | null>(null)
+  const [savingMerchantPaymentSmsSetting, setSavingMerchantPaymentSmsSetting] =
+    useState<'merchant' | 'customer' | null>(null)
   const [ussdEntryPoint, setUssdEntryPoint] =
     useState<MerchantUssdEntryPointConfig | null>(null)
   const [ussdEntryPointLoading, setUssdEntryPointLoading] = useState(false)
@@ -326,6 +330,59 @@ const CustomerSettings = ({
       toast.error('Failed to update feature flag')
     } finally {
       setSavingFlag(null)
+    }
+  }
+
+  const handleMerchantPaymentSmsSettingToggle = async (
+    field: 'merchantPaymentSmsEnabled' | 'customerCollectionSuccessSmsEnabled',
+    enabled: boolean,
+  ) => {
+    if (!merchantId) return
+
+    const previous = paymentSmsRecipients
+    const savingKey = field === 'merchantPaymentSmsEnabled' ? 'merchant' : 'customer'
+    setSavingMerchantPaymentSmsSetting(savingKey)
+    setPaymentSmsRecipients(current => current ? {
+      ...current,
+      [field]: enabled,
+      ...(field === 'merchantPaymentSmsEnabled' && current.owner
+        ? {
+            owner: {
+              ...current.owner,
+              paymentSmsNotificationsEnabled: enabled,
+            },
+          }
+        : {}),
+    } : current)
+
+    try {
+      const res = await api.patch(`/merchant-kyc/${merchantId}/payment-sms-settings`, {
+        [field]: enabled,
+      })
+      const data = res.data
+      setPaymentSmsRecipients(current => current ? {
+        ...current,
+        merchantPaymentSmsEnabled: data.merchantPaymentSmsEnabled,
+        customerCollectionSuccessSmsEnabled: data.customerCollectionSuccessSmsEnabled,
+        owner: current.owner ? {
+          ...current.owner,
+          paymentSmsNotificationsEnabled: data.merchantPaymentSmsEnabled,
+        } : current.owner,
+      } : current)
+      toast.success(
+        field === 'merchantPaymentSmsEnabled'
+          ? enabled
+            ? 'Merchant payment SMS enabled'
+            : 'Merchant payment SMS disabled'
+          : enabled
+            ? 'Customer payment success SMS enabled'
+            : 'Customer payment success SMS disabled',
+      )
+    } catch (error: unknown) {
+      setPaymentSmsRecipients(previous)
+      toast.error(extractErrorMessage(error) || 'Failed to update payment SMS setting')
+    } finally {
+      setSavingMerchantPaymentSmsSetting(null)
     }
   }
 
@@ -819,11 +876,33 @@ const CustomerSettings = ({
               Payment SMS Recipients
             </CardTitle>
             <CardDescription>
-              Merchant owners receive successful payment SMS by default. Team members are disabled until an admin enables them.
+              Control who receives SMS after successful MNO-to-wallet payments to this merchant. Customer SMS is off by default.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div>
+                  <div className="text-sm font-medium">Customer payment success SMS</div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sends &quot;Paid UGX X to merchant&quot; to the customer after a successful MNO collection.
+                  </p>
+                </div>
+                <Switch
+                  checked={paymentSmsRecipients?.customerCollectionSuccessSmsEnabled ?? false}
+                  disabled={
+                    paymentSmsRecipientsLoading ||
+                    savingMerchantPaymentSmsSetting === 'customer'
+                  }
+                  onCheckedChange={(checked) =>
+                    handleMerchantPaymentSmsSettingToggle(
+                      'customerCollectionSuccessSmsEnabled',
+                      checked,
+                    )
+                  }
+                />
+              </div>
+
               <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 border-green-100">
                 <div>
                   <div className="text-sm font-medium">Merchant owner</div>
@@ -832,10 +911,22 @@ const CustomerSettings = ({
                     {paymentSmsRecipients?.owner?.email ? ` • ${paymentSmsRecipients.owner.email}` : ''}
                   </div>
                   <p className="text-xs text-green-700 mt-1">
-                    Always receives successful merchant payment SMS notifications.
+                    Receives successful merchant payment SMS when enabled.
                   </p>
                 </div>
-                <Switch checked disabled />
+                <Switch
+                  checked={paymentSmsRecipients?.merchantPaymentSmsEnabled ?? true}
+                  disabled={
+                    paymentSmsRecipientsLoading ||
+                    savingMerchantPaymentSmsSetting === 'merchant'
+                  }
+                  onCheckedChange={(checked) =>
+                    handleMerchantPaymentSmsSettingToggle(
+                      'merchantPaymentSmsEnabled',
+                      checked,
+                    )
+                  }
+                />
               </div>
 
               <div className="space-y-3">
@@ -845,6 +936,12 @@ const CustomerSettings = ({
                     <span className="text-xs text-gray-500">Loading...</span>
                   )}
                 </div>
+
+                {paymentSmsRecipients?.merchantPaymentSmsEnabled === false && (
+                  <p className="text-xs text-gray-500">
+                    Enable merchant owner SMS above to allow team member payment notifications.
+                  </p>
+                )}
 
                 {!paymentSmsRecipientsLoading && (paymentSmsRecipients?.teamMembers?.length || 0) === 0 ? (
                   <div className="text-sm text-gray-500 border rounded-lg p-4">
@@ -858,7 +955,10 @@ const CustomerSettings = ({
                         member.email ||
                         member.userEmail ||
                         'Team member'
-                      const disabled = savingPaymentSmsMember === member.id || !member.phone
+                      const disabled =
+                        savingPaymentSmsMember === member.id ||
+                        !member.phone ||
+                        paymentSmsRecipients?.merchantPaymentSmsEnabled === false
 
                       return (
                         <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
