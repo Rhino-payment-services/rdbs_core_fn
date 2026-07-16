@@ -193,14 +193,6 @@ const WalletPage = () => {
     })
   }
 
-  const formatDateShort = (dateString: string) => {
-    const date = new Date(dateString)
-    const month = date.toLocaleDateString('en-US', { month: 'short' })
-    const day = date.getDate()
-    const year = date.getFullYear()
-    return `${month} ${day}, ${year}`
-  }
-
   const handleCreateWallet = async () => {
     if (!walletForm.currency) {
       toast.error('Please select a currency')
@@ -713,9 +705,11 @@ const WalletPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Wallet</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead className="font-mono text-xs">Wallet No.</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Phone / Email</TableHead>
                       <TableHead>Currency</TableHead>
                       <TableHead className="text-right">
                         <button
@@ -741,135 +735,58 @@ const WalletPage = () => {
                           )}
                         </button>
                       </TableHead>
-                      <TableHead className="text-right">Daily Limit</TableHead>
-                      <TableHead className="text-right">Monthly Limit</TableHead>
-                      <TableHead>
-                        <button
-                          className="flex items-center gap-1 hover:text-gray-900 transition-colors"
-                          onClick={() =>
-                            setFilters(prev => ({
-                              ...prev,
-                              sortBy: 'createdAt',
-                              sortOrder: prev.sortBy === 'createdAt' && prev.sortOrder === 'desc' ? 'asc' : 'desc',
-                              page: 1,
-                            }))
-                          }
-                        >
-                          Created
-                          {filters.sortBy === 'createdAt' ? (
-                            filters.sortOrder === 'desc' ? (
-                              <ArrowDown className="h-3.5 w-3.5" />
-                            ) : (
-                              <ArrowUp className="h-3.5 w-3.5" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                          )}
-                        </button>
-                      </TableHead>
-                      <TableHead>Owner</TableHead>
-                      <TableHead className="font-mono text-xs">RukaPay No.</TableHead>
-                      <TableHead className="font-mono text-xs">ID</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedWalletsArray.map((wallet) => {
-                      const sameTypeWallets = sortedWalletsArray.filter(w => w.walletType === wallet.walletType)
-                      const walletNumber = sameTypeWallets.findIndex(w => w.id === wallet.id) + 1
-                      const showWalletNumber = sameTypeWallets.length > 1
                       const ownerName = (wallet as any).ownerName ||
                         ((wallet as any).user?.profile
                           ? `${(wallet as any).user.profile.firstName} ${(wallet as any).user.profile.lastName}`.trim()
                           : null)
-                      const ownerContact = (wallet as any).ownerPhone || (wallet as any).user?.phone ||
-                        (wallet as any).ownerEmail || (wallet as any).user?.email
+                      const ownerPhone = (wallet as any).ownerPhone || (wallet as any).user?.phone || null
+                      const ownerEmail = (wallet as any).ownerEmail || (wallet as any).user?.email || null
+                      const ownerContact = ownerPhone || ownerEmail
+                      const walletUsername = (wallet as any).walletUsername
 
                       return (
                         <TableRow key={wallet.id}>
                           <TableCell>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0 max-w-[200px]">
                               <Wallet className="h-4 w-4 text-[#08163d] shrink-0" />
-                              <span className="font-medium">
-                                {wallet.description || `${wallet.walletType} Wallet`}
-                                {showWalletNumber && ` #${walletNumber}`}
+                              <span className="text-sm font-medium truncate" title={ownerName || undefined}>
+                                {ownerName || '—'}
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>{getStatusBadge(wallet)}</TableCell>
+                          <TableCell className="font-mono text-sm text-gray-700">
+                            {walletUsername ? `@${String(walletUsername).replace(/^@/, '')}` : '—'}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium text-[#08163d]">
+                            {wallet.publicWalletId || '—'}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">
                               {wallet.walletType}
                             </Badge>
                           </TableCell>
-                          <TableCell>{getCurrencyBadge(wallet.currency)}</TableCell>
-                          <TableCell className="text-right font-semibold text-[#08163d]">
-                            {formatCurrency(wallet.balance, wallet.currency)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {wallet.dailyLimit != null ? (
-                              <div>
-                                <p className="text-sm font-medium">{formatCurrency(wallet.dailyLimit, wallet.currency)}</p>
-                                {wallet.dailyUsed != null && (
-                                  <div className="mt-1">
-                                    <div className="w-24 bg-gray-200 rounded-full h-1.5 ml-auto">
-                                      <div
-                                        className="bg-blue-500 h-1.5 rounded-full"
-                                        style={{ width: `${Math.min(100, wallet.dailyLimit > 0 ? (wallet.dailyUsed / wallet.dailyLimit) * 100 : 0)}%` }}
-                                      />
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-0.5">
-                                      {formatCurrency(wallet.dailyUsed, wallet.currency)} used
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : <span className="text-gray-400">—</span>}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {(wallet as any).monthlyLimit != null ? (
-                              <div>
-                                <p className="text-sm font-medium">{formatCurrency((wallet as any).monthlyLimit, wallet.currency)}</p>
-                                {(wallet as any).monthlyUsed != null && (
-                                  <div className="mt-1">
-                                    <div className="w-24 bg-gray-200 rounded-full h-1.5 ml-auto">
-                                      <div
-                                        className="bg-purple-500 h-1.5 rounded-full"
-                                        style={{ width: `${Math.min(100, (wallet as any).monthlyLimit > 0 ? ((wallet as any).monthlyUsed / (wallet as any).monthlyLimit) * 100 : 0)}%` }}
-                                      />
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-0.5">
-                                      {formatCurrency((wallet as any).monthlyUsed, wallet.currency)} used
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            ) : <span className="text-gray-400">—</span>}
-                          </TableCell>
-                          <TableCell className="text-gray-500">
-                            {formatDateShort(wallet.createdAt)}
-                          </TableCell>
                           <TableCell>
                             <div className="min-w-0 max-w-[180px]">
-                              {ownerName && (
-                                <p className="text-sm font-medium truncate" title={ownerName}>{ownerName}</p>
-                              )}
-                              {ownerContact && (
-                                <p className="text-xs text-gray-500 truncate" title={String(ownerContact)}>
+                              {ownerContact ? (
+                                <p className="text-sm text-gray-700 truncate" title={String(ownerContact)}>
                                   {String(ownerContact)}
                                 </p>
-                              )}
-                              {!ownerName && !ownerContact && (
+                              ) : (
                                 <span className="text-gray-400 text-sm">—</span>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="font-mono text-sm font-medium text-[#08163d]">
-                            {wallet.publicWalletId || '—'}
+                          <TableCell>{getCurrencyBadge(wallet.currency)}</TableCell>
+                          <TableCell className="text-right font-semibold text-[#08163d]">
+                            {formatCurrency(wallet.balance, wallet.currency)}
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-gray-500">
-                            {wallet.id.slice(0, 8)}...
-                          </TableCell>
+                          <TableCell>{getStatusBadge(wallet)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <Button
