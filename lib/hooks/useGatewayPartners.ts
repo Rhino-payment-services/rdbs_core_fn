@@ -65,6 +65,8 @@ export interface GatewayPartnerDetails extends GatewayPartner {
   }>;
 }
 
+export type GatewayPartnerTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'AGGREGATOR';
+
 export interface CreateGatewayPartnerRequest {
   partnerName: string;
   contactEmail: string;
@@ -72,7 +74,8 @@ export interface CreateGatewayPartnerRequest {
   country: string;
   contactPerson?: string;
   partnerType?: string;
-  tier?: 'SILVER' | 'GOLD' | 'PLATINUM';
+  tier?: GatewayPartnerTier;
+  isAggregator?: boolean;
   website?: string;
   address?: string;
   description?: string;

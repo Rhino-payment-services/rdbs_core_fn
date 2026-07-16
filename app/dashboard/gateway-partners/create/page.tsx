@@ -187,15 +187,19 @@ const CreateGatewayPartnerPage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="SILVER">Silver (Basic)</SelectItem>
-                          <SelectItem value="GOLD">Gold (Standard)</SelectItem>
-                          <SelectItem value="PLATINUM">Platinum (Premium)</SelectItem>
+                          <SelectItem value="BRONZE">Bronze (Starter) — 60 req/min</SelectItem>
+                          <SelectItem value="SILVER">Silver (Basic) — 300 req/min</SelectItem>
+                          <SelectItem value="GOLD">Gold (Standard) — 1,000 req/min</SelectItem>
+                          <SelectItem value="PLATINUM">Platinum (Premium) — 3,000 req/min</SelectItem>
+                          <SelectItem value="AGGREGATOR">Aggregator (High-Volume) — 5,000 req/min</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-gray-500 mt-1">
-                        {formData.tier === 'SILVER' && 'Basic: 50K req/day, 500 txn/day, 50M UGX/day'}
-                        {formData.tier === 'GOLD' && 'Standard: 100K req/day, 2K txn/day, 200M UGX/day'}
-                        {formData.tier === 'PLATINUM' && 'Premium: 500K req/day, 10K txn/day, 1B UGX/day'}
+                        {formData.tier === 'BRONZE' && 'Starter: 10K req/day, 60 req/min'}
+                        {formData.tier === 'SILVER' && 'Basic: 50K req/day, 300 req/min, 500 txn/day'}
+                        {formData.tier === 'GOLD' && 'Standard: 200K req/day, 1K req/min, 2K txn/day'}
+                        {formData.tier === 'PLATINUM' && 'Premium: 500K req/day, 3K req/min, 10K txn/day'}
+                        {formData.tier === 'AGGREGATOR' && 'High-Volume: 1M req/day, 5K req/min — for aggregators submitting on behalf of many users'}
                       </p>
                     </div>
 
