@@ -1600,3 +1600,4 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     </>
   )
 }
+

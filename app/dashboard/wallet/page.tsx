@@ -479,7 +479,7 @@ const WalletPage = () => {
             <div className="mt-6 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Search by owner name, email, phone, or wallet ID..."
+                  placeholder="Search by owner name, email, phone, or RukaPay No..."
                   value={filters.search || ''}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full"
@@ -768,6 +768,7 @@ const WalletPage = () => {
                         </button>
                       </TableHead>
                       <TableHead>Owner</TableHead>
+                      <TableHead className="font-mono text-xs">RukaPay No.</TableHead>
                       <TableHead className="font-mono text-xs">ID</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -862,6 +863,9 @@ const WalletPage = () => {
                                 <span className="text-gray-400 text-sm">—</span>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium text-[#08163d]">
+                            {wallet.publicWalletId || '—'}
                           </TableCell>
                           <TableCell className="font-mono text-xs text-gray-500">
                             {wallet.id.slice(0, 8)}...
@@ -1242,6 +1246,12 @@ const WalletPage = () => {
                 <div className="space-y-4">
                   {/* Basic Information */}
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">RukaPay No.</label>
+                      <p className="text-sm font-mono font-semibold text-[#08163d] mt-1">
+                        {selectedWallet.publicWalletId || '—'}
+                      </p>
+                    </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Wallet ID</label>
                       <p className="text-sm font-mono text-gray-900 mt-1">{selectedWallet.id}</p>

@@ -728,6 +728,12 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
                                 {wallet.isActive ? 'Active' : 'Inactive'}
                               </Badge>
                             </div>
+                            <div>
+                              <p className="text-xs text-gray-500">RukaPay No.</p>
+                              <p className="font-mono text-sm font-semibold text-[#08163d]">
+                                {wallet.publicWalletId || '—'}
+                              </p>
+                            </div>
                           </div>
                           {isAdmin && wallet.isActive && (
                             <div className="shrink-0 fund-wallet-button-wrapper">

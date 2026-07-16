@@ -358,6 +358,7 @@ export interface Notification {
 export interface Wallet {
   id: string
   userId: string
+  publicWalletId?: string | null
   balance: number
   currency: string
   isActive: boolean
