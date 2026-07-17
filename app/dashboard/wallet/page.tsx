@@ -744,7 +744,9 @@ const WalletPage = () => {
                       const ownerName = (wallet as any).ownerName ||
                         ((wallet as any).user?.profile
                           ? `${(wallet as any).user.profile.firstName} ${(wallet as any).user.profile.lastName}`.trim()
-                          : null)
+                          : null) ||
+                        (wallet as any).partnerName ||
+                        null
                       const ownerPhone = (wallet as any).ownerPhone || (wallet as any).user?.phone || null
                       const ownerEmail = (wallet as any).ownerEmail || (wallet as any).user?.email || null
                       const ownerContact = ownerPhone || ownerEmail

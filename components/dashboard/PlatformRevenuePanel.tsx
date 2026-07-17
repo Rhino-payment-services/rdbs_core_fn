@@ -698,7 +698,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
         : isMno
           ? 'Failed to send to mobile money'
           : 'Failed to send to bank'
-      showSettleError(getFriendlyErrorMessage(error) || fallback)
+      showSettleError(mapBankTransferError(getFriendlyErrorMessage(error) || fallback))
       console.error('Platform revenue settlement failed:', error)
     }
   }
