@@ -31,6 +31,7 @@ export function mapBankTransferError(message: string): string {
 
   if (
     upper.includes('INVALID SORT CODE') ||
+    upper.includes('SORT CODE IS INVALID') ||
     upper.includes('SORT CODE FORMAT') ||
     upper.includes('MUST BE 6') ||
     upper.includes('6-DIGIT')

@@ -95,7 +95,7 @@ const TransactionsPage = () => {
   })
 
   // Fetch channel statistics
-  const { data: channelStatsData, isLoading: channelStatsLoading } = useChannelStatistics(
+  const { data: channelStatsData, isLoading: channelStatsLoading, error: channelStatsError, refetch: refetchChannelStats } = useChannelStatistics(
     startDate || undefined,
     endDate || undefined
   )
@@ -906,6 +906,8 @@ const TransactionsPage = () => {
           <ChannelStatistics
             channelStatsData={channelStatsData}
             isLoading={channelStatsLoading}
+            error={channelStatsError}
+            onRetry={() => void refetchChannelStats()}
             startDate={startDate}
             endDate={endDate}
           />

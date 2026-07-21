@@ -26,6 +26,7 @@ interface WalletItem {
   walletType?: string
   balance?: number | string | null
   currency?: string
+  publicWalletId?: string | null
 }
 
 interface CustomerStatsCardsProps {
@@ -116,6 +117,11 @@ const CustomerStatsCards = ({ stats, wallets = [] }: CustomerStatsCardsProps) =>
                   <p className="text-lg font-bold text-gray-900 mt-0.5">
                     {Number.isNaN(bal) ? '0' : bal.toLocaleString()} {curr}
                   </p>
+                  {w.publicWalletId && (
+                    <p className="text-xs font-mono text-[#08163d] mt-1">
+                      RukaPay No. {w.publicWalletId}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )

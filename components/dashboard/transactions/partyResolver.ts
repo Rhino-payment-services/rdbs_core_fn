@@ -185,6 +185,13 @@ export function getBasicPartnerDisplayLabel(tx: any): string {
     return 'Internal'
   }
 
+  if (isPartnerSubscriberWithdraw(tx) || isPartnerSubscriberDeposit(tx)) {
+    const approvingPartner = resolveApprovingApiPartnerLabel(tx)
+    if (approvingPartner) {
+      return approvingPartner
+    }
+  }
+
   if (upper(tx?.type) === 'BILL_PAYMENT') {
     const pt = m.payment_type
     const util = m.utilityProvider
@@ -229,9 +236,56 @@ export function getBasicPartnerDisplayLabel(tx: any): string {
   )
 }
 
+/** API/gateway partner linked on agent cash-in/out (partner subscriber APIs). */
+export function hasPartnerApprovalSignal(tx: any): boolean {
+  const m = tx?.metadata || {}
+  return !!(
+    tx?.partnerId ||
+    tx?.partner ||
+    m.partnerId ||
+    m.isApiPartnerTransaction === true ||
+    m.apiPartnerName ||
+    m.partnerName
+  )
+}
+
+/** Customer- or partner-initiated cash withdrawal confirmed via API partner. */
+export function isPartnerSubscriberWithdraw(tx: any): boolean {
+  const m = tx?.metadata || {}
+  return (
+    upper(tx?.type) === 'WITHDRAWAL' &&
+    upper(tx?.direction) === 'DEBIT' &&
+    upper(m.mode) === 'WITHDRAW' &&
+    hasPartnerApprovalSignal(tx)
+  )
+}
+
+/** Partner subscriber cash deposit via API partner. */
+export function isPartnerSubscriberDeposit(tx: any): boolean {
+  const m = tx?.metadata || {}
+  return (
+    upper(tx?.type) === 'DEPOSIT' &&
+    upper(tx?.direction) === 'CREDIT' &&
+    upper(m.mode) === 'DEPOSIT' &&
+    hasPartnerApprovalSignal(tx)
+  )
+}
+
+export function resolveApprovingApiPartnerLabel(tx: any): string | null {
+  const m = tx?.metadata || {}
+  const name =
+    tx?.partner?.partnerName ||
+    m.apiPartnerName ||
+    m.partnerName ||
+    tx?.partner?.partnerCode ||
+    null
+  const trimmed = String(name ?? '').trim()
+  return trimmed || null
+}
+
 /**
- * Partner column label: external payment rail (MTN, Airtel, ABC, Pegasus, etc.)
- * — NOT the API/gateway company (LIPAD, BOBPLUS). Matches TransactionTable Partner column.
+ * Partner column label: external payment rail (MTN, Airtel, ABC, Pegasus, etc.),
+ * or the API/gateway partner for agent cash-in/out (subscriber WITHDRAW/DEPOSIT).
  */
 export function resolvePaymentPartnerLabel(tx: any): string | null {
   const metadata = tx?.metadata || {}
@@ -249,6 +303,10 @@ export function resolvePaymentPartnerLabel(tx: any): string | null {
 
   if (isInternalPartnerLabelTransaction(tx)) {
     return 'Internal'
+  }
+
+  if (isPartnerSubscriberWithdraw(tx) || isPartnerSubscriberDeposit(tx)) {
+    return resolveApprovingApiPartnerLabel(tx)
   }
 
   const extPaymentPartner = tx?.partnerMapping?.partner || null
