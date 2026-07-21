@@ -8,6 +8,7 @@ interface DateRangeFilterProps {
   onStartDateChange: (date: string) => void
   onEndDateChange: (date: string) => void
   onClear: () => void
+  label?: string
 }
 
 export const DateRangeFilter = ({
@@ -15,13 +16,14 @@ export const DateRangeFilter = ({
   endDate,
   onStartDateChange,
   onEndDateChange,
-  onClear
+  onClear,
+  label = 'Date Range:'
 }: DateRangeFilterProps) => {
   return (
     <div className="flex items-center space-x-3">
       <div className="flex items-center space-x-2">
         <Calendar className="h-4 w-4 text-gray-500" />
-        <span className="text-sm font-medium text-gray-700">Date Range:</span>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
       </div>
       <div className="flex items-center space-x-2">
         <Input
