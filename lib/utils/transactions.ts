@@ -110,7 +110,11 @@ export const formatCompactUgx = (amount: number) => {
  * Format date string
  */
 export const formatDate = (dateString: string) => {
+  // Pin to Uganda time (EAT, UTC+3) so the ledger shows the same instant regardless of
+  // the viewer's machine timezone, and stays consistent with the Excel export which also
+  // formats in Africa/Kampala.
   return new Date(dateString).toLocaleString('en-UG', {
+    timeZone: 'Africa/Kampala',
     year: 'numeric',
     month: 'short',
     day: '2-digit',

@@ -614,29 +614,22 @@ const TransactionsPage = () => {
           partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
-        // Dated ledger export: prefer the booked accrual amount when one was credited
-        // in the period (revenue-aligned primary set). Fall back to the transaction's
-        // actual fee for all other rows — this covers:
-        //   • Losses (negative rukapayFee): never produce a platform_revenue_entry.
-        //   • Fees credited in a different period: revenue-aligned only in that period's export.
-        //   • Zero-fee transactions: rukapayFee = 0, so the fallback is also 0.
-        // The Revenue Summary sheet column sum still uses sumPlatformRevenueAccrualsInRange,
-        // so it remains aligned to the dashboard card regardless of per-row fallbacks.
+        // Dated ledger export: the "RukaPay Fee" column shows the platform revenue actually
+        // booked in this period, so summing the column reconciles with the Dashboard /
+        // Platform Revenue card. It is NOT backfilled with the transaction's actual fee —
+        // that fallback (booked || actualFee) is what previously made a manual column sum
+        // overshoot the dashboard, because it added fees that were credited in a different
+        // period, reversed, or never booked at all (losses / zero-fee rows -> 0 here).
+        // Non-dated exports keep the actual/intended fee.
         const rukapayFeeForExport = isDatedLedgerExport
-          ? (() => {
-              const booked = getBookedRukapayFeeForLedgerExport(tx, exportStart, exportEnd)
-              return booked !== 0 ? booked : rukapayFee
-            })()
+          ? getBookedRukapayFeeForLedgerExport(tx, exportStart, exportEnd)
           : rukapayFee
-        const revenueCreditedAt =
-          tx.platformRevenueAccrual?.creditedAt &&
-          (!isDatedLedgerExport ||
-            isPlatformRevenueCreditedInRange(
-              tx.platformRevenueAccrual.creditedAt,
-              exportStart,
-              exportEnd,
-            ))
-            ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
+        // Always show when the fee was booked into platform revenue, regardless of
+        // whether the accrual date falls inside the export window. Supplementary-batch
+        // rows (fetched by createdAt) may have accruals from a prior or later period —
+        // hiding them made the column appear to "stop" mid-file.
+        const revenueCreditedAt = tx.platformRevenueAccrual?.creditedAt
+          ? new Date(tx.platformRevenueAccrual.creditedAt).toLocaleString('en-GB', {
               timeZone: 'Africa/Kampala',
               year: 'numeric',
               month: '2-digit',
@@ -716,17 +709,28 @@ const TransactionsPage = () => {
         }
       })
 
-      const sumRukapayFeeColumn = isDatedLedgerExport
-        ? sumPlatformRevenueAccrualsInRange(
-            transactionsToExport,
-            exportStart,
-            exportEnd,
-          )
-        : Number(
-            transactionsToExport
-              .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
-              .toFixed(2),
-          )
+      // Sum of the "RukaPay Fee" column. For dated exports the column holds booked
+      // platform revenue for the period, so this reconciles with the dashboard card.
+      // Prefer the API's authoritative booked-revenue total (same
+      // buildPlatformRevenueAccrualStatsWhere query as the dashboard card). Re-summing
+      // from row accruals can diverge when supplementary-batch rows carry in-range
+      // accruals that weren't in the revenue-aligned primary set, or when a status filter
+      // makes the primary/supplementary split asymmetric. The API aggregate is always
+      // the source of truth.
+      const sumRukapayFeeColumn =
+        isDatedLedgerExport && bookedRevenueTotalFromApi != null
+          ? bookedRevenueTotalFromApi
+          : isDatedLedgerExport
+            ? sumPlatformRevenueAccrualsInRange(
+                transactionsToExport,
+                exportStart,
+                exportEnd,
+              )
+            : Number(
+                transactionsToExport
+                  .reduce((sum: number, tx: any) => sum + getNormalizedRukapayFee(tx), 0)
+                  .toFixed(2),
+              )
 
       let rukapayGrossRevenue: number | null =
         typeof bookedRevenueTotalFromApi === 'number' &&
@@ -765,7 +769,7 @@ const TransactionsPage = () => {
           Metric: 'Sum of RukaPay Fee column (transactions in this file)',
           Value: sumRukapayFeeColumn,
           Note: isDatedLedgerExport
-            ? 'Booked revenue on rows in this file where accrual was credited in the period'
+            ? 'Booked revenue for the period — matches the RukaPay Fee column sum and the Dashboard / Platform Revenue total.'
             : 'Sum of RukaPay Fee column values',
         },
         {
