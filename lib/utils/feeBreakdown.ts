@@ -578,9 +578,13 @@ export function resolveExportFeeColumns(tx: {
     }
   }
 
-  if (tx.platformRevenueAccrual != null) {
-    rukapayFee = exportFinite(tx.platformRevenueAccrual.amount)
-  }
+  // Note: we intentionally do NOT overwrite rukapayFee with tx.platformRevenueAccrual.amount
+  // here. That accrual reflects *when* revenue was booked (and can be 0 or absent for a given
+  // export period), whereas this function must always return the transaction's actual/intended
+  // RukaPay fee. Callers that need the booked-in-range amount (e.g. dated ledger exports) apply
+  // that logic themselves via getBookedRukapayFeeForLedgerExport, falling back to this value.
+  // Overwriting it here previously caused most rows to show 0 whenever any accrual record
+  // existed (even a zero-amount or out-of-range one), defeating that fallback.
 
   return { rukapayFee, telecomFee, partnerFee }
 }

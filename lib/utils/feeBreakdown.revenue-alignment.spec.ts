@@ -29,9 +29,29 @@ describe('revenue alignment — export column L vs dashboard booked revenue', ()
     expect(getNormalizedRukapayFee(juneAccrualTx)).toBe(500)
   })
 
-  it('resolveExportFeeColumns prefers booked platformRevenueAccrual.amount for the RukaPay Fee column', () => {
+  it('resolveExportFeeColumns returns the actual/intended fee, not the booked accrual amount', () => {
+    // resolveExportFeeColumns must NOT collapse to platformRevenueAccrual.amount — doing so
+    // previously caused most export rows to show 0 whenever any accrual existed (even a
+    // zero-amount or out-of-range one), because callers use this value as their fallback
+    // when the booked-in-range amount (via getBookedRukapayFeeForLedgerExport) is 0.
     const cols = resolveExportFeeColumns(juneAccrualTx)
-    expect(cols.rukapayFee).toBe(500)
+    expect(cols.rukapayFee).toBe(999)
+  })
+
+  it('per-row export fee falls back to the actual fee when accrual is 0/absent for the period (page.tsx logic)', () => {
+    // Mirrors the fallback in app/dashboard/transactions/page.tsx: prefer booked-in-range,
+    // else the actual computed fee from resolveExportFeeColumns.
+    const txWithZeroAccrual = {
+      ...juneAccrualTx,
+      platformRevenueAccrual: { amount: 0, creditedAt: '2026-06-15T12:00:00.000Z' },
+    }
+    const booked = getBookedRukapayFeeForLedgerExport(txWithZeroAccrual, '2026-06-01', '2026-06-30')
+    const actualFee = resolveExportFeeColumns(txWithZeroAccrual).rukapayFee
+    const rukapayFeeForExport = booked !== 0 ? booked : actualFee
+
+    expect(booked).toBe(0)
+    expect(actualFee).toBe(999)
+    expect(rukapayFeeForExport).toBe(999)
   })
 
   it('getBookedRukapayFeeForLedgerExport returns 0 for failed tx without accrual', () => {
