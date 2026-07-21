@@ -417,7 +417,11 @@ export const useChannelStatistics = (startDate?: string, endDate?: string) => {
 
   return useQuery({
     queryKey: ['transactions', 'channels', 'stats', startDate, endDate],
-    queryFn: () => apiFetch(`/transactions/channels/stats?${queryParams.toString()}`),
+    queryFn: () =>
+      apiFetch(`/transactions/channels/stats?${queryParams.toString()}`, {
+        // Aggregation can be slow on cold cache; default axios timeout is 10s.
+        timeout: 60000,
+      }),
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
 }

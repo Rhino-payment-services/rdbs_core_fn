@@ -37,6 +37,15 @@ import { StatusCheckModal } from '@/components/dashboard/transactions/StatusChec
 const EXPORT_ALL_TRANSACTIONS_LIMIT = 100_000
 const EXPORT_PAGE_SIZE = 5000
 
+/** Default ledger date window — keeps channel stats / lists off all-time scans. */
+function getDefaultLedgerDateRange(): { startDate: string; endDate: string } {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 30)
+  const toYmd = (d: Date) => d.toISOString().slice(0, 10)
+  return { startDate: toYmd(start), endDate: toYmd(end) }
+}
+
 const TransactionsPage = () => {
   // Pagination and filtering state
   const [currentPage, setCurrentPage] = useState(1)
@@ -53,8 +62,9 @@ const TransactionsPage = () => {
   const [statusFilter, setStatusFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
   const [channelFilter, setChannelFilter] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const defaultDates = useMemo(() => getDefaultLedgerDateRange(), [])
+  const [startDate, setStartDate] = useState(defaultDates.startDate)
+  const [endDate, setEndDate] = useState(defaultDates.endDate)
   
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
@@ -604,9 +614,19 @@ const TransactionsPage = () => {
           partnerLabel,
         })
         const { rukapayFee, telecomFee, partnerFee: partnerFeeValue } = exportFees
-        // Dated ledger export: column L is booked revenue only when credited in the period.
+        // Dated ledger export: prefer the booked accrual amount when one was credited
+        // in the period (revenue-aligned primary set). Fall back to the transaction's
+        // actual fee for all other rows — this covers:
+        //   • Losses (negative rukapayFee): never produce a platform_revenue_entry.
+        //   • Fees credited in a different period: revenue-aligned only in that period's export.
+        //   • Zero-fee transactions: rukapayFee = 0, so the fallback is also 0.
+        // The Revenue Summary sheet column sum still uses sumPlatformRevenueAccrualsInRange,
+        // so it remains aligned to the dashboard card regardless of per-row fallbacks.
         const rukapayFeeForExport = isDatedLedgerExport
-          ? getBookedRukapayFeeForLedgerExport(tx, exportStart, exportEnd)
+          ? (() => {
+              const booked = getBookedRukapayFeeForLedgerExport(tx, exportStart, exportEnd)
+              return booked !== 0 ? booked : rukapayFee
+            })()
           : rukapayFee
         const revenueCreditedAt =
           tx.platformRevenueAccrual?.creditedAt &&
