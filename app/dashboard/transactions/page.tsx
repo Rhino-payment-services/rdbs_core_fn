@@ -20,6 +20,7 @@ import {
   sumPlatformRevenueAccrualsInRange,
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from '@/components/dashboard/transactions/partyResolver'
+import { getKampalaCalendarDate } from '@/lib/utils/kampalaDate'
 import * as XLSX from 'xlsx'
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
@@ -37,15 +38,6 @@ import { StatusCheckModal } from '@/components/dashboard/transactions/StatusChec
 const EXPORT_ALL_TRANSACTIONS_LIMIT = 100_000
 const EXPORT_PAGE_SIZE = 5000
 
-/** Default ledger date window — keeps channel stats / lists off all-time scans. */
-function getDefaultLedgerDateRange(): { startDate: string; endDate: string } {
-  const end = new Date()
-  const start = new Date()
-  start.setDate(start.getDate() - 30)
-  const toYmd = (d: Date) => d.toISOString().slice(0, 10)
-  return { startDate: toYmd(start), endDate: toYmd(end) }
-}
-
 const TransactionsPage = () => {
   // Pagination and filtering state
   const [currentPage, setCurrentPage] = useState(1)
@@ -62,9 +54,15 @@ const TransactionsPage = () => {
   const [statusFilter, setStatusFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
   const [channelFilter, setChannelFilter] = useState("")
-  const defaultDates = useMemo(() => getDefaultLedgerDateRange(), [])
-  const [startDate, setStartDate] = useState(defaultDates.startDate)
-  const [endDate, setEndDate] = useState(defaultDates.endDate)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
+  // The transaction table stays unfiltered (shows transactions as they come in), but the
+  // summary/channel stats must NOT do an all-time cumulative scan — that was reporting
+  // wrong totals. When the user hasn't picked a date range, scope the stats to the last
+  // 30 days (Kampala calendar). An explicit filter overrides this window.
+  const statsStartDate = startDate || getKampalaCalendarDate(-30)
+  const statsEndDate = endDate || getKampalaCalendarDate(0)
   
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
@@ -100,14 +98,14 @@ const TransactionsPage = () => {
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
     type: typeFilter || undefined,
     status: statusFilter || undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined
+    startDate: statsStartDate,
+    endDate: statsEndDate
   })
 
   // Fetch channel statistics
   const { data: channelStatsData, isLoading: channelStatsLoading, error: channelStatsError, refetch: refetchChannelStats } = useChannelStatistics(
-    startDate || undefined,
-    endDate || undefined
+    statsStartDate,
+    statsEndDate
   )
 
   // Use ops search for ALL listing + searching + filters
@@ -920,8 +918,8 @@ const TransactionsPage = () => {
           <TransactionStatsCards
             stats={stats}
             isLoading={statsLoading}
-            startDate={startDate || undefined}
-            endDate={endDate || undefined}
+            startDate={statsStartDate}
+            endDate={statsEndDate}
             typeFilter={typeFilter || undefined}
             statusFilter={statusFilter || undefined}
           />
@@ -932,8 +930,8 @@ const TransactionsPage = () => {
             isLoading={channelStatsLoading}
             error={channelStatsError}
             onRetry={() => void refetchChannelStats()}
-            startDate={startDate}
-            endDate={endDate}
+            startDate={statsStartDate}
+            endDate={statsEndDate}
           />
 
           {/* Transactions Table */}
