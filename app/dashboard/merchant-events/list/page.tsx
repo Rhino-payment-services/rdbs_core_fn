@@ -16,11 +16,12 @@ import { EventStatusBadge } from '@/components/dashboard/merchant-events/StatusB
 import { TableSkeleton } from '@/components/dashboard/merchant-events/TableSkeleton'
 import { EmptyState } from '@/components/dashboard/merchant-events/EmptyState'
 import { CalendarDays, Download, RefreshCw } from 'lucide-react'
-import { useMerchantEventsList, useExportEvents } from '@/lib/hooks/useMerchantEvents'
+import { useMerchantEventsList, useExportEvents, useMerchantEventsStatistics } from '@/lib/hooks/useMerchantEvents'
 import { formatKampalaDateTime, formatUgx, EVENT_STATUS_OPTIONS } from '@/lib/utils/merchantEvents'
 import { downloadCsv } from '@/lib/utils/merchantEventsExport'
 import type { EventListFilters } from '@/lib/api/merchantEventsAdminApi'
 import { toast } from 'sonner'
+import { PlatformSnapshot } from '@/components/dashboard/merchant-events/charts/PlatformSnapshot'
 
 const PAGE_SIZE = 20
 
@@ -31,6 +32,7 @@ export default function MerchantEventsListPage() {
   const [filters, setFilters] = useState<EventListFilters>({ page: 1, limit: PAGE_SIZE })
 
   const { data, isLoading, error, refetch } = useMerchantEventsList(filters)
+  const { data: stats, isLoading: statsLoading } = useMerchantEventsStatistics()
   const exportMutation = useExportEvents()
 
   const events = data?.data ?? []
@@ -80,6 +82,13 @@ export default function MerchantEventsListPage() {
             </Button>
           </>
         }
+      />
+
+      <PlatformSnapshot
+        variant="list"
+        isLoading={statsLoading}
+        eventsByStatus={stats?.eventsByStatus}
+        grossSalesByCurrency={stats?.grossSalesByCurrency}
       />
 
       <FilterBar onApply={applyFilters} onClear={clearFilters}>

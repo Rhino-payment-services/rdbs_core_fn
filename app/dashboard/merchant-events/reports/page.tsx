@@ -18,6 +18,8 @@ import { formatKampalaDateTime, formatUgx } from '@/lib/utils/merchantEvents'
 import { downloadCsv } from '@/lib/utils/merchantEventsExport'
 import type { RevenueReportFilters } from '@/lib/api/merchantEventsAdminApi'
 import { getKampalaCalendarDate } from '@/lib/utils/kampalaDate'
+import { HorizontalBarChart } from '@/components/dashboard/merchant-events/charts/HorizontalBarChart'
+import { DonutChart } from '@/components/dashboard/merchant-events/charts/DonutChart'
 
 export default function RevenueReportPage() {
   const defaultFrom = getKampalaCalendarDate(-30)
@@ -123,6 +125,22 @@ export default function RevenueReportPage() {
                 </TabsList>
 
                 <TabsContent value="merchant">
+                  {(data?.byMerchant?.length ?? 0) > 0 && (
+                    <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Top merchants by gross sales</p>
+                      <HorizontalBarChart
+                        data={(data?.byMerchant ?? []).map((row) => ({
+                          label: row.merchantName,
+                          count: row.grossSales,
+                          value: row.grossSales,
+                          currency: row.currency,
+                        }))}
+                        valueIsCurrency
+                        statusLabels={false}
+                        maxItems={10}
+                      />
+                    </div>
+                  )}
                   <div className="flex justify-end mb-3">
                     <Button
                       variant="outline"
@@ -164,6 +182,22 @@ export default function RevenueReportPage() {
                 </TabsContent>
 
                 <TabsContent value="event">
+                  {(data?.byEvent?.length ?? 0) > 0 && (
+                    <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Top events by gross sales</p>
+                      <HorizontalBarChart
+                        data={(data?.byEvent ?? []).map((row) => ({
+                          label: row.eventTitle,
+                          count: row.grossSales,
+                          value: row.grossSales,
+                          currency: row.currency,
+                        }))}
+                        valueIsCurrency
+                        statusLabels={false}
+                        maxItems={10}
+                      />
+                    </div>
+                  )}
                   <div className="flex justify-end mb-3">
                     <Button
                       variant="outline"
@@ -205,6 +239,21 @@ export default function RevenueReportPage() {
                 </TabsContent>
 
                 <TabsContent value="currency">
+                  {(data?.byCurrency?.length ?? 0) > 0 && (
+                    <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Revenue by currency</p>
+                      <DonutChart
+                        data={(data?.byCurrency ?? []).map((row) => ({
+                          label: row.currency,
+                          value: row.grossSales,
+                          currency: row.currency,
+                        }))}
+                        centerLabel="Revenue"
+                        valueIsCurrency
+                        compact
+                      />
+                    </div>
+                  )}
                   <div className="flex justify-end mb-3">
                     <Button
                       variant="outline"

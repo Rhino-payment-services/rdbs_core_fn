@@ -37,6 +37,10 @@ import {
   resolveMediaUrl,
   ORDER_STATUS_OPTIONS,
 } from '@/lib/utils/merchantEvents'
+import { ChartCard } from '@/components/dashboard/merchant-events/charts/ChartCard'
+import { ColumnChart } from '@/components/dashboard/merchant-events/charts/ColumnChart'
+import { HorizontalBarChart } from '@/components/dashboard/merchant-events/charts/HorizontalBarChart'
+import { RadialChart } from '@/components/dashboard/merchant-events/charts/RadialChart'
 import type { EventStatus, TierStatus, EventOrderFilters, AttendeeListFilters } from '@/lib/api/merchantEventsAdminApi'
 import {
   ArrowLeft,
@@ -83,6 +87,28 @@ export default function EventDetailPage() {
   const tierSalesMap = new Map(
     (event?.salesStatistics?.tierSales ?? []).map((t) => [t.tierId, t])
   )
+
+  const tierSoldData =
+    event?.tiers.map((tier) => {
+      const sales = tierSalesMap.get(tier.id)
+      return {
+        label: tier.name,
+        count: sales?.sold ?? tier.sold ?? 0,
+      }
+    }) ?? []
+
+  const tierRevenueData =
+    event?.tiers
+      .map((tier) => {
+        const sales = tierSalesMap.get(tier.id)
+        if (!sales) return null
+        return {
+          label: tier.name,
+          value: sales.grossSales,
+          currency: sales.currency,
+        }
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null) ?? []
 
   const handleEventStatus = async () => {
     if (!statusDialog.status) return
@@ -228,6 +254,24 @@ export default function EventDetailPage() {
               icon={CalendarDays}
               iconBg="bg-violet-600"
             />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <ChartCard
+              title="Tickets Sold by Tier"
+              description="Sales volume per ticket tier"
+              isEmpty={tierSoldData.length === 0 || tierSoldData.every((t) => t.count === 0)}
+            >
+              <HorizontalBarChart data={tierSoldData} statusLabels={false} />
+            </ChartCard>
+            <ChartCard
+              title="Gross Sales by Tier"
+              description="Revenue per ticket tier"
+              isEmpty={tierRevenueData.length === 0}
+              emptyMessage="No tier sales yet"
+            >
+              <ColumnChart data={tierRevenueData} valueIsCurrency />
+            </ChartCard>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
@@ -505,41 +549,12 @@ export default function EventDetailPage() {
                 <CardTitle className="text-base">Check-in Progress</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col items-center py-6">
-                <div className="relative w-36 h-36">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="42"
-                      fill="none"
-                      stroke="#08163d"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(checkIn?.checkInRate ?? 0) * 2.64} 264`}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold text-[#08163d]">
-                      {Math.round(checkIn?.checkInRate ?? 0)}%
-                    </span>
-                    <span className="text-xs text-gray-500">check-in rate</span>
-                  </div>
-                </div>
-                <dl className="grid grid-cols-3 gap-4 w-full mt-6 text-center text-sm">
-                  <div>
-                    <dt className="text-gray-500">Total</dt>
-                    <dd className="font-bold text-lg">{checkIn?.totalAttendees ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-gray-500">Checked In</dt>
-                    <dd className="font-bold text-lg text-green-600">{checkIn?.checkedInCount ?? 0}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-gray-500">Pending</dt>
-                    <dd className="font-bold text-lg text-amber-600">{checkIn?.pendingCount ?? 0}</dd>
-                  </div>
-                </dl>
+                <RadialChart
+                  rate={checkIn?.checkInRate ?? 0}
+                  checkedIn={checkIn?.checkedInCount ?? 0}
+                  pending={checkIn?.pendingCount ?? 0}
+                  total={checkIn?.totalAttendees ?? 0}
+                />
               </CardContent>
             </Card>
 

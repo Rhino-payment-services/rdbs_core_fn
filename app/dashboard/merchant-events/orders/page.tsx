@@ -18,11 +18,12 @@ import { CopyableRef } from '@/components/dashboard/merchant-events/CopyableRef'
 import { TableSkeleton } from '@/components/dashboard/merchant-events/TableSkeleton'
 import { EmptyState } from '@/components/dashboard/merchant-events/EmptyState'
 import { ShoppingCart, Download, RefreshCw } from 'lucide-react'
-import { useGlobalOrders, useExportOrders } from '@/lib/hooks/useMerchantEvents'
+import { useGlobalOrders, useExportOrders, useMerchantEventsStatistics } from '@/lib/hooks/useMerchantEvents'
 import { formatKampalaDateTime, formatUgx, ORDER_STATUS_OPTIONS } from '@/lib/utils/merchantEvents'
 import { downloadCsv } from '@/lib/utils/merchantEventsExport'
 import type { OrderListFilters } from '@/lib/api/merchantEventsAdminApi'
 import { toast } from 'sonner'
+import { PlatformSnapshot } from '@/components/dashboard/merchant-events/charts/PlatformSnapshot'
 
 const PAGE_SIZE = 20
 
@@ -33,6 +34,7 @@ export default function GlobalOrdersPage() {
   const [filters, setFilters] = useState<OrderListFilters>({ page: 1, limit: PAGE_SIZE })
 
   const { data, isLoading, error, refetch } = useGlobalOrders(filters)
+  const { data: stats, isLoading: statsLoading } = useMerchantEventsStatistics()
   const exportMutation = useExportOrders()
 
   const orders = data?.data ?? []
@@ -82,6 +84,13 @@ export default function GlobalOrdersPage() {
             </Button>
           </>
         }
+      />
+
+      <PlatformSnapshot
+        variant="orders"
+        isLoading={statsLoading}
+        orderStatusBreakdown={stats?.orderStatusBreakdown}
+        paymentStatusBreakdown={stats?.paymentStatusBreakdown}
       />
 
       <FilterBar onApply={applyFilters} onClear={clearFilters}>

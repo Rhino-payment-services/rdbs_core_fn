@@ -70,16 +70,16 @@ export const TICKET_STATUS_COLORS: Record<AttendeeStatus, string> = {
 }
 
 export const CHART_COLORS = [
-  '#08163d',
-  '#3b5bdb',
-  '#5c7cfa',
-  '#748ffc',
-  '#91a7ff',
-  '#22c55e',
+  '#8b5cf6',
+  '#10b981',
   '#f59e0b',
-  '#ef4444',
-  '#64748b',
-  '#0ea5e9',
+  '#f43f5e',
+  '#06b6d4',
+  '#6366f1',
+  '#f97316',
+  '#14b8a6',
+  '#ec4899',
+  '#84cc16',
 ]
 
 export function getEventStatusColor(status: string): string {
