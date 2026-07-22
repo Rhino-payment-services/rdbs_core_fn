@@ -2,118 +2,114 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { NextAuthOptions } from "next-auth"
 import axios from "axios"
 
+function mapBackendUser(data: any) {
+  return {
+    id: data.user.id,
+    email: data.user.email,
+    phone: data.user.phone || null,
+    role: data.user.role,
+    userType: data.user.userType,
+    status: data.user.status,
+    isVerified: data.user.isVerified,
+    lastLoginAt: data.user.lastLoginAt,
+    createdAt: data.user.createdAt,
+    updatedAt: data.user.updatedAt,
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    kycStatus: data.user.kycStatus,
+    verificationLevel: data.user.verificationLevel,
+    canHaveWallet: data.user.canHaveWallet,
+    permissions: data.user.permissions || [],
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        otp: { label: "OTP", type: "text" },
+        challengeToken: { label: "Challenge Token", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          console.log("❌ Missing credentials")
-          return null
-        }
-
-        console.log("🔐 Attempting login with:", {
-          email: credentials.email,
-          password: credentials.password ? "***" : "missing"
-        })
+        const backendBase =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+        const channel = process.env.NEXT_PUBLIC_CHANNEL || "BACKOFFICE"
 
         try {
-          // Call your backend endpoint using Axios
-          const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/login`
-          console.log("🌐 Calling backend:", backendUrl)
-          
+          // Step 2: complete staff login with email OTP + challenge token
+          if (credentials?.challengeToken && credentials?.otp) {
+            const response = await axios.post(
+              `${backendBase}/auth/login/verify-otp`,
+              {
+                challengeToken: credentials.challengeToken,
+                otp: credentials.otp,
+                channel,
+              },
+              {
+                headers: { "Content-Type": "application/json" },
+              },
+            )
+
+            const data = response.data
+            if (data.user && data.accessToken) {
+              return mapBackendUser(data)
+            }
+            return null
+          }
+
+          if (!credentials?.email || !credentials?.password) {
+            console.log("❌ Missing credentials")
+            return null
+          }
+
+          // Step 1: password login (may return requiresOtp for staff)
           const response = await axios.post(
-            backendUrl,
+            `${backendBase}/auth/login`,
             {
               email: credentials.email,
               password: credentials.password,
-              channel: process.env.NEXT_PUBLIC_CHANNEL || 'BACKOFFICE'
+              channel,
             },
             {
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }
+              headers: { "Content-Type": "application/json" },
+            },
           )
 
-          console.log("✅ Backend response:", response.data)
-
           const data = response.data
-          console.log("📊 Response data structure:", Object.keys(data))
-          console.log("📊 User object keys:", data.user ? Object.keys(data.user) : "No user object")
-          
-          if (data.user && data.accessToken) {
-            console.log("✅ User authenticated successfully:", data.user.email)
-            
-            // Map backend response to NextAuth user object
-            const userObject = {
-              id: data.user.id,
-              email: data.user.email,
-              phone: data.user.phone || null,
-              role: data.user.role,
-              userType: data.user.userType,
-              status: data.user.status,
-              isVerified: data.user.isVerified,
-              lastLoginAt: data.user.lastLoginAt,
-              createdAt: data.user.createdAt,
-              updatedAt: data.user.updatedAt,
-              accessToken: data.accessToken,
-              refreshToken: data.refreshToken,
-              // Add additional fields from your backend
-              kycStatus: data.user.kycStatus,
-              verificationLevel: data.user.verificationLevel,
-              canHaveWallet: data.user.canHaveWallet,
-              // Include permissions in session
-              permissions: data.user.permissions || [],
-            }
-            
-            console.log("✅ Returning user object:", userObject)
-            return userObject
+
+          if (data?.requiresOtp && data?.challengeToken) {
+            // Staff OTP challenge must be completed via verify-otp; do not create a session yet.
+            console.log("🔐 Staff login requires email OTP")
+            return null
           }
-          
-          console.log("❌ Missing required fields:")
-          console.log("  - user:", !!data.user)
-          console.log("  - accessToken:", !!data.accessToken)
-          console.log("  - user.id:", data.user?.id)
-          console.log("  - user.email:", data.user?.email)
-          console.log("❌ Invalid response format:", data)
+
+          if (data.user && data.accessToken) {
+            return mapBackendUser(data)
+          }
+
           return null
         } catch (error: any) {
           if (error.response) {
-            // Server responded with error status
             const { status, data } = error.response
             console.error(`❌ Backend error ${status}:`, data)
-            
-            if (status === 401) {
-              console.error("❌ Authentication failed - Invalid credentials")
-              console.error("Backend message:", data.message || "Invalid email or password")
-            } else if (status === 404) {
-              console.error("❌ Endpoint not found - Check backend URL")
-            } else if (status >= 500) {
-              console.error("❌ Server error - Check backend logs")
-            }
           } else if (error.request) {
-            // Request made but no response received
             console.error("❌ Network error - No response from backend")
-            console.error("Check if backend is running on:", process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000')
           } else {
-            // Something else happened
             console.error("❌ Request setup error:", error.message)
           }
-          
+
           return null
         }
-      }
-    })
+      },
+    }),
   ],
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60, // 24 hours
-    updateAge: 24 * 60 * 60, // 24 hours - only update session once per day
+    updateAge: 24 * 60 * 60,
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -130,7 +126,6 @@ export const authOptions: NextAuthOptions = {
         token.updatedAt = user.updatedAt
         token.accessToken = user.accessToken
         token.refreshToken = user.refreshToken
-        // Additional fields from your backend
         token.kycStatus = user.kycStatus
         token.verificationLevel = user.verificationLevel
         token.canHaveWallet = user.canHaveWallet
@@ -152,44 +147,17 @@ export const authOptions: NextAuthOptions = {
         session.user.updatedAt = token.updatedAt as string
         session.accessToken = token.accessToken as string
         session.refreshToken = token.refreshToken as string
-        // Additional fields from your backend
         session.user.kycStatus = token.kycStatus as string
         session.user.verificationLevel = token.verificationLevel as string
         session.user.canHaveWallet = token.canHaveWallet as boolean
-        ;(session.user as any).permissions = token.permissions as string[]
+        ;(session.user as any).permissions = token.permissions
       }
       return session
     },
-    async redirect({ url, baseUrl }) {
-      // Prevent redirect loops - if already on login page, go to dashboard
-      if (url.includes("/auth/login")) {
-        return `${baseUrl}/dashboard`
-      }
-      
-      // Handle relative URLs
-      if (url.startsWith("/")) {
-        return `${baseUrl}${url}`
-      }
-      
-      // Handle absolute URLs
-      try {
-        const urlObj = new URL(url)
-        // Only allow same-origin redirects
-        if (urlObj.origin === baseUrl) {
-          return url
-        }
-      } catch (e) {
-        // Invalid URL, fallback to dashboard
-        return `${baseUrl}/dashboard`
-      }
-      
-      // Default fallback
-      return baseUrl
-    }
   },
   pages: {
-    signIn: '/auth/login',
-    error: '/auth/login',
+    signIn: "/auth/login",
+    error: "/auth/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
 }
