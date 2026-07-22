@@ -2,7 +2,11 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { NextAuthOptions } from "next-auth"
 import axios from "axios"
 
-function mapBackendUser(data: any) {
+function mapBackendUser(data: {
+  user: any
+  accessToken: string
+  refreshToken?: string
+}) {
   return {
     id: data.user.id,
     email: data.user.email,
@@ -28,6 +32,11 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
+        // Preferred: complete session from already-verified backend tokens
+        accessToken: { label: "Access Token", type: "text" },
+        refreshToken: { label: "Refresh Token", type: "text" },
+        user: { label: "User JSON", type: "text" },
+        // Legacy / OTP verify path (server-side backend call)
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         otp: { label: "OTP", type: "text" },
@@ -39,7 +48,24 @@ export const authOptions: NextAuthOptions = {
         const channel = process.env.NEXT_PUBLIC_CHANNEL || "BACKOFFICE"
 
         try {
-          // Step 2: complete staff login with email OTP + challenge token
+          // Preferred path: tokens already issued by /auth/login or /auth/login/verify-otp
+          if (credentials?.accessToken && credentials?.user) {
+            try {
+              const user = JSON.parse(credentials.user)
+              if (user?.id && user?.email) {
+                return mapBackendUser({
+                  user,
+                  accessToken: credentials.accessToken,
+                  refreshToken: credentials.refreshToken,
+                }) as any
+              }
+            } catch (parseError) {
+              console.error("❌ Failed to parse user payload for session", parseError)
+              return null
+            }
+          }
+
+          // OTP verify via backend (fallback if client didn't pass tokens)
           if (credentials?.challengeToken && credentials?.otp) {
             const response = await axios.post(
               `${backendBase}/auth/login/verify-otp`,
@@ -55,39 +81,18 @@ export const authOptions: NextAuthOptions = {
 
             const data = response.data
             if (data.user && data.accessToken) {
-              return mapBackendUser(data)
+              return mapBackendUser(data) as any
             }
             return null
           }
 
-          if (!credentials?.email || !credentials?.password) {
-            console.log("❌ Missing credentials")
+          // Password login is handled by the login page directly (OTP challenge).
+          // Do not create a session from password alone for BACKOFFICE.
+          if (credentials?.email && credentials?.password) {
+            console.log(
+              "🔐 Password-only NextAuth login is disabled for staff OTP flow",
+            )
             return null
-          }
-
-          // Step 1: password login (may return requiresOtp for staff)
-          const response = await axios.post(
-            `${backendBase}/auth/login`,
-            {
-              email: credentials.email,
-              password: credentials.password,
-              channel,
-            },
-            {
-              headers: { "Content-Type": "application/json" },
-            },
-          )
-
-          const data = response.data
-
-          if (data?.requiresOtp && data?.challengeToken) {
-            // Staff OTP challenge must be completed via verify-otp; do not create a session yet.
-            console.log("🔐 Staff login requires email OTP")
-            return null
-          }
-
-          if (data.user && data.accessToken) {
-            return mapBackendUser(data)
           }
 
           return null

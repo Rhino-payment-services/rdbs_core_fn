@@ -27,8 +27,6 @@ function LoginForm() {
   const searchParams = useSearchParams()
 
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  const channel = process.env.NEXT_PUBLIC_CHANNEL || 'BACKOFFICE'
 
   useEffect(() => {
     let mounted = true
@@ -64,15 +62,22 @@ function LoginForm() {
       .required('OTP is required'),
   })
 
-  const completeSessionLogin = async (signInPayload: Record<string, string>) => {
+  const completeSessionLogin = async (authData: {
+    user: any
+    accessToken: string
+    refreshToken?: string
+  }) => {
     const result = await signIn('credentials', {
-      ...signInPayload,
+      accessToken: authData.accessToken,
+      refreshToken: authData.refreshToken || '',
+      user: JSON.stringify(authData.user),
       redirect: false,
       callbackUrl,
     })
 
     if (result?.error) {
-      throw new Error('Invalid or expired OTP')
+      console.error('NextAuth session error:', result.error)
+      throw new Error('Failed to create session. Please try again.')
     }
     if (!result?.ok) {
       throw new Error('Authentication response unclear. Please try again.')
@@ -96,6 +101,15 @@ function LoginForm() {
     }, 1000)
   }
 
+  const unwrapLoginPayload = (payload: any) => {
+    if (!payload || typeof payload !== 'object') return payload
+    // Some gateways wrap as { data: {...} }
+    if (payload.data && typeof payload.data === 'object' && (payload.data.requiresOtp || payload.data.accessToken || payload.data.user)) {
+      return payload.data
+    }
+    return payload
+  }
+
   const handleSubmit = async (
     values: { email: string; password: string },
     { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
@@ -104,17 +118,13 @@ function LoginForm() {
     setError('')
 
     try {
-      const response = await axios.post(
-        `${apiBase}/auth/login`,
-        {
-          email: values.email,
-          password: values.password,
-          channel,
-        },
-        { headers: { 'Content-Type': 'application/json' } },
-      )
+      const response = await axios.post('/api/auth/staff-login', {
+        email: values.email,
+        password: values.password,
+      })
 
-      const data = response.data
+      const data = unwrapLoginPayload(response.data)
+      console.log('🔐 Login response keys:', data ? Object.keys(data) : null)
 
       if (data?.requiresOtp && data?.challengeToken) {
         setOtpChallenge({
@@ -128,10 +138,10 @@ function LoginForm() {
       }
 
       if (data?.user && data?.accessToken) {
-        // Non-OTP path (unexpected for BACKOFFICE, but keep as fallback)
         await completeSessionLogin({
-          email: values.email,
-          password: values.password,
+          user: data.user,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
         })
         return
       }
@@ -139,14 +149,15 @@ function LoginForm() {
       setError('Unexpected login response. Please try again.')
       toast.error('Unexpected login response. Please try again.')
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message ||
-        (Array.isArray(err?.response?.data?.message)
-          ? err.response.data.message.join(', ')
-          : null) ||
-        'Invalid email or password'
-      setError(typeof message === 'string' ? message : 'Invalid email or password')
-      toast.error('Login failed. Please check your credentials.')
+      console.error('🔐 Login request failed:', err?.response?.status, err?.response?.data || err?.message)
+      const rawMessage = err?.response?.data?.message
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : 'Invalid email or password'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsLoading(false)
       setSubmitting(false)
@@ -162,13 +173,36 @@ function LoginForm() {
     setError('')
 
     try {
-      await completeSessionLogin({
+      const response = await axios.post('/api/auth/staff-verify-otp', {
         challengeToken: otpChallenge.challengeToken,
         otp: values.otp,
       })
+      // axios throws on non-2xx by default — but our proxy returns status as-is.
+      // If status is 401/400, axios will throw into catch.
+      if (response.status >= 400) {
+        throw Object.assign(new Error('OTP verification failed'), {
+          response,
+        })
+      }
+      const data = unwrapLoginPayload(response.data)
+      if (!data?.user || !data?.accessToken) {
+        throw new Error('Invalid or expired OTP')
+      }
+      await completeSessionLogin({
+        user: data.user,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      })
     } catch (err: any) {
-      setError(err?.message || 'Invalid or expired OTP')
-      toast.error(err?.message || 'Invalid or expired OTP')
+      console.error('🔐 OTP verify failed:', err?.response?.status, err?.response?.data || err?.message)
+      const rawMessage = err?.response?.data?.message
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : err?.message || 'Invalid or expired OTP'
+      setError(message)
+      toast.error(message)
     } finally {
       setIsLoading(false)
       setSubmitting(false)
@@ -180,11 +214,12 @@ function LoginForm() {
     setIsLoading(true)
     setError('')
     try {
-      const response = await axios.post(
-        `${apiBase}/auth/login/resend-otp`,
-        { challengeToken: otpChallenge.challengeToken },
-        { headers: { 'Content-Type': 'application/json' } },
-      )
+      const response = await axios.post('/api/auth/staff-resend-otp', {
+        challengeToken: otpChallenge.challengeToken,
+      })
+      if (response.status >= 400) {
+        throw Object.assign(new Error('Failed to resend OTP'), { response })
+      }
       toast.success(response.data?.message || 'OTP resent to your email')
       setResendCooldown(30)
       if (response.data?.email) {
