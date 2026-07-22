@@ -54,15 +54,24 @@ const TransactionsPage = () => {
   const [statusFilter, setStatusFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
   const [channelFilter, setChannelFilter] = useState("")
+  // Three independent date filters:
+  //  1. Overall summary cards  -> summaryStartDate / summaryEndDate
+  //  2. By-channel statistics   -> channelStartDate / channelEndDate
+  //  3. Transactions table      -> startDate / endDate
+  // The table shows transactions as they come in (empty = all). The two stat sections must
+  // NOT do an all-time cumulative scan (it reported wrong totals), so when their own filter
+  // is empty they fall back to the last 30 days (Kampala calendar).
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [summaryStartDate, setSummaryStartDate] = useState("")
+  const [summaryEndDate, setSummaryEndDate] = useState("")
+  const [channelStartDate, setChannelStartDate] = useState("")
+  const [channelEndDate, setChannelEndDate] = useState("")
 
-  // The transaction table stays unfiltered (shows transactions as they come in), but the
-  // summary/channel stats must NOT do an all-time cumulative scan — that was reporting
-  // wrong totals. When the user hasn't picked a date range, scope the stats to the last
-  // 30 days (Kampala calendar). An explicit filter overrides this window.
-  const statsStartDate = startDate || getKampalaCalendarDate(-30)
-  const statsEndDate = endDate || getKampalaCalendarDate(0)
+  const summaryStart = summaryStartDate || getKampalaCalendarDate(-30)
+  const summaryEnd = summaryEndDate || getKampalaCalendarDate(0)
+  const channelStart = channelStartDate || getKampalaCalendarDate(-30)
+  const channelEnd = channelEndDate || getKampalaCalendarDate(0)
   
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
@@ -98,14 +107,14 @@ const TransactionsPage = () => {
   const { data: transactionStats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useTransactionSystemStats({
     type: typeFilter || undefined,
     status: statusFilter || undefined,
-    startDate: statsStartDate,
-    endDate: statsEndDate
+    startDate: summaryStart,
+    endDate: summaryEnd
   })
 
   // Fetch channel statistics
   const { data: channelStatsData, isLoading: channelStatsLoading, error: channelStatsError, refetch: refetchChannelStats } = useChannelStatistics(
-    statsStartDate,
-    statsEndDate
+    channelStart,
+    channelEnd
   )
 
   // Use ops search for ALL listing + searching + filters
@@ -210,12 +219,11 @@ const TransactionsPage = () => {
     setCurrentPage(1) // Reset to first page when filters change
   }, [])
 
-  // Refetch stats when date filters change
+  // Refetch summary stats when its own date filter changes. (react-query already refetches
+  // on query-key change, but this keeps behaviour explicit for the manual-refetch path.)
   useEffect(() => {
-    if (startDate || endDate) {
-      refetchStats()
-    }
-  }, [startDate, endDate, refetchStats])
+    refetchStats()
+  }, [summaryStart, summaryEnd, refetchStats])
 
   // Handle view transaction details
   const handleViewTransaction = (transaction: any) => {
@@ -894,59 +902,95 @@ const TransactionsPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Transaction Ledgers</h1>
               <p className="mt-2 text-gray-600">Investigate and analyze transaction information</p>
             </div>
-            
-            <DateRangeFilter
-              startDate={startDate}
-              endDate={endDate}
-              onStartDateChange={(date) => {
-                setStartDate(date)
-                handleFilterChange()
-              }}
-              onEndDateChange={(date) => {
-                setEndDate(date)
-                handleFilterChange()
-              }}
-              onClear={() => {
-                setStartDate("")
-                setEndDate("")
-                handleFilterChange()
-              }}
+          </div>
+
+          {/* Overall summary — own date filter (defaults to last 30 days) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Overall Summary</h2>
+              <DateRangeFilter
+                label="Summary:"
+                startDate={summaryStartDate}
+                endDate={summaryEndDate}
+                onStartDateChange={setSummaryStartDate}
+                onEndDateChange={setSummaryEndDate}
+                onClear={() => {
+                  setSummaryStartDate("")
+                  setSummaryEndDate("")
+                }}
+              />
+            </div>
+            <TransactionStatsCards
+              stats={stats}
+              isLoading={statsLoading}
+              startDate={summaryStart}
+              endDate={summaryEnd}
+              typeFilter={typeFilter || undefined}
+              statusFilter={statusFilter || undefined}
             />
           </div>
 
-          {/* Stats Cards */}
-          <TransactionStatsCards
-            stats={stats}
-            isLoading={statsLoading}
-            startDate={statsStartDate}
-            endDate={statsEndDate}
-            typeFilter={typeFilter || undefined}
-            statusFilter={statusFilter || undefined}
-          />
+          {/* By-channel statistics — own date filter (defaults to last 30 days) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">By Channel</h2>
+              <DateRangeFilter
+                label="Channel:"
+                startDate={channelStartDate}
+                endDate={channelEndDate}
+                onStartDateChange={setChannelStartDate}
+                onEndDateChange={setChannelEndDate}
+                onClear={() => {
+                  setChannelStartDate("")
+                  setChannelEndDate("")
+                }}
+              />
+            </div>
+            <ChannelStatistics
+              channelStatsData={channelStatsData}
+              isLoading={channelStatsLoading}
+              error={channelStatsError}
+              onRetry={() => void refetchChannelStats()}
+              startDate={channelStart}
+              endDate={channelEnd}
+            />
+          </div>
 
-          {/* Channel Statistics */}
-          <ChannelStatistics
-            channelStatsData={channelStatsData}
-            isLoading={channelStatsLoading}
-            error={channelStatsError}
-            onRetry={() => void refetchChannelStats()}
-            startDate={statsStartDate}
-            endDate={statsEndDate}
-          />
-
-          {/* Transactions Table */}
+          {/* Transactions Table — own date filter (empty = all, as they come in) */}
           <Card>
             <CardHeader>
-              <CardTitle>Transaction Management</CardTitle>
-              <CardDescription>
-                {searchTerm ? (
-                  <span>
-                    Searching for "{searchTerm}" (results shown above). Table below remains paginated.
-                  </span>
-                ) : (
-                  'View and manage different types of transactions'
-                )}
-              </CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Transaction Management</CardTitle>
+                  <CardDescription>
+                    {searchTerm ? (
+                      <span>
+                        Searching for "{searchTerm}" (results shown above). Table below remains paginated.
+                      </span>
+                    ) : (
+                      'View and manage different types of transactions'
+                    )}
+                  </CardDescription>
+                </div>
+                <DateRangeFilter
+                  label="Transactions:"
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={(date) => {
+                    setStartDate(date)
+                    handleFilterChange()
+                  }}
+                  onEndDateChange={(date) => {
+                    setEndDate(date)
+                    handleFilterChange()
+                  }}
+                  onClear={() => {
+                    setStartDate("")
+                    setEndDate("")
+                    handleFilterChange()
+                  }}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <TransactionFilters
