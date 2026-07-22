@@ -22,11 +22,14 @@ import {
   Key,
   LayoutDashboard,
   Phone,
+  Droplets,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { extractErrorMessage } from '@/lib/utils'
+import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeSelect'
+import { useUgandaBanks } from '@/lib/hooks/useUgandaBanks'
 
 interface WalletItem {
   id: string
@@ -72,6 +75,22 @@ interface MerchantUssdEntryPointConfig {
   minimumAmount: number
   maximumAmount: number
   dialPattern: string | null
+}
+
+interface MerchantLiquidationOnlySettings {
+  merchantId: string
+  merchantCode: string
+  merchantName: string
+  liquidationOnlyMode: boolean
+  liquidationDestinationType: 'MOBILE_MONEY' | 'BANK' | null
+  liquidationMomoProvider: string | null
+  liquidationMomoPhone: string | null
+  liquidationMomoAccountName: string | null
+  liquidationBankName: string | null
+  liquidationBankCode: string | null
+  liquidationBankAccountNumber: string | null
+  liquidationBankAccountName: string | null
+  liquidationBankBranch: string | null
 }
 
 interface CustomerSettingsProps {
@@ -236,6 +255,37 @@ const CustomerSettings = ({
   const [ussdMinimumAmount, setUssdMinimumAmount] = useState(500)
   const [ussdMaximumAmount, setUssdMaximumAmount] = useState(5000000)
 
+  const { data: ugandaBanks = [] } = useUgandaBanks({
+    enabled: type === 'merchant' && !!merchantId,
+  })
+  const [liquidationOnlyLoading, setLiquidationOnlyLoading] = useState(false)
+  const [isSavingLiquidationOnly, setIsSavingLiquidationOnly] = useState(false)
+  const [liquidationOnlyMode, setLiquidationOnlyMode] = useState(false)
+  const [liquidationDestinationType, setLiquidationDestinationType] = useState<
+    'MOBILE_MONEY' | 'BANK'
+  >('MOBILE_MONEY')
+  const [liquidationMomoProvider, setLiquidationMomoProvider] = useState('MTN')
+  const [liquidationMomoPhone, setLiquidationMomoPhone] = useState('')
+  const [liquidationMomoAccountName, setLiquidationMomoAccountName] = useState('')
+  const [liquidationBankCode, setLiquidationBankCode] = useState('')
+  const [liquidationBankAccountNumber, setLiquidationBankAccountNumber] = useState('')
+  const [liquidationBankAccountName, setLiquidationBankAccountName] = useState('')
+  const [liquidationBankBranch, setLiquidationBankBranch] = useState('')
+
+  const applyLiquidationOnlySettings = (data: MerchantLiquidationOnlySettings) => {
+    setLiquidationOnlyMode(!!data.liquidationOnlyMode)
+    setLiquidationDestinationType(
+      data.liquidationDestinationType === 'BANK' ? 'BANK' : 'MOBILE_MONEY',
+    )
+    setLiquidationMomoProvider(data.liquidationMomoProvider || 'MTN')
+    setLiquidationMomoPhone(data.liquidationMomoPhone || '')
+    setLiquidationMomoAccountName(data.liquidationMomoAccountName || '')
+    setLiquidationBankCode(data.liquidationBankCode || '')
+    setLiquidationBankAccountNumber(data.liquidationBankAccountNumber || '')
+    setLiquidationBankAccountName(data.liquidationBankAccountName || '')
+    setLiquidationBankBranch(data.liquidationBankBranch || '')
+  }
+
   useEffect(() => {
     if (type === 'merchant' && merchantId) {
       setFeatureFlagsLoading(true)
@@ -276,6 +326,87 @@ const CustomerSettings = ({
       setUssdEntryPoint(null)
     }
   }, [type, merchantId])
+
+  useEffect(() => {
+    if (type === 'merchant' && merchantId) {
+      setLiquidationOnlyLoading(true)
+      api
+        .get(`/merchant-kyc/${merchantId}/liquidation-only-settings`)
+        .then((res) => applyLiquidationOnlySettings(res.data as MerchantLiquidationOnlySettings))
+        .catch(() => toast.error('Failed to load liquidation-only settings'))
+        .finally(() => setLiquidationOnlyLoading(false))
+    }
+  }, [type, merchantId])
+
+  const handleSaveLiquidationOnlySettings = async () => {
+    if (!merchantId) return
+
+    if (liquidationOnlyMode) {
+      if (liquidationDestinationType === 'MOBILE_MONEY') {
+        if (!liquidationMomoProvider.trim() || !liquidationMomoPhone.trim()) {
+          toast.error('Mobile money provider and phone number are required')
+          return
+        }
+      } else {
+        if (
+          !liquidationBankCode.trim() ||
+          !liquidationBankAccountNumber.trim() ||
+          !liquidationBankAccountName.trim()
+        ) {
+          toast.error('Bank, account number, and account name are required')
+          return
+        }
+      }
+    }
+
+    const selectedBank = ugandaBanks.find((b) => b.bankSortCode === liquidationBankCode)
+
+    setIsSavingLiquidationOnly(true)
+    try {
+      const payload: Record<string, unknown> = {
+        liquidationOnlyMode,
+        liquidationDestinationType,
+      }
+      if (liquidationDestinationType === 'MOBILE_MONEY') {
+        payload.liquidationMomoProvider = liquidationMomoProvider.trim()
+        payload.liquidationMomoPhone = liquidationMomoPhone.trim()
+        payload.liquidationMomoAccountName =
+          liquidationMomoAccountName.trim() || null
+        payload.liquidationBankName = null
+        payload.liquidationBankCode = null
+        payload.liquidationBankAccountNumber = null
+        payload.liquidationBankAccountName = null
+        payload.liquidationBankBranch = null
+      } else {
+        payload.liquidationBankName =
+          selectedBank?.bankName || liquidationBankCode.trim()
+        payload.liquidationBankCode = liquidationBankCode.trim()
+        payload.liquidationBankAccountNumber =
+          liquidationBankAccountNumber.trim()
+        payload.liquidationBankAccountName = liquidationBankAccountName.trim()
+        payload.liquidationBankBranch = liquidationBankBranch.trim() || null
+        payload.liquidationMomoProvider = null
+        payload.liquidationMomoPhone = null
+        payload.liquidationMomoAccountName = null
+      }
+
+      const res = await api.patch(
+        `/merchant-kyc/${merchantId}/liquidation-only-settings`,
+        payload,
+      )
+      applyLiquidationOnlySettings(res.data as MerchantLiquidationOnlySettings)
+      if (liquidationOnlyMode) {
+        setFeatureFlags((prev) => ({ ...prev, featureLiquidation: true }))
+      }
+      toast.success('Liquidation-Only Mode settings updated')
+    } catch (error: unknown) {
+      toast.error(
+        extractErrorMessage(error) || 'Failed to update liquidation-only settings',
+      )
+    } finally {
+      setIsSavingLiquidationOnly(false)
+    }
+  }
 
   const handleSaveUssdEntryPoint = async () => {
     if (!merchantId) return
@@ -1558,7 +1689,7 @@ const CustomerSettings = ({
                   <Switch
                     checked={featureFlags.featureBulkPayments}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featureBulkPayments', val)}
-                    disabled={savingFlag === 'featureBulkPayments'}
+                    disabled={savingFlag === 'featureBulkPayments' || liquidationOnlyMode}
                   />
                 </div>
 
@@ -1570,7 +1701,7 @@ const CustomerSettings = ({
                   <Switch
                     checked={featureFlags.featureLiquidation}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featureLiquidation', val)}
-                    disabled={savingFlag === 'featureLiquidation'}
+                    disabled={savingFlag === 'featureLiquidation' || liquidationOnlyMode}
                   />
                 </div>
 
@@ -1582,7 +1713,7 @@ const CustomerSettings = ({
                   <Switch
                     checked={featureFlags.featurePayroll}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featurePayroll', val)}
-                    disabled={savingFlag === 'featurePayroll'}
+                    disabled={savingFlag === 'featurePayroll' || liquidationOnlyMode}
                   />
                 </div>
 
@@ -1594,9 +1725,147 @@ const CustomerSettings = ({
                   <Switch
                     checked={featureFlags.featurePayrollApprovals}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featurePayrollApprovals', val)}
-                    disabled={savingFlag === 'featurePayrollApprovals'}
+                    disabled={savingFlag === 'featurePayrollApprovals' || liquidationOnlyMode}
                   />
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Liquidation-Only Mode — merchants only, admin-configured */}
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Droplets className="h-5 w-5" />
+              Liquidation-Only Mode
+            </CardTitle>
+            <CardDescription>
+              Restrict this merchant to liquidating only to a single admin-configured bank or mobile money destination. Merchants cannot edit these details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {liquidationOnlyLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Enable Liquidation-Only Mode</div>
+                    <div className="text-sm text-gray-500">
+                      Blocks send money, bills, airtime, bulk, payroll, sweep, and RukaPay payouts. Collections remain allowed.
+                    </div>
+                  </div>
+                  <Switch
+                    checked={liquidationOnlyMode}
+                    onCheckedChange={setLiquidationOnlyMode}
+                    disabled={isSavingLiquidationOnly}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Destination type</Label>
+                  <Select
+                    value={liquidationDestinationType}
+                    onValueChange={(val) =>
+                      setLiquidationDestinationType(val as 'MOBILE_MONEY' | 'BANK')
+                    }
+                    disabled={isSavingLiquidationOnly}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MOBILE_MONEY">Mobile Money</SelectItem>
+                      <SelectItem value="BANK">Bank Account</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {liquidationDestinationType === 'MOBILE_MONEY' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Telecom provider</Label>
+                      <Select
+                        value={liquidationMomoProvider}
+                        onValueChange={setLiquidationMomoProvider}
+                        disabled={isSavingLiquidationOnly}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MTN">MTN</SelectItem>
+                          <SelectItem value="AIRTEL">Airtel</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone number</Label>
+                      <Input
+                        value={liquidationMomoPhone}
+                        onChange={(e) => setLiquidationMomoPhone(e.target.value)}
+                        placeholder="2567XXXXXXXX"
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Account name (optional)</Label>
+                      <Input
+                        value={liquidationMomoAccountName}
+                        onChange={(e) => setLiquidationMomoAccountName(e.target.value)}
+                        placeholder="Account holder name"
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Bank</Label>
+                      <BankSortCodeSelect
+                        value={liquidationBankCode}
+                        onValueChange={setLiquidationBankCode}
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Account number</Label>
+                      <Input
+                        value={liquidationBankAccountNumber}
+                        onChange={(e) => setLiquidationBankAccountNumber(e.target.value)}
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Account name</Label>
+                      <Input
+                        value={liquidationBankAccountName}
+                        onChange={(e) => setLiquidationBankAccountName(e.target.value)}
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Branch (optional)</Label>
+                      <Input
+                        value={liquidationBankBranch}
+                        onChange={(e) => setLiquidationBankBranch(e.target.value)}
+                        disabled={isSavingLiquidationOnly}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleSaveLiquidationOnlySettings}
+                  disabled={isSavingLiquidationOnly}
+                >
+                  {isSavingLiquidationOnly ? 'Saving...' : 'Save Liquidation-Only Settings'}
+                </Button>
               </div>
             )}
           </CardContent>
