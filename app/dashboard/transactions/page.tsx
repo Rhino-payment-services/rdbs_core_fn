@@ -58,20 +58,21 @@ const TransactionsPage = () => {
   //  1. Overall summary cards  -> summaryStartDate / summaryEndDate
   //  2. By-channel statistics   -> channelStartDate / channelEndDate
   //  3. Transactions table      -> startDate / endDate
-  // The table shows transactions as they come in (empty = all). The two stat sections must
-  // NOT do an all-time cumulative scan (it reported wrong totals), so when their own filter
-  // is empty they fall back to the last 30 days (Kampala calendar).
+  // Summary + channel default to last 30 days (Kampala calendar) and stay pre-filled
+  // in the date inputs. The table stays empty (= all transactions as they come in).
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [summaryStartDate, setSummaryStartDate] = useState("")
-  const [summaryEndDate, setSummaryEndDate] = useState("")
-  const [channelStartDate, setChannelStartDate] = useState("")
-  const [channelEndDate, setChannelEndDate] = useState("")
+  const defaultStatsStart = getKampalaCalendarDate(-30)
+  const defaultStatsEnd = getKampalaCalendarDate(0)
+  const [summaryStartDate, setSummaryStartDate] = useState(defaultStatsStart)
+  const [summaryEndDate, setSummaryEndDate] = useState(defaultStatsEnd)
+  const [channelStartDate, setChannelStartDate] = useState(defaultStatsStart)
+  const [channelEndDate, setChannelEndDate] = useState(defaultStatsEnd)
 
-  const summaryStart = summaryStartDate || getKampalaCalendarDate(-30)
-  const summaryEnd = summaryEndDate || getKampalaCalendarDate(0)
-  const channelStart = channelStartDate || getKampalaCalendarDate(-30)
-  const channelEnd = channelEndDate || getKampalaCalendarDate(0)
+  const summaryStart = summaryStartDate || defaultStatsStart
+  const summaryEnd = summaryEndDate || defaultStatsEnd
+  const channelStart = channelStartDate || defaultStatsStart
+  const channelEnd = channelEndDate || defaultStatsEnd
   
   // Modal state
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
@@ -915,8 +916,8 @@ const TransactionsPage = () => {
                 onStartDateChange={setSummaryStartDate}
                 onEndDateChange={setSummaryEndDate}
                 onClear={() => {
-                  setSummaryStartDate("")
-                  setSummaryEndDate("")
+                  setSummaryStartDate(defaultStatsStart)
+                  setSummaryEndDate(defaultStatsEnd)
                 }}
               />
             </div>
@@ -941,8 +942,8 @@ const TransactionsPage = () => {
                 onStartDateChange={setChannelStartDate}
                 onEndDateChange={setChannelEndDate}
                 onClear={() => {
-                  setChannelStartDate("")
-                  setChannelEndDate("")
+                  setChannelStartDate(defaultStatsStart)
+                  setChannelEndDate(defaultStatsEnd)
                 }}
               />
             </div>

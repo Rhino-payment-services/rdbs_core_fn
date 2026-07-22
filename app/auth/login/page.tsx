@@ -58,7 +58,7 @@ function LoginForm() {
 
   const otpValidationSchema = Yup.object({
     otp: Yup.string()
-      .matches(/^\d{6}$/, 'Enter the 6-digit code from your email')
+      .matches(/^[A-Za-z0-9]{8}$/, 'Enter the 8-character code from your email')
       .required('OTP is required'),
   })
 
@@ -175,7 +175,7 @@ function LoginForm() {
     try {
       const response = await axios.post('/api/auth/staff-verify-otp', {
         challengeToken: otpChallenge.challengeToken,
-        otp: values.otp,
+        otp: values.otp.trim().toUpperCase(),
       })
       // axios throws on non-2xx by default — but our proxy returns status as-is.
       // If status is 401/400, axios will throw into catch.
@@ -296,7 +296,7 @@ function LoginForm() {
               </h2>
               <p className="text-gray-600">
                 {otpChallenge
-                  ? `Enter the 6-digit code sent to ${otpChallenge.email}`
+                  ? `Enter the 8-character code sent to ${otpChallenge.email}`
                   : 'Sign in to access your dashboard'}
               </p>
 
@@ -361,7 +361,8 @@ function LoginForm() {
                           <ShieldCheck className="h-8 w-8 text-[#08163d]" />
                         </div>
                         <p className="text-sm text-gray-600">
-                          For staff security, confirm the one-time code from your email.
+                          For staff security, enter the 8-character code from your email
+                          (letters + numbers).
                         </p>
                       </div>
 
@@ -373,15 +374,17 @@ function LoginForm() {
                           id="otp"
                           name="otp"
                           type="text"
-                          inputMode="numeric"
+                          inputMode="text"
                           autoComplete="one-time-code"
-                          maxLength={6}
-                          className={`block w-full tracking-[0.4em] text-center text-lg py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent transition-all duration-200 ${
+                          autoCapitalize="characters"
+                          spellCheck={false}
+                          maxLength={8}
+                          className={`block w-full tracking-[0.25em] text-center text-lg uppercase py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08163d] focus:border-transparent transition-all duration-200 ${
                             errors.otp && touched.otp
                               ? 'border-red-300 focus:ring-red-500'
                               : 'border-gray-300 focus:ring-[#08163d]'
                           }`}
-                          placeholder="••••••"
+                          placeholder="A7K9M2XQ"
                         />
                         <ErrorMessage
                           name="otp"

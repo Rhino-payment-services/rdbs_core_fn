@@ -6,6 +6,16 @@ const backendBase = () =>
 
 const channel = () => process.env.NEXT_PUBLIC_CHANNEL || 'BACKOFFICE'
 
+function clientMeta(req: NextRequest) {
+  const forwarded = req.headers.get('x-forwarded-for')
+  const ipAddress =
+    forwarded?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    undefined
+  const userAgent = req.headers.get('user-agent') || undefined
+  return { ipAddress, userAgent }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -18,11 +28,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const { ipAddress, userAgent } = clientMeta(req)
+
     const response = await axios.post(
       `${backendBase()}/auth/login/verify-otp`,
-      { challengeToken, otp, channel: channel() },
       {
-        headers: { 'Content-Type': 'application/json' },
+        challengeToken,
+        otp,
+        channel: channel(),
+        ipAddress,
+        userAgent,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(ipAddress ? { 'x-forwarded-for': ipAddress } : {}),
+          ...(userAgent ? { 'user-agent': userAgent } : {}),
+        },
         validateStatus: () => true,
       },
     )
