@@ -8,7 +8,7 @@ export default function MerchantEventsLayout({ children }: { children: React.Rea
   return (
     <MerchantEventsGuard>
       <div className="bg-[#f8fafc] min-h-full -m-4 sm:-m-6 p-4 sm:p-6">
-        <MerchantEventsNav />
+        {/* <MerchantEventsNav /> */}
         {children}
       </div>
     </MerchantEventsGuard>

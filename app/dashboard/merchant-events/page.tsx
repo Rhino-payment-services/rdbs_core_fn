@@ -9,6 +9,10 @@ import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { KpiCard } from '@/components/dashboard/merchant-events/KpiCard'
+import { ChartCard } from '@/components/dashboard/merchant-events/charts/ChartCard'
+import { ColumnChart } from '@/components/dashboard/merchant-events/charts/ColumnChart'
+import { DonutChart } from '@/components/dashboard/merchant-events/charts/DonutChart'
+import { HorizontalBarChart } from '@/components/dashboard/merchant-events/charts/HorizontalBarChart'
 import {
   CalendarDays,
   ShoppingCart,
@@ -22,29 +26,26 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { useMerchantEventsStatistics } from '@/lib/hooks/useMerchantEvents'
-import { formatUgx, CHART_COLORS } from '@/lib/utils/merchantEvents'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
-
-const chartConfig = {
-  count: { label: 'Count', color: '#08163d' },
-  grossSales: { label: 'Gross Sales', color: '#3b5bdb' },
-}
 
 export default function MerchantEventsDashboardPage() {
   const { data: stats, isLoading, error, refetch } = useMerchantEventsStatistics()
 
-  const salesData = stats?.grossSalesByCurrency?.map((s) => ({
-    name: s.currency,
-    grossSales: s.grossSales,
-  })) ?? []
+  const salesData =
+    stats?.grossSalesByCurrency?.map((s) => ({
+      label: s.currency,
+      value: s.grossSales,
+      currency: s.currency,
+    })) ?? []
 
   const eventsByStatusData = stats?.eventsByStatus
-    ? Object.entries(stats.eventsByStatus).map(([status, count]) => ({ status, count }))
+    ? Object.entries(stats.eventsByStatus).map(([label, value]) => ({ label, value }))
     : []
 
-  const orderStatusData = stats?.orderStatusBreakdown ?? []
-  const paymentStatusData = stats?.paymentStatusBreakdown ?? []
+  const orderStatusData =
+    stats?.orderStatusBreakdown?.map((s) => ({ label: s.status, count: s.count })) ?? []
+
+  const paymentStatusData =
+    stats?.paymentStatusBreakdown?.map((s) => ({ label: s.status, count: s.count })) ?? []
 
   return (
     <DashboardPageLayout>
@@ -86,93 +87,31 @@ export default function MerchantEventsDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <Card className="shadow-sm border-gray-100">
-              <CardHeader>
-                <CardTitle className="text-base">Gross Sales by Currency</CardTitle>
-                <CardDescription>Total revenue across all merchant events</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {salesData.length === 0 ? (
-                  <p className="text-gray-500 text-sm py-8 text-center">No sales data yet</p>
-                ) : (
-                  <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                    <BarChart data={salesData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <ChartTooltip content={<ChartTooltipContent formatter={(v) => formatUgx(Number(v))} />} />
-                      <Bar dataKey="grossSales" fill="#08163d" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
+            <ChartCard
+              title="Gross Sales by Currency"
+              description="Total revenue across all merchant events"
+              isEmpty={salesData.length === 0}
+              emptyMessage="No sales data yet"
+            >
+              <ColumnChart data={salesData} valueIsCurrency />
+            </ChartCard>
 
-            <Card className="shadow-sm border-gray-100">
-              <CardHeader>
-                <CardTitle className="text-base">Events by Status</CardTitle>
-                <CardDescription>Distribution of event lifecycle states</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {eventsByStatusData.length === 0 ? (
-                  <p className="text-gray-500 text-sm py-8 text-center">No events yet</p>
-                ) : (
-                  <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                    <PieChart>
-                      <Pie
-                        data={eventsByStatusData}
-                        dataKey="count"
-                        nameKey="status"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={90}
-                        paddingAngle={2}
-                      >
-                        {eventsByStatusData.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
+            <ChartCard
+              title="Events by Status"
+              description="Distribution of event lifecycle states"
+              isEmpty={eventsByStatusData.length === 0}
+              emptyMessage="No events yet"
+            >
+              <DonutChart data={eventsByStatusData} centerLabel="Events" />
+            </ChartCard>
 
-            <Card className="shadow-sm border-gray-100">
-              <CardHeader>
-                <CardTitle className="text-base">Order Status Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[220px] w-full">
-                  <BarChart data={orderStatusData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="status" width={80} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="#3b5bdb" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+            <ChartCard title="Order Status Breakdown" isEmpty={orderStatusData.length === 0}>
+              <HorizontalBarChart data={orderStatusData} />
+            </ChartCard>
 
-            <Card className="shadow-sm border-gray-100">
-              <CardHeader>
-                <CardTitle className="text-base">Payment Status Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[220px] w-full">
-                  <BarChart data={paymentStatusData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="status" width={80} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="#5c7cfa" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+            <ChartCard title="Payment Status Breakdown" isEmpty={paymentStatusData.length === 0}>
+              <HorizontalBarChart data={paymentStatusData} />
+            </ChartCard>
           </div>
 
           <Card className="shadow-sm border-gray-100">
