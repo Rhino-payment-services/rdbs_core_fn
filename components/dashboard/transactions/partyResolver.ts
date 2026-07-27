@@ -81,6 +81,23 @@ export function getPartnerRole(tx: any): PartnerRole | null {
   if (type === 'WALLET_TO_PARTNER_INSTITUTION') return 'receiver'
   if (type === 'PARTNER_INSTITUTION_TO_WALLET') return 'sender'
 
+  // RukaSente loan rails: partner escrow always disburses (sender) / collects (receiver).
+  // Do not use CREDIT→receiver / DEBIT→sender fallbacks — that paints the borrower as RUKASENTE.
+  if (
+    type === 'LOAN_DISBURSEMENT' ||
+    (m?.rukasenteLoan === true &&
+      String(m?.loanOperation || '').toLowerCase().includes('disbursement'))
+  ) {
+    return 'sender'
+  }
+  if (
+    type === 'LOAN_REPAYMENT' ||
+    (m?.rukasenteLoan === true &&
+      String(m?.loanOperation || '').toLowerCase().includes('repay'))
+  ) {
+    return 'receiver'
+  }
+
   const isInbound =
     type.includes('MNO_TO_WALLET') ||
     type.includes('BANK_TO_WALLET') ||
@@ -428,6 +445,62 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
 
   if (isOwnWalletTransfer(tx)) {
     return buildOwnWalletPartyForSide(info, tx, side)
+  }
+
+  // Loan rails: trust API senderInfo/receiverInfo (partner escrow ↔ borrower).
+  // Avoid CREDIT→partner-as-receiver heuristics that rename the borrower to RUKASENTE.
+  if (
+    type === 'LOAN_DISBURSEMENT' ||
+    type === 'LOAN_REPAYMENT' ||
+    metadata?.rukasenteLoan === true
+  ) {
+    const profileName =
+      side === 'receiver'
+        ? fullNameFromProfile(tx?.counterpartyUser?.profile) ||
+          fullNameFromProfile(tx?.user?.profile)
+        : fullNameFromProfile(tx?.user?.profile) ||
+          fullNameFromProfile(tx?.counterpartyUser?.profile)
+    const metaCustomer =
+      String(metadata?.customerName || metadata?.receiverName || '').trim() || null
+    const metaPhone =
+      String(
+        metadata?.customerPhone ||
+          metadata?.receiverPhone ||
+          metadata?.phoneNumber ||
+          '',
+      ).trim() || null
+    const isPartnerParty = upper(info?.type) === 'PARTNER'
+    if (isPartnerParty) {
+      return {
+        ...info,
+        type: 'PARTNER',
+        name:
+          String(info?.name || '').trim() ||
+          resolvePartnerDisplay(tx).primary ||
+          'API Partner',
+        contact:
+          String(info?.contact || '').trim() ||
+          resolvePartnerDisplay(tx).secondary ||
+          null,
+      }
+    }
+    return {
+      ...info,
+      type: 'SUBSCRIBER',
+      name:
+        String(info?.name || '').trim() ||
+        metaCustomer ||
+        profileName ||
+        'RukaPay Subscriber',
+      contact:
+        String(info?.contact || '').trim() ||
+        metaPhone ||
+        tx?.user?.phone ||
+        tx?.counterpartyUser?.phone ||
+        null,
+      merchantCode: null,
+      merchantName: null,
+    }
   }
 
   if (type === 'LIQUIDATION' && side === 'sender') {

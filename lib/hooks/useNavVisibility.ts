@@ -6,6 +6,7 @@ export const NAV_ITEMS = [
   { key: 'analytics', label: 'Analytics', description: 'Analytics & reporting overview' },
   { key: 'finance', label: 'Finance', description: 'Tariffs, transactions, wallets & reports' },
   { key: 'gateway-partners', label: 'Gateway Partners', description: 'External gateway partner management' },
+  { key: 'rukasente-loans', label: 'RukaSente Loans', description: 'Active loan borrowers and manual collections' },
   { key: 'saccos', label: 'SACCOs', description: 'View SACCO institutions onboarded under partners' },
   { key: 'merchant-events', label: 'Merchant Events', description: 'Platform-wide merchant events monitoring' },
   { key: 'users', label: 'Users', description: 'Staff user management' },

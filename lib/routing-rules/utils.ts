@@ -70,20 +70,79 @@ export function formatAmountValue(amount: number, currency?: string): string {
 
 export function findOverlappingRules(
   rules: AmountRoutingRule[],
-  draft: { min: number; max: number; currency: string; apiPartnerId: string },
+  draft: {
+    min: number;
+    max: number;
+    currency: string;
+    apiPartnerId: string;
+    transactionType?: string;
+    geographicRegion?: string;
+    network?: string;
+  },
   excludeId?: string,
 ): AmountRoutingRule[] {
   const currency = draft.currency.toUpperCase();
+  const draftScope = {
+    transactionType: draft.transactionType || null,
+    geographicRegion: draft.geographicRegion || null,
+    network: draft.network || null,
+  };
+
   return rules.filter((rule) => {
     if (!rule.isActive) return false;
     if (excludeId && rule.id === excludeId) return false;
     if (rule.currency.toUpperCase() !== currency) return false;
     if ((rule.apiPartnerId || '') !== draft.apiPartnerId) return false;
+    if (
+      !routingScopesCollide(draftScope, {
+        transactionType: rule.transactionType,
+        geographicRegion: rule.geographicRegion,
+        network: rule.network,
+      })
+    ) {
+      return false;
+    }
     return bandsOverlap(
       { min: draft.min, max: draft.max },
       { min: rule.minAmount, max: rule.maxAmount },
     );
   });
+}
+
+/** Null/empty = any. Scopes collide when every dimension is wildcard or equal. */
+export function routingScopesCollide(
+  a: {
+    transactionType?: string | null;
+    geographicRegion?: string | null;
+    network?: string | null;
+  },
+  b: {
+    transactionType?: string | null;
+    geographicRegion?: string | null;
+    network?: string | null;
+  },
+): boolean {
+  return (
+    scopeDimensionCollides(a.transactionType, b.transactionType) &&
+    scopeDimensionCollides(a.geographicRegion, b.geographicRegion) &&
+    scopeDimensionCollides(a.network, b.network)
+  );
+}
+
+function scopeDimensionCollides(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const left = normalizeScopeDimension(a);
+  const right = normalizeScopeDimension(b);
+  if (!left || !right) return true;
+  return left === right;
+}
+
+function normalizeScopeDimension(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed.toUpperCase() : null;
 }
 
 export function validateAmountBandForm(values: AmountBandFormValues): string | null {

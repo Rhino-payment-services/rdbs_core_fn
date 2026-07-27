@@ -18,7 +18,12 @@ import {
  */
 export const shortenTransactionId = (id: string): string => {
   if (!id) return 'N/A';
-  
+
+  // Short loan / collection refs are already human-readable (LN-YYYYMMDD-NNNNNN).
+  if (/^(LN|COL|RP)-\d{8}-\d{4,}/.test(id)) {
+    return id.replace(/-E$/, '');
+  }
+
   // If ID contains WALLET_INIT with UUID, shorten it
   if (id.includes('WALLET_INIT_')) {
     const parts = id.split('_');
@@ -294,6 +299,8 @@ export const getTypeDisplay = (
     // Wallet Operations
     DEPOSIT: 'Wallet Deposit',
     WITHDRAWAL: 'Wallet Withdrawal',
+    LOAN_DISBURSEMENT: 'Loan Disbursement',
+    LOAN_REPAYMENT: 'Loan Collection',
     WALLET_CREATION: 'Wallet Created',
     WALLET_INIT: 'Wallet Initialized',
     

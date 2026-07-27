@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { User, CreditCard, Activity, Settings, Wallet, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { WalletBalance } from '@/lib/types/api'
+import { useLinkRukaSente, useRukaSenteStatus } from '@/lib/hooks/useRukaSente'
 
 interface CustomerProfileContentProps {
   type: string
@@ -102,6 +103,35 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
 }) => {
   const [activeTab, setActiveTab] = React.useState("overview")
   const [liquidateOpen, setLiquidateOpen] = React.useState(false)
+
+  const rukaSenteUserId = React.useMemo(() => {
+    if (type === 'partner' && isGatewayPartner) return undefined
+    return merchantData?.userId || customer?.id || undefined
+  }, [type, isGatewayPartner, merchantData?.userId, customer?.id])
+
+  const rukaSenteStatusQ = useRukaSenteStatus(rukaSenteUserId, Boolean(rukaSenteUserId))
+  const linkRukaSente = useLinkRukaSente()
+
+  const handleLinkRukaSente = async () => {
+    if (!rukaSenteUserId) {
+      toast.error('No user id available to link')
+      return
+    }
+    try {
+      await linkRukaSente.mutateAsync(rukaSenteUserId)
+      toast.success( 
+        rukaSenteStatusQ.data?.data?.exists
+          ? 'Ruka Sente profile re-synced'
+          : 'Customer linked to Ruka Sente',
+      )
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to link to Ruka Sente'
+      toast.error(typeof msg === 'string' ? msg : 'Failed to link to Ruka Sente')
+    }
+  }
 
   const showActivityTab = activityLogsLoading || activities.length > 0
 
@@ -251,6 +281,13 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
         onManageChildMerchants={onManageChildMerchants}
         isSuperAdmin={isSuperAdmin}
         onLiquidateToDisbursement={() => setLiquidateOpen(true)}
+        onLinkRukaSente={rukaSenteUserId ? handleLinkRukaSente : undefined}
+        rukaSenteLinked={
+          rukaSenteStatusQ.isError
+            ? null
+            : rukaSenteStatusQ.data?.data?.exists ?? null
+        }
+        rukaSenteLinking={linkRukaSente.isPending}
       />
 
       <CustomerStatsCards

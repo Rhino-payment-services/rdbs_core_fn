@@ -20,6 +20,8 @@ import {
   Crown,
   Users,
   Wallet as WalletIcon,
+  Link2,
+  Loader2,
 } from 'lucide-react'
 import type { Wallet } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from '../MerchantQRCodeDialog'
@@ -62,6 +64,9 @@ interface CustomerProfileHeaderProps {
   onManageChildMerchants?: () => void
   isSuperAdmin?: boolean
   onLiquidateToDisbursement?: () => void
+  onLinkRukaSente?: () => void
+  rukaSenteLinked?: boolean | null
+  rukaSenteLinking?: boolean
 }
 
 const CustomerProfileHeader = ({ 
@@ -76,6 +81,9 @@ const CustomerProfileHeader = ({
   onManageChildMerchants,
   isSuperAdmin = false,
   onLiquidateToDisbursement,
+  onLinkRukaSente,
+  rukaSenteLinked = null,
+  rukaSenteLinking = false,
 }: CustomerProfileHeaderProps) => {
   const getCustomerTypeBadge = (type: string) => {
     switch (type) {
@@ -175,6 +183,25 @@ const CustomerProfileHeader = ({
                 <Settings className="h-4 w-4" />
                 Go to Settings
               </DropdownMenuItem>
+            )}
+            {onLinkRukaSente && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={onLinkRukaSente}
+                  disabled={rukaSenteLinking}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  {rukaSenteLinking ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  {rukaSenteLinked
+                    ? 'Re-sync Ruka Sente profile'
+                    : 'Link to Ruka Sente'}
+                </DropdownMenuItem>
+              </>
             )}
             {/* Admin merchant actions - Only for SUPER_ADMIN on merchant profiles */}
             {isSuperAdmin && isMerchant && (
