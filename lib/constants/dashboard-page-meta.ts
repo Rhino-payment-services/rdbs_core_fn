@@ -61,6 +61,12 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Gateway Partners', href: '/dashboard/gateway-partners' },
     { label: 'Create' },
   ],
+  'rukasente-loans': [root, { label: 'RukaSente Loans' }],
+  'rukasente-loans/[userId]': [
+    root,
+    { label: 'RukaSente Loans', href: '/dashboard/rukasente-loans' },
+    { label: 'Borrower' },
+  ],
   saccos: [root, { label: 'SACCOs' }],
   'saccos/[id]': [
     root,

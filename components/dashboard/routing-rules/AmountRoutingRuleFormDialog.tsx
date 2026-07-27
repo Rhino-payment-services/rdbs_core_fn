@@ -92,12 +92,20 @@ export function AmountRoutingRuleFormDialog({
     const max = Number(form.maxAmount)
     const overlaps = findOverlappingRules(
       existingRules,
-      { min, max, currency: form.currency, apiPartnerId: form.apiPartnerId },
+      {
+        min,
+        max,
+        currency: form.currency,
+        apiPartnerId: form.apiPartnerId,
+        transactionType: form.transactionType,
+        geographicRegion: form.geographicRegion,
+        network: form.network,
+      },
       editingRule?.id,
     )
     if (overlaps.length === 0) return null
 
-    return `This range may overlap with ${overlaps.length} active rule(s) for ${form.currency.toUpperCase()} and the selected API partner. The server will reject overlapping bands.`
+    return `This range may overlap with ${overlaps.length} active rule(s) for the same currency, API partner, and scope (type / network / region). The server will reject overlapping bands.`
   }, [form, existingRules, editingRule?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -356,8 +364,9 @@ export function AmountRoutingRuleFormDialog({
             <p className="text-xs text-gray-500 mt-1">Lower number = higher priority</p>
           </div>
           <p className="text-xs text-gray-500">
-            Overlap checks apply within the same currency and API partner. When no rule matches,
-            gateway partner routing is used (not global partner mappings).
+            Overlap checks apply within the same currency, API partner, and scope
+            (transaction type / network / region). When no rule matches, gateway partner
+            routing is used (not global partner mappings).
           </p>
 
           <DialogFooter>

@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   ArrowLeft, 
   Key,
@@ -488,6 +489,68 @@ const GatewayPartnerDetailsPage = () => {
                   </ol>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Partner capabilities */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                Partner Capabilities
+              </CardTitle>
+              <CardDescription>
+                Opt-in permissions for sensitive gateway operations. Turn these on only for trusted partners.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label htmlFor="canDepositAndWithdraw" className="text-base">
+                    Deposit &amp; Withdrawal
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Allow deposit and withdrawal operations on the partner API
+                  </p>
+                </div>
+                <Switch
+                  id="canDepositAndWithdraw"
+                  checked={partner.canDepositAndWithdraw ?? true}
+                  disabled={updatePartner.isPending}
+                  onCheckedChange={(checked) => {
+                    updatePartner.mutate({
+                      partnerId,
+                      data: { canDepositAndWithdraw: checked },
+                    })
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label htmlFor="canAccessWalletTransactions" className="text-base">
+                    Access user / e-wallet transactions
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    Allow reading subscriber wallet history via{' '}
+                    <code className="rounded bg-gray-100 px-1 text-xs">
+                      /api/v1/gateway/users/:userId/transactions
+                    </code>{' '}
+                    (required for Ruka Sente scoring)
+                  </p>
+                </div>
+                <Switch
+                  id="canAccessWalletTransactions"
+                  checked={partner.canAccessWalletTransactions ?? false}
+                  disabled={updatePartner.isPending}
+                  onCheckedChange={(checked) => {
+                    updatePartner.mutate({
+                      partnerId,
+                      data: { canAccessWalletTransactions: checked },
+                    })
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
 

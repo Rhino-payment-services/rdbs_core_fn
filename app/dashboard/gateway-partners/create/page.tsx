@@ -55,6 +55,7 @@ const CreateGatewayPartnerPage = () => {
     address: '',
     description: '',
     canDepositAndWithdraw: true,
+    canAccessWalletTransactions: false,
   })
 
 
@@ -293,6 +294,25 @@ const CreateGatewayPartnerPage = () => {
                       checked={formData.canDepositAndWithdraw ?? true}
                       onCheckedChange={(checked) =>
                         setFormData({ ...formData, canDepositAndWithdraw: checked })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="canAccessWalletTransactions" className="text-base">
+                        Access user / e-wallet transactions
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Allow this partner to read subscriber wallet history via gateway
+                        (needed for credit scoring partners like Ruka Sente)
+                      </p>
+                    </div>
+                    <Switch
+                      id="canAccessWalletTransactions"
+                      checked={formData.canAccessWalletTransactions ?? false}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, canAccessWalletTransactions: checked })
                       }
                     />
                   </div>

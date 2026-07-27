@@ -37,6 +37,9 @@ export interface GatewayPartner {
   website?: string;
   address?: string;
   authenticationType?: 'API_KEY_ONLY' | 'API_KEY_AND_TOKEN';
+  canDepositAndWithdraw?: boolean;
+  canAccessWalletTransactions?: boolean;
+  isAggregator?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +83,7 @@ export interface CreateGatewayPartnerRequest {
   address?: string;
   description?: string;
   canDepositAndWithdraw?: boolean;
+  canAccessWalletTransactions?: boolean;
   permissions?: string[];
   rateLimits?: {
     requests_per_second?: number;
