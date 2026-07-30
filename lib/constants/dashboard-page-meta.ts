@@ -73,6 +73,12 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'SACCOs', href: '/dashboard/saccos' },
     { label: 'Details' },
   ],
+  'partner-merchants': [root, { label: 'Partner Merchants' }],
+  'partner-merchants/[id]': [
+    root,
+    { label: 'Partner Merchants', href: '/dashboard/partner-merchants' },
+    { label: 'Details' },
+  ],
   'merchant-events': [root, { label: 'Merchant Events' }],
   'merchant-events/list': [root, { label: 'Merchant Events', href: '/dashboard/merchant-events' }, { label: 'All Events' }],
   'merchant-events/orders': [root, { label: 'Merchant Events', href: '/dashboard/merchant-events' }, { label: 'Orders' }],
