@@ -56,8 +56,9 @@ export const ExportDialog = ({
             Export Transactions by Date Range
           </DialogTitle>
           <DialogDescription>
-            Exports transactions by created date. The RukaPay Fee column and revenue summary use
-            the same booked revenue totals shown on the dashboard and Transaction Ledgers.
+            Exports transactions by created date. Each row&apos;s RukaPay Fee matches the
+            dashboard fee when available; the revenue summary sheet still uses booked
+            platform revenue totals (same as Dashboard / Transaction Ledgers).
           </DialogDescription>
         </DialogHeader>
         

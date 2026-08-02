@@ -4,6 +4,7 @@ import {
   getNormalizedRukapayFee,
   isPlatformRevenueCreditedInRange,
   resolveExportFeeColumns,
+  resolveRukapayFeeForLedgerExport,
   sumPlatformRevenueAccrualsInRange,
 } from './feeBreakdown'
 
@@ -38,20 +39,43 @@ describe('revenue alignment — export column L vs dashboard booked revenue', ()
     expect(cols.rukapayFee).toBe(999)
   })
 
-  it('per-row export fee falls back to the actual fee when accrual is 0/absent for the period (page.tsx logic)', () => {
-    // Mirrors the fallback in app/dashboard/transactions/page.tsx: prefer booked-in-range,
-    // else the actual computed fee from resolveExportFeeColumns.
+  it('per-row export fee falls back to the actual fee when accrual is 0/absent for the period', () => {
     const txWithZeroAccrual = {
       ...juneAccrualTx,
       platformRevenueAccrual: { amount: 0, creditedAt: '2026-06-15T12:00:00.000Z' },
     }
-    const booked = getBookedRukapayFeeForLedgerExport(txWithZeroAccrual, '2026-06-01', '2026-06-30')
-    const actualFee = resolveExportFeeColumns(txWithZeroAccrual).rukapayFee
-    const rukapayFeeForExport = booked !== 0 ? booked : actualFee
+    expect(
+      resolveRukapayFeeForLedgerExport(txWithZeroAccrual, '2026-06-01', '2026-06-30'),
+    ).toBe(999)
+  })
 
-    expect(booked).toBe(0)
-    expect(actualFee).toBe(999)
-    expect(rukapayFeeForExport).toBe(999)
+  it('per-row export fee falls back when accrual is missing entirely (dashboard shows fee, export was 0)', () => {
+    const tx = {
+      id: 'GT0U2ETQ3Q70',
+      rukapayFee: 96.8,
+      thirdPartyFee: 387.2,
+      type: 'MNO_TO_WALLET',
+      channel: 'API',
+      partnerId: 'lipad',
+      partner: { partnerName: 'LIPAD' },
+      metadata: {
+        feeBreakdown: { rukapayFee: 96.8, partnerFee: 387.2, totalFee: 484 },
+        transactionModeCode: 'PARTNER_COLLECT_MNO',
+      },
+    }
+    expect(getBookedRukapayFeeForLedgerExport(tx, '2026-04-01', '2026-05-31')).toBe(0)
+    expect(resolveRukapayFeeForLedgerExport(tx, '2026-04-01', '2026-05-31')).toBe(96.8)
+  })
+
+  it('per-row export fee keeps negative booked adjustments', () => {
+    const tx = {
+      rukapayFee: 24,
+      platformRevenueAccrual: {
+        amount: -24,
+        creditedAt: '2026-04-30T20:56:00.000Z',
+      },
+    }
+    expect(resolveRukapayFeeForLedgerExport(tx, '2026-04-01', '2026-04-30')).toBe(-24)
   })
 
   it('getBookedRukapayFeeForLedgerExport returns 0 for failed tx without accrual', () => {

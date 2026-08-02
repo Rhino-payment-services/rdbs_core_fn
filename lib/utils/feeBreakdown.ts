@@ -299,6 +299,25 @@ export function getBookedRukapayFeeForLedgerExport(
   return exportFinite(accrual.amount)
 }
 
+/**
+ * Per-row RukaPay Fee for dated ledger exports.
+ * Prefer booked accrual when it was credited in the export window and is non-zero
+ * (including negative adjustments). Fall back to the transaction's actual/intended fee
+ * when accrual is missing, out of range, or booked as 0 — so the column matches what
+ * the dashboard transaction details show, instead of silently exporting 0.
+ */
+export function resolveRukapayFeeForLedgerExport(
+  transaction: Parameters<typeof resolveExportFeeColumns>[0],
+  startDate?: string,
+  endDate?: string,
+  actualFee?: number,
+): number {
+  const booked = getBookedRukapayFeeForLedgerExport(transaction, startDate, endDate)
+  if (booked !== 0) return booked
+  if (actualFee != null) return exportFinite(actualFee)
+  return resolveExportFeeColumns(transaction).rukapayFee
+}
+
 export function sumPlatformRevenueAccrualsInRange(
   transactions: Array<{ platformRevenueAccrual?: { amount: number; creditedAt?: string } | null }>,
   startDate?: string,
