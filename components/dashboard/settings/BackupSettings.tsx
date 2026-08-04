@@ -67,17 +67,19 @@ export const BackupSettings: React.FC = () => {
     if (!jobStatus || downloadTriggered) return
     if (jobStatus.status === 'done') {
       setDownloadTriggered(true)
+      toast.loading('Downloading backup file…', { id: 'backup-download' })
       downloadJobFile(jobStatus)
         .then(() => {
           toast.success(
             jobStatus.target === 'both'
               ? 'Full backup created and downloaded'
               : `${jobStatus.target.toUpperCase()} backup created and downloaded`,
+            { id: 'backup-download' },
           )
           refetchStats()
         })
         .catch((err: any) => {
-          toast.error(err?.message || 'Download failed')
+          toast.error(err?.message || 'Download failed', { id: 'backup-download' })
         })
     } else if (jobStatus.status === 'failed') {
       toast.error(jobStatus.error || 'Backup job failed')

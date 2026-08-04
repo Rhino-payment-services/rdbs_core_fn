@@ -48,6 +48,9 @@ export interface BackupJob {
   finishedAt?: string
 }
 
+/** Matches backend mongodump/pg_dump exec timeout (30 min). Default axios timeout is 10s. */
+const BACKUP_TIMEOUT_MS = 30 * 60 * 1000
+
 const apiFetch = async (endpoint: string, options: any = {}) => {
   const response = await api({
     url: endpoint,
@@ -57,6 +60,35 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
   })
 
   return response.data
+}
+
+/** Prefer a readable message when axios rejects a blob response as JSON. */
+const rethrowBackupDownloadError = async (error: any): Promise<never> => {
+  const blobError = error?.response?.data
+  const errorContentType = error?.response?.headers?.['content-type'] || ''
+  if (blobError instanceof Blob && errorContentType.includes('application/json')) {
+    const text = await blobError.text()
+    try {
+      const parsed = JSON.parse(text)
+      throw new Error(parsed?.message || parsed?.error || 'Backup download failed')
+    } catch (parseError: any) {
+      if (parseError instanceof SyntaxError) {
+        throw new Error(text || 'Backup download failed')
+      }
+      throw parseError
+    }
+  }
+  throw error
+}
+
+const parseJsonBlobMessage = async (blob: Blob): Promise<string> => {
+  const text = await blob.text()
+  try {
+    const parsed = JSON.parse(text)
+    return parsed?.message || parsed?.error || 'Backup download failed'
+  } catch {
+    return text || 'Backup download failed'
+  }
 }
 
 export const backupQueryKeys = {
@@ -75,7 +107,11 @@ export const useBackupStats = () => {
 export const useBackupMongo = () => {
   const queryClient = useQueryClient()
   return useMutation<BackupResponse>({
-    mutationFn: () => apiFetch('/api/v1/admin/backup/mongodb', { method: 'POST' }),
+    mutationFn: () =>
+      apiFetch('/api/v1/admin/backup/mongodb', {
+        method: 'POST',
+        timeout: BACKUP_TIMEOUT_MS,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: backupQueryKeys.stats })
     },
@@ -85,7 +121,11 @@ export const useBackupMongo = () => {
 export const useBackupPostgres = () => {
   const queryClient = useQueryClient()
   return useMutation<BackupResponse>({
-    mutationFn: () => apiFetch('/api/v1/admin/backup/postgres', { method: 'POST' }),
+    mutationFn: () =>
+      apiFetch('/api/v1/admin/backup/postgres', {
+        method: 'POST',
+        timeout: BACKUP_TIMEOUT_MS,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: backupQueryKeys.stats })
     },
@@ -95,7 +135,11 @@ export const useBackupPostgres = () => {
 export const useBackupBoth = () => {
   const queryClient = useQueryClient()
   return useMutation<DatabaseBackupResponse>({
-    mutationFn: () => apiFetch('/api/v1/admin/backup/both', { method: 'POST' }),
+    mutationFn: () =>
+      apiFetch('/api/v1/admin/backup/both', {
+        method: 'POST',
+        timeout: BACKUP_TIMEOUT_MS,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: backupQueryKeys.stats })
     },
@@ -109,6 +153,7 @@ export const useBackupCleanup = () => {
       apiFetch('/api/v1/admin/backup/cleanup', {
         method: 'POST',
         data: payload,
+        timeout: BACKUP_TIMEOUT_MS,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: backupQueryKeys.stats })
@@ -153,14 +198,24 @@ export const useBackupJobStatus = (jobId: string | null) => {
 
 /** Trigger a browser download for a completed job's file. */
 export const downloadJobFile = async (job: BackupJob): Promise<void> => {
-  const downloadResponse = await api({
-    url: `/api/v1/admin/backup/job/${job.id}/download`,
-    method: 'GET',
-    responseType: 'blob',
-    timeout: 5 * 60 * 1000,
-  })
+  let downloadResponse
+  try {
+    downloadResponse = await api({
+      url: `/api/v1/admin/backup/job/${job.id}/download`,
+      method: 'GET',
+      responseType: 'blob',
+      // Large archives can take a long time to transfer; default axios timeout is 10s.
+      timeout: BACKUP_TIMEOUT_MS,
+    })
+  } catch (error) {
+    await rethrowBackupDownloadError(error)
+  }
 
   const contentType = downloadResponse.headers?.['content-type'] || 'application/octet-stream'
+  if (contentType.includes('application/json')) {
+    throw new Error(await parseJsonBlobMessage(downloadResponse.data as Blob))
+  }
+
   const disposition: string = downloadResponse.headers?.['content-disposition'] || ''
   const filenameMatch = disposition.match(/filename="?([^"]+)"?/i)
   const filename =
