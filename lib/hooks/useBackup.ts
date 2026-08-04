@@ -211,6 +211,10 @@ export const downloadJobFile = async (job: BackupJob): Promise<void> => {
     await rethrowBackupDownloadError(error)
   }
 
+  if (!downloadResponse) {
+    throw new Error('Backup download failed')
+  }
+
   const contentType = downloadResponse.headers?.['content-type'] || 'application/octet-stream'
   if (contentType.includes('application/json')) {
     throw new Error(await parseJsonBlobMessage(downloadResponse.data as Blob))
