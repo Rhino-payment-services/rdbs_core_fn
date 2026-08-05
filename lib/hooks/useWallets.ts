@@ -128,8 +128,10 @@ export const useAdminWallets = (filters?: {
   category?:
     | 'PERSONAL'
     | 'BUSINESS'
+    | 'MERCHANT'
     | 'BUSINESS_COLLECTION'
     | 'BUSINESS_DISBURSEMENT'
+    | 'BUSINESS_LIQUIDATION'
     | 'SYSTEM'
     | 'OTHER'
   search?: string
