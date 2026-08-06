@@ -12,7 +12,7 @@ export const TARIFF_CHANNEL_OPTIONS = [
   { value: 'CARD', label: 'Card / NFC' },
   { value: 'POS', label: 'POS' },
   { value: 'WEB', label: 'Web' },
-  { value: 'MERCHANT_PORTAL', label: 'Merchant Portal' },
+  { value: 'MERCHANT_PORTAL', label: 'Merchant Portal (payout / liquidation)' },
   { value: 'AGENT_PORTAL', label: 'Agent Portal' },
   { value: 'PARTNER_PORTAL', label: 'Partner Portal' },
   { value: 'API', label: 'API' },

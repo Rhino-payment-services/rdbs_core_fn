@@ -72,6 +72,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
+  const [touchedNumericFields, setTouchedNumericFields] = useState<
+    Partial<Record<keyof CreateTariffForm, boolean>>
+  >({})
   
   // Get apiPartnerId from query params if present
   const apiPartnerIdFromQuery = searchParams?.get('apiPartnerId')
@@ -500,6 +503,19 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     }))
   }
 
+  const handleNumericInputChange = (field: keyof CreateTariffForm, rawValue: string) => {
+    setTouchedNumericFields((prev) => ({ ...prev, [field]: true }))
+    const parsed = rawValue === '' ? 0 : parseFloat(rawValue) || 0
+    handleInputChange(field, parsed)
+  }
+
+  const getNumericInputValue = (field: keyof CreateTariffForm, value: number | undefined) => {
+    if (!isEdit && !touchedNumericFields[field] && (value ?? 0) === 0) {
+      return ''
+    }
+    return value ?? ''
+  }
+
   const ensureDefaultFeeSplitMode = (
     metadata: Record<string, unknown> | undefined,
   ): Record<string, unknown> => {
@@ -822,6 +838,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             <>
                               <SelectItem value="WALLET_TO_WALLET">Wallet to Wallet</SelectItem>
                               <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
+                              <SelectItem value="WALLET_TO_MNO">Wallet to MNO</SelectItem>
+                              <SelectItem value="WALLET_TO_BANK">Wallet to Bank</SelectItem>
                               <SelectItem value="MERCHANT_TO_WALLET">Merchant Payment</SelectItem>
                               <SelectItem value="WALLET_INIT">Wallet Initialization</SelectItem>
                               <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
@@ -918,6 +936,20 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             Use <span className="font-medium">Card / NFC</span> for card payment fees; leave as{' '}
                             <span className="font-medium">All channels</span> for a default (e.g. free APP/USSD) tariff.
                             Multiple tariffs per type are allowed (one per channel).
+                          </>
+                        ) : form.transactionType === 'WALLET_TO_BANK' ||
+                          form.transactionType === 'WALLET_TO_MNO' ? (
+                          <>
+                            For merchant dashboard liquidations/payouts, set channel to{' '}
+                            <span className="font-medium">Merchant Portal (payout / liquidation)</span>.
+                            Use <span className="font-medium">All channels</span> only if the same fee should apply on every channel.
+                            {form.channel === 'MERCHANT_PORTAL' ? (
+                              <>
+                                {' '}
+                                This row is the Merchant Portal payout / liquidation fee for{' '}
+                                {form.transactionType === 'WALLET_TO_BANK' ? 'bank' : 'mobile money'}.
+                              </>
+                            ) : null}
                           </>
                         ) : (
                           <>Restrict this tariff to a specific channel, or leave as all channels.</>
@@ -1057,8 +1089,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <Input
                           id="feeAmount"
                           type="number"
-                          value={form.feeAmount}
-                          onChange={(e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
+                          value={getNumericInputValue('feeAmount', form.feeAmount)}
+                          onChange={(e) => handleNumericInputChange('feeAmount', e.target.value)}
                           placeholder="0"
                           min="0"
                           step="0.01"
@@ -1073,7 +1105,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <Input
                           id="feeAmount"
                           type="number"
-                          value={isEdit ? form.feeAmount : totalFeeAmount}
+                          value={isEdit ? form.feeAmount : getNumericInputValue('feeAmount', totalFeeAmount)}
                           onChange={
                             isEdit
                               ? (e) =>
@@ -1099,8 +1131,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <Input
                           id="feePercentage"
                           type="number"
-                          value={form.feePercentage}
-                          onChange={(e) => handleInputChange('feePercentage', parseFloat(e.target.value) || 0)}
+                          value={getNumericInputValue('feePercentage', form.feePercentage)}
+                          onChange={(e) => handleNumericInputChange('feePercentage', e.target.value)}
                           placeholder={form.partnerType === 'API_PARTNER' ? "2.5 (for 2.5%)" : "0.01"}
                           min="0"
                           max={form.partnerType === 'API_PARTNER' ? "100" : "1"}
@@ -1123,8 +1155,16 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           <Input
                             id="feeAmount"
                             type="number"
-                            value={form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount}
-                            onChange={form.tariffType === 'EXTERNAL' ? undefined : (e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
+                            value={
+                              form.tariffType === 'EXTERNAL'
+                                ? totalFeeAmount
+                                : getNumericInputValue('feeAmount', form.feeAmount)
+                            }
+                            onChange={
+                              form.tariffType === 'EXTERNAL'
+                                ? undefined
+                                : (e) => handleNumericInputChange('feeAmount', e.target.value)
+                            }
                             disabled={form.tariffType === 'EXTERNAL'}
                             placeholder="0"
                             min="0"
@@ -1140,8 +1180,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           <Input
                             id="feePercentage"
                             type="number"
-                            value={form.feePercentage}
-                            onChange={(e) => handleInputChange('feePercentage', parseFloat(e.target.value) || 0)}
+                            value={getNumericInputValue('feePercentage', form.feePercentage)}
+                            onChange={(e) => handleNumericInputChange('feePercentage', e.target.value)}
                             placeholder="0.01"
                             min="0"
                             max="1"
@@ -1159,8 +1199,16 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <Input
                           id="feeAmount"
                           type="number"
-                          value={form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount}
-                          onChange={form.tariffType === 'EXTERNAL' ? undefined : (e) => handleInputChange('feeAmount', parseFloat(e.target.value) || 0)}
+                          value={
+                            form.tariffType === 'EXTERNAL'
+                              ? totalFeeAmount
+                              : getNumericInputValue('feeAmount', form.feeAmount)
+                          }
+                          onChange={
+                            form.tariffType === 'EXTERNAL'
+                              ? undefined
+                              : (e) => handleNumericInputChange('feeAmount', e.target.value)
+                          }
                           disabled={form.tariffType === 'EXTERNAL'}
                           placeholder="0"
                           min="0"
@@ -1183,8 +1231,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <Input
                       id="minAmount"
                       type="number"
-                      value={form.minAmount}
-                      onChange={(e) => handleInputChange('minAmount', parseFloat(e.target.value) || 0)}
+                      value={getNumericInputValue('minAmount', form.minAmount)}
+                      onChange={(e) => handleNumericInputChange('minAmount', e.target.value)}
                       placeholder="0"
                       min="0"
                       step="0.01"
@@ -1196,8 +1244,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <Input
                       id="maxAmount"
                       type="number"
-                      value={form.maxAmount}
-                      onChange={(e) => handleInputChange('maxAmount', parseFloat(e.target.value) || 0)}
+                      value={getNumericInputValue('maxAmount', form.maxAmount)}
+                      onChange={(e) => handleNumericInputChange('maxAmount', e.target.value)}
                       placeholder="0"
                       min="0"
                       step="0.01"

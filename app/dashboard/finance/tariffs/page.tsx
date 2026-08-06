@@ -263,6 +263,20 @@ const TariffsPage = () => {
       color: 'bg-indigo-500',
       tabId: 'wallet-to-internal-merchant'
     },
+    'WALLET_TO_MNO': {
+      name: 'Wallet to MNO',
+      description: 'Merchant portal mobile money liquidation/payout fees (INTERNAL, no partner required)',
+      icon: Smartphone,
+      color: 'bg-green-500',
+      tabId: 'wallet-to-mno'
+    },
+    'WALLET_TO_BANK': {
+      name: 'Wallet to Bank',
+      description: 'Merchant portal bank liquidation/payout fees (INTERNAL, no partner required)',
+      icon: Building2,
+      color: 'bg-amber-500',
+      tabId: 'wallet-to-bank'
+    },
     'WALLET_INIT': {
       name: 'Wallet Initialization',
       description: 'Fee for initializing wallets',
@@ -311,7 +325,7 @@ const TariffsPage = () => {
     },
     'WALLET_TO_MNO': {
       name: 'Wallet to MNO',
-      description: 'RukaPay to MTN/AIRTEL via partners',
+      description: 'RukaPay to MTN/AIRTEL (incl. merchant portal MoMo liquidation when channel is Merchant Portal)',
       icon: Smartphone,
       color: 'bg-green-500',
       tabId: 'wallet-to-mno'
@@ -339,7 +353,7 @@ const TariffsPage = () => {
     },
     'WALLET_TO_BANK': {
       name: 'Wallet to Bank',
-      description: 'RukaPay to Bank transfers',
+      description: 'RukaPay to bank (incl. merchant portal bank liquidation when channel is Merchant Portal)',
       icon: Building2,
       color: 'bg-amber-500',
       tabId: 'wallet-to-bank'
@@ -424,6 +438,8 @@ const TariffsPage = () => {
   const internalGroupedTariffs = {
     'WALLET_TO_WALLET': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_WALLET'),
     'WALLET_TO_INTERNAL_MERCHANT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_INTERNAL_MERCHANT'),
+    'WALLET_TO_MNO': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_MNO'),
+    'WALLET_TO_BANK': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_TO_BANK'),
     'WALLET_INIT': internalTariffs.filter((t: Tariff) => t.transactionType === 'WALLET_INIT' || t.transactionType === 'WALLET_CREATION'),
     'FEE_CHARGE': internalTariffs.filter((t: Tariff) => t.transactionType === 'FEE_CHARGE'),
     'REVERSAL': internalTariffs.filter((t: Tariff) => t.transactionType === 'REVERSAL'),
@@ -756,9 +772,23 @@ const TariffsPage = () => {
   }
 
   const TariffTable = ({ type, tariffs }: { type: string, tariffs: Tariff[] }) => {
+    const [channelFilter, setChannelFilter] = useState<'all' | 'MERCHANT_PORTAL'>(
+      'all',
+    )
     // Check both internal and external transaction types
     const config = internalTransactionTypes[type as keyof typeof internalTransactionTypes] || 
                   externalTransactionTypes[type as keyof typeof externalTransactionTypes]
+
+    const supportsMerchantPortalFilter =
+      type === 'WALLET_TO_BANK' || type === 'WALLET_TO_MNO'
+    const merchantPortalCount = tariffs.filter(
+      (t) => t.channel === 'MERCHANT_PORTAL',
+    ).length
+    const visibleTariffs =
+      supportsMerchantPortalFilter && channelFilter === 'MERCHANT_PORTAL'
+        ? tariffs.filter((t) => t.channel === 'MERCHANT_PORTAL')
+        : tariffs
+
     if (!config) return null
 
     // Check if this is an internal tariff type
@@ -775,11 +805,42 @@ const TariffsPage = () => {
             <p className="text-gray-600">{config.description}</p>
           </div>
         </div>
+
+        {supportsMerchantPortalFilter && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-500">Filter:</span>
+            <Button
+              type="button"
+              size="sm"
+              variant={channelFilter === 'all' ? 'default' : 'outline'}
+              className="h-8"
+              onClick={() => setChannelFilter('all')}
+            >
+              All channels ({tariffs.length})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={channelFilter === 'MERCHANT_PORTAL' ? 'default' : 'outline'}
+              className="h-8"
+              onClick={() => setChannelFilter('MERCHANT_PORTAL')}
+            >
+              Merchant Portal payout / liquidation ({merchantPortalCount})
+            </Button>
+            <p className="text-xs text-gray-500 w-full sm:w-auto">
+              Merchant liquidations use MERCHANT_PORTAL tariffs for this type (fallback: all-channel).
+            </p>
+          </div>
+        )}
         
-        {tariffs.length === 0 ? (
+        {visibleTariffs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-gray-500">No tariffs configured for this transaction type</p>
+              <p className="text-gray-500">
+                {supportsMerchantPortalFilter && channelFilter === 'MERCHANT_PORTAL'
+                  ? 'No Merchant Portal tariffs for this type yet. Create one with channel Merchant Portal for liquidation/payout fees.'
+                  : 'No tariffs configured for this transaction type'}
+              </p>
               {canManageTariffs && (
                 <Button className="mt-4" onClick={() => router.push('/dashboard/finance/tariffs/create')}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -814,7 +875,7 @@ const TariffsPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tariffs.map((tariff) => (
+                {visibleTariffs.map((tariff) => (
                   <TableRow key={tariff.id}>
                     <TableCell className="font-medium">{tariff.name}</TableCell>
                     <TableCell className="text-sm text-gray-600">
@@ -1414,263 +1475,340 @@ const TariffsPage = () => {
 
       {/* View Tariff Details Modal */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Tariff Details</DialogTitle>
-            <DialogDescription>
-              View complete information about this tariff
-            </DialogDescription>
-          </DialogHeader>
-          
+        <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
           {viewTariff && (
-            <div className="grid gap-4 py-4">
-              {/* Basic Information */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">Basic Information</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs text-gray-500">Name</Label>
-                    <p className="text-sm font-medium">{viewTariff.name}</p>
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{viewTariff.name}</DialogTitle>
+                <DialogDescription>
+                  {getTransactionTypeLabel(viewTariff.transactionType, viewTariff)} · {viewTariff.tariffType} ·{' '}
+                  {formatTariffChannel(viewTariff.channel)}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-4">
+                <div
+                  className={`rounded-lg border p-4 ${
+                    viewTariff.status === 'ACTIVE' ||
+                    (!viewTariff.status && !viewTariff.approvalStatus && viewTariff.isActive)
+                      ? 'bg-green-50 border-green-200'
+                      : viewTariff.status === 'PENDING_APPROVAL'
+                        ? 'bg-yellow-50 border-yellow-200'
+                        : viewTariff.status === 'REJECTED'
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {viewTariff.status === 'ACTIVE' ||
+                    (!viewTariff.status && !viewTariff.approvalStatus && viewTariff.isActive) ? (
+                      <CheckCircle className="h-7 w-7 text-green-700" />
+                    ) : viewTariff.status === 'PENDING_APPROVAL' ? (
+                      <Clock className="h-7 w-7 text-yellow-700" />
+                    ) : viewTariff.status === 'REJECTED' ? (
+                      <XCircle className="h-7 w-7 text-red-700" />
+                    ) : (
+                      <FileText className="h-7 w-7 text-gray-700" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600">Current status</p>
+                      <p className="text-base font-semibold text-gray-900">
+                        {(viewTariff.status || viewTariff.approvalStatus || 'DRAFT')
+                          .toString()
+                          .replaceAll('_', ' ')}
+                      </p>
+                    </div>
+                    <div>{renderStatusBadge(viewTariff)}</div>
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Status</Label>
-                    <div className="mt-1">{renderStatusBadge(viewTariff)}</div>
+                </div>
+
+                <section className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Pricing
+                  </h3>
+                  <div className="rounded-lg border bg-slate-50/80 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Total fee</span>
+                      <span className="text-lg font-semibold text-slate-900">{formatFeeAmount(viewTariff)}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <Label className="text-xs text-gray-500">Fee Type</Label>
+                        <div className="mt-1">
+                          <Badge variant="outline">{viewTariff.feeType}</Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Currency</Label>
+                        <p className="mt-1">{viewTariff.currency}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Base Fee Amount</Label>
+                        <p className="mt-1">
+                          {viewTariff.feeAmount} {viewTariff.currency}
+                        </p>
+                      </div>
+                      {viewTariff.feePercentage !== undefined && viewTariff.feePercentage !== null && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Fee Percentage</Label>
+                          <p className="mt-1">{(Number(viewTariff.feePercentage) * 100).toFixed(2)}%</p>
+                        </div>
+                      )}
+                      {viewTariff.minFee !== undefined && viewTariff.minFee !== null && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Min Fee</Label>
+                          <p className="mt-1">
+                            {viewTariff.minFee} {viewTariff.currency}
+                          </p>
+                        </div>
+                      )}
+                      {viewTariff.maxFee !== undefined && viewTariff.maxFee !== null && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Max Fee</Label>
+                          <p className="mt-1">
+                            {viewTariff.maxFee} {viewTariff.currency}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {(viewTariff.minAmount !== undefined && viewTariff.minAmount !== null) ||
+                    (viewTariff.maxAmount !== undefined && viewTariff.maxAmount !== null) ? (
+                      <div className="rounded-md border border-slate-200 bg-white p-3 grid grid-cols-2 gap-3 text-sm">
+                        {viewTariff.minAmount !== undefined && viewTariff.minAmount !== null && (
+                          <div>
+                            <Label className="text-xs text-gray-500">Min Amount</Label>
+                            <p className="mt-1">
+                              {viewTariff.minAmount} {viewTariff.currency}
+                            </p>
+                          </div>
+                        )}
+                        {viewTariff.maxAmount !== undefined && viewTariff.maxAmount !== null && (
+                          <div>
+                            <Label className="text-xs text-gray-500">Max Amount</Label>
+                            <p className="mt-1">
+                              {viewTariff.maxAmount} {viewTariff.currency}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {viewTariff.tariffType === 'EXTERNAL' && (
+                      <div className="space-y-2 border-t pt-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Fee split</p>
+                        <div className="grid gap-2 text-sm">
+                          {viewTariff.partnerFee !== undefined && (
+                            <div className="rounded-md border border-blue-100 bg-blue-50 px-3 py-2 flex justify-between">
+                              <span className="text-blue-700">Partner</span>
+                              <span className="font-medium text-blue-900">
+                                {viewTariff.partnerFee} {viewTariff.currency}
+                              </span>
+                            </div>
+                          )}
+                          {viewTariff.rukapayFee !== undefined && (
+                            <div className="rounded-md border border-violet-100 bg-violet-50 px-3 py-2 flex justify-between">
+                              <span className="text-violet-700">RukaPay</span>
+                              <span className="font-medium text-violet-900">
+                                {formatTariffSplitField(viewTariff.rukapayFee, viewTariff) ?? '-'}
+                              </span>
+                            </div>
+                          )}
+                          {viewTariff.telecomBankCharge !== undefined && (
+                            <div className="rounded-md border border-orange-100 bg-orange-50 px-3 py-2 flex justify-between">
+                              <span className="text-orange-700">Telecom / Bank</span>
+                              <span className="font-medium text-orange-900">
+                                {formatTariffSplitField(viewTariff.telecomBankCharge, viewTariff) ?? '-'}
+                              </span>
+                            </div>
+                          )}
+                          {viewTariff.governmentTax !== undefined && (
+                            <div className="rounded-md border border-red-100 bg-red-50 px-3 py-2 flex justify-between">
+                              <span className="text-red-700">Government Tax</span>
+                              <span className="font-medium text-red-900">
+                                {formatTariffGovernmentTax(viewTariff.governmentTax) ?? '-'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="col-span-2">
-                    <Label className="text-xs text-gray-500">Description</Label>
-                    <p className="text-sm">{viewTariff.description || '-'}</p>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Overview
+                  </h3>
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <Label className="text-xs text-gray-500">Tariff Type</Label>
+                        <p className="mt-1">{viewTariff.tariffType}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Transaction Type</Label>
+                        <div className="mt-1">
+                          <Badge variant="outline">{getTransactionTypeLabel(viewTariff.transactionType, viewTariff)}</Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">User Type</Label>
+                        <p className="mt-1">{viewTariff.userType}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-500">Subscriber Type</Label>
+                        <p className="mt-1">{viewTariff.subscriberType || '-'}</p>
+                      </div>
+                      {viewTariff.tariffType === 'EXTERNAL' && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Network</Label>
+                          <p className="mt-1">{viewTariff.network || '-'}</p>
+                        </div>
+                      )}
+                      {viewTariff.group && (
+                        <div>
+                          <Label className="text-xs text-gray-500">Group</Label>
+                          <p className="mt-1 font-mono">{viewTariff.group}</p>
+                        </div>
+                      )}
+                      <div className="col-span-2">
+                        <Label className="text-xs text-gray-500">Description</Label>
+                        <p className="mt-1">{viewTariff.description || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">{viewTariff.feeType}</Badge>
+                      <Badge variant="outline">{viewTariff.userType}</Badge>
+                      {viewTariff.subscriberType && <Badge variant="outline">{viewTariff.subscriberType}</Badge>}
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Tariff Type</Label>
-                    <p className="text-sm">{viewTariff.tariffType}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Transaction Type</Label>
-                    <Badge variant="outline" className="mt-1">{getTransactionTypeLabel(viewTariff.transactionType, viewTariff)}</Badge>
-                  </div>
-                  {viewTariff.transactionType === 'WALLET_TO_PARTNER_INSTITUTION' && (
-                    <div className="col-span-2">
-                      <Label className="text-xs text-gray-500">Institution principal spread (metadata)</Label>
-                      <p className="text-sm mt-1">
+                </section>
+
+                {viewTariff.tariffType === 'EXTERNAL' && (
+                  <section className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Partner Details
+                    </h3>
+                    <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4 grid gap-3 text-sm">
+                      {viewTariff.partner && (
+                        <div>
+                          <Label className="text-xs text-blue-700">External Payment Partner</Label>
+                          <p className="mt-1 font-medium text-blue-900">{viewTariff.partner.partnerName}</p>
+                          <p className="text-xs text-blue-700">Code: {viewTariff.partner.partnerCode}</p>
+                        </div>
+                      )}
+                      {viewTariff.apiPartner && (
+                        <div>
+                          <Label className="text-xs text-blue-700">API Partner (Gateway)</Label>
+                          <p className="mt-1 font-medium text-blue-900">{viewTariff.apiPartner.partnerName}</p>
+                          <p className="text-xs text-blue-700">Type: {viewTariff.apiPartner.partnerType}</p>
+                          <p className="text-xs text-blue-700">Email: {viewTariff.apiPartner.contactEmail}</p>
+                        </div>
+                      )}
+                      {!viewTariff.partner && !viewTariff.apiPartner && (
+                        <p className="text-blue-700">Platform tariff (no external partner mapping)</p>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                {viewTariff.transactionType === 'WALLET_TO_PARTNER_INSTITUTION' && (
+                  <section className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Institution Spread
+                    </h3>
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
+                      <p className="text-sm text-indigo-900">
                         {formatInstitutionSpreadFromMetadata(viewTariff.metadata) ??
                           'SACCO: full principal (no spread in metadata)'}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-indigo-700 mt-2">
                         Stored as <code className="text-xs">metadata.institutionSpreadBps</code> (basis points of
                         principal before SACCO / NEXEN credit).
                       </p>
                     </div>
-                  )}
-                  {viewTariff.tariffType === 'EXTERNAL' && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Network</Label>
-                      <p className="text-sm">{viewTariff.network || '-'}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </section>
+                )}
 
-              {/* Fee Configuration */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">Fee Configuration</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs text-gray-500">Fee Type</Label>
-                    <Badge variant="outline" className="mt-1">{viewTariff.feeType}</Badge>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Currency</Label>
-                    <p className="text-sm">{viewTariff.currency}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Fee Amount</Label>
-                    <p className="text-sm font-medium">{viewTariff.feeAmount} {viewTariff.currency}</p>
-                  </div>
-                  {viewTariff.feePercentage && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Fee Percentage</Label>
-                      <p className="text-sm">{viewTariff.feePercentage}%</p>
-                    </div>
-                  )}
-                  {viewTariff.minFee && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Min Fee</Label>
-                      <p className="text-sm">{viewTariff.minFee} {viewTariff.currency}</p>
-                    </div>
-                  )}
-                  {viewTariff.maxFee && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Max Fee</Label>
-                      <p className="text-sm">{viewTariff.maxFee} {viewTariff.currency}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Amount Range */}
-              {(viewTariff.minAmount || viewTariff.maxAmount) && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">Amount Range</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {viewTariff.minAmount && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Min Amount</Label>
-                        <p className="text-sm">{viewTariff.minAmount} {viewTariff.currency}</p>
-                      </div>
-                    )}
-                    {viewTariff.maxAmount && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Max Amount</Label>
-                        <p className="text-sm">{viewTariff.maxAmount} {viewTariff.currency}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* User Type */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">User Type</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs text-gray-500">User Type</Label>
-                    <p className="text-sm">{viewTariff.userType}</p>
-                  </div>
-                  {viewTariff.subscriberType && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Subscriber Type</Label>
-                      <p className="text-sm">{viewTariff.subscriberType}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* External Tariff Details */}
-              {viewTariff.tariffType === 'EXTERNAL' && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">External Tariff Details</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {viewTariff.partner && (
-                      <div className="col-span-2">
-                        <Label className="text-xs text-gray-500">External Payment Partner</Label>
-                        <div className="mt-1">
-                          <p className="text-sm font-medium">{viewTariff.partner.partnerName}</p>
-                          <p className="text-xs text-gray-500">Code: {viewTariff.partner.partnerCode}</p>
-                        </div>
-                      </div>
-                    )}
-                    {viewTariff.apiPartner && (
-                      <div className="col-span-2">
-                        <Label className="text-xs text-gray-500">API Partner (Gateway)</Label>
-                        <div className="mt-1">
-                          <p className="text-sm font-medium">{viewTariff.apiPartner.partnerName}</p>
-                          <p className="text-xs text-gray-500">Type: {viewTariff.apiPartner.partnerType}</p>
-                          <p className="text-xs text-gray-500">Email: {viewTariff.apiPartner.contactEmail}</p>
-                        </div>
-                      </div>
-                    )}
-                    {viewTariff.group && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Group</Label>
-                        <p className="text-sm">{viewTariff.group}</p>
-                      </div>
-                    )}
-                    {viewTariff.partnerFee !== undefined && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Partner Fee</Label>
-                        <p className="text-sm">{viewTariff.partnerFee} {viewTariff.currency}</p>
-                      </div>
-                    )}
-                    {viewTariff.rukapayFee !== undefined && (
-                      <div>
-                        <Label className="text-xs text-gray-500">RukaPay Fee</Label>
-                        <p className="text-sm">
-                          {formatTariffSplitField(viewTariff.rukapayFee, viewTariff) ?? '-'}
-                        </p>
-                      </div>
-                    )}
-                    {viewTariff.telecomBankCharge !== undefined && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Telecom/Bank Charge</Label>
-                        <p className="text-sm">
-                          {formatTariffSplitField(viewTariff.telecomBankCharge, viewTariff) ?? '-'}
-                        </p>
-                      </div>
-                    )}
-                    {viewTariff.governmentTax !== undefined && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Government Tax</Label>
-                        <p className="text-sm">
-                          {formatTariffGovernmentTax(viewTariff.governmentTax) ?? '-'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Approval Information */}
-              {(viewTariff.approvalNotes || viewTariff.approvedBy || viewTariff.rejectedBy) && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">Approval Information</h3>
-                  <div className="grid gap-3">
-                    {viewTariff.approvalNotes && (
-                      <div>
-                        <Label className="text-xs text-gray-500">Notes</Label>
-                        <p className="text-sm">{viewTariff.approvalNotes}</p>
-                      </div>
-                    )}
-                    {viewTariff.approvedBy && (
-                      <div className="grid grid-cols-2 gap-3">
+                {(viewTariff.approvalNotes || viewTariff.approvedBy || viewTariff.rejectedBy) && (
+                  <section className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      Approval Information
+                    </h3>
+                    <div
+                      className={`rounded-lg border p-4 grid gap-3 text-sm ${
+                        viewTariff.rejectedBy
+                          ? 'bg-red-50/60 border-red-100'
+                          : viewTariff.approvedBy
+                            ? 'bg-green-50/60 border-green-100'
+                            : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      {viewTariff.approvalNotes && (
                         <div>
-                          <Label className="text-xs text-gray-500">Approved By</Label>
-                          <p className="text-sm">{viewTariff.approvedBy}</p>
+                          <Label className="text-xs text-gray-500">Notes</Label>
+                          <p className="mt-1">{viewTariff.approvalNotes}</p>
                         </div>
-                        {viewTariff.approvedAt && (
+                      )}
+                      {viewTariff.approvedBy && (
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label className="text-xs text-gray-500">Approved At</Label>
-                            <p className="text-sm">{new Date(viewTariff.approvedAt).toLocaleString()}</p>
+                            <Label className="text-xs text-gray-500">Approved By</Label>
+                            <p className="mt-1">{viewTariff.approvedBy}</p>
                           </div>
-                        )}
+                          {viewTariff.approvedAt && (
+                            <div>
+                              <Label className="text-xs text-gray-500">Approved At</Label>
+                              <p className="mt-1">{new Date(viewTariff.approvedAt).toLocaleString()}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {viewTariff.rejectedBy && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-gray-500">Rejected By</Label>
+                            <p className="mt-1">{viewTariff.rejectedBy}</p>
+                          </div>
+                          {viewTariff.rejectedAt && (
+                            <div>
+                              <Label className="text-xs text-gray-500">Rejected At</Label>
+                              <p className="mt-1">{new Date(viewTariff.rejectedAt).toLocaleString()}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                )}
+
+                <section className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Timestamps
+                  </h3>
+                  <div className="rounded-lg border bg-slate-50/70 p-4 grid grid-cols-2 gap-3 text-sm">
+                    {viewTariff.createdAt && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Created At</Label>
+                        <p className="mt-1">{new Date(viewTariff.createdAt).toLocaleString()}</p>
                       </div>
                     )}
-                    {viewTariff.rejectedBy && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs text-gray-500">Rejected By</Label>
-                          <p className="text-sm">{viewTariff.rejectedBy}</p>
-                        </div>
-                        {viewTariff.rejectedAt && (
-                          <div>
-                            <Label className="text-xs text-gray-500">Rejected At</Label>
-                            <p className="text-sm">{new Date(viewTariff.rejectedAt).toLocaleString()}</p>
-                          </div>
-                        )}
+                    {viewTariff.updatedAt && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Updated At</Label>
+                        <p className="mt-1">{new Date(viewTariff.updatedAt).toLocaleString()}</p>
                       </div>
                     )}
                   </div>
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900 border-b pb-2">Timestamps</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {viewTariff.createdAt && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Created At</Label>
-                      <p className="text-sm">{new Date(viewTariff.createdAt).toLocaleString()}</p>
-                    </div>
-                  )}
-                  {viewTariff.updatedAt && (
-                    <div>
-                      <Label className="text-xs text-gray-500">Updated At</Label>
-                      <p className="text-sm">{new Date(viewTariff.updatedAt).toLocaleString()}</p>
-                    </div>
-                  )}
-                </div>
+                </section>
               </div>
-            </div>
+            </>
           )}
           
           <DialogFooter>
