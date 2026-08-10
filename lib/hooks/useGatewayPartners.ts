@@ -347,10 +347,99 @@ export interface TopUpPartnerWalletRequest {
   amount: number;
   currency?: string;
   walletType?: 'ESCROW' | 'COMMISSION';
+  /** Specific wallet UUID when partner has multiple ESCROW wallets */
+  walletId?: string;
   reference: string;
   description?: string;
   approvedBy?: string;
 }
+
+export interface PartnerWalletListItem {
+  id: string;
+  walletType: string;
+  currency: string;
+  balance: number;
+  isDefault: boolean;
+  isActive: boolean;
+  isSuspended: boolean;
+  description: string | null;
+  createdAt: string;
+}
+
+// Hook: List all wallets for a gateway partner
+export const usePartnerWallets = (
+  partnerId: string,
+  walletType?: 'ESCROW' | 'COMMISSION',
+) => {
+  return useQuery({
+    queryKey: ['gateway-partner-wallets', partnerId, walletType || 'ALL'],
+    queryFn: async () => {
+      const qs = walletType ? `?walletType=${walletType}` : '';
+      const response = await api.get(
+        `/api/v1/admin/gateway-partners/wallets/${partnerId}${qs}`,
+      );
+      return response.data as {
+        success: boolean;
+        partnerId: string;
+        partnerName: string;
+        wallets: PartnerWalletListItem[];
+      };
+    },
+    enabled: !!partnerId,
+    staleTime: 15000,
+  });
+};
+
+// Hook: Create additional ESCROW wallet under ApiPartner
+export const useCreatePartnerEscrowWallet = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      partnerId: string;
+      currency?: string;
+      description?: string;
+    }) => {
+      const response = await api.post(
+        '/api/v1/admin/gateway-partners/wallets/escrow',
+        {
+          partnerId: data.partnerId,
+          currency: data.currency || 'UGX',
+          description: data.description,
+        },
+      );
+      return response.data as {
+        success: boolean;
+        message: string;
+        wallet: PartnerWalletListItem & { partnerId: string };
+      };
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallets', variables.partnerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallet', variables.partnerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner', variables.partnerId],
+      });
+      toast.success(
+        data?.wallet?.id
+          ? `ESCROW wallet created: ${data.wallet.id}`
+          : 'ESCROW wallet created',
+      );
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to create ESCROW wallet';
+      toast.error(message);
+    },
+  });
+};
 
 // Hook: Top up partner wallet
 export const useTopUpPartnerWallet = () => {
@@ -371,6 +460,9 @@ export const useTopUpPartnerWallet = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['gateway-partner-wallet', variables.partnerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallets', variables.partnerId],
       });
       queryClient.invalidateQueries({
         queryKey: ['gateway-partner', variables.partnerId],

@@ -26,7 +26,7 @@ import {
   shortenTransactionId
 } from '@/lib/utils/transactions'
 import toast from 'react-hot-toast'
-import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay } from './partyResolver'
+import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from './partyResolver'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
 
@@ -221,11 +221,29 @@ export const TransactionDetailsModal = ({
                        transaction.metadata?.errorMessage || 
                        'Transaction failed due to processing error. Please contact support for more details.'}
                     </p>
-                    {transaction.partnerMapping?.partner?.partnerCode === 'ABC' && (
-                      <p className="text-red-700 text-xs mt-1 italic">
-                        Error from ABC partner
-                      </p>
-                    )}
+                    {(() => {
+                      const railRaw =
+                        resolvePaymentPartnerLabel(transaction) ||
+                        String(
+                          transaction.metadata?.partnerCode ||
+                            transaction.metadata?.externalPartnerCode ||
+                            transaction.partnerMapping?.partner?.partnerCode ||
+                            '',
+                        ).trim()
+                      const rail = railRaw ? String(railRaw).trim().toUpperCase() : ''
+                      if (
+                        !rail ||
+                        rail === 'INTERNAL' ||
+                        rail === 'PLATFORM REVENUE'
+                      ) {
+                        return null
+                      }
+                      return (
+                        <p className="text-red-700 text-xs mt-1 italic">
+                          Error from {rail} partner
+                        </p>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
