@@ -410,7 +410,7 @@ const Navbar = () => {
                 )}
                 
                 {isVisible('customers') && (
-                  <PermissionGuard permissions={[PERMISSIONS.WALLETS_VIEW, PERMISSIONS.USERS_VIEW]} requireAll={false}>
+                  <PermissionGuard permission={PERMISSIONS.USERS_VIEW}>
                     <Link 
                       href="/dashboard/customers" 
                       className={`nav-slider-item ${

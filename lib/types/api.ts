@@ -127,6 +127,8 @@ export interface CreateUserRequest {
   country?: string
   sendOtpViaEmail?: boolean
   sendOtpViaSms?: boolean
+  /** Explicit RBAC permission UUIDs. Enum ADMIN alone grants no API access. */
+  permissionIds?: string[]
 }
 
 export interface UpdateUserRequest {
