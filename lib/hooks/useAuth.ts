@@ -184,6 +184,20 @@ export const useForgotPassword = () => {
   })
 }
 
+// Reset password hook (forgot-password email token)
+export const useResetPassword = () => {
+  return useMutation<ApiResponse<any>, Error, {
+    token: string;
+    newPassword: string;
+    confirmPassword: string;
+  }>({
+    mutationFn: (passwordData) => apiFetch('/auth/reset-password', {
+      method: 'POST',
+      data: passwordData,
+    }),
+  })
+}
+
 // Main useAuth hook for session management
 export const useAuth = () => {
   const { data: session, status } = useSession()

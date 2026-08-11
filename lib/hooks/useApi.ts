@@ -12,6 +12,7 @@ export {
   useSendWelcomeEmail,
   useSetPassword,
   useForgotPassword,
+  useResetPassword,
   useAuth
 } from './useAuth'
 
