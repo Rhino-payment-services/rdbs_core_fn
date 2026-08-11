@@ -21,9 +21,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react'
-import { useRoles, useRemoveRole } from '@/lib/hooks/useApi'
+import { useRoles, useRemoveRole, useForgotPassword } from '@/lib/hooks/useApi'
 import { useUpdateUser } from '@/lib/hooks/useAuth'
 import { useUserPermissions, useUpdateUserPermissions, useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import type { User, Role } from '@/lib/types/api'
@@ -62,6 +63,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
   const removeRole = useRemoveRole()
   const updatePermissions = useUpdateUserPermissions()
   const updateUser = useUpdateUser()
+  const forgotPassword = useForgotPassword()
 
   const rolesArray: Role[] = Array.isArray(roles?.roles) ? roles.roles : Array.isArray(roles) ? roles : []
 
@@ -696,9 +698,29 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                 <div className="pt-4 border-t">
                   <h4 className="text-sm font-medium mb-3">Security Actions</h4>
                   <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start">
-                      <Shield className="h-4 w-4 mr-2" />
-                      Reset Password
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      disabled={forgotPassword.isPending || !user.email}
+                      onClick={async () => {
+                        if (!user.email) {
+                          toast.error('User has no email address')
+                          return
+                        }
+                        try {
+                          await forgotPassword.mutateAsync({ email: user.email })
+                          toast.success(`Password reset email sent to ${user.email}`)
+                        } catch (err) {
+                          toast.error(extractErrorMessage(err) || 'Failed to send password reset email')
+                        }
+                      }}
+                    >
+                      {forgotPassword.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Shield className="h-4 w-4 mr-2" />
+                      )}
+                      {forgotPassword.isPending ? 'Sending…' : 'Reset Password'}
                     </Button>
                     <Button variant="outline" className="w-full justify-start">
                       <Clock className="h-4 w-4 mr-2" />
