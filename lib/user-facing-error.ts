@@ -18,11 +18,19 @@ const MESSAGE_RULES: Array<{ test: RegExp; message: string }> = [
   { test: /invalid\s+phone|phone\s+number\s+format/i, message: 'Invalid phone number.' },
   { test: /invalid\s+pin|incorrect\s+pin|wrong\s+pin/i, message: 'Incorrect PIN.' },
   {
-    test: /password setup link has expired|setup link has expired|reset (token|link) has expired/i,
+    test: /reset token has expired|reset link has expired/i,
+    message: 'This reset link has expired. Request a new one from Forgot Password.',
+  },
+  {
+    test: /invalid reset token|invalid reset token payload/i,
+    message: 'This reset link is invalid. Request a new one from Forgot Password.',
+  },
+  {
+    test: /password setup link has expired|setup link has expired|token has expired/i,
     message: 'This link has expired. Please ask an admin to resend the invitation.',
   },
   {
-    test: /invalid password setup link|invalid or corrupted password setup/i,
+    test: /invalid password setup link|invalid or corrupted password setup|invalid token payload/i,
     message: 'This link is invalid. Please use the link from your email or ask an admin to resend it.',
   },
   { test: /session\s+expired/i, message: 'Session expired. Please log in again.' },
