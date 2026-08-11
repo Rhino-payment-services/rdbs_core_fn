@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { useCreateUser, useSendWelcomeEmail } from '@/lib/hooks/useApi'
+import { useCreateUser } from '@/lib/hooks/useApi'
 import { useGrantStaffAccess } from '@/lib/hooks/useDuplicateAccounts'
 import {
   getLinkedCustomerPrefill,
@@ -105,7 +105,6 @@ export function CreateStaffUserWizard() {
   const router = useRouter()
   const createUserMutation = useCreateUser()
   const grantStaffMutation = useGrantStaffAccess()
-  const sendWelcomeEmailMutation = useSendWelcomeEmail()
   const { emailResult, phoneResult, checkEmail, checkPhone } = useUserAvailabilityCheck()
 
   const [step, setStep] = useState(1)
@@ -203,10 +202,8 @@ export function CreateStaffUserWizard() {
     }
 
     try {
-      let createdUser: { id: string }
-
       if (grantStaffOnExisting && existingUserId) {
-        const granted = await grantStaffMutation.mutateAsync({
+        await grantStaffMutation.mutateAsync({
           existingUserId,
           email: email.trim(),
           firstName: formData.firstName.trim(),
@@ -215,9 +212,8 @@ export function CreateStaffUserWizard() {
           position: formData.position,
           country: formData.country,
         })
-        createdUser = (granted.data || granted) as { id: string }
       } else {
-        const userResponse = await createUserMutation.mutateAsync({
+        await createUserMutation.mutateAsync({
           email: email.trim(),
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
@@ -226,32 +222,21 @@ export function CreateStaffUserWizard() {
           country: formData.country,
           role: 'ADMIN',
           userType: 'STAFF_USER',
+          // Backend sends set-password email when true (default).
+          sendOtpViaEmail: sendWelcomeEmail,
           password: 'temp-password-will-be-set-via-otp',
         })
-        createdUser = (userResponse.data || userResponse) as { id: string }
       }
 
-      if (sendWelcomeEmail) {
-        try {
-          await sendWelcomeEmailMutation.mutateAsync({
-            email: email.trim(),
-            userName: `${formData.firstName} ${formData.lastName}`,
-            userId: createdUser.id,
-            metadata: { channel: 'BACKOFFICE', referralCode: `REF${Date.now()}` },
-          })
-          toast.success(
-            grantStaffOnExisting
-              ? 'Staff portal access granted. They will receive an email to set their password.'
-              : 'Staff user created. They will receive an email to set their password.',
-          )
-        } catch (emailError: unknown) {
-          toast.error(
-            `Staff user created, but welcome email failed: ${extractErrorMessage(emailError)}`,
-          )
-        }
-      } else {
-        toast.success('Staff user created successfully.')
-      }
+      toast.success(
+        sendWelcomeEmail
+          ? grantStaffOnExisting
+            ? 'Staff portal access granted. They will receive an email to set their password.'
+            : 'Staff user created. They will receive an email to set their password.'
+          : grantStaffOnExisting
+            ? 'Staff portal access granted.'
+            : 'Staff user created successfully.',
+      )
 
       router.push('/dashboard/users')
     } catch (error: unknown) {
@@ -661,9 +646,9 @@ export function CreateStaffUserWizard() {
             <Button
               type="button"
               onClick={handleSubmit}
-              disabled={createUserMutation.isPending || sendWelcomeEmailMutation.isPending}
+              disabled={createUserMutation.isPending || grantStaffMutation.isPending}
             >
-              {createUserMutation.isPending ? (
+              {createUserMutation.isPending || grantStaffMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Creating…

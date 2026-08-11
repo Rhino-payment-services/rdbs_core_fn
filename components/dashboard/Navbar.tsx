@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff, Ticket, Banknote } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff, Ticket, Banknote, Store } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -251,7 +251,7 @@ const Navbar = () => {
                   <Link 
                     href="/dashboard" 
                     className={`nav-slider-item ${
-                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/rukasente-loans') && !isActive('/dashboard/saccos') && !isActive('/dashboard/merchant-events') && !isActive('/dashboard/carousel')
+                      isActive('/dashboard') && !isActive('/dashboard/transactions') && !isActive('/dashboard/users') && !isActive('/dashboard/analytics') && !isActive('/dashboard/activity') && !isActive('/dashboard/revenue-tax') && !isActive('/dashboard/reports') && !isActive('/dashboard/security') && !isActive('/dashboard/settings') && !isActive('/dashboard/customers') && !isActive('/dashboard/cards') && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/rukasente-loans') && !isActive('/dashboard/saccos') && !isActive('/dashboard/partner-merchants') && !isActive('/dashboard/merchant-events') && !isActive('/dashboard/carousel')
                         ? 'active'
                         : ''
                     }`}
@@ -293,7 +293,7 @@ const Navbar = () => {
                       <Link 
                         href="/dashboard/finance" 
                         className={`nav-slider-item ${
-                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/tariffs-new') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/finance/routing-rules') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos')
+                          (isActive('/dashboard/finance') || isActive('/dashboard/finance/tariffs') || isActive('/dashboard/finance/tariffs-new') || isActive('/dashboard/finance/partners') || isActive('/dashboard/finance/transaction-mapping') || isActive('/dashboard/finance/routing-rules') || isActive('/dashboard/transaction-modes') || isActive('/dashboard/wallet') || isActive('/dashboard/platform-revenue') || isActive('/dashboard/system-wallets') || isActive('/dashboard/transactions') || isActive('/dashboard/reports')) && !isActive('/dashboard/gateway-partners') && !isActive('/dashboard/saccos') && !isActive('/dashboard/partner-merchants')
                             ? 'active'
                             : ''
                         }`}
@@ -361,6 +361,20 @@ const Navbar = () => {
                     >
                       <Building2 className="nav-icon" />
                       <span>SACCOs</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
+                {isVisible('partner-merchants') && (
+                  <PermissionGuard permission={PERMISSIONS.PARTNERS_VIEW}>
+                    <Link
+                      href="/dashboard/partner-merchants"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/partner-merchants') ? 'active' : ''
+                      }`}
+                    >
+                      <Store className="nav-icon" />
+                      <span>Partner Merchants</span>
                     </Link>
                   </PermissionGuard>
                 )}

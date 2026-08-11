@@ -44,6 +44,8 @@ import {
   useSuspendGatewayPartner,
   useRevokeApiKey,
   usePartnerWalletBalance,
+  usePartnerWallets,
+  useCreatePartnerEscrowWallet,
   useTopUpPartnerWallet,
   useUpdatePartnerAuthType,
   useUpdateGatewayPartner,
@@ -81,10 +83,15 @@ const GatewayPartnerDetailsPage = () => {
 
   const [showFundWalletDialog, setShowFundWalletDialog] = useState(false)
   const [fundWalletType, setFundWalletType] = useState<'ESCROW' | 'COMMISSION'>('ESCROW')
+  const [fundWalletId, setFundWalletId] = useState<string>('')
   const [fundAmount, setFundAmount] = useState('')
   const [fundReference, setFundReference] = useState('')
   const [fundDescription, setFundDescription] = useState('')
 
+  const [showCreateEscrowDialog, setShowCreateEscrowDialog] = useState(false)
+  const [newEscrowDescription, setNewEscrowDescription] = useState('')
+  const [createdEscrowWalletId, setCreatedEscrowWalletId] = useState('')
+  const [showCreatedEscrowDialog, setShowCreatedEscrowDialog] = useState(false)
   // Rate limits / tier edit state
   const [showEditLimitsDialog, setShowEditLimitsDialog] = useState(false)
   const [editTier, setEditTier] = useState('')
@@ -116,6 +123,13 @@ const GatewayPartnerDetailsPage = () => {
     'UGX',
     'COMMISSION',
   )
+  const { data: partnerWalletsData, refetch: refetchWallets } = usePartnerWallets(partnerId)
+  const createEscrowWallet = useCreatePartnerEscrowWallet()
+
+  const partnerWallets = partnerWalletsData?.wallets ?? []
+  const escrowWallets = partnerWallets.filter(
+    (w) => (w.walletType || '').toUpperCase() === 'ESCROW',
+  )
 
   const handleFundWallet = async () => {
     const amount = parseFloat(fundAmount)
@@ -134,6 +148,7 @@ const GatewayPartnerDetailsPage = () => {
         amount,
         currency: 'UGX',
         walletType: fundWalletType,
+        walletId: fundWalletId || undefined,
         reference: fundReference.trim(),
         description: fundDescription.trim() || undefined,
       })
@@ -141,6 +156,30 @@ const GatewayPartnerDetailsPage = () => {
       setFundAmount('')
       setFundReference('')
       setFundDescription('')
+      setFundWalletId('')
+      refetchBalance()
+      refetchWallets()
+      refetch()
+    } catch {
+      // error handled in mutation onError
+    }
+  }
+
+  const handleCreateEscrowWallet = async () => {
+    try {
+      const result = await createEscrowWallet.mutateAsync({
+        partnerId,
+        currency: 'UGX',
+        description: newEscrowDescription.trim() || undefined,
+      })
+      setShowCreateEscrowDialog(false)
+      setNewEscrowDescription('')
+      const id = result?.wallet?.id || ''
+      if (id) {
+        setCreatedEscrowWalletId(id)
+        setShowCreatedEscrowDialog(true)
+      }
+      refetchWallets()
       refetchBalance()
       refetch()
     } catch {
@@ -563,12 +602,24 @@ const GatewayPartnerDetailsPage = () => {
                     <Wallet className="h-5 w-5 text-blue-600" />
                     Partner Wallets
                   </CardTitle>
-                  <CardDescription>Current balances for ESCROW and COMMISSION wallets</CardDescription>
+                  <CardDescription>
+                    ESCROW / COMMISSION balances. Create extra ESCROW wallets for RukaSente
+                    lending companies under this ApiPartner.
+                  </CardDescription>
                 </div>
-                <Button onClick={() => setShowFundWalletDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Fund Wallet
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCreateEscrowDialog(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create ESCROW
+                  </Button>
+                  <Button onClick={() => setShowFundWalletDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Fund Wallet
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -595,11 +646,16 @@ const GatewayPartnerDetailsPage = () => {
                     {escrowBalance?.wallet?.isActive
                       ? escrowBalance.wallet.isSuspended
                         ? '⚠ Suspended'
-                        : '● Active'
+                        : '● Active (default / first match)'
                       : escrowBalance
                       ? '○ Inactive / not created'
                       : 'Not yet funded'}
                   </p>
+                  {escrowBalance?.wallet?.walletId && (
+                    <p className="mt-2 font-mono text-[11px] text-blue-800 break-all">
+                      {escrowBalance.wallet.walletId}
+                    </p>
+                  )}
                 </div>
 
                 {/* COMMISSION */}
@@ -629,6 +685,83 @@ const GatewayPartnerDetailsPage = () => {
                   </p>
                 </div>
               </div>
+
+              {escrowWallets.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="mb-2 text-sm font-semibold text-gray-900">
+                    All ESCROW wallets ({escrowWallets.length})
+                  </h4>
+                  <p className="mb-3 text-xs text-gray-500">
+                    Copy a wallet ID into RukaSent Partner → RukaPay escrow wallet ID for
+                    lending-company isolation.
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Wallet ID</TableHead>
+                          <TableHead>Balance</TableHead>
+                          <TableHead>Flags</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {escrowWallets.map((w) => (
+                          <TableRow key={w.id}>
+                            <TableCell className="max-w-[180px] truncate text-sm">
+                              {w.description || '—'}
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-[11px] break-all">{w.id}</code>
+                            </TableCell>
+                            <TableCell className="tabular-nums text-sm">
+                              {w.currency} {Number(w.balance).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="space-x-1">
+                              {w.isDefault && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  Default
+                                </Badge>
+                              )}
+                              {!w.isActive && (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Inactive
+                                </Badge>
+                              )}
+                              {w.isSuspended && (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Suspended
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right space-x-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(w.id)}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setFundWalletType('ESCROW')
+                                  setFundWalletId(w.id)
+                                  setShowFundWalletDialog(true)
+                                }}
+                              >
+                                Fund
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -1118,6 +1251,7 @@ const GatewayPartnerDetailsPage = () => {
               setFundAmount('')
               setFundReference('')
               setFundDescription('')
+              setFundWalletId('')
             }
           }
         }}
@@ -1140,7 +1274,10 @@ const GatewayPartnerDetailsPage = () => {
               <Label htmlFor="walletType">Wallet Type *</Label>
               <Select
                 value={fundWalletType}
-                onValueChange={(v) => setFundWalletType(v as 'ESCROW' | 'COMMISSION')}
+                onValueChange={(v) => {
+                  setFundWalletType(v as 'ESCROW' | 'COMMISSION')
+                  setFundWalletId('')
+                }}
               >
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
@@ -1151,6 +1288,39 @@ const GatewayPartnerDetailsPage = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {fundWalletType === 'ESCROW' && escrowWallets.length > 0 && (
+              <div>
+                <Label>Specific ESCROW wallet (optional)</Label>
+                <Select
+                  value={fundWalletId || '__default__'}
+                  onValueChange={(v) =>
+                    setFundWalletId(v === '__default__' ? '' : v)
+                  }
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue placeholder="Default ESCROW" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">
+                      Default ESCROW (isDefault / first match)
+                    </SelectItem>
+                    {escrowWallets.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {(w.description || 'ESCROW').slice(0, 40)}
+                        {w.isDefault ? ' · default' : ''} —{' '}
+                        {Number(w.balance).toLocaleString()} {w.currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fundWalletId ? (
+                  <p className="mt-1 font-mono text-[11px] text-gray-500 break-all">
+                    {fundWalletId}
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {/* Amount */}
             <div>
@@ -1204,7 +1374,10 @@ const GatewayPartnerDetailsPage = () => {
                 <p className="font-semibold text-blue-900">Summary</p>
                 <div className="flex justify-between text-blue-800">
                   <span>Wallet:</span>
-                  <span>{fundWalletType}</span>
+                  <span>
+                    {fundWalletType}
+                    {fundWalletId ? ' (specific)' : ''}
+                  </span>
                 </div>
                 <div className="flex justify-between text-blue-800">
                   <span>Amount:</span>
@@ -1236,6 +1409,104 @@ const GatewayPartnerDetailsPage = () => {
               ) : (
                 <><DollarSign className="h-4 w-4 mr-2" /> Confirm Funding</>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create ESCROW Dialog */}
+      <Dialog
+        open={showCreateEscrowDialog}
+        onOpenChange={(open) => {
+          if (!createEscrowWallet.isPending) {
+            setShowCreateEscrowDialog(open)
+            if (!open) setNewEscrowDescription('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create ESCROW wallet</DialogTitle>
+            <DialogDescription>
+              Adds another ESCROW under {partner.partnerName} for a RukaSente lending
+              company. The existing default ESCROW stays the default.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="escrowDesc">Label / description</Label>
+              <Input
+                id="escrowDesc"
+                placeholder="e.g. Lending Co A ESCROW"
+                value={newEscrowDescription}
+                onChange={(e) => setNewEscrowDescription(e.target.value)}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Shown in the wallet list so you can match it to a RukaSent partner.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateEscrowDialog(false)}
+              disabled={createEscrowWallet.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateEscrowWallet}
+              disabled={createEscrowWallet.isPending}
+            >
+              {createEscrowWallet.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                'Create ESCROW'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Created ESCROW reveal */}
+      <Dialog
+        open={showCreatedEscrowDialog}
+        onOpenChange={setShowCreatedEscrowDialog}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              ESCROW wallet created
+            </DialogTitle>
+            <DialogDescription>
+              Copy this wallet ID into RukaSent → Partner → RukaPay escrow wallet ID.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border bg-gray-50 p-3">
+            <code className="break-all text-xs">{createdEscrowWalletId}</code>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => copyToClipboard(createdEscrowWalletId)}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy ID
+            </Button>
+            <Button
+              onClick={() => {
+                setFundWalletType('ESCROW')
+                setFundWalletId(createdEscrowWalletId)
+                setShowCreatedEscrowDialog(false)
+                setShowFundWalletDialog(true)
+              }}
+            >
+              Fund this wallet
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -120,8 +120,13 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
 
-      // Handle 401 Unauthorized with token refresh
-      if (status === 401 && !originalRequest._retry) {
+      // Skip auth refresh for public invite/password flows — 401 here is not a
+      // logged-in session problem, and retrying with Bearer breaks set-password.
+      if (
+        status === 401 &&
+        !originalRequest._retry &&
+        !shouldSkipAuthHeader(originalRequest?.url)
+      ) {
         if (isRefreshing) {
           // If already refreshing, queue this request
           return new Promise((resolve, reject) => {

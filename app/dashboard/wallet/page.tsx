@@ -67,8 +67,10 @@ const WalletPage = () => {
     category?:
       | 'PERSONAL'
       | 'BUSINESS'
+      | 'MERCHANT'
       | 'BUSINESS_COLLECTION'
       | 'BUSINESS_DISBURSEMENT'
+      | 'BUSINESS_LIQUIDATION'
       | 'SYSTEM'
       | 'OTHER'
     search?: string
@@ -319,36 +321,105 @@ const WalletPage = () => {
       : (value as
           | 'PERSONAL'
           | 'BUSINESS'
+          | 'MERCHANT'
           | 'BUSINESS_COLLECTION'
           | 'BUSINESS_DISBURSEMENT'
+          | 'BUSINESS_LIQUIDATION'
           | 'SYSTEM'
           | 'OTHER')
     setFilters(prev => ({ ...prev, category: categoryValue, page: 1 }))
   }
 
+  const handleStatusChange = (value: string) => {
+    if (value === 'all') {
+      setFilters(prev => ({
+        ...prev,
+        isActive: undefined,
+        isSuspended: undefined,
+        page: 1,
+      }))
+      return
+    }
+    if (value === 'active') {
+      setFilters(prev => ({
+        ...prev,
+        isActive: true,
+        isSuspended: false,
+        page: 1,
+      }))
+      return
+    }
+    if (value === 'suspended') {
+      setFilters(prev => ({
+        ...prev,
+        isActive: undefined,
+        isSuspended: true,
+        page: 1,
+      }))
+      return
+    }
+    if (value === 'inactive') {
+      setFilters(prev => ({
+        ...prev,
+        isActive: false,
+        isSuspended: false,
+        page: 1,
+      }))
+    }
+  }
+
+  const statusFilterValue = filters.isSuspended
+    ? 'suspended'
+    : filters.isActive === true
+      ? 'active'
+      : filters.isActive === false
+        ? 'inactive'
+        : 'all'
+
   // Use backend-provided aggregates when available so summary cards
-  // reflect the full result set (respecting filters), not just the
-  // current page slice.
+  // reflect the full result set, not just the current page slice.
   const totalBalance =
     categoryStats && typeof categoryStats.totalBalance === 'number'
       ? categoryStats.totalBalance
       : walletsArray.reduce((sum, wallet) => sum + wallet.balance, 0)
 
+  const merchantStats = categoryStats?.merchant
+  const merchantBalance =
+    typeof merchantStats?.totalBalance === 'number'
+      ? merchantStats.totalBalance
+      : 0
+  const merchantWalletCount =
+    typeof merchantStats?.walletCount === 'number'
+      ? merchantStats.walletCount
+      : categoryStats?.business || 0
+
   // Total wallets should use the backend "total" (which already applies
   // the current filters) instead of just the current page length.
   const totalWalletsCount = totalWallets || walletsArray.length
 
-  // Active wallets:
-  // - Prefer backend aggregate of wallets that have transacted in the
-  //   last 6 months when available (categoryStats.activeLast6Months).
-  // - Fallback to simple flag-based active status on the current page.
+  // Prefer backend status.active (isActive && !isSuspended), then 6-month activity, then page flags
   const activeWallets =
-    categoryStats && typeof categoryStats.activeLast6Months === 'number'
-      ? categoryStats.activeLast6Months
-      : walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
+    typeof categoryStats?.status?.active === 'number'
+      ? categoryStats.status.active
+      : typeof categoryStats?.activeLast6Months === 'number'
+        ? categoryStats.activeLast6Months
+        : walletsArray.filter(wallet => wallet.isActive && !wallet.isSuspended).length
 
-  const suspendedWallets = walletsArray.filter(wallet => wallet.isSuspended).length
-  
+  const suspendedWallets =
+    typeof categoryStats?.status?.suspended === 'number'
+      ? categoryStats.status.suspended
+      : walletsArray.filter(wallet => wallet.isSuspended).length
+
+  const inactiveWallets =
+    typeof categoryStats?.status?.inactive === 'number'
+      ? categoryStats.status.inactive
+      : walletsArray.filter(wallet => !wallet.isActive && !wallet.isSuspended).length
+
+  const merchantByType = merchantStats?.byType || {}
+  const merchantCollection = merchantByType.BUSINESS_COLLECTION || { walletCount: 0, totalBalance: 0 }
+  const merchantDisbursement = merchantByType.BUSINESS_DISBURSEMENT || { walletCount: 0, totalBalance: 0 }
+  const merchantLiquidation = merchantByType.BUSINESS_LIQUIDATION || { walletCount: 0, totalBalance: 0 }
+  const merchantLegacy = merchantByType.BUSINESS || { walletCount: 0, totalBalance: 0 } 
   // Calculate multiple wallets of same type
   const walletsByType = walletsArray.reduce((acc, wallet) => {
     acc[wallet.walletType] = (acc[wallet.walletType] || 0) + 1
@@ -481,17 +552,30 @@ const WalletPage = () => {
                 value={filters.category || 'all'} 
                 onValueChange={(value) => handleCategoryChange(value)}
               >
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-56">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   <SelectItem value="PERSONAL">Personal</SelectItem>
-                  <SelectItem value="BUSINESS">Business</SelectItem>
-                  <SelectItem value="BUSINESS_COLLECTION">Business Collection</SelectItem>
-                  <SelectItem value="BUSINESS_DISBURSEMENT">Business Disbursement</SelectItem>
+                  <SelectItem value="MERCHANT">All Merchant</SelectItem>
+                  <SelectItem value="BUSINESS_COLLECTION">Merchant Collection</SelectItem>
+                  <SelectItem value="BUSINESS_DISBURSEMENT">Merchant Disbursement</SelectItem>
+                  <SelectItem value="BUSINESS_LIQUIDATION">Merchant Liquidation</SelectItem>
+                  <SelectItem value="BUSINESS">Legacy Business</SelectItem>
                   <SelectItem value="SYSTEM">System</SelectItem>
                   <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilterValue} onValueChange={handleStatusChange}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filters.currency || 'all'} onValueChange={(value) => setFilters(prev => ({ ...prev, currency: value === 'all' ? undefined : value, page: 1 }))}>
@@ -540,24 +624,77 @@ const WalletPage = () => {
                 <CardContent className="px-4 py-3">
                   <p className="text-xs text-gray-600">Personal</p>
                   <p className="text-2xl font-bold text-blue-600">{categoryStats.personal || 0}</p>
+                  {typeof categoryStats.personalBalance === 'number' && (
+                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(categoryStats.personalBalance, 'UGX')}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="px-4 py-3">
-                  <p className="text-xs text-gray-600">Business</p>
-                  <p className="text-2xl font-bold text-green-600">{categoryStats.business || 0}</p>
+                  <p className="text-xs text-gray-600">Merchant</p>
+                  <p className="text-2xl font-bold text-green-600">{merchantWalletCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">{formatCurrency(merchantBalance, 'UGX')}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="px-4 py-3">
                   <p className="text-xs text-gray-600">System</p>
                   <p className="text-2xl font-bold text-purple-600">{categoryStats.system || 0}</p>
+                  {typeof categoryStats.systemBalance === 'number' && (
+                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(categoryStats.systemBalance, 'UGX')}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="px-4 py-3">
                   <p className="text-xs text-gray-600">Other</p>
                   <p className="text-2xl font-bold text-gray-600">{categoryStats.other || 0}</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Merchant key stats */}
+          {merchantStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Card className="border-green-100 bg-green-50/40">
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs text-green-800">Merchant Balance</p>
+                  <p className="text-xl font-bold text-green-900">{formatCurrency(merchantBalance, 'UGX')}</p>
+                  <p className="text-xs text-green-700 mt-1">{merchantWalletCount} wallets</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs text-gray-600">Collection</p>
+                  <p className="text-lg font-bold text-gray-900">{formatCurrency(merchantCollection.totalBalance || 0, 'UGX')}</p>
+                  <p className="text-xs text-gray-500 mt-1">{merchantCollection.walletCount || 0} wallets</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs text-gray-600">Disbursement</p>
+                  <p className="text-lg font-bold text-gray-900">{formatCurrency(merchantDisbursement.totalBalance || 0, 'UGX')}</p>
+                  <p className="text-xs text-gray-500 mt-1">{merchantDisbursement.walletCount || 0} wallets</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs text-gray-600">Merchant Status</p>
+                  <p className="text-sm text-gray-900 mt-1">
+                    <span className="text-green-700 font-medium">{merchantStats.byStatus?.active || 0} active</span>
+                    {' · '}
+                    <span className="text-red-700 font-medium">{merchantStats.byStatus?.suspended || 0} suspended</span>
+                    {' · '}
+                    <span className="text-gray-600">{merchantStats.byStatus?.inactive || 0} inactive</span>
+                  </p>
+                  {(merchantLiquidation.walletCount > 0 || merchantLegacy.walletCount > 0) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {merchantLiquidation.walletCount > 0 && `${merchantLiquidation.walletCount} liquidation`}
+                      {merchantLiquidation.walletCount > 0 && merchantLegacy.walletCount > 0 && ' · '}
+                      {merchantLegacy.walletCount > 0 && `${merchantLegacy.walletCount} legacy`}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -592,9 +729,9 @@ const WalletPage = () => {
                 <div className="mt-0">
                   <span className="text-sm text-gray-500">
                     {totalWalletsCount > 0
-                      ? `${Math.round((activeWallets / totalWalletsCount) * 100)}%`
+                      ? `${Math.round((activeWallets / (categoryStats?.total || totalWalletsCount)) * 100)}%`
                       : '0%'}{' '}
-                    of total
+                    of all · {inactiveWallets} inactive
                   </span>
                 </div>
               </CardContent>
@@ -610,7 +747,11 @@ const WalletPage = () => {
                 </div>
                 <p className="text-xl font-bold text-gray-900 leading-tight">{totalWalletsCount}</p>
                 <div className="mt-0">
-                  <span className="text-sm text-gray-500">All wallet types</span>
+                  <span className="text-sm text-gray-500">
+                    {filters.category || filters.isActive !== undefined || filters.isSuspended !== undefined
+                      ? 'Matching current filters'
+                      : 'All wallet types'}
+                  </span>
                 </div>
               </CardContent>
             </Card>

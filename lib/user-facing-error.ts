@@ -17,7 +17,23 @@ const MESSAGE_RULES: Array<{ test: RegExp; message: string }> = [
   { test: /user\s+not\s+found|account\s+not\s+found|customer\s+not\s+found/i, message: 'Account not found.' },
   { test: /invalid\s+phone|phone\s+number\s+format/i, message: 'Invalid phone number.' },
   { test: /invalid\s+pin|incorrect\s+pin|wrong\s+pin/i, message: 'Incorrect PIN.' },
-  { test: /token\s+(has\s+)?expired|session\s+expired/i, message: 'Session expired. Please log in again.' },
+  {
+    test: /reset token has expired|reset link has expired/i,
+    message: 'This reset link has expired. Request a new one from Forgot Password.',
+  },
+  {
+    test: /invalid reset token|invalid reset token payload/i,
+    message: 'This reset link is invalid. Request a new one from Forgot Password.',
+  },
+  {
+    test: /password setup link has expired|setup link has expired|token has expired/i,
+    message: 'This link has expired. Please ask an admin to resend the invitation.',
+  },
+  {
+    test: /invalid password setup link|invalid or corrupted password setup|invalid token payload/i,
+    message: 'This link is invalid. Please use the link from your email or ask an admin to resend it.',
+  },
+  { test: /session\s+expired/i, message: 'Session expired. Please log in again.' },
   { test: /too\s+many\s+requests|rate\s+limit/i, message: 'Too many requests. Please wait and try again.' },
   { test: /duplicate|already\s+(exists|used|submitted)|still\s+processing|still\s+pending/i, message: 'This transaction was already submitted.' },
   { test: /permission|not\s+allowed|forbidden/i, message: 'You do not have permission for this action.' },
