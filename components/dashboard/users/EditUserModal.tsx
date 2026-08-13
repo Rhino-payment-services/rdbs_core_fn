@@ -249,7 +249,9 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
         userId: user.id,
         data: { permissionIds, action: 'replace' },
       })
-      toast.success('Permissions saved successfully!')
+      toast.success(
+        'Permissions saved. The user must log out and back in for changes to apply.',
+      )
     } catch (error: unknown) {
       console.error('Permission assignment error:', error)
       toast.error(extractErrorMessage(error))
@@ -463,10 +465,12 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
               <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
                 <p className="font-medium mb-0.5">How access control works</p>
                 <p className="text-blue-700 text-xs leading-relaxed">
-                  Permissions are <strong>pre-filled from this user&apos;s current role</strong>. You can add or
-                  remove individual permissions below to customise their access without changing their role.
-                  Changes take effect the next time the user logs in.
-                  Toggle the <strong>Navigation Access</strong> switches to control which dashboard sections they can visit.
+                  Access is controlled by <strong>explicit RBAC permissions</strong>, not the ADMIN
+                  role label alone. Customers requires <strong>USERS_VIEW</strong> (Navigation:
+                  Users &amp; Customers). Saving permissions invalidates their cached session —
+                  they must <strong>log out and back in</strong> for changes to apply.
+                  For existing staff who cannot see customers: enable USERS_VIEW below, save, then
+                  have them re-login. Do not promote them to Super Admin for this.
                 </p>
               </div>
 
@@ -621,9 +625,14 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ user, trigger }) =
                     )}
 
                     <div className="flex justify-between items-center pt-4 border-t mt-4">
-                      <span className="text-sm text-gray-500">
-                        {selectedPermissions.length} permission(s) selected
-                      </span>
+                      <div className="text-sm text-gray-500 space-y-1">
+                        <p>{selectedPermissions.length} permission(s) selected</p>
+                        {!selectedPermissions.includes(PERMISSIONS.USERS_VIEW) && (
+                          <p className="text-amber-700 text-xs">
+                            USERS_VIEW not selected — this user will not see Customers.
+                          </p>
+                        )}
+                      </div>
                       <Button
                         onClick={handleAssignPermissions}
                         disabled={updatePermissions.isPending}
