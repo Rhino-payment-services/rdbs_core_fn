@@ -12,13 +12,14 @@ export interface PermissionGroup {
 
 // All dashboard section permissions exposed in user access management.
 // Keep aligned with route/page permission checks and Navbar visibility rules.
+// Customers list uses GET /users which requires USERS_VIEW — not WALLETS_VIEW.
 export const NAV_PERMISSION_ITEMS: { permName: string; label: string; desc: string }[] = [
   { permName: PERMISSIONS.DASHBOARD_VIEW,    label: 'Dashboard',              desc: 'Dashboard home and overview widgets' },
   { permName: PERMISSIONS.ANALYTICS_VIEW,    label: 'Analytics',              desc: 'Analytics & reports tab' },
   { permName: PERMISSIONS.TRANSACTIONS_VIEW, label: 'Finance / Transactions',  desc: 'Tariffs, transactions, wallets dropdown' },
   { permName: PERMISSIONS.PARTNERS_VIEW,     label: 'Gateway Partners',        desc: 'Payment gateway partner management' },
-  { permName: PERMISSIONS.USERS_VIEW,        label: 'Users',                   desc: 'Staff user management' },
-  { permName: PERMISSIONS.WALLETS_VIEW,      label: 'Customers',               desc: 'Customer accounts and wallets (WALLETS_VIEW or USERS_VIEW)' },
+  { permName: PERMISSIONS.USERS_VIEW,        label: 'Users & Customers',       desc: 'Staff user management and customer accounts (USERS_VIEW)' },
+  { permName: PERMISSIONS.WALLETS_VIEW,      label: 'Wallets / Cards',         desc: 'Wallet details and cards (WALLETS_VIEW)' },
   { permName: PERMISSIONS.KYC_VIEW,          label: 'Security / KYC',          desc: 'Security dropdown → KYC verification' },
   { permName: PERMISSIONS.SYSTEM_CONFIGURE,  label: 'Settings',                desc: 'System configuration & settings' },
 ]

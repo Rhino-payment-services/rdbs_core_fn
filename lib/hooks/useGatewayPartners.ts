@@ -39,6 +39,8 @@ export interface GatewayPartner {
   authenticationType?: 'API_KEY_ONLY' | 'API_KEY_AND_TOKEN';
   canDepositAndWithdraw?: boolean;
   canAccessWalletTransactions?: boolean;
+  /** When true, PARTNER_PAY_AIRTIME margin credits the partner COMMISSION wallet instead of RukaPay revenue. */
+  retainAirtimeMarginInCommissionWallet?: boolean;
   isAggregator?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -84,6 +86,8 @@ export interface CreateGatewayPartnerRequest {
   description?: string;
   canDepositAndWithdraw?: boolean;
   canAccessWalletTransactions?: boolean;
+  /** When true, PARTNER_PAY_AIRTIME margin credits the partner COMMISSION wallet instead of RukaPay revenue. */
+  retainAirtimeMarginInCommissionWallet?: boolean;
   permissions?: string[];
   rateLimits?: {
     requests_per_second?: number;

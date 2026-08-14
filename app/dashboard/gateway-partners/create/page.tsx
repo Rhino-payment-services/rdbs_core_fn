@@ -56,6 +56,7 @@ const CreateGatewayPartnerPage = () => {
     description: '',
     canDepositAndWithdraw: true,
     canAccessWalletTransactions: false,
+    retainAirtimeMarginInCommissionWallet: false,
   })
 
 
@@ -313,6 +314,29 @@ const CreateGatewayPartnerPage = () => {
                       checked={formData.canAccessWalletTransactions ?? false}
                       onCheckedChange={(checked) =>
                         setFormData({ ...formData, canAccessWalletTransactions: checked })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5 pr-4">
+                      <Label htmlFor="retainAirtimeMarginInCommissionWallet" className="text-base">
+                        Retain airtime commission
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        When enabled, the airtime margin (~3%) from PARTNER_PAY_AIRTIME goes to this
+                        partner&apos;s COMMISSION wallet instead of RukaPay platform revenue.
+                        Customer still pays face value only.
+                      </p>
+                    </div>
+                    <Switch
+                      id="retainAirtimeMarginInCommissionWallet"
+                      checked={formData.retainAirtimeMarginInCommissionWallet ?? false}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          retainAirtimeMarginInCommissionWallet: checked,
+                        })
                       }
                     />
                   </div>

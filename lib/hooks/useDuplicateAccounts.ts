@@ -71,6 +71,7 @@ export function useGrantStaffAccess() {
       department?: string
       position?: string
       country?: string
+      permissionIds?: string[]
     }) => {
       const { data } = await api.post('/admin/users/grant-staff-access', payload)
       return data
