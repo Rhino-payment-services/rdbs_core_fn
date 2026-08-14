@@ -590,6 +590,30 @@ const GatewayPartnerDetailsPage = () => {
                   }}
                 />
               </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label htmlFor="retainAirtimeMarginInCommissionWallet" className="text-base">
+                    Retain airtime commission
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    When enabled, the airtime margin (~3%) from PARTNER_PAY_AIRTIME credits this
+                    partner&apos;s COMMISSION wallet instead of RukaPay platform revenue.
+                    Customer still pays face value only. Requires an active COMMISSION wallet.
+                  </p>
+                </div>
+                <Switch
+                  id="retainAirtimeMarginInCommissionWallet"
+                  checked={partner.retainAirtimeMarginInCommissionWallet ?? false}
+                  disabled={updatePartner.isPending}
+                  onCheckedChange={(checked) => {
+                    updatePartner.mutate({
+                      partnerId,
+                      data: { retainAirtimeMarginInCommissionWallet: checked },
+                    })
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
 
