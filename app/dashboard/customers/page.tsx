@@ -24,9 +24,9 @@ import type { User } from '@/lib/types/api'
 import type { ApiPartner } from '@/lib/hooks/usePartners'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
-import { Users, Building2, Handshake, Plus, Crown } from 'lucide-react'
+import { Users, Building2, Handshake, Plus, Crown, Shield } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
-import { PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
 
 type PartnerCustomerRow = User & {
   partnerName?: string
@@ -65,6 +65,8 @@ const CustomersPage = () => {
 
   const { user } = useAuth()
   const isSuperAdmin = (user as any)?.role === 'SUPER_ADMIN'
+  const { hasPermission } = usePermissions()
+  const canViewCustomers = hasPermission(PERMISSIONS.USERS_VIEW)
 
   // API hooks - add keepPreviousData to prevent loading flashes
   const { data: usersData, isLoading: usersLoading, error: usersError, refetch } = useUsers()
@@ -1100,6 +1102,25 @@ const CustomersPage = () => {
 
 
   // Show loading state to prevent "Access Restricted" flash
+  if (!canViewCustomers) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md px-4">
+            <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-600">
+              You need the <strong>USERS_VIEW</strong> permission to view customers.
+              Ask an admin to grant it under Users → Edit → Roles &amp; Permissions, then log out and
+              back in.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   if (usersLoading && !usersData) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">

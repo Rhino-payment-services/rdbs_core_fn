@@ -27,6 +27,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useCreateUser } from '@/lib/hooks/useApi'
 import { useGrantStaffAccess } from '@/lib/hooks/useDuplicateAccounts'
+import { useAvailablePermissions } from '@/lib/hooks/useUserPermissions'
 import {
   getLinkedCustomerPrefill,
   useUserAvailabilityCheck,
@@ -34,11 +35,14 @@ import {
 } from '@/lib/hooks/useUserAvailabilityCheck'
 import { extractErrorMessage } from '@/lib/utils'
 import { formatUgandaPhoneDisplay, isMeaningfulUgandaPhone } from '@/lib/utils/uganda-phone'
+import { NAV_PERMISSION_ITEMS, PERMISSION_GROUPS } from '@/lib/constants/permissionCatalog'
+import { PERMISSIONS } from '@/lib/hooks/usePermissions'
 
 const STEPS = [
   { id: 1, title: 'Verify contact', description: 'Check email and phone before creating' },
   { id: 2, title: 'Staff details', description: 'Name, department, and role' },
-  { id: 3, title: 'Review', description: 'Confirm and create account' },
+  { id: 3, title: 'Permissions', description: 'Grant explicit RBAC access' },
+  { id: 4, title: 'Review', description: 'Confirm and create account' },
 ] as const
 
 const countries = [
@@ -106,6 +110,7 @@ export function CreateStaffUserWizard() {
   const createUserMutation = useCreateUser()
   const grantStaffMutation = useGrantStaffAccess()
   const { emailResult, phoneResult, checkEmail, checkPhone } = useUserAvailabilityCheck()
+  const { data: availablePermissions, isLoading: permsLoading } = useAvailablePermissions()
 
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
@@ -123,6 +128,40 @@ export function CreateStaffUserWizard() {
   const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true)
   const [grantStaffOnExisting, setGrantStaffOnExisting] = useState(false)
   const [existingUserId, setExistingUserId] = useState<string | null>(null)
+  const [selectedPermissionNames, setSelectedPermissionNames] = useState<string[]>([
+    PERMISSIONS.DASHBOARD_VIEW,
+  ])
+
+  const permissionNameToId = React.useMemo(() => {
+    const map = new Map<string, string>()
+    ;(availablePermissions || []).forEach((p) => {
+      if (p?.name && p?.id) map.set(p.name, p.id)
+    })
+    return map
+  }, [availablePermissions])
+
+  const togglePermission = (name: string) => {
+    setSelectedPermissionNames((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    )
+  }
+
+  const resolvePermissionIds = (): string[] | null => {
+    const unresolved: string[] = []
+    const ids: string[] = []
+    for (const name of selectedPermissionNames) {
+      const id = permissionNameToId.get(name)
+      if (!id) unresolved.push(name)
+      else ids.push(id)
+    }
+    if (unresolved.length > 0) {
+      toast.error(
+        `Some permissions could not be resolved: ${unresolved.join(', ')}. Refresh and try again.`,
+      )
+      return null
+    }
+    return ids
+  }
 
   const phoneEntered = phone.trim().length > 0 && phone.trim() !== '+256'
 
@@ -201,6 +240,12 @@ export function CreateStaffUserWizard() {
       return
     }
 
+    const permissionIds = resolvePermissionIds()
+    if (permissionIds === null) {
+      setStep(3)
+      return
+    }
+
     try {
       if (grantStaffOnExisting && existingUserId) {
         await grantStaffMutation.mutateAsync({
@@ -211,6 +256,7 @@ export function CreateStaffUserWizard() {
           department: formData.department,
           position: formData.position,
           country: formData.country,
+          permissionIds,
         })
       } else {
         await createUserMutation.mutateAsync({
@@ -225,6 +271,7 @@ export function CreateStaffUserWizard() {
           // Backend sends set-password email when true (default).
           sendOtpViaEmail: sendWelcomeEmail,
           password: 'temp-password-will-be-set-via-otp',
+          permissionIds,
         })
       }
 
@@ -517,7 +564,99 @@ export function CreateStaffUserWizard() {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 3 — Review</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Step 3 — Permissions
+            </CardTitle>
+            <CardDescription>
+              Assign only what this staff member needs. The ADMIN role label alone does not grant
+              API access. Customers list requires <strong>USERS_VIEW</strong> (Users &amp; Customers).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {permsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 py-6">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading permission catalog…
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Navigation access
+                  </p>
+                  <div className="space-y-1 border rounded-lg p-3">
+                    {NAV_PERMISSION_ITEMS.map(({ permName, label, desc }) => (
+                      <div
+                        key={permName}
+                        className="flex items-center justify-between py-2 border-b last:border-b-0 gap-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{label}</p>
+                          <p className="text-xs text-gray-400">{desc}</p>
+                        </div>
+                        <Checkbox
+                          checked={selectedPermissionNames.includes(permName)}
+                          onCheckedChange={() => togglePermission(permName)}
+                          aria-label={label}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Action permissions
+                  </p>
+                  <div className="max-h-[360px] overflow-y-auto border rounded-lg p-3 space-y-4">
+                    {PERMISSION_GROUPS.map(({ group, permissions }) => (
+                      <div key={group}>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                          {group}
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                          {permissions.map(({ name, label }) => (
+                            <div key={name} className="flex items-center space-x-2 py-1">
+                              <Checkbox
+                                id={`create-perm-${name}`}
+                                checked={selectedPermissionNames.includes(name)}
+                                onCheckedChange={() => togglePermission(name)}
+                              />
+                              <label
+                                htmlFor={`create-perm-${name}`}
+                                className="text-sm text-gray-700 cursor-pointer"
+                              >
+                                {label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {!selectedPermissionNames.includes(PERMISSIONS.USERS_VIEW) && (
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <AlertCircle className="h-4 w-4 text-amber-700" />
+                    <AlertDescription className="text-amber-900 text-sm">
+                      Without <strong>USERS_VIEW</strong>, this staff member will not see Customers
+                      or load the customers list. Enable &quot;Users &amp; Customers&quot; above if
+                      they need that access.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 4 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Step 4 — Review</CardTitle>
             <CardDescription>
               {grantStaffOnExisting
                 ? 'Grant staff portal access on the existing customer profile'
@@ -528,8 +667,9 @@ export function CreateStaffUserWizard() {
             {grantStaffOnExisting && (
               <Alert className="border-amber-200 bg-amber-50">
                 <AlertDescription className="text-amber-900 text-sm">
-                  Work email and admin role will be added to the existing customer account. Phone and
-                  wallet balances are unchanged.
+                  Work email and admin role label will be added to the existing customer account.
+                  Phone and wallet balances are unchanged. Access is limited to the permissions
+                  selected in step 3.
                 </AlertDescription>
               </Alert>
             )}
@@ -557,8 +697,17 @@ export function CreateStaffUserWizard() {
                 </dd>
               </div>
               <div>
-                <dt className="text-gray-500">Role</dt>
-                <dd className="font-medium">Administrator (Staff)</dd>
+                <dt className="text-gray-500">Role label</dt>
+                <dd className="font-medium">Administrator (Staff) — RBAC via permissions</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Permissions</dt>
+                <dd className="font-medium">
+                  {selectedPermissionNames.length} selected
+                  {selectedPermissionNames.includes(PERMISSIONS.USERS_VIEW)
+                    ? ' (includes Customers)'
+                    : ' (no Customers / USERS_VIEW)'}
+                </dd>
               </div>
             </dl>
             <div className="flex items-center space-x-2 pt-2">
@@ -581,7 +730,7 @@ export function CreateStaffUserWizard() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
@@ -595,10 +744,10 @@ export function CreateStaffUserWizard() {
           )}
         </div>
         <div className="flex gap-2">
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               type="button"
-              disabled={step === 1 && !canProceedStep1}
+              disabled={(step === 1 && !canProceedStep1) || (step === 3 && permsLoading)}
               onClick={async () => {
                 if (step === 1) {
                   const emailRes = emailVerified ? emailResult : await checkEmail(email)
@@ -636,7 +785,7 @@ export function CreateStaffUserWizard() {
                   }
                 }
                 if (step === 2 && !validateStep2()) return
-                setStep((s) => (s + 1) as 1 | 2 | 3)
+                setStep((s) => (s + 1) as 1 | 2 | 3 | 4)
               }}
             >
               Continue
