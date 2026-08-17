@@ -41,6 +41,8 @@ export interface GatewayPartner {
   canAccessWalletTransactions?: boolean;
   /** When true, PARTNER_PAY_AIRTIME margin credits the partner COMMISSION wallet instead of RukaPay revenue. */
   retainAirtimeMarginInCommissionWallet?: boolean;
+  /** When true, partner dashboard shows escrow + commission balances on each transaction. */
+  showEscrowCommissionBalancesOnTransactions?: boolean;
   isAggregator?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -88,6 +90,8 @@ export interface CreateGatewayPartnerRequest {
   canAccessWalletTransactions?: boolean;
   /** When true, PARTNER_PAY_AIRTIME margin credits the partner COMMISSION wallet instead of RukaPay revenue. */
   retainAirtimeMarginInCommissionWallet?: boolean;
+  /** When true, partner dashboard shows escrow + commission balances on each transaction. */
+  showEscrowCommissionBalancesOnTransactions?: boolean;
   permissions?: string[];
   rateLimits?: {
     requests_per_second?: number;

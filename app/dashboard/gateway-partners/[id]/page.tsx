@@ -614,6 +614,29 @@ const GatewayPartnerDetailsPage = () => {
                   }}
                 />
               </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label htmlFor="showEscrowCommissionBalancesOnTransactions" className="text-base">
+                    Show escrow &amp; commission balances on partner transactions
+                  </Label>
+                  <p className="text-sm text-gray-500">
+                    When enabled, the partner dashboard transaction list shows Escrow and
+                    Commission wallet balances after each partner transaction.
+                  </p>
+                </div>
+                <Switch
+                  id="showEscrowCommissionBalancesOnTransactions"
+                  checked={partner.showEscrowCommissionBalancesOnTransactions ?? false}
+                  disabled={updatePartner.isPending}
+                  onCheckedChange={(checked) => {
+                    updatePartner.mutate({
+                      partnerId,
+                      data: { showEscrowCommissionBalancesOnTransactions: checked },
+                    })
+                  }}
+                />
+              </div>
             </CardContent>
           </Card>
 
