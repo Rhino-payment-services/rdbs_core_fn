@@ -98,6 +98,19 @@ export function getPartnerRole(tx: any): PartnerRole | null {
     return 'receiver'
   }
 
+  // LimboPay escrow: fund = customer pays in (partner receives); refund/release = escrow pays out.
+  if (m?.limboPay === true) {
+    const op = String(m?.limboOperation || '').toLowerCase()
+    if (
+      op.includes('refund') ||
+      op.includes('release') ||
+      op.includes('commission')
+    ) {
+      return 'sender'
+    }
+    return 'receiver'
+  }
+
   const isInbound =
     type.includes('MNO_TO_WALLET') ||
     type.includes('BANK_TO_WALLET') ||
@@ -447,12 +460,13 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
     return buildOwnWalletPartyForSide(info, tx, side)
   }
 
-  // Loan rails: trust API senderInfo/receiverInfo (partner escrow ↔ borrower).
-  // Avoid CREDIT→partner-as-receiver heuristics that rename the borrower to RUKASENTE.
+  // Loan / LimboPay escrow rails: trust API senderInfo/receiverInfo (partner escrow ↔ customer).
+  // Avoid CREDIT→partner-as-receiver heuristics that rename the customer to the partner.
   if (
     type === 'LOAN_DISBURSEMENT' ||
     type === 'LOAN_REPAYMENT' ||
-    metadata?.rukasenteLoan === true
+    metadata?.rukasenteLoan === true ||
+    metadata?.limboPay === true
   ) {
     const profileName =
       side === 'receiver'
@@ -461,11 +475,12 @@ export function normalizePartyInfoForDisplay(info: any, tx: any, side: PartySide
         : fullNameFromProfile(tx?.user?.profile) ||
           fullNameFromProfile(tx?.counterpartyUser?.profile)
     const metaCustomer =
-      String(metadata?.customerName || metadata?.receiverName || '').trim() || null
+      String(metadata?.customerName || metadata?.receiverName || metadata?.senderName || '').trim() || null
     const metaPhone =
       String(
         metadata?.customerPhone ||
           metadata?.receiverPhone ||
+          metadata?.senderPhone ||
           metadata?.phoneNumber ||
           '',
       ).trim() || null

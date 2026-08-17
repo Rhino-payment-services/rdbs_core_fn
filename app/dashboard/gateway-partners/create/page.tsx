@@ -57,6 +57,7 @@ const CreateGatewayPartnerPage = () => {
     canDepositAndWithdraw: true,
     canAccessWalletTransactions: false,
     retainAirtimeMarginInCommissionWallet: false,
+    showEscrowCommissionBalancesOnTransactions: false,
   })
 
 
@@ -336,6 +337,28 @@ const CreateGatewayPartnerPage = () => {
                         setFormData({
                           ...formData,
                           retainAirtimeMarginInCommissionWallet: checked,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5 pr-4">
+                      <Label htmlFor="showEscrowCommissionBalancesOnTransactions" className="text-base">
+                        Show escrow &amp; commission balances on partner transactions
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        When enabled, the partner dashboard transaction list shows Escrow and
+                        Commission wallet balances after each partner transaction.
+                      </p>
+                    </div>
+                    <Switch
+                      id="showEscrowCommissionBalancesOnTransactions"
+                      checked={formData.showEscrowCommissionBalancesOnTransactions ?? false}
+                      onCheckedChange={(checked) =>
+                        setFormData({
+                          ...formData,
+                          showEscrowCommissionBalancesOnTransactions: checked,
                         })
                       }
                     />
