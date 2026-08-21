@@ -360,6 +360,11 @@ export interface Wallet {
   userId: string
   publicWalletId?: string | null
   balance: number
+  frozenBalance?: number
+  availableBalance?: number
+  frozenAt?: string
+  frozenBy?: string
+  freezeReason?: string
   currency: string
   isActive: boolean
   isSuspended: boolean
