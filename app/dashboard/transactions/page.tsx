@@ -347,7 +347,7 @@ const TransactionsPage = () => {
   const exportTransactionsToCSV = async (exportAll: boolean = false, customStartDate?: string, customEndDate?: string) => {
     setIsExporting(true)
     try {
-      let transactionsToExport = transactions
+      let transactionsToExport: any[] = transactions
       
       // Use custom dates if provided, otherwise use current filters
       const exportStart = customStartDate || startDate
