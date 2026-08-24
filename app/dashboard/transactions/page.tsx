@@ -147,13 +147,8 @@ const TransactionsPage = () => {
   }
 
   // Ops search already returns enriched rows (sender/receiver/partner/fees).
-  // Previously we re-fetched each row via GET /transactions/:id; that often failed
-  // for custom admin roles (auth check only allows ADMIN/SUPER_ADMIN) and wiped
-  // the table while pagination still showed the ops search total.
-  const transactions = useMemo(
-    () => opsResults.filter((tx: any) => tx?.type !== 'WALLET_INIT'),
-    [opsResults],
-  )
+  // WALLET_INIT is excluded server-side unless the type filter is set to it.
+  const transactions = opsResults
   const totalTransactions = opsSearch.data?.total || 0
   const totalPages = opsSearch.data?.totalPages || 1
   const transactionsError = opsSearch.error
