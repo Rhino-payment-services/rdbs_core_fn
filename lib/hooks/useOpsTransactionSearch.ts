@@ -18,6 +18,8 @@ export interface OpsTransactionSearchResult {
   currency: string
   fee: number
   netAmount: number
+  balanceBefore?: number | null
+  balanceAfter?: number | null
   channel?: string
   description?: string
   createdAt: string

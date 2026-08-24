@@ -188,10 +188,27 @@ const TransactionsPage = () => {
     refetchStats()
   }, [summaryStart, summaryEnd, refetchStats])
 
-  // Handle view transaction details
-  const handleViewTransaction = (transaction: any) => {
+  // Handle view transaction details — prefer full record so balance before/after and
+  // other ledger fields are present (ops search rows can be a thinner DTO).
+  const handleViewTransaction = async (transaction: any) => {
     setSelectedTransaction(transaction)
     setIsModalOpen(true)
+    if (!transaction?.id) return
+    try {
+      const res = await api.get(`/transactions/${transaction.id}`)
+      const full = res.data?.data ?? res.data
+      if (full?.id) {
+        setSelectedTransaction({
+          ...transaction,
+          ...full,
+          // Keep enriched party labels from ops search when full fetch omits them
+          senderInfo: full.senderInfo ?? transaction.senderInfo,
+          receiverInfo: full.receiverInfo ?? transaction.receiverInfo,
+        })
+      }
+    } catch {
+      // Keep the ops search row already shown in the modal
+    }
   }
 
   // Open the modal for a transaction — does NOT fire the API call yet
