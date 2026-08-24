@@ -130,9 +130,7 @@ const TransactionsPage = () => {
   })
 
   const opsResults = opsSearch.data?.results ?? []
-  const opsResultIds = useMemo(() => opsResults.map((r) => r.id).filter(Boolean), [opsResults])
-  const opsResultIdsKey = useMemo(() => opsResultIds.join(','), [opsResultIds])
-  
+
   // Get stats data
   const stats = transactionStats || {
     totalTransactions: 0,
@@ -148,48 +146,18 @@ const TransactionsPage = () => {
     transactionsByCurrency: {}
   }
 
-  // Render results in the same table: ops search -> fetch full transaction objects by id
-  const [searchTableTransactions, setSearchTableTransactions] = useState<any[]>([])
-  const [searchTableLoading, setSearchTableLoading] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    const run = async () => {
-      if (!opsResultIdsKey) {
-        setSearchTableTransactions([])
-        setSearchTableLoading(false)
-        return
-      }
-      setSearchTableLoading(true)
-      try {
-        const items = await Promise.all(
-          opsResultIds.map(async (id) => {
-            const res = await api.get(`/transactions/${id}`)
-            return res.data
-          }),
-        )
-        if (!cancelled) {
-          setSearchTableTransactions(items.filter((tx: any) => tx?.type !== 'WALLET_INIT'))
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setSearchTableTransactions([])
-        }
-      } finally {
-        if (!cancelled) setSearchTableLoading(false)
-      }
-    }
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [opsResultIdsKey])
-
-  const transactions = searchTableTransactions
+  // Ops search already returns enriched rows (sender/receiver/partner/fees).
+  // Previously we re-fetched each row via GET /transactions/:id; that often failed
+  // for custom admin roles (auth check only allows ADMIN/SUPER_ADMIN) and wiped
+  // the table while pagination still showed the ops search total.
+  const transactions = useMemo(
+    () => opsResults.filter((tx: any) => tx?.type !== 'WALLET_INIT'),
+    [opsResults],
+  )
   const totalTransactions = opsSearch.data?.total || 0
   const totalPages = opsSearch.data?.totalPages || 1
   const transactionsError = opsSearch.error
-  const transactionsLoading = opsSearch.isLoading || searchTableLoading
+  const transactionsLoading = opsSearch.isLoading
 
   // Fetch API logs when logs modal is open and a transaction is selected
   const {
@@ -1022,13 +990,13 @@ const TransactionsPage = () => {
               {isSearching && (
                 <div className="mb-3 -mt-2 text-xs text-gray-600">
                   Showing server-side search results in the table below.
-                  {searchTableLoading || opsSearch.isLoading ? ' Searching…' : ''}
+                  {opsSearch.isLoading ? ' Searching…' : ''}
                 </div>
               )}
 
               <TransactionTable
                 transactions={transactions}
-                isLoading={isSearching ? (searchTableLoading || opsSearch.isLoading) : transactionsLoading}
+                isLoading={transactionsLoading}
                 error={transactionsError}
                 pageStats={pageStats}
                 currentPage={currentPage}
