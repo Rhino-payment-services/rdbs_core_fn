@@ -800,10 +800,22 @@ const CustomerSettings = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="flex items-center gap-3">
-                <div className={`h-3 w-3 rounded-full ${customerStatus === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500'}`} />
+                <div
+                  className={`h-3 w-3 rounded-full ${
+                    customerStatus === 'ACTIVE'
+                      ? 'bg-green-500'
+                      : customerStatus === 'SUSPENDED'
+                        ? 'bg-red-500'
+                        : customerStatus === 'PENDING_VERIFICATION'
+                          ? 'bg-amber-500'
+                          : 'bg-gray-400'
+                  }`}
+                />
                 <div>
                   <div className="text-sm font-medium">Account Status</div>
-                  <div className="text-sm text-gray-600 capitalize">{customerStatus.toLowerCase()}</div>
+                  <div className="text-sm text-gray-600 capitalize">
+                    {customerStatus.replace(/_/g, ' ').toLowerCase()}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -879,7 +891,7 @@ const CustomerSettings = ({
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-                ) : (
+                ) : customerStatus === 'SUSPENDED' ? (
                   <Dialog open={unsuspendDialogOpen} onOpenChange={setUnsuspendDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="default" size="sm" className="flex items-center gap-2">
@@ -904,7 +916,7 @@ const CustomerSettings = ({
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
