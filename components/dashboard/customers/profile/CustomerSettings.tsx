@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +24,8 @@ import {
   LayoutDashboard,
   Phone,
   Droplets,
+  Receipt,
+  ExternalLink,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
@@ -922,6 +925,44 @@ const CustomerSettings = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Merchant custom tariffs */}
+      {type === 'merchant' && merchantId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Custom Tariffs
+            </CardTitle>
+            <CardDescription>
+              Configure transaction fees that apply only to this merchant. Tariffs appear in Finance → Tariffs.
+              {merchantCode ? ` Merchant code: ${merchantCode}` : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/dashboard/finance/tariffs?tab=merchants&merchant=${merchantId}`}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View in tariffs table
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/dashboard/finance/tariffs-new?tab=merchants&merchant=merchant:${merchantId}`}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Schedule view
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href={`/dashboard/finance/tariffs/create?merchantId=${merchantId}`}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add tariff
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Merchant collection fee configuration (for merchant profiles only) */}
       {type === 'merchant' && merchantId && (

@@ -29,6 +29,7 @@ import {
   Plus,
   RefreshCw,
   Sparkles,
+  Store,
   Zap,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -44,11 +45,14 @@ import {
 import type { Tariff } from '@/lib/tariffs-new/types'
 import {
   buildExternalPartnerBuckets,
+  buildMerchantBuckets,
   countTariffStatuses,
   parseTariffsFromResponse,
 } from '@/lib/tariffs-new/utils'
 import { ExternalPartnerSidebar } from '@/components/dashboard/tariffs-new/ExternalPartnerSidebar'
 import { ExternalPartnerPanel } from '@/components/dashboard/tariffs-new/ExternalPartnerPanel'
+import { MerchantSidebar } from '@/components/dashboard/tariffs-new/MerchantSidebar'
+import { MerchantPanel } from '@/components/dashboard/tariffs-new/MerchantPanel'
 import { InternalTariffsView } from '@/components/dashboard/tariffs-new/InternalTariffsView'
 import { TariffViewDialog } from '@/components/dashboard/tariffs-new/TariffViewDialog'
 import {
@@ -60,14 +64,21 @@ function TariffsNewPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const tabFromUrl = searchParams?.get('tab') as 'internal' | 'external' | null
+  const tabFromUrl = searchParams?.get('tab') as 'internal' | 'external' | 'merchants' | null
   const partnerFromUrl = searchParams?.get('partner')
+  const merchantFromUrl = searchParams?.get('merchant')
 
-  const [activeMainTab, setActiveMainTab] = useState<'internal' | 'external'>(
-    tabFromUrl === 'internal' ? 'internal' : 'external',
+  const [activeMainTab, setActiveMainTab] = useState<'internal' | 'external' | 'merchants'>(
+    tabFromUrl === 'internal'
+      ? 'internal'
+      : tabFromUrl === 'merchants'
+        ? 'merchants'
+        : 'external',
   )
   const [selectedPartnerKey, setSelectedPartnerKey] = useState<string>('')
+  const [selectedMerchantKey, setSelectedMerchantKey] = useState<string>('')
   const [partnerSearch, setPartnerSearch] = useState('')
+  const [merchantSearch, setMerchantSearch] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const [viewTariff, setViewTariff] = useState<Tariff | null>(null)
@@ -118,17 +129,31 @@ function TariffsNewPageContent() {
     () => allTariffs.filter((t) => t.tariffType === 'EXTERNAL'),
     [allTariffs],
   )
+  const merchantTariffs = useMemo(
+    () => allTariffs.filter((t) => t.tariffType === 'MERCHANT'),
+    [allTariffs],
+  )
   const partnerBuckets = useMemo(
     () => buildExternalPartnerBuckets(externalTariffs),
     [externalTariffs],
   )
+  const merchantBuckets = useMemo(
+    () => buildMerchantBuckets(merchantTariffs),
+    [merchantTariffs],
+  )
 
   const internalStats = useMemo(() => countTariffStatuses(internalTariffs), [internalTariffs])
   const externalStats = useMemo(() => countTariffStatuses(externalTariffs), [externalTariffs])
+  const merchantStats = useMemo(() => countTariffStatuses(merchantTariffs), [merchantTariffs])
 
   const selectedPartner = useMemo(
     () => partnerBuckets.find((p) => p.key === selectedPartnerKey) ?? partnerBuckets[0],
     [partnerBuckets, selectedPartnerKey],
+  )
+
+  const selectedMerchant = useMemo(
+    () => merchantBuckets.find((m) => m.key === selectedMerchantKey) ?? merchantBuckets[0],
+    [merchantBuckets, selectedMerchantKey],
   )
 
   useEffect(() => {
@@ -142,21 +167,35 @@ function TariffsNewPageContent() {
     }
   }, [partnerBuckets, partnerFromUrl, selectedPartnerKey])
 
+  useEffect(() => {
+    if (merchantBuckets.length === 0) return
+    if (merchantFromUrl && merchantBuckets.some((m) => m.key === merchantFromUrl)) {
+      setSelectedMerchantKey(merchantFromUrl)
+      return
+    }
+    if (!selectedMerchantKey || !merchantBuckets.some((m) => m.key === selectedMerchantKey)) {
+      setSelectedMerchantKey(merchantBuckets[0].key)
+    }
+  }, [merchantBuckets, merchantFromUrl, selectedMerchantKey])
+
   const syncUrl = useCallback(
-    (tab: string, partner?: string) => {
+    (tab: string, partner?: string, merchant?: string) => {
       const params = new URLSearchParams()
       params.set('tab', tab)
       if (partner) params.set('partner', partner)
+      if (merchant) params.set('merchant', merchant)
       router.replace(`/dashboard/finance/tariffs-new?${params.toString()}`, { scroll: false })
     },
     [router],
   )
 
   const handleMainTabChange = (value: string) => {
-    const tab = value as 'internal' | 'external'
+    const tab = value as 'internal' | 'external' | 'merchants'
     setActiveMainTab(tab)
     if (tab === 'external' && selectedPartner) {
       syncUrl(tab, selectedPartner.key)
+    } else if (tab === 'merchants' && selectedMerchant) {
+      syncUrl(tab, undefined, selectedMerchant.key)
     } else {
       syncUrl(tab)
     }
@@ -165,6 +204,11 @@ function TariffsNewPageContent() {
   const handlePartnerSelect = (key: string) => {
     setSelectedPartnerKey(key)
     syncUrl('external', key)
+  }
+
+  const handleMerchantSelect = (key: string) => {
+    setSelectedMerchantKey(key)
+    syncUrl('merchants', undefined, key)
   }
 
   const handleRefresh = async () => {
@@ -179,8 +223,12 @@ function TariffsNewPageContent() {
     }
   }
 
-  const handleCreate = (apiPartnerId?: string) => {
-    const q = apiPartnerId ? `?apiPartnerId=${apiPartnerId}` : ''
+  const handleCreate = (scopeId?: string, scopeType?: 'apiPartner' | 'merchant') => {
+    if (scopeType === 'merchant' && scopeId) {
+      router.push(`/dashboard/finance/tariffs/create?merchantId=${scopeId}`)
+      return
+    }
+    const q = scopeId ? `?apiPartnerId=${scopeId}` : ''
     router.push(`/dashboard/finance/tariffs/create${q}`)
   }
 
@@ -307,7 +355,7 @@ function TariffsNewPageContent() {
                   <BadgeNew />
                 </div>
                 <p className="text-gray-600 text-sm mt-1">
-                  Partner-first view with tier tables — internal & external tariffs
+                  Partner & merchant tariff schedules with tier tables
                 </p>
               </div>
             </div>
@@ -331,7 +379,7 @@ function TariffsNewPageContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <StatChip
               label="Internal"
               value={internalStats.total}
@@ -343,26 +391,31 @@ function TariffsNewPageContent() {
               sub={`${partnerBuckets.length} partners`}
             />
             <StatChip
+              label="Merchants"
+              value={merchantStats.total}
+              sub={`${merchantBuckets.length} merchants`}
+            />
+            <StatChip
               label="Pending approval"
-              value={internalStats.pending + externalStats.pending}
+              value={internalStats.pending + externalStats.pending + merchantStats.pending}
               sub={
-                internalStats.pending + externalStats.pending > 0
+                internalStats.pending + externalStats.pending + merchantStats.pending > 0
                   ? 'Shown in schedules below'
                   : 'None awaiting review'
               }
               accent="amber"
-              highlight={internalStats.pending + externalStats.pending > 0}
+              highlight={internalStats.pending + externalStats.pending + merchantStats.pending > 0}
             />
             <StatChip
               label="Draft"
-              value={internalStats.draft + externalStats.draft}
+              value={internalStats.draft + externalStats.draft + merchantStats.draft}
               sub="Needs review"
               accent="gray"
             />
           </div>
 
           <Tabs value={activeMainTab} onValueChange={handleMainTabChange} className="space-y-4">
-            <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsList className="grid w-full max-w-2xl grid-cols-3">
               <TabsTrigger value="internal" className="gap-2">
                 <Building2 className="h-4 w-4" />
                 Internal ({internalTariffs.length})
@@ -370,6 +423,10 @@ function TariffsNewPageContent() {
               <TabsTrigger value="external" className="gap-2">
                 <Zap className="h-4 w-4" />
                 External ({externalTariffs.length})
+              </TabsTrigger>
+              <TabsTrigger value="merchants" className="gap-2">
+                <Store className="h-4 w-4" />
+                Merchants ({merchantTariffs.length})
               </TabsTrigger>
             </TabsList>
 
@@ -382,6 +439,48 @@ function TariffsNewPageContent() {
                   onCreateTariff={() => handleCreate()}
                   {...actionProps}
                 />
+              )}
+            </TabsContent>
+
+            <TabsContent value="merchants">
+              {isLoading ? (
+                <LoadingCard message="Loading merchant tariffs…" />
+              ) : merchantBuckets.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-gray-500">
+                    No merchant-specific tariffs configured yet.
+                    {canManage && (
+                      <Button
+                        className="mt-4 block mx-auto"
+                        onClick={() => router.push('/dashboard/customers')}
+                      >
+                        <Store className="h-4 w-4 mr-2" />
+                        Open merchant profiles
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="overflow-hidden border-gray-200 shadow-sm">
+                  <div className="flex flex-col lg:flex-row min-h-[480px]">
+                    <div className="w-full lg:w-[280px] shrink-0">
+                      <MerchantSidebar
+                        merchants={merchantBuckets}
+                        selectedKey={selectedMerchantKey}
+                        search={merchantSearch}
+                        onSearchChange={setMerchantSearch}
+                        onSelect={handleMerchantSelect}
+                      />
+                    </div>
+                    {selectedMerchant && (
+                      <MerchantPanel
+                        merchant={selectedMerchant}
+                        onCreateTariff={(id) => handleCreate(id, 'merchant')}
+                        {...actionProps}
+                      />
+                    )}
+                  </div>
+                </Card>
               )}
             </TabsContent>
 

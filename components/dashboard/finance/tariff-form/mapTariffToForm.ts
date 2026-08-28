@@ -6,7 +6,7 @@ export type ApiTariffRecord = {
   id: string
   name: string
   description?: string | null
-  tariffType: 'INTERNAL' | 'EXTERNAL' | string
+  tariffType: 'INTERNAL' | 'EXTERNAL' | 'MERCHANT' | string
   transactionType: string
   network?: 'MTN' | 'AIRTEL' | null
   currency?: string
@@ -19,6 +19,8 @@ export type ApiTariffRecord = {
   subscriberType?: CreateTariffForm['subscriberType']
   partnerId?: string | null
   apiPartnerId?: string | null
+  merchantId?: string | null
+  merchant?: { id: string; businessTradeName: string; merchantCode: string }
   partner?: { id: string; partnerName: string; partnerCode: string }
   apiPartner?: { id: string; partnerName: string; partnerType: string }
   group?: string | null
@@ -153,8 +155,12 @@ function normalizeTariffType(
   tariffType: string | undefined,
   partnerId?: string,
   apiPartnerId?: string,
+  merchantId?: string,
 ): CreateTariffForm['tariffType'] {
-  if (tariffType === 'INTERNAL' || tariffType === 'EXTERNAL') return tariffType
+  if (tariffType === 'INTERNAL' || tariffType === 'EXTERNAL' || tariffType === 'MERCHANT') {
+    return tariffType
+  }
+  if (merchantId) return 'MERCHANT'
   return partnerId || apiPartnerId ? 'EXTERNAL' : 'INTERNAL'
 }
 
@@ -173,7 +179,13 @@ export function mapTariffToForm(
 ): CreateTariffForm {
   const apiPartnerId = tariff.apiPartnerId || tariff.apiPartner?.id || undefined
   const partnerId = tariff.partnerId || tariff.partner?.id || undefined
-  const normalizedTariffType = normalizeTariffType(tariff.tariffType, partnerId, apiPartnerId)
+  const merchantId = tariff.merchantId || tariff.merchant?.id || undefined
+  const normalizedTariffType = normalizeTariffType(
+    tariff.tariffType,
+    partnerId,
+    apiPartnerId,
+    merchantId,
+  )
   const partnerType = apiPartnerId
     ? ('API_PARTNER' as const)
     : partnerId
@@ -213,6 +225,7 @@ export function mapTariffToForm(
     subscriberType: tariff.subscriberType || 'INDIVIDUAL',
     partnerId,
     apiPartnerId,
+    merchantId,
     partnerType,
     group: tariff.group || '',
     partnerFee: num(tariff.partnerFee),

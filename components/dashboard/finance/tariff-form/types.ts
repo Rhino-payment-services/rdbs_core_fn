@@ -1,7 +1,7 @@
 export interface CreateTariffForm {
   name: string
   description?: string
-  tariffType: 'INTERNAL' | 'EXTERNAL'
+  tariffType: 'INTERNAL' | 'EXTERNAL' | 'MERCHANT'
   transactionType:
     | 'DEPOSIT'
     | 'WITHDRAWAL'
@@ -25,6 +25,7 @@ export interface CreateTariffForm {
     | 'CUSTOM'
     | 'WALLET_TO_PARTNER_INSTITUTION'
     | 'PARTNER_INSTITUTION_TO_WALLET'
+    | 'MERCHANT_SELF_LIQUIDATION'
   network?: 'MTN' | 'AIRTEL'
   transactionModeId?: string
   currency: string
@@ -37,6 +38,7 @@ export interface CreateTariffForm {
   subscriberType?: 'INDIVIDUAL' | 'MERCHANT' | 'AGENT'
   partnerId?: string
   apiPartnerId?: string
+  merchantId?: string
   partnerType?: 'EXTERNAL_PARTNER' | 'API_PARTNER'
   group?: string
   partnerFee?: number

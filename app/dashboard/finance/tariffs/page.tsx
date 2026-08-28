@@ -62,12 +62,13 @@ import {
   DASHBOARD_MAIN_CLASS,
   dashboardPageShellClass,
 } from '@/lib/constants/dashboard-layout'
+import { MERCHANT_TRANSACTION_TYPES } from '@/lib/tariffs-new/constants'
 
 interface Tariff {
   id: string
   name: string
   description: string
-  tariffType: 'INTERNAL' | 'EXTERNAL'
+  tariffType: 'INTERNAL' | 'EXTERNAL' | 'MERCHANT'
   transactionType: string
   network?: 'MTN' | 'AIRTEL'
   currency: string
@@ -82,6 +83,7 @@ interface Tariff {
   subscriberType: 'INDIVIDUAL' | 'BUSINESS' | null
   partnerId?: string
   apiPartnerId?: string
+  merchantId?: string
   group?: string // Tariff group (G1, G2, G3) for partner-specific amount ranges
   partner?: {
     partnerName: string
@@ -93,6 +95,11 @@ interface Tariff {
     partnerType: string
     contactEmail: string
     contactPhone: string
+  }
+  merchant?: {
+    id: string
+    businessTradeName: string
+    merchantCode: string
   }
   isActive?: boolean
   // Approval workflow fields
@@ -139,6 +146,9 @@ function escapeCsvCell(value: unknown): string {
 }
 
 function getPartnerExportLabel(tariff: Tariff): string {
+  if (tariff.merchant) {
+    return `${tariff.merchant.merchantCode} — ${tariff.merchant.businessTradeName} (Merchant)`
+  }
   if (tariff.partner) {
     return `${tariff.partner.partnerCode} — ${tariff.partner.partnerName} (External Partner)`
   }
@@ -169,10 +179,16 @@ const TariffsPage = () => {
   // Get tab from URL params if present
   const tabFromUrl = searchParams?.get('tab')
   const subTabFromUrl = searchParams?.get('subTab')
+  const merchantFromUrl = searchParams?.get('merchant')
   
-  const [activeMainTab, setActiveMainTab] = useState(tabFromUrl || 'external')
+  const [activeMainTab, setActiveMainTab] = useState(
+    tabFromUrl === 'internal' || tabFromUrl === 'external' || tabFromUrl === 'merchants'
+      ? tabFromUrl
+      : 'external',
+  )
   const [activeInternalTab, setActiveInternalTab] = useState(subTabFromUrl && tabFromUrl === 'internal' ? subTabFromUrl : '')
   const [activeExternalTab, setActiveExternalTab] = useState(subTabFromUrl && tabFromUrl === 'external' ? subTabFromUrl : '')
+  const [activeMerchantTab, setActiveMerchantTab] = useState(subTabFromUrl && tabFromUrl === 'merchants' ? subTabFromUrl : '')
   const [selectedPartner, setSelectedPartner] = useState("ABC") // Default to ABC
   const [isLoading, setIsLoading] = useState(false)
   
@@ -433,6 +449,13 @@ const TariffsPage = () => {
   // Separate internal and external tariffs
   const internalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'INTERNAL')
   const externalTariffs = allTariffs.filter((t: Tariff) => t.tariffType === 'EXTERNAL')
+  const merchantTariffsAll = allTariffs.filter((t: Tariff) => t.tariffType === 'MERCHANT')
+  const merchantTariffs = merchantFromUrl
+    ? merchantTariffsAll.filter(
+        (t: Tariff) =>
+          t.merchantId === merchantFromUrl || t.merchant?.id === merchantFromUrl,
+      )
+    : merchantTariffsAll
   
   // Group internal tariffs by transaction type
   const internalGroupedTariffs = {
@@ -470,6 +493,13 @@ const TariffsPage = () => {
     'CUSTOM': externalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }
 
+  const merchantGroupedTariffs = Object.fromEntries(
+    Object.keys(MERCHANT_TRANSACTION_TYPES).map((type) => [
+      type,
+      merchantTariffs.filter((t: Tariff) => t.transactionType === type),
+    ]),
+  ) as Record<string, Tariff[]>
+
   // Get available transaction types from actual data
   const availableInternalTypes = Object.keys(internalTransactionTypes).filter(type => 
     internalGroupedTariffs[type as keyof typeof internalGroupedTariffs]?.length > 0
@@ -477,6 +507,10 @@ const TariffsPage = () => {
   
   const availableExternalTypes = Object.keys(externalTransactionTypes).filter(type => 
     externalGroupedTariffs[type as keyof typeof externalGroupedTariffs]?.length > 0
+  )
+
+  const availableMerchantTypes = Object.keys(MERCHANT_TRANSACTION_TYPES).filter(
+    (type) => (merchantGroupedTariffs[type]?.length ?? 0) > 0,
   )
 
   // Refetch tariffs when component mounts or becomes visible
@@ -495,6 +529,10 @@ const TariffsPage = () => {
       setActiveExternalTab(subTabFromUrl)
       return
     }
+    if (tabFromUrl === 'merchants' && subTabFromUrl && !activeMerchantTab) {
+      setActiveMerchantTab(subTabFromUrl)
+      return
+    }
     
     // Otherwise, set defaults based on available data
     if (availableInternalTypes.length > 0 && !activeInternalTab) {
@@ -509,7 +547,16 @@ const TariffsPage = () => {
         setActiveExternalTab(firstExternalType.tabId)
       }
     }
-  }, [availableInternalTypes, availableExternalTypes, activeInternalTab, activeExternalTab, tabFromUrl, subTabFromUrl])
+    if (availableMerchantTypes.length > 0 && !activeMerchantTab) {
+      const firstMerchantType =
+        MERCHANT_TRANSACTION_TYPES[
+          availableMerchantTypes[0] as keyof typeof MERCHANT_TRANSACTION_TYPES
+        ]
+      if (firstMerchantType) {
+        setActiveMerchantTab(firstMerchantType.tabId)
+      }
+    }
+  }, [availableInternalTypes, availableExternalTypes, availableMerchantTypes, activeInternalTab, activeExternalTab, activeMerchantTab, tabFromUrl, subTabFromUrl])
 
   const openDeleteModal = (tariff: Tariff) => {
     setDeletingTariff(tariff)
@@ -599,7 +646,7 @@ const TariffsPage = () => {
       'Amount Range',
       'Transaction Type',
       'Transaction Type Code',
-      'Partner',
+      'Partner / Merchant',
       'Group',
       'Partner Fee',
       'RukaPay Fee',
@@ -775,9 +822,10 @@ const TariffsPage = () => {
     const [channelFilter, setChannelFilter] = useState<'all' | 'MERCHANT_PORTAL'>(
       'all',
     )
-    // Check both internal and external transaction types
-    const config = internalTransactionTypes[type as keyof typeof internalTransactionTypes] || 
-                  externalTransactionTypes[type as keyof typeof externalTransactionTypes]
+    const config =
+      internalTransactionTypes[type as keyof typeof internalTransactionTypes] ||
+      externalTransactionTypes[type as keyof typeof externalTransactionTypes] ||
+      MERCHANT_TRANSACTION_TYPES[type as keyof typeof MERCHANT_TRANSACTION_TYPES]
 
     const supportsMerchantPortalFilter =
       type === 'WALLET_TO_BANK' || type === 'WALLET_TO_MNO'
@@ -791,8 +839,12 @@ const TariffsPage = () => {
 
     if (!config) return null
 
-    // Check if this is an internal tariff type
     const isInternalTariff = tariffs.length > 0 && tariffs[0].tariffType === 'INTERNAL'
+    const isMerchantTariff = tariffs.length > 0 && tariffs[0].tariffType === 'MERCHANT'
+    const createHref =
+      isMerchantTariff && (merchantFromUrl || tariffs[0]?.merchantId)
+        ? `/dashboard/finance/tariffs/create?merchantId=${merchantFromUrl || tariffs[0].merchantId}`
+        : '/dashboard/finance/tariffs/create'
 
     return (
       <div className="space-y-4">
@@ -842,7 +894,7 @@ const TariffsPage = () => {
                   : 'No tariffs configured for this transaction type'}
               </p>
               {canManageTariffs && (
-                <Button className="mt-4" onClick={() => router.push('/dashboard/finance/tariffs/create')}>
+                <Button className="mt-4" onClick={() => router.push(createHref)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Create Tariff
                 </Button>
@@ -863,13 +915,14 @@ const TariffsPage = () => {
                   <TableHead className="max-w-[220px] whitespace-normal">
                     Transaction Type
                   </TableHead>
-                  {!isInternalTariff && <TableHead>Network</TableHead>}
-                  {!isInternalTariff && <TableHead>Partner</TableHead>}
-                  {!isInternalTariff && <TableHead>Group</TableHead>}
-                  {!isInternalTariff && <TableHead>Partner Fee</TableHead>}
-                  {!isInternalTariff && <TableHead>RukaPay Fee</TableHead>}
-                  {!isInternalTariff && <TableHead>Telecom/Bank Charge</TableHead>}
-                  {!isInternalTariff && <TableHead>Government Tax</TableHead>}
+                  {isMerchantTariff && <TableHead>Merchant</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Network</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Partner</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Group</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Partner Fee</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>RukaPay Fee</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Telecom/Bank Charge</TableHead>}
+                  {!isInternalTariff && !isMerchantTariff && <TableHead>Government Tax</TableHead>}
                   <TableHead>Status</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
@@ -901,7 +954,29 @@ const TariffsPage = () => {
                     <TableCell className="text-sm">
                       <Badge variant="outline">{getTransactionTypeLabel(tariff.transactionType, tariff)}</Badge>
                     </TableCell>
-                    {!isInternalTariff && (
+                    {isMerchantTariff && (
+                      <TableCell>
+                        {tariff.merchant ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className="w-fit bg-indigo-50 border-indigo-200">
+                              {tariff.merchant.merchantCode}
+                            </Badge>
+                            <span className="text-xs text-gray-500">
+                              {tariff.merchant.businessTradeName}
+                            </span>
+                            <Link
+                              href={`/dashboard/customers/merchant/${tariff.merchant.id}`}
+                              className="text-xs text-blue-600 hover:underline w-fit"
+                            >
+                              View merchant
+                            </Link>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell className="text-sm">
                         {tariff.network ? (
                           <Badge variant="secondary">{tariff.network}</Badge>
@@ -910,7 +985,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell>
                         {tariff.partner ? (
                           <div className="flex flex-col gap-1">
@@ -937,7 +1012,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell>
                         {tariff.group ? (
                           <Badge variant="outline">{tariff.group}</Badge>
@@ -946,7 +1021,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell className="text-sm">
                         {tariff.partnerFee ? (
                           <span className="font-medium">{tariff.partnerFee} {tariff.currency}</span>
@@ -955,7 +1030,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell className="text-sm">
                         {formatTariffSplitField(tariff.rukapayFee, tariff) ? (
                           <span className="font-medium">
@@ -966,7 +1041,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell className="text-sm">
                         {formatTariffSplitField(tariff.telecomBankCharge, tariff) ? (
                           <span className="font-medium">
@@ -977,7 +1052,7 @@ const TariffsPage = () => {
                         )}
                       </TableCell>
                     )}
-                    {!isInternalTariff && (
+                    {!isInternalTariff && !isMerchantTariff && (
                       <TableCell className="text-sm">
                         {formatTariffGovernmentTax(tariff.governmentTax) ? (
                           <span className="font-medium">
@@ -1279,9 +1354,9 @@ const TariffsPage = () => {
             </Card>
           </div>
 
-          {/* Main Tabs for Internal vs External */}
+          {/* Main Tabs for Internal vs External vs Merchant */}
           <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="internal" className="flex items-center space-x-2">
                 <Building2 className="w-4 h-4" />
                 <span>Internal Tariffs ({internalTariffs.length})</span>
@@ -1289,6 +1364,10 @@ const TariffsPage = () => {
               <TabsTrigger value="external" className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
                 <span>External Tariffs ({externalTariffs.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="merchants" className="flex items-center space-x-2">
+                <Store className="w-4 h-4" />
+                <span>Merchant Tariffs ({merchantTariffs.length})</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1387,6 +1466,85 @@ const TariffsPage = () => {
                       <Button className="mt-4" onClick={() => router.push('/dashboard/finance/tariffs/create')}>
                         <Plus className="w-4 h-4 mr-2" />
                         Create External Tariff
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Merchant Tariffs Tab */}
+            <TabsContent value="merchants">
+              {merchantFromUrl && merchantTariffs.length > 0 && merchantTariffs[0]?.merchant && (
+                <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+                  Showing custom tariffs for{' '}
+                  <span className="font-medium">
+                    {merchantTariffs[0].merchant.businessTradeName} (
+                    {merchantTariffs[0].merchant.merchantCode})
+                  </span>
+                  .{' '}
+                  <Link
+                    href="/dashboard/finance/tariffs?tab=merchants"
+                    className="text-indigo-700 underline"
+                  >
+                    Show all merchant tariffs
+                  </Link>
+                </div>
+              )}
+              {tariffsLoading ? (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading merchant tariffs...</p>
+                  </CardContent>
+                </Card>
+              ) : availableMerchantTypes.length > 0 ? (
+                <Tabs value={activeMerchantTab} onValueChange={setActiveMerchantTab} className="space-y-6">
+                  <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${availableMerchantTypes.length}, 1fr)` }}>
+                    {availableMerchantTypes.map((type) => {
+                      const config = MERCHANT_TRANSACTION_TYPES[type as keyof typeof MERCHANT_TRANSACTION_TYPES]
+                      if (!config) return null
+                      return (
+                        <TabsTrigger key={type} value={config.tabId} className="flex items-center space-x-2">
+                          <config.icon className="w-4 h-4" />
+                          <span className="hidden sm:inline">{config.name}</span>
+                        </TabsTrigger>
+                      )
+                    })}
+                  </TabsList>
+
+                  {availableMerchantTypes.map((type) => {
+                    const config = MERCHANT_TRANSACTION_TYPES[type as keyof typeof MERCHANT_TRANSACTION_TYPES]
+                    if (!config) return null
+                    return (
+                      <TabsContent key={type} value={config.tabId}>
+                        <TariffTable type={type} tariffs={merchantGroupedTariffs[type] ?? []} />
+                      </TabsContent>
+                    )
+                  })}
+                </Tabs>
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <Store className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Merchant Tariffs</h3>
+                    <p className="text-gray-500 max-w-md mx-auto">
+                      Create custom fees from a merchant profile under Settings → Custom Tariffs,
+                      or use Create Tariff with type Merchant.
+                    </p>
+                    {canManageTariffs && (
+                      <Button
+                        className="mt-4"
+                        onClick={() =>
+                          router.push(
+                            merchantFromUrl
+                              ? `/dashboard/finance/tariffs/create?merchantId=${merchantFromUrl}`
+                              : '/dashboard/finance/tariffs/create',
+                          )
+                        }
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Merchant Tariff
                       </Button>
                     )}
                   </CardContent>

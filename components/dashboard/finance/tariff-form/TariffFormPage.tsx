@@ -49,6 +49,12 @@ interface ApiPartner {
   country?: string
 }
 
+interface MerchantOption {
+  id: string
+  businessTradeName: string
+  merchantCode: string
+}
+
 const NETWORK_TELECOM_BANK_CHARGE: Record<'MTN' | 'AIRTEL', number> = {
   MTN: 1.5,
   AIRTEL: 2,
@@ -76,8 +82,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     Partial<Record<keyof CreateTariffForm, boolean>>
   >({})
   
-  // Get apiPartnerId from query params if present
+  // Get apiPartnerId / merchantId from query params if present
   const apiPartnerIdFromQuery = searchParams?.get('apiPartnerId')
+  const merchantIdFromQuery = searchParams?.get('merchantId')
   
   const { hasPermission } = usePermissions()
   const canCreateTariffs = hasPermission(PERMISSIONS.TARIFF_CREATE)
@@ -87,8 +94,14 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const [form, setForm] = useState<CreateTariffForm>({
     name: '',
     description: '',
-    tariffType: apiPartnerIdFromQuery ? 'EXTERNAL' : 'INTERNAL',
-    transactionType: 'WALLET_TO_WALLET',
+    tariffType: merchantIdFromQuery
+      ? 'MERCHANT'
+      : apiPartnerIdFromQuery
+        ? 'EXTERNAL'
+        : 'INTERNAL',
+    transactionType: merchantIdFromQuery
+      ? 'WALLET_TO_INTERNAL_MERCHANT'
+      : 'WALLET_TO_WALLET',
     network: undefined,
     transactionModeId: undefined,
     currency: 'UGX',
@@ -101,6 +114,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     subscriberType: 'INDIVIDUAL',
     partnerId: undefined,
     apiPartnerId: apiPartnerIdFromQuery || undefined,
+    merchantId: merchantIdFromQuery || undefined,
     partnerType: apiPartnerIdFromQuery ? 'API_PARTNER' : undefined,
     group: '',
     partnerFee: 0,
@@ -140,7 +154,12 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
       // Navigate to tariffs page with query params to show the correct tab
       // For INTERNAL CUSTOM tariffs, show internal tab with custom-internal tab
       // For EXTERNAL CUSTOM tariffs, show external tab with custom tab
-      const tabParam = tariffType === 'INTERNAL' ? 'internal' : 'external'
+      const tabParam =
+        tariffType === 'INTERNAL'
+          ? 'internal'
+          : tariffType === 'MERCHANT'
+            ? 'merchants'
+            : 'external'
       const subTabParam = transactionType === 'CUSTOM' 
         ? (tariffType === 'INTERNAL' ? 'custom-internal' : 'custom')
         : undefined
@@ -156,7 +175,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
         const base =
           tabParam === 'external' && form.apiPartnerId
             ? `/dashboard/finance/tariffs-new?tab=external&partner=api:${form.apiPartnerId}`
-            : `/dashboard/finance/tariffs-new?tab=${tabParam}`
+            : tabParam === 'merchants' && form.merchantId
+              ? `/dashboard/finance/tariffs-new?tab=merchants&merchant=merchant:${form.merchantId}`
+              : `/dashboard/finance/tariffs-new?tab=${tabParam}`
         router.push(subTabParam ? `${base}` : base)
       }, 100)
     },
@@ -228,11 +249,24 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const { data: apiPartnersData } = useQuery({
     queryKey: ['gateway-partners'],
     queryFn: () => api.get('/api/v1/admin/gateway-partners?page=1&limit=100').then(res => res.data?.data || []),
-    enabled: form.tariffType === 'EXTERNAL' // Only fetch if tariffType is EXTERNAL
+    enabled: form.tariffType === 'EXTERNAL'
+  })
+
+  const { data: merchantsData } = useQuery({
+    queryKey: ['merchants-for-tariffs'],
+    queryFn: () =>
+      api
+        .get('/merchant-kyc/all', { params: { page: 1, pageSize: 500, kycStatus: 'APPROVED' } })
+        .then((res) => {
+          const body = res.data as { merchants?: MerchantOption[]; data?: { merchants?: MerchantOption[] } }
+          return body.merchants || body.data?.merchants || []
+        }),
+    enabled: form.tariffType === 'MERCHANT',
   })
 
   const partners: Partner[] = partnersData || []
   const apiPartners: ApiPartner[] = apiPartnersData || []
+  const merchants: MerchantOption[] = merchantsData || []
   const prevNetworkRef = useRef<string | undefined>(undefined)
   const skipMnoAutoCalcRef = useRef(true)
 
@@ -453,6 +487,11 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
     if (form.tariffType === 'EXTERNAL' && !form.partnerId && !form.apiPartnerId) {
       toast.error('Partner is required for external tariffs')
+      return
+    }
+
+    if (form.tariffType === 'MERCHANT' && !form.merchantId) {
+      toast.error('Merchant is required for merchant tariffs')
       return
     }
 
@@ -707,12 +746,22 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         value={form.tariffType} 
                         onValueChange={(value) => {
                           handleInputChange('tariffType', value)
-                          // Clear partner selections when switching to INTERNAL
                           if (value === 'INTERNAL') {
+                            handleInputChange('partnerId', undefined)
+                            handleInputChange('apiPartnerId', undefined)
+                            handleInputChange('merchantId', undefined)
+                            handleInputChange('partnerType', undefined)
+                            handleInputChange('network', undefined)
+                          } else if (value === 'MERCHANT') {
                             handleInputChange('partnerId', undefined)
                             handleInputChange('apiPartnerId', undefined)
                             handleInputChange('partnerType', undefined)
                             handleInputChange('network', undefined)
+                            if (form.transactionType === 'WALLET_TO_WALLET') {
+                              handleInputChange('transactionType', 'WALLET_TO_INTERNAL_MERCHANT')
+                            }
+                          } else if (value === 'EXTERNAL') {
+                            handleInputChange('merchantId', undefined)
                           }
                         }}
                       >
@@ -722,9 +771,31 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         <SelectContent>
                           <SelectItem value="INTERNAL">Internal (RukaPay operations)</SelectItem>
                           <SelectItem value="EXTERNAL">External (Partner integrations)</SelectItem>
+                          <SelectItem value="MERCHANT">Merchant (Custom per merchant)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {form.tariffType === 'MERCHANT' && (
+                      <div>
+                        <Label htmlFor="merchantId">Merchant *</Label>
+                        <Select
+                          value={form.merchantId || ''}
+                          onValueChange={(value) => handleInputChange('merchantId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select merchant" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {merchants.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.businessTradeName} ({m.merchantCode})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="transactionModeId">
@@ -845,6 +916,16 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                               <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
                               <SelectItem value="FEE_CHARGE">Fee Charge</SelectItem>
                               <SelectItem value="REVERSAL">Reversal</SelectItem>
+                              <SelectItem value="CUSTOM">Custom</SelectItem>
+                            </>
+                          ) : form.tariffType === 'MERCHANT' ? (
+                            <>
+                              <SelectItem value="WALLET_TO_INTERNAL_MERCHANT">Wallet to Internal Merchant</SelectItem>
+                              <SelectItem value="MERCHANT_TO_WALLET">Merchant Payment</SelectItem>
+                              <SelectItem value="MERCHANT_WITHDRAWAL">Merchant Withdrawal</SelectItem>
+                              <SelectItem value="MERCHANT_SELF_LIQUIDATION">Merchant Self Liquidation</SelectItem>
+                              <SelectItem value="WALLET_TO_BANK">Wallet to Bank (Payout)</SelectItem>
+                              <SelectItem value="WALLET_TO_MNO">Wallet to MNO (Payout)</SelectItem>
                               <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>
                           ) : (

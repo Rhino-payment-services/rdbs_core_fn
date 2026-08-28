@@ -79,6 +79,8 @@ export function formatAmountRange(tariff: Tariff): string {
 }
 
 export function getTariffPartnerKey(tariff: Tariff): string {
+  if (tariff.merchant?.id) return `merchant:${tariff.merchant.id}`
+  if (tariff.merchantId) return `merchant:${tariff.merchantId}`
   if (tariff.apiPartner?.id) return `api:${tariff.apiPartner.id}`
   if (tariff.apiPartnerId) return `api:${tariff.apiPartnerId}`
   if (tariff.partner?.partnerCode) return `ext:${tariff.partner.partnerCode}`
@@ -87,12 +89,14 @@ export function getTariffPartnerKey(tariff: Tariff): string {
 }
 
 export function getTariffPartnerLabel(tariff: Tariff): string {
+  if (tariff.merchant?.businessTradeName) return tariff.merchant.businessTradeName
   if (tariff.apiPartner?.partnerName) return tariff.apiPartner.partnerName
   if (tariff.partner?.partnerName) return tariff.partner.partnerName
   return 'Platform (no partner)'
 }
 
 export function getTariffPartnerSublabel(tariff: Tariff): string | undefined {
+  if (tariff.merchant?.merchantCode) return tariff.merchant.merchantCode
   if (tariff.apiPartner?.partnerType) return tariff.apiPartner.partnerType
   if (tariff.partner?.partnerCode) return tariff.partner.partnerCode
   return undefined
@@ -157,6 +161,27 @@ export function buildExternalPartnerBuckets(externalTariffs: Tariff[]): PartnerB
     if (b.kind === 'general') return -1
     return a.label.localeCompare(b.label)
   })
+}
+
+export function buildMerchantBuckets(merchantTariffs: Tariff[]): PartnerBucket[] {
+  const byKey = new Map<string, PartnerBucket>()
+
+  for (const tariff of merchantTariffs) {
+    const key = getTariffPartnerKey(tariff)
+    if (!key.startsWith('merchant:')) continue
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        key,
+        label: getTariffPartnerLabel(tariff),
+        sublabel: getTariffPartnerSublabel(tariff),
+        kind: 'merchant',
+        tariffs: [],
+      })
+    }
+    byKey.get(key)!.tariffs.push(tariff)
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => a.label.localeCompare(b.label))
 }
 
 export function isTariffPendingApproval(tariff: Tariff): boolean {

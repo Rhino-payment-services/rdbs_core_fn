@@ -100,6 +100,24 @@ export function TariffViewDialog({ tariff, open, onOpenChange }: TariffViewDialo
             </div>
           </section>
 
+          {tariff.tariffType === 'MERCHANT' && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Merchant
+              </h3>
+              <div className="text-sm">
+                {tariff.merchant ? (
+                  <>
+                    <p className="font-medium">{tariff.merchant.businessTradeName}</p>
+                    <p className="text-gray-500 text-xs font-mono">{tariff.merchant.merchantCode}</p>
+                  </>
+                ) : (
+                  <p className="text-gray-500">Merchant not linked</p>
+                )}
+              </div>
+            </section>
+          )}
+
           {tariff.tariffType === 'EXTERNAL' && (
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">

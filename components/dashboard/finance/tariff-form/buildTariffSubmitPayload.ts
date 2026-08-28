@@ -29,6 +29,7 @@ const ALLOWED_TRANSACTION_TYPES = [
   'CUSTOM',
   'WALLET_TO_PARTNER_INSTITUTION',
   'PARTNER_INSTITUTION_TO_WALLET',
+  'MERCHANT_SELF_LIQUIDATION',
 ] as const
 
 export function buildTariffSubmitPayload(
@@ -107,6 +108,7 @@ export function buildTariffSubmitPayload(
     network: form.network || undefined,
     partnerId: form.partnerId || undefined,
     apiPartnerId: form.apiPartnerId || undefined,
+    merchantId: form.merchantId || undefined,
     group: form.group || undefined,
     partnerFee: form.partnerFee ?? undefined,
     rukapayFee: form.rukapayFee ?? undefined,

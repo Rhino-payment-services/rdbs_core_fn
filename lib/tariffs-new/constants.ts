@@ -180,6 +180,58 @@ export const EXTERNAL_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
   },
 }
 
+export const MERCHANT_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> = {
+  WALLET_TO_INTERNAL_MERCHANT: {
+    name: 'Wallet to Internal Merchant',
+    description: 'Customer payments to this merchant',
+    icon: Store,
+    color: 'bg-indigo-500',
+    tabId: 'wallet-to-internal-merchant',
+  },
+  MERCHANT_TO_WALLET: {
+    name: 'Merchant Rukapay Transfer',
+    description: 'Merchant payouts to customer wallets',
+    icon: ArrowLeftRight,
+    color: 'bg-teal-600',
+    tabId: 'merchant-to-wallet',
+  },
+  MERCHANT_WITHDRAWAL: {
+    name: 'Merchant Withdrawal',
+    description: 'Merchant liquidation / withdrawal',
+    icon: DollarSign,
+    color: 'bg-amber-600',
+    tabId: 'merchant-withdrawal',
+  },
+  WALLET_TO_BANK: {
+    name: 'Wallet to Bank',
+    description: 'Merchant bank payouts',
+    icon: Building2,
+    color: 'bg-amber-500',
+    tabId: 'wallet-to-bank',
+  },
+  WALLET_TO_MNO: {
+    name: 'Wallet to MNO',
+    description: 'Merchant mobile money payouts',
+    icon: Smartphone,
+    color: 'bg-green-500',
+    tabId: 'wallet-to-mno',
+  },
+  MERCHANT_SELF_LIQUIDATION: {
+    name: 'Merchant Self Liquidation',
+    description: 'Self-liquidation payout fees',
+    icon: DollarSign,
+    color: 'bg-orange-600',
+    tabId: 'merchant-self-liquidation',
+  },
+  CUSTOM: {
+    name: 'Custom',
+    description: 'Custom merchant transaction modes',
+    icon: Settings,
+    color: 'bg-gray-600',
+    tabId: 'custom-merchant',
+  },
+}
+
 export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   WALLET_TO_INTERNAL_MERCHANT: 'Wallet to Internal Merchant',
   WALLET_TO_WALLET: 'Wallet to Wallet',
@@ -200,6 +252,7 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   SCHOOL_FEES: 'School Fees',
   MERCHANT_WITHDRAWAL: 'Merchant Withdrawal',
   MERCHANT_TO_WALLET: 'Merchant Payment',
+  MERCHANT_SELF_LIQUIDATION: 'Merchant Self Liquidation',
   CARD_TO_WALLET: 'Card to Wallet',
   WALLET_TO_PARTNER_INSTITUTION: 'Wallet to Partner Institution',
   PARTNER_INSTITUTION_TO_WALLET: 'Partner Institution to Wallet',

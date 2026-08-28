@@ -4,7 +4,7 @@ export interface Tariff {
   id: string
   name: string
   description: string
-  tariffType: 'INTERNAL' | 'EXTERNAL'
+  tariffType: 'INTERNAL' | 'EXTERNAL' | 'MERCHANT'
   transactionType: string
   network?: 'MTN' | 'AIRTEL'
   currency: string
@@ -19,6 +19,7 @@ export interface Tariff {
   subscriberType: 'INDIVIDUAL' | 'BUSINESS' | null
   partnerId?: string
   apiPartnerId?: string
+  merchantId?: string
   group?: string
   partner?: {
     partnerName: string
@@ -30,6 +31,11 @@ export interface Tariff {
     partnerType: string
     contactEmail: string
     contactPhone: string
+  }
+  merchant?: {
+    id: string
+    businessTradeName: string
+    merchantCode: string
   }
   isActive?: boolean
   status?: 'ACTIVE' | 'PENDING_APPROVAL' | 'REJECTED' | 'DRAFT' | string
@@ -71,6 +77,6 @@ export type PartnerBucket = {
   key: string
   label: string
   sublabel?: string
-  kind: 'api' | 'external' | 'general'
+  kind: 'api' | 'external' | 'general' | 'merchant'
   tariffs: Tariff[]
 }
