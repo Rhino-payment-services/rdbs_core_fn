@@ -165,6 +165,15 @@ const CustomerOverview = ({ customer, type, profileDetails, walletBalance }: Cus
             <div className="text-sm text-gray-600">{details.contactPhone}</div>
           </div>
         </div>
+        {details.ownerLoginPhone && details.ownerLoginPhone !== 'N/A' && (
+          <div className="flex items-center gap-3">
+            <Phone className="h-4 w-4 text-gray-500" />
+            <div>
+              <div className="text-sm font-medium">Portal Login Phone</div>
+              <div className="text-sm text-gray-600">{details.ownerLoginPhone}</div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <Building className="h-4 w-4 text-gray-500" />
           <div>
