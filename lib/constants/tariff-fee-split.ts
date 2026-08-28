@@ -14,6 +14,13 @@ export type FeeSplitModeMetadata = Partial<
   Record<FeeSplitFieldKey, FeeSplitFieldMode>
 >
 
+export const FEE_SPLIT_FIELD_KEYS: FeeSplitFieldKey[] = [
+  'partnerFee',
+  'rukapayFee',
+  'telecomBankCharge',
+  'governmentTax',
+]
+
 export const FEE_SPLIT_FIELD_LABELS: Record<FeeSplitFieldKey, string> = {
   partnerFee: 'Partner fee',
   rukapayFee: 'RukaPay fee',
@@ -36,6 +43,72 @@ export const DEFAULT_FEE_SPLIT_MODE: FeeSplitModeMetadata = {
   telecomBankCharge: 'PERCENT_OF_FEE',
   governmentTax: 'PERCENT_OF_FEE',
   rukapayFee: 'RESIDUAL',
+}
+
+/** Merchant tariffs default to fixed UGX so the four shares add to a real total. */
+export const MERCHANT_DEFAULT_FEE_SPLIT_MODE: FeeSplitModeMetadata = {
+  partnerFee: 'FIXED_UGX',
+  telecomBankCharge: 'FIXED_UGX',
+  governmentTax: 'FIXED_UGX',
+  rukapayFee: 'FIXED_UGX',
+}
+
+export function defaultFeeSplitModeForTariffType(
+  tariffType: string,
+): FeeSplitModeMetadata {
+  return tariffType === 'MERCHANT'
+    ? MERCHANT_DEFAULT_FEE_SPLIT_MODE
+    : DEFAULT_FEE_SPLIT_MODE
+}
+
+export type FeeSplitValues = Partial<Record<FeeSplitFieldKey, number | undefined>>
+
+export function getEffectiveFeeSplitMode(
+  metadata: Record<string, unknown> | undefined,
+  field: FeeSplitFieldKey,
+): FeeSplitFieldMode {
+  return getFeeSplitModeFromMetadata(metadata, field) ?? 'FIXED_UGX'
+}
+
+export function sumFixedUgxFeeSplit(
+  values: FeeSplitValues,
+  metadata: Record<string, unknown> | undefined,
+): number {
+  return FEE_SPLIT_FIELD_KEYS.reduce((sum, key) => {
+    if (getEffectiveFeeSplitMode(metadata, key) !== 'FIXED_UGX') return sum
+    return sum + (Number(values[key]) || 0)
+  }, 0)
+}
+
+export function percentOfFeeAllocated(
+  values: FeeSplitValues,
+  metadata: Record<string, unknown> | undefined,
+): number {
+  return FEE_SPLIT_FIELD_KEYS.reduce((sum, key) => {
+    if (getEffectiveFeeSplitMode(metadata, key) !== 'PERCENT_OF_FEE') return sum
+    return sum + (Number(values[key]) || 0)
+  }, 0)
+}
+
+export function formatFeeSplitPart(
+  key: FeeSplitFieldKey,
+  value: number | undefined,
+  currency: string,
+  metadata: Record<string, unknown> | undefined,
+): string {
+  const mode = getEffectiveFeeSplitMode(metadata, key)
+  const n = Number(value) || 0
+  const label = FEE_SPLIT_FIELD_LABELS[key]
+  switch (mode) {
+    case 'PERCENT_OF_FEE':
+      return `${label}: ${n}% of charge`
+    case 'PERCENT_OF_PRINCIPAL':
+      return `${label}: ${n}% of amount`
+    case 'RESIDUAL':
+      return `${label}: residual`
+    default:
+      return `${label}: ${currency} ${n.toFixed(2)}`
+  }
 }
 
 export function getFeeSplitModeFromMetadata(

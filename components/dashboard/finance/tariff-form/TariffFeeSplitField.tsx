@@ -49,16 +49,24 @@ export function TariffFeeSplitField({
     <div className="space-y-2">
       <Label htmlFor={field}>{label}</Label>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <Input
-          id={field}
-          type="number"
-          value={mode === 'RESIDUAL' ? '' : value ?? 0}
-          onChange={(e) => onValueChange(parseFloat(e.target.value) || 0)}
-          placeholder={mode === 'RESIDUAL' ? 'Auto' : '0'}
-          min={mode === 'RESIDUAL' ? undefined : 0}
-          step="0.01"
-          disabled={disabled || mode === 'RESIDUAL'}
-        />
+        <div className="relative">
+          <Input
+            id={field}
+            type="number"
+            value={mode === 'RESIDUAL' ? '' : value ?? 0}
+            onChange={(e) => onValueChange(parseFloat(e.target.value) || 0)}
+            placeholder={mode === 'RESIDUAL' ? 'Auto' : '0'}
+            min={mode === 'RESIDUAL' ? undefined : 0}
+            step="0.01"
+            disabled={disabled || mode === 'RESIDUAL'}
+            className={mode !== 'RESIDUAL' ? 'pr-10' : undefined}
+          />
+          {mode !== 'RESIDUAL' && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+              {suffix === '%' ? '%' : currency}
+            </span>
+          )}
+        </div>
         <Select
           value={mode}
           onValueChange={(next) => onModeChange(next as FeeSplitFieldMode)}

@@ -28,9 +28,13 @@ import {
   dashboardFormShellClass,
 } from '@/lib/constants/dashboard-layout'
 import {
-  DEFAULT_FEE_SPLIT_MODE,
+  FEE_SPLIT_FIELD_KEYS,
+  defaultFeeSplitModeForTariffType,
+  formatFeeSplitPart,
   isFeeSplitTariffType,
+  percentOfFeeAllocated,
   shouldShowFeeSplitModeSelectors,
+  sumFixedUgxFeeSplit,
   type FeeSplitFieldKey,
   type FeeSplitFieldMode,
 } from '@/lib/constants/tariff-fee-split'
@@ -121,7 +125,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     institutionSpreadNexenBps: 0,
     channel: TARIFF_CHANNEL_ALL,
     metadata: merchantIdFromQuery
-      ? { feeSplitMode: { ...DEFAULT_FEE_SPLIT_MODE } }
+      ? { feeSplitMode: { ...defaultFeeSplitModeForTariffType('MERCHANT') } }
       : undefined,
   })
 
@@ -129,8 +133,15 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const { data: transactionModes, isLoading: transactionModesLoading } = useTransactionModes({ isActive: true })
 
   // Calculate total fee amount (create external); edit may use stored feeAmount for FIXED
-  const splitTotal =
-    (form.partnerFee || 0) + (form.rukapayFee || 0) + (form.telecomBankCharge || 0)
+  const splitValues = {
+    partnerFee: form.partnerFee,
+    rukapayFee: form.rukapayFee,
+    telecomBankCharge: form.telecomBankCharge,
+    governmentTax: form.governmentTax,
+  }
+  const splitMetadata = form.metadata as Record<string, unknown> | undefined
+  const splitTotal = sumFixedUgxFeeSplit(splitValues, splitMetadata)
+  const splitPercentAllocated = percentOfFeeAllocated(splitValues, splitMetadata)
   const totalFeeAmount =
     isEdit && isFeeSplitTariffType(form.tariffType) && form.feeType === 'FIXED'
       ? form.feeAmount || splitTotal
@@ -543,12 +554,13 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
   const ensureDefaultFeeSplitMode = (
     metadata: Record<string, unknown> | undefined,
+    tariffType: string = form.tariffType,
   ): Record<string, unknown> => {
     const current = (metadata?.feeSplitMode as Record<string, string> | undefined) ?? {}
     return {
       ...(metadata ?? {}),
       feeSplitMode: {
-        ...DEFAULT_FEE_SPLIT_MODE,
+        ...defaultFeeSplitModeForTariffType(tariffType),
         ...current,
       },
     }
@@ -561,6 +573,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     setForm((prev) => {
       const metadata = ensureDefaultFeeSplitMode(
         prev.metadata as Record<string, unknown> | undefined,
+        prev.tariffType,
       )
       const feeSplitMode = {
         ...(metadata.feeSplitMode as Record<string, FeeSplitFieldMode>),
@@ -596,7 +609,10 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     if (existing && Object.keys(existing).length > 0) {
       return prev.metadata
     }
-    return ensureDefaultFeeSplitMode(prev.metadata as Record<string, unknown> | undefined)
+    return ensureDefaultFeeSplitMode(
+      prev.metadata as Record<string, unknown> | undefined,
+      prev.tariffType,
+    )
   }
 
   useEffect(() => {
@@ -1556,24 +1572,41 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     
                     {/* Total Fee Display */}
                     <div className="bg-gray-50 p-4 rounded-lg border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-700">Total Fee Amount:</span>
-                        <span className="text-lg font-bold text-[#08163d]">
-                          {form.currency} {totalFeeAmount.toFixed(2)}
+                      <div className="flex justify-between items-center gap-4">
+                        <span className="font-medium text-gray-700">
+                          {splitTotal > 0 ? 'Total fixed fee:' : 'Fee split:'}
+                        </span>
+                        <span className="text-lg font-bold text-[#08163d] text-right">
+                          {splitTotal > 0 || splitPercentAllocated === 0
+                            ? `${form.currency} ${totalFeeAmount.toFixed(2)}`
+                            : `${splitPercentAllocated}% of charge`}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        Partner Fee: {form.currency} {(form.partnerFee || 0).toFixed(2)} + 
-                        RukaPay Fee: {form.currency} {(form.rukapayFee || 0).toFixed(2)} + 
-                        Telecom/Bank Charge: {form.currency} {(form.telecomBankCharge || 0).toFixed(2)}
-                        {form.governmentTax && form.governmentTax > 0 && (
-                          <span>
-                            {' '}
-                            + Gov Tax: {(form.governmentTax || 0).toFixed(2)}
-                            {showPercentLabels ? '%' : ''}
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        {FEE_SPLIT_FIELD_KEYS.map((key) =>
+                          formatFeeSplitPart(
+                            key,
+                            splitValues[key],
+                            form.currency,
+                            splitMetadata,
+                          ),
+                        ).join(' + ')}
+                      </p>
+                      {splitPercentAllocated > 0 && (
+                        <p
+                          className={`text-xs mt-1 ${
+                            splitPercentAllocated > 100 ? 'text-red-600' : 'text-gray-500'
+                          }`}
+                        >
+                          {splitPercentAllocated}% of the customer charge is allocated
+                          {splitPercentAllocated > 100
+                            ? ' (exceeds 100%)'
+                            : splitPercentAllocated < 100
+                              ? `; residual keeps ${100 - splitPercentAllocated}%`
+                              : ''}
+                          .
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
