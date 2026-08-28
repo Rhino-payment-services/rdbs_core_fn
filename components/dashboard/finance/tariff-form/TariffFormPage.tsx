@@ -34,6 +34,7 @@ import {
   type FeeSplitFieldMode,
 } from '@/lib/constants/tariff-fee-split'
 import { TariffFeeSplitField } from './TariffFeeSplitField'
+import { MerchantSearchSelect } from './MerchantSearchSelect'
 
 interface Partner {
   id: string
@@ -47,12 +48,6 @@ interface ApiPartner {
   partnerType: string
   contactEmail: string
   country?: string
-}
-
-interface MerchantOption {
-  id: string
-  businessTradeName: string
-  merchantCode: string
 }
 
 const NETWORK_TELECOM_BANK_CHARGE: Record<'MTN' | 'AIRTEL', number> = {
@@ -252,21 +247,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     enabled: form.tariffType === 'EXTERNAL'
   })
 
-  const { data: merchantsData } = useQuery({
-    queryKey: ['merchants-for-tariffs'],
-    queryFn: () =>
-      api
-        .get('/merchant-kyc/all', { params: { page: 1, pageSize: 500, kycStatus: 'APPROVED' } })
-        .then((res) => {
-          const body = res.data as { merchants?: MerchantOption[]; data?: { merchants?: MerchantOption[] } }
-          return body.merchants || body.data?.merchants || []
-        }),
-    enabled: form.tariffType === 'MERCHANT',
-  })
-
   const partners: Partner[] = partnersData || []
   const apiPartners: ApiPartner[] = apiPartnersData || []
-  const merchants: MerchantOption[] = merchantsData || []
   const prevNetworkRef = useRef<string | undefined>(undefined)
   const skipMnoAutoCalcRef = useRef(true)
 
@@ -777,24 +759,10 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     </div>
 
                     {form.tariffType === 'MERCHANT' && (
-                      <div>
-                        <Label htmlFor="merchantId">Merchant *</Label>
-                        <Select
-                          value={form.merchantId || ''}
-                          onValueChange={(value) => handleInputChange('merchantId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select merchant" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {merchants.map((m) => (
-                              <SelectItem key={m.id} value={m.id}>
-                                {m.businessTradeName} ({m.merchantCode})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <MerchantSearchSelect
+                        value={form.merchantId}
+                        onChange={(merchantId) => handleInputChange('merchantId', merchantId)}
+                      />
                     )}
 
                     <div>
