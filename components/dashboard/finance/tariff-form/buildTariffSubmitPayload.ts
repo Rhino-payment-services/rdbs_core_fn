@@ -1,5 +1,6 @@
 import { TARIFF_CHANNEL_ALL } from '@/lib/constants/tariff-channels'
 import {
+  isFeeSplitTariffType,
   mergeFeeSplitModeIntoMetadata,
   shouldShowFeeSplitModeSelectors,
   type FeeSplitModeMetadata,
@@ -82,7 +83,7 @@ export function buildTariffSubmitPayload(
       form.tariffType === 'EXTERNAL' && validTransactionType === 'MNO_TO_WALLET'
         ? 'PERCENTAGE'
         : form.feeType,
-    feeAmount: form.tariffType === 'EXTERNAL' ? totalFeeAmount : form.feeAmount,
+    feeAmount: isFeeSplitTariffType(form.tariffType) ? totalFeeAmount : form.feeAmount,
     feePercentage:
       form.feePercentage !== undefined && form.feePercentage !== null
         ? form.partnerType === 'API_PARTNER'

@@ -26,6 +26,7 @@ type TariffFeeSplitFieldProps = {
   currency: string
   metadata: Record<string, unknown> | undefined
   disabled?: boolean
+  label?: string
   onValueChange: (value: number) => void
   onModeChange: (mode: FeeSplitFieldMode) => void
 }
@@ -36,12 +37,13 @@ export function TariffFeeSplitField({
   currency,
   metadata,
   disabled,
+  label: labelOverride,
   onValueChange,
   onModeChange,
 }: TariffFeeSplitFieldProps) {
   const mode = getFeeSplitModeFromMetadata(metadata, field) ?? 'FIXED_UGX'
   const suffix = feeSplitValueSuffix(mode)
-  const label = FEE_SPLIT_FIELD_LABELS[field]
+  const label = labelOverride ?? FEE_SPLIT_FIELD_LABELS[field]
 
   return (
     <div className="space-y-2">

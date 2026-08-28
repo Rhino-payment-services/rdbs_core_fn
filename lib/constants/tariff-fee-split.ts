@@ -73,13 +73,27 @@ export function feeSplitValueSuffix(mode: FeeSplitFieldMode): string {
   }
 }
 
+export function isFeeSplitTariffType(tariffType: string): boolean {
+  return tariffType === 'EXTERNAL' || tariffType === 'MERCHANT'
+}
+
 export function shouldShowFeeSplitModeSelectors(input: {
   tariffType: string
   feeType: string
   transactionType: string
   isExternalMnoToWallet: boolean
 }): boolean {
-  if (input.tariffType !== 'EXTERNAL' || input.isExternalMnoToWallet) {
+  if (input.isExternalMnoToWallet) {
+    return false
+  }
+  if (input.tariffType === 'MERCHANT') {
+    return (
+      input.feeType === 'HYBRID' ||
+      input.feeType === 'FIXED' ||
+      input.feeType === 'PERCENTAGE'
+    )
+  }
+  if (input.tariffType !== 'EXTERNAL') {
     return false
   }
   return (

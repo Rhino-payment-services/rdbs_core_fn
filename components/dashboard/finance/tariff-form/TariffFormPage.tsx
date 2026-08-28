@@ -29,6 +29,7 @@ import {
 } from '@/lib/constants/dashboard-layout'
 import {
   DEFAULT_FEE_SPLIT_MODE,
+  isFeeSplitTariffType,
   shouldShowFeeSplitModeSelectors,
   type FeeSplitFieldKey,
   type FeeSplitFieldMode,
@@ -119,6 +120,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     institutionSpreadRukapayBps: 0,
     institutionSpreadNexenBps: 0,
     channel: TARIFF_CHANNEL_ALL,
+    metadata: merchantIdFromQuery
+      ? { feeSplitMode: { ...DEFAULT_FEE_SPLIT_MODE } }
+      : undefined,
   })
 
   // Fetch transaction modes for selection
@@ -128,7 +132,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
   const splitTotal =
     (form.partnerFee || 0) + (form.rukapayFee || 0) + (form.telecomBankCharge || 0)
   const totalFeeAmount =
-    isEdit && form.tariffType === 'EXTERNAL' && form.feeType === 'FIXED'
+    isEdit && isFeeSplitTariffType(form.tariffType) && form.feeType === 'FIXED'
       ? form.feeAmount || splitTotal
       : splitTotal
 
@@ -441,7 +445,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     const effectiveFeeType = isExternalMnoToWallet ? 'PERCENTAGE' : form.feeType
 
     const externalFeeTotal =
-      form.tariffType === 'EXTERNAL'
+      isFeeSplitTariffType(form.tariffType)
         ? isEdit && form.feeType === 'FIXED'
           ? form.feeAmount
           : totalFeeAmount
@@ -594,6 +598,19 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     }
     return ensureDefaultFeeSplitMode(prev.metadata as Record<string, unknown> | undefined)
   }
+
+  useEffect(() => {
+    if (!showFeeSplitModeSelectors) return
+    setForm((prev) => {
+      const metadata = initFeeSplitModeIfNeeded(
+        prev,
+        prev.feeType,
+        prev.transactionType,
+      )
+      if (metadata === prev.metadata) return prev
+      return { ...prev, metadata }
+    })
+  }, [showFeeSplitModeSelectors])
 
   const handleTelecomBankChargeChange = (value: number) => {
     if (isExternalMnoToWallet) {
@@ -1148,7 +1165,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                       </div>
                     )}
 
-                    {form.feeType === 'FIXED' && form.tariffType === 'EXTERNAL' && (
+                    {form.feeType === 'FIXED' && isFeeSplitTariffType(form.tariffType) && (
                       <div>
                         <Label htmlFor="feeAmount">Fee Amount *</Label>
                         <Input
@@ -1205,22 +1222,22 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             id="feeAmount"
                             type="number"
                             value={
-                              form.tariffType === 'EXTERNAL'
+                              isFeeSplitTariffType(form.tariffType)
                                 ? totalFeeAmount
                                 : getNumericInputValue('feeAmount', form.feeAmount)
                             }
                             onChange={
-                              form.tariffType === 'EXTERNAL'
+                              isFeeSplitTariffType(form.tariffType)
                                 ? undefined
                                 : (e) => handleNumericInputChange('feeAmount', e.target.value)
                             }
-                            disabled={form.tariffType === 'EXTERNAL'}
+                            disabled={isFeeSplitTariffType(form.tariffType)}
                             placeholder="0"
                             min="0"
                             step="0.01"
                             required
                           />
-                          {form.tariffType === 'EXTERNAL' && (
+                          {isFeeSplitTariffType(form.tariffType) && (
                             <p className="text-xs text-gray-500 mt-1">Calculated automatically from partner fees</p>
                           )}
                         </div>
@@ -1249,22 +1266,22 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           id="feeAmount"
                           type="number"
                           value={
-                            form.tariffType === 'EXTERNAL'
+                            isFeeSplitTariffType(form.tariffType)
                               ? totalFeeAmount
                               : getNumericInputValue('feeAmount', form.feeAmount)
                           }
                           onChange={
-                            form.tariffType === 'EXTERNAL'
+                            isFeeSplitTariffType(form.tariffType)
                               ? undefined
                               : (e) => handleNumericInputChange('feeAmount', e.target.value)
                           }
-                          disabled={form.tariffType === 'EXTERNAL'}
+                          disabled={isFeeSplitTariffType(form.tariffType)}
                           placeholder="0"
                           min="0"
                           step="0.01"
                           required
                         />
-                        {form.tariffType === 'EXTERNAL' && (
+                        {isFeeSplitTariffType(form.tariffType) && (
                           <p className="text-xs text-gray-500 mt-1">Calculated automatically from partner fees</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">Base fee for tiered structure</p>
@@ -1387,11 +1404,23 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                   </div>
                 </div>
 
-                {/* External Tariff Specific Fields */}
-                {form.tariffType === 'EXTERNAL' && (
+                {/* External / merchant fee split */}
+                {isFeeSplitTariffType(form.tariffType) && (
                   <div className="space-y-4 border-t pt-6">
-                    <h3 className="text-lg font-medium">External Tariff Configuration</h3>
+                    <h3 className="text-lg font-medium">
+                      {form.tariffType === 'MERCHANT'
+                        ? 'Merchant Tariff Fee Split'
+                        : 'External Tariff Configuration'}
+                    </h3>
+                    {form.tariffType === 'MERCHANT' && (
+                      <p className="text-sm text-gray-500">
+                        Split this merchant&apos;s customer charge among partner/rail, RukaPay,
+                        telecom/bank, and tax. Modes are stored on the tariff and used at
+                        collection and payout time.
+                      </p>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {form.tariffType === 'EXTERNAL' && (
                       <div>
                         <Label htmlFor="group">Tariff Group</Label>
                         <Input
@@ -1402,6 +1431,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                         />
                         <p className="text-xs text-gray-500 mt-1">Group for partner-specific amount ranges</p>
                       </div>
+                      )}
 
                       {showFeeSplitModeSelectors ? (
                         <>
@@ -1410,6 +1440,11 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                             value={form.partnerFee}
                             currency={form.currency}
                             metadata={form.metadata as Record<string, unknown> | undefined}
+                            label={
+                              form.tariffType === 'MERCHANT'
+                                ? 'Partner / rail fee'
+                                : undefined
+                            }
                             onValueChange={(value) => handleInputChange('partnerFee', value)}
                             onModeChange={(mode) => handleFeeSplitModeChange('partnerFee', mode)}
                           />
