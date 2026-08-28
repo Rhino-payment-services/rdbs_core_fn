@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react'
 import CustomerProfileHeader from './CustomerProfileHeader'
 import CustomerStatsCards from './CustomerStatsCards'
 import CustomerOverview from './CustomerOverview'
+import MerchantHierarchyPanel from './MerchantHierarchyPanel'
 import CustomerTransactions from './CustomerTransactions'
 import CustomerActivity from './CustomerActivity'
 import CustomerSettings from './CustomerSettings'
@@ -177,8 +178,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     if (type === 'partner' && regularPartner) {
       return regularPartner?.email || 'N/A'
     }
-    if (type === 'merchant' && merchantData?.businessEmail) {
-      return merchantData.businessEmail
+    if (type === 'merchant' && (merchantData?.businessEmail || merchantData?.email)) {
+      return merchantData.businessEmail || merchantData.email
     }
     return customer?.email || 'N/A'
   }, [type, isGatewayPartner, partner, regularPartner, merchantData, customer])
@@ -191,8 +192,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     if (type === 'partner' && regularPartner) {
       return regularPartner?.profile?.phone || regularPartner?.phone || 'N/A'
     }
-    if (type === 'merchant' && merchantData?.registeredPhoneNumber) {
-      return merchantData.registeredPhoneNumber
+    if (type === 'merchant' && (merchantData?.registeredPhoneNumber || merchantData?.phone)) {
+      return merchantData.registeredPhoneNumber || merchantData.phone
     }
     return customer?.profile?.phone || customer?.phone || 'N/A'
   }, [type, isGatewayPartner, partner, regularPartner, merchantData, customer])
@@ -347,6 +348,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
+          {type === 'merchant' && merchantData && (
+            <MerchantHierarchyPanel merchant={merchantData} />
+          )}
           <CustomerOverview
             customer={{
               name: customerName,
@@ -375,7 +379,8 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
                 taxNumber: 'N/A',
                 businessAddress: 'N/A',
                 contactPerson: `${merchantData.ownerFirstName || ''} ${merchantData.ownerLastName || ''}`.trim() || 'N/A',
-                contactPhone: merchantData.registeredPhoneNumber || 'N/A',
+                contactPhone: merchantData.registeredPhoneNumber || merchantData.phone || 'N/A',
+                ownerLoginPhone: merchantData.ownerLoginPhone || 'N/A',
                 annualRevenue: 0
               } : undefined
             }}
