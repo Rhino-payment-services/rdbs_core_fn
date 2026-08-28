@@ -935,7 +935,7 @@ const CustomerSettings = ({
               Custom Tariffs
             </CardTitle>
             <CardDescription>
-              Configure transaction fees that apply only to this merchant. Tariffs appear in Finance → Tariffs.
+              Configure transaction fees that apply only to this merchant (payments, payouts, withdrawals). Tariffs appear in Finance → Tariffs.
               {merchantCode ? ` Merchant code: ${merchantCode}` : ''}
             </CardDescription>
           </CardHeader>
