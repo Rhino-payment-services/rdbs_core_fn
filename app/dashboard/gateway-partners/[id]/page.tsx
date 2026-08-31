@@ -679,93 +679,133 @@ const GatewayPartnerDetailsPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* ESCROW */}
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Wallet className="h-5 w-5 text-blue-600" />
-                      <span className="font-semibold text-blue-900">ESCROW Wallet</span>
-                    </div>
-                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                      Disbursements
-                    </Badge>
-                  </div>
-                  <p className="text-3xl font-bold text-blue-900">
-                    {escrowBalance?.wallet
-                      ? `UGX ${Number(escrowBalance.wallet.balance).toLocaleString()}`
-                      : escrowBalance?.message?.includes('not found') || !escrowBalance
-                      ? 'UGX 0'
-                      : '…'}
-                  </p>
-                  {/* Reserve / available breakdown */}
-                  {escrowBalance?.wallet && (
-                    <div className="mt-2 space-y-0.5 text-xs">
-                      {Number((escrowBalance.wallet as any).frozenBalance ?? 0) > 0 ? (
-                        <>
-                          <p className="text-orange-700 flex items-center gap-1">
-                            <Lock className="h-3 w-3" />
-                            Reserved: UGX {Number((escrowBalance.wallet as any).frozenBalance).toLocaleString()}
-                          </p>
-                          <p className="text-blue-700 font-medium">
-                            Available: UGX {Number((escrowBalance.wallet as any).availableBalance ?? Math.max(0, Number(escrowBalance.wallet.balance) - Number((escrowBalance.wallet as any).frozenBalance))).toLocaleString()}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-blue-500">No reserve set — full balance available</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-5 w-5 text-blue-600" />
+                          <span className="font-semibold text-blue-900">ESCROW Wallet</span>
+                        </div>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                          Disbursements
+                        </Badge>
+                      </div>
+                      {(escrowBalance?.wallet as { publicWalletId?: string; walletNumber?: number })?.publicWalletId ? (
+                        <p className="text-xs text-blue-800">
+                          RukaPay No.{' '}
+                          <span className="font-semibold">
+                            {(escrowBalance?.wallet as { publicWalletId?: string }).publicWalletId}
+                          </span>
+                          {(escrowBalance?.wallet as { walletNumber?: number }).walletNumber
+                            ? ` · Wallet #${(escrowBalance?.wallet as { walletNumber?: number }).walletNumber}`
+                            : ''}
+                        </p>
+                      ) : null}
+                      {escrowBalance?.wallet && (
+                        <div className="mt-2 space-y-0.5 text-xs">
+                          {Number((escrowBalance.wallet as any).frozenBalance ?? 0) > 0 ? (
+                            <>
+                              <p className="text-orange-700 flex items-center gap-1">
+                                <Lock className="h-3 w-3" />
+                                Reserved: UGX {Number((escrowBalance.wallet as any).frozenBalance).toLocaleString()}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-blue-500">No reserve set — full balance available</p>
+                          )}
+                        </div>
                       )}
+                      <p className="text-xs text-blue-600 mt-1">
+                        {escrowBalance?.wallet?.isActive
+                          ? escrowBalance.wallet.isSuspended
+                            ? '⚠ Suspended'
+                            : '● Active (default / first match)'
+                          : escrowBalance
+                          ? '○ Inactive / not created'
+                          : 'Not yet funded'}
+                      </p>
+                      {escrowBalance?.wallet?.walletId && (
+                        <p className="mt-2 font-mono text-[11px] text-blue-800 break-all">
+                          {escrowBalance.wallet.walletId}
+                        </p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setShowReserveDialog(true)}
+                        disabled={!escrowBalance?.wallet?.walletId}
+                      >
+                        <Lock className="h-3.5 w-3.5" />
+                        {Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0) > 0
+                          ? 'Manage Reserve'
+                          : 'Set Reserve'}
+                      </Button>
                     </div>
-                  )}
-                  <p className="text-xs text-blue-600 mt-1">
-                    {escrowBalance?.wallet?.isActive
-                      ? escrowBalance.wallet.isSuspended
-                        ? '⚠ Suspended'
-                        : '● Active (default / first match)'
-                      : escrowBalance
-                      ? '○ Inactive / not created'
-                      : 'Not yet funded'}
-                  </p>
-                  {escrowBalance?.wallet?.walletId && (
-                    <p className="mt-2 font-mono text-[11px] text-blue-800 break-all">
-                      {escrowBalance.wallet.walletId}
-                    </p>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-3 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
-                    onClick={() => setShowReserveDialog(true)}
-                    disabled={!escrowBalance?.wallet?.walletId}
-                  >
-                    <Lock className="h-3.5 w-3.5" />
-                    {Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0) > 0
-                      ? 'Manage Reserve'
-                      : 'Set Reserve'}
-                  </Button>
+                    <div className="shrink-0 text-right">
+                      <p className="text-3xl font-bold tabular-nums text-blue-900">
+                        {escrowBalance?.wallet
+                          ? `UGX ${Number(
+                              (escrowBalance.wallet as any).availableBalance ??
+                                Math.max(
+                                  0,
+                                  Number(escrowBalance.wallet.balance) -
+                                    Number((escrowBalance.wallet as any).frozenBalance ?? 0),
+                                ),
+                            ).toLocaleString()}`
+                          : escrowBalance?.message?.includes('not found') || !escrowBalance
+                          ? 'UGX 0'
+                          : '…'}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-blue-600">
+                        Available
+                      </p>
+                      {escrowBalance?.wallet ? (
+                        <p className="mt-1 text-xs text-blue-700">
+                          Total UGX {Number(escrowBalance.wallet.balance).toLocaleString()}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
 
                 {/* COMMISSION */}
                 <div className="rounded-lg border border-green-200 bg-green-50 p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                      <span className="font-semibold text-green-900">COMMISSION Wallet</span>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-green-600" />
+                          <span className="font-semibold text-green-900">COMMISSION Wallet</span>
+                        </div>
+                        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                          Earnings
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-green-600 mt-1">
+                        {commissionBalance?.wallet?.isActive
+                          ? commissionBalance.wallet.isSuspended
+                            ? '⚠ Suspended'
+                            : '● Active'
+                          : '○ Credited automatically on transactions'}
+                      </p>
                     </div>
-                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                      Earnings
-                    </Badge>
+                    <div className="shrink-0 text-right">
+                      <p className="text-3xl font-bold tabular-nums text-green-900">
+                        {commissionBalance?.wallet
+                          ? `UGX ${Number(
+                              (commissionBalance.wallet as any).availableBalance ??
+                                commissionBalance.wallet.balance,
+                            ).toLocaleString()}`
+                          : commissionBalance?.message?.includes('not found') || !commissionBalance
+                          ? 'UGX 0'
+                          : '…'}
+                      </p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-green-600">
+                        Available
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-3xl font-bold text-green-900">
-                    {commissionBalance?.wallet
-                      ? `UGX ${Number(commissionBalance.wallet.balance).toLocaleString()}`
-                      : commissionBalance?.message?.includes('not found') || !commissionBalance
-                      ? 'UGX 0'
-                      : '…'}
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    {commissionBalance?.wallet?.isActive
-                      ? commissionBalance.wallet.isSuspended
-                        ? '⚠ Suspended'
-                        : '● Active'
-                      : '○ Credited automatically on transactions'}
-                  </p>
                 </div>
               </div>
 
@@ -782,9 +822,11 @@ const GatewayPartnerDetailsPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Wallet No.</TableHead>
+                          <TableHead>RukaPay No.</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead>Wallet ID</TableHead>
-                          <TableHead>Balance</TableHead>
+                          <TableHead className="text-right">Available</TableHead>
                           <TableHead>Flags</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -792,14 +834,21 @@ const GatewayPartnerDetailsPage = () => {
                       <TableBody>
                         {escrowWallets.map((w) => (
                           <TableRow key={w.id}>
+                            <TableCell className="text-sm font-medium tabular-nums">
+                              {w.walletNumber != null ? `#${w.walletNumber}` : '—'}
+                            </TableCell>
+                            <TableCell className="text-sm font-mono">
+                              {w.publicWalletId || '—'}
+                            </TableCell>
                             <TableCell className="max-w-[180px] truncate text-sm">
                               {w.description || '—'}
                             </TableCell>
                             <TableCell>
                               <code className="text-[11px] break-all">{w.id}</code>
                             </TableCell>
-                            <TableCell className="tabular-nums text-sm">
-                              {w.currency} {Number(w.balance).toLocaleString()}
+                            <TableCell className="text-right tabular-nums text-sm font-semibold">
+                              {w.currency}{' '}
+                              {Number(w.availableBalance ?? w.balance).toLocaleString()}
                             </TableCell>
                             <TableCell className="space-x-1">
                               {w.isDefault && (

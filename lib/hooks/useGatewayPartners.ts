@@ -374,6 +374,8 @@ export interface PartnerWalletListItem {
   isSuspended: boolean;
   description: string | null;
   createdAt: string;
+  publicWalletId?: string | null;
+  walletNumber?: number | null;
 }
 
 export interface SetPartnerReserveRequest {

@@ -40,6 +40,8 @@ interface WalletBalance {
   availableBalance?: number
   currency: string
   isActive: boolean
+  publicWalletId?: string | null
+  walletNumber?: number | null
 }
 
 function usePartnerWalletBalance(partnerId: string, walletType: 'ESCROW' | 'COMMISSION') {
@@ -215,71 +217,86 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
     return (
       <div className={`rounded-lg border p-5 ${bg}`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Wallet className={`h-4 w-4 ${textColor}`} />
-            <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
-          </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
-            {data ? (data.isActive ? 'Active' : 'Inactive') : '—'}
-          </span>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-            <span className="text-sm text-gray-500">Loading...</span>
-          </div>
-        ) : (
-          <>
-            <p className={`text-2xl font-bold ${textColor}`}>
-              {data ? Number(data.balance).toLocaleString('en-UG') : '0'}{' '}
-              <span className="text-sm font-medium">{data?.currency || 'UGX'}</span>
-            </p>
-            {/* Reserve / available breakdown for ESCROW */}
-            {type === 'ESCROW' && data && (
-              <div className="mt-1 space-y-0.5 text-xs">
-                {frozen > 0 ? (
-                  <>
-                    <p className="text-orange-700 flex items-center gap-1">
-                      <Lock className="h-3 w-3" />
-                      Reserved: {frozen.toLocaleString('en-UG')} {data.currency || 'UGX'}
-                    </p>
-                    <p className={`font-medium ${textColor}`}>
-                      Available: {available.toLocaleString('en-UG')} {data.currency || 'UGX'}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-blue-500">No reserve — full balance available</p>
-                )}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Wallet className={`h-4 w-4 ${textColor}`} />
+                <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
               </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
+                {data ? (data.isActive ? 'Active' : 'Inactive') : '—'}
+              </span>
+            </div>
+            {loading ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <span className="text-sm text-gray-500">Loading...</span>
+              </div>
+            ) : (
+              <>
+                {data?.publicWalletId ? (
+                  <p className="text-xs text-gray-600">
+                    RukaPay No. <span className="font-semibold">{data.publicWalletId}</span>
+                    {data.walletNumber != null ? ` · Wallet #${data.walletNumber}` : ''}
+                  </p>
+                ) : null}
+                {type === 'ESCROW' && data && (
+                  <div className="mt-1 space-y-0.5 text-xs">
+                    {frozen > 0 ? (
+                      <p className="text-orange-700 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Reserved: {frozen.toLocaleString('en-UG')} {data.currency || 'UGX'}
+                      </p>
+                    ) : (
+                      <p className="text-blue-500">No reserve — full balance available</p>
+                    )}
+                  </div>
+                )}
+                {data?.walletId && (
+                  <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
+                )}
+              </>
             )}
-            {data?.walletId && (
-              <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                Fund
+              </Button>
+              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+                <MinusCircle className="h-3.5 w-3.5" />
+                Deduct
+              </Button>
+            </div>
+            {type === 'ESCROW' && onSetReserve && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+                onClick={onSetReserve}
+                disabled={!data?.walletId}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                {frozen > 0 ? 'Manage Reserve' : 'Set Reserve'}
+              </Button>
             )}
-          </>
-        )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            Fund
-          </Button>
-          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
-            <MinusCircle className="h-3.5 w-3.5" />
-            Deduct
-          </Button>
+          </div>
+          {!loading && (
+            <div className="shrink-0 text-right">
+              <p className={`text-2xl font-bold tabular-nums ${textColor}`}>
+                {available.toLocaleString('en-UG')}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                Available {data?.currency || 'UGX'}
+              </p>
+              {data ? (
+                <p className="mt-1 text-xs text-gray-500">
+                  Total {Number(data.balance).toLocaleString('en-UG')}
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
-        {type === 'ESCROW' && onSetReserve && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-2 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
-            onClick={onSetReserve}
-            disabled={!data?.walletId}
-          >
-            <Lock className="h-3.5 w-3.5" />
-            {frozen > 0 ? 'Manage Reserve' : 'Set Reserve'}
-          </Button>
-        )}
       </div>
     )
   }
