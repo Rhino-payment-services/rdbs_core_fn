@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
+import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSetPartnerReserve } from '@/lib/hooks/useGatewayPartners'
+import { SetPartnerReserveDialog } from '@/components/dashboard/gateway-partners/SetPartnerReserveDialog'
 
 interface PartnerWalletRow {
   id: string
@@ -34,6 +36,8 @@ interface WalletBalance {
   walletId: string | null
   walletType: string
   balance: number
+  frozenBalance?: number
+  availableBalance?: number
   currency: string
   isActive: boolean
 }
@@ -71,6 +75,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const queryClient = useQueryClient()
   const [fundDialogOpen, setFundDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showReserveDialog, setShowReserveDialog] = useState(false)
+  const setReserve = useSetPartnerReserve()
 
   const [form, setForm] = useState({
     walletType: 'ESCROW' as 'ESCROW' | 'COMMISSION',
@@ -187,12 +193,14 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     loading,
     type,
     color,
+    onSetReserve,
   }: {
     label: string
     data: WalletBalance | undefined
     loading: boolean
     type: 'ESCROW' | 'COMMISSION'
     color: 'blue' | 'green'
+    onSetReserve?: () => void
   }) => {
     const bg = color === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
     const textColor = color === 'blue' ? 'text-blue-700' : 'text-green-700'
@@ -201,6 +209,9 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
       color === 'blue'
         ? 'mt-4 w-full gap-1.5 border-blue-300 hover:bg-blue-100'
         : 'mt-4 w-full gap-1.5 border-green-300 hover:bg-green-100'
+
+    const frozen = Number(data?.frozenBalance ?? 0)
+    const available = data?.availableBalance ?? Math.max(0, Number(data?.balance ?? 0) - frozen)
 
     return (
       <div className={`rounded-lg border p-5 ${bg}`}>
@@ -224,6 +235,24 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               {data ? Number(data.balance).toLocaleString('en-UG') : '0'}{' '}
               <span className="text-sm font-medium">{data?.currency || 'UGX'}</span>
             </p>
+            {/* Reserve / available breakdown for ESCROW */}
+            {type === 'ESCROW' && data && (
+              <div className="mt-1 space-y-0.5 text-xs">
+                {frozen > 0 ? (
+                  <>
+                    <p className="text-orange-700 flex items-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      Reserved: {frozen.toLocaleString('en-UG')} {data.currency || 'UGX'}
+                    </p>
+                    <p className={`font-medium ${textColor}`}>
+                      Available: {available.toLocaleString('en-UG')} {data.currency || 'UGX'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-blue-500">No reserve — full balance available</p>
+                )}
+              </div>
+            )}
             {data?.walletId && (
               <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
             )}
@@ -239,6 +268,18 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
             Deduct
           </Button>
         </div>
+        {type === 'ESCROW' && onSetReserve && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+            onClick={onSetReserve}
+            disabled={!data?.walletId}
+          >
+            <Lock className="h-3.5 w-3.5" />
+            {frozen > 0 ? 'Manage Reserve' : 'Set Reserve'}
+          </Button>
+        )}
       </div>
     )
   }
@@ -272,6 +313,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               loading={escrowLoading}
               type="ESCROW"
               color="blue"
+              onSetReserve={() => setShowReserveDialog(true)}
             />
             <WalletCard
               label="COMMISSION Wallet"
@@ -432,6 +474,22 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SetPartnerReserveDialog
+        open={showReserveDialog}
+        onOpenChange={setShowReserveDialog}
+        partnerId={partnerId}
+        partnerName={partnerName}
+        currentBalance={Number(escrowBalance?.balance ?? 0)}
+        currentReserve={Number(escrowBalance?.frozenBalance ?? 0)}
+        currency={escrowBalance?.currency || 'UGX'}
+        onSuccess={() => {
+          refetchEscrow()
+          refetchCommission()
+          onActionComplete?.()
+        }}
+        setReserveMutation={setReserve}
+      />
     </div>
   )
 }

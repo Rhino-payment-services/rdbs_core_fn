@@ -367,11 +367,20 @@ export interface PartnerWalletListItem {
   walletType: string;
   currency: string;
   balance: number;
+  frozenBalance: number;
+  availableBalance: number;
   isDefault: boolean;
   isActive: boolean;
   isSuspended: boolean;
   description: string | null;
   createdAt: string;
+}
+
+export interface SetPartnerReserveRequest {
+  partnerId: string;
+  amount: number;
+  reason: string;
+  reference?: string;
 }
 
 // Hook: List all wallets for a gateway partner
@@ -483,6 +492,50 @@ export const useTopUpPartnerWallet = () => {
         error?.response?.data?.error ||
         error?.message ||
         'Failed to fund partner wallet';
+      toast.error(message);
+    },
+  });
+};
+
+// Hook: Set (or clear) the reserved-funds floor on a partner's default ESCROW wallet
+export const useSetPartnerReserve = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: SetPartnerReserveRequest) => {
+      const response = await api.patch(
+        `/api/v1/admin/gateway-partners/wallets/${data.partnerId}/reserve`,
+        {
+          amount: data.amount,
+          reason: data.reason,
+          reference: data.reference,
+        },
+      );
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallet', variables.partnerId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['gateway-partner-wallets', variables.partnerId],
+      });
+      // Also invalidate the partner-wallet-balance used by PartnerSettings
+      queryClient.invalidateQueries({
+        queryKey: ['partner-wallet-balance', variables.partnerId],
+      });
+      toast.success(
+        variables.amount === 0
+          ? 'Partner ESCROW reserve cleared'
+          : `Reserve set to ${variables.amount.toLocaleString()} UGX`,
+      );
+    },
+    onError: (error: any) => {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to update partner reserve';
       toast.error(message);
     },
   });

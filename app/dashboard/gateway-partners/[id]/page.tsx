@@ -37,6 +37,7 @@ import {
   Loader2,
   TrendingUp,
   Pencil,
+  Lock,
 } from 'lucide-react'
 import {
   useGatewayPartner,
@@ -49,8 +50,10 @@ import {
   useTopUpPartnerWallet,
   useUpdatePartnerAuthType,
   useUpdateGatewayPartner,
+  useSetPartnerReserve,
 } from '@/lib/hooks/useGatewayPartners'
 import { GatewayPartnerRoutingPanel } from '@/components/dashboard/gateway-partners/GatewayPartnerRoutingPanel'
+import { SetPartnerReserveDialog } from '@/components/dashboard/gateway-partners/SetPartnerReserveDialog'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -105,6 +108,8 @@ const GatewayPartnerDetailsPage = () => {
   const [editMonthlyTxns, setEditMonthlyTxns] = useState('')
   const [editMaxTxnAmount, setEditMaxTxnAmount] = useState('')
 
+  const [showReserveDialog, setShowReserveDialog] = useState(false)
+
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
   const suspendPartner = useSuspendGatewayPartner()
@@ -112,6 +117,7 @@ const GatewayPartnerDetailsPage = () => {
   const topUpWallet = useTopUpPartnerWallet()
   const updateAuthType = useUpdatePartnerAuthType()
   const updatePartner = useUpdateGatewayPartner()
+  const setReserve = useSetPartnerReserve()
 
   const { data: escrowBalance, refetch: refetchBalance } = usePartnerWalletBalance(
     partnerId,
@@ -689,6 +695,24 @@ const GatewayPartnerDetailsPage = () => {
                       ? 'UGX 0'
                       : '…'}
                   </p>
+                  {/* Reserve / available breakdown */}
+                  {escrowBalance?.wallet && (
+                    <div className="mt-2 space-y-0.5 text-xs">
+                      {Number((escrowBalance.wallet as any).frozenBalance ?? 0) > 0 ? (
+                        <>
+                          <p className="text-orange-700 flex items-center gap-1">
+                            <Lock className="h-3 w-3" />
+                            Reserved: UGX {Number((escrowBalance.wallet as any).frozenBalance).toLocaleString()}
+                          </p>
+                          <p className="text-blue-700 font-medium">
+                            Available: UGX {Number((escrowBalance.wallet as any).availableBalance ?? Math.max(0, Number(escrowBalance.wallet.balance) - Number((escrowBalance.wallet as any).frozenBalance))).toLocaleString()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-blue-500">No reserve set — full balance available</p>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-blue-600 mt-1">
                     {escrowBalance?.wallet?.isActive
                       ? escrowBalance.wallet.isSuspended
@@ -703,6 +727,18 @@ const GatewayPartnerDetailsPage = () => {
                       {escrowBalance.wallet.walletId}
                     </p>
                   )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+                    onClick={() => setShowReserveDialog(true)}
+                    disabled={!escrowBalance?.wallet?.walletId}
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    {Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0) > 0
+                      ? 'Manage Reserve'
+                      : 'Set Reserve'}
+                  </Button>
                 </div>
 
                 {/* COMMISSION */}
@@ -1705,6 +1741,22 @@ const GatewayPartnerDetailsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Set Partner ESCROW Reserve Dialog */}
+      <SetPartnerReserveDialog
+        open={showReserveDialog}
+        onOpenChange={setShowReserveDialog}
+        partnerId={partnerId}
+        partnerName={partner?.partnerName ?? ''}
+        currentBalance={Number(escrowBalance?.wallet?.balance ?? 0)}
+        currentReserve={Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0)}
+        currency="UGX"
+        onSuccess={() => {
+          refetchBalance()
+          refetchWallets()
+        }}
+        setReserveMutation={setReserve}
+      />
 
     </div>
   )
