@@ -255,6 +255,44 @@ export const useFundWallet = () => {
   })
 }
 
+export const useFreezeWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<
+    ApiResponse<Wallet>,
+    Error,
+    { walletId: string; amount: number; reason: string; reference?: string }
+  >({
+    mutationFn: ({ walletId, amount, reason, reference }) =>
+      apiFetch(`/wallet/admin/${walletId}/freeze`, {
+        method: 'PATCH',
+        data: { amount, reason, reference },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
+export const useUnfreezeWallet = () => {
+  const queryClient = useQueryClient()
+  return useMutation<
+    ApiResponse<Wallet>,
+    Error,
+    { walletId: string; amount?: number; reason: string; reference?: string }
+  >({
+    mutationFn: ({ walletId, amount, reason, reference }) =>
+      apiFetch(`/wallet/admin/${walletId}/unfreeze`, {
+        method: 'PATCH',
+        data: { amount, reason, reference },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    },
+  })
+}
+
 export const useUpdateWalletBalance = () => {
   const queryClient = useQueryClient()
   return useMutation<ApiResponse<Wallet>, Error, { walletId: string; amount: number; reason?: string }>({
