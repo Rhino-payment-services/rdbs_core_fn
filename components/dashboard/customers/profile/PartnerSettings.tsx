@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +8,16 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSetPartnerReserve } from '@/lib/hooks/useGatewayPartners'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  usePartnerWallets,
+  useSetPartnerReserve,
+  type PartnerWalletListItem,
+} from '@/lib/hooks/useGatewayPartners'
 import { SetPartnerReserveDialog } from '@/components/dashboard/gateway-partners/SetPartnerReserveDialog'
 
 interface PartnerWalletRow {
@@ -30,38 +35,19 @@ interface PartnerSettingsProps {
   onActionComplete?: () => void
 }
 
-interface WalletBalance {
-  partnerId: string
-  partnerName: string
-  walletId: string | null
-  walletType: string
-  balance: number
-  frozenBalance?: number
-  availableBalance?: number
-  currency: string
-  isActive: boolean
-  publicWalletId?: string | null
-  walletNumber?: number | null
-}
-
-function usePartnerWalletBalance(partnerId: string, walletType: 'ESCROW' | 'COMMISSION') {
-  return useQuery<{ success: boolean; wallet: WalletBalance }>({
-    queryKey: ['partner-wallet-balance', partnerId, walletType],
-    queryFn: async () => {
-      const res = await api.get(
-        `/api/v1/admin/gateway-partners/wallets/${partnerId}/balance?currency=UGX&walletType=${walletType}`,
-      )
-      return res.data
-    },
-    enabled: !!partnerId,
-    staleTime: 15000,
-  })
+function escrowWalletLabel(w: PartnerWalletListItem): string {
+  const parts = ['ESCROW Wallet']
+  if (w.walletNumber != null) parts.push(`#${w.walletNumber}`)
+  if (w.description?.trim()) parts.push(`— ${w.description.trim()}`)
+  return parts.join(' ')
 }
 
 function findPartnerWalletId(
   partnerWallets: PartnerWalletRow[] | undefined,
   walletType: 'ESCROW' | 'COMMISSION',
+  walletId?: string,
 ): string | undefined {
+  if (walletId) return walletId
   if (!partnerWallets?.length) return undefined
   const t = walletType.toUpperCase()
   const row = partnerWallets.find((w) => (w.walletType || '').toUpperCase() === t)
@@ -78,6 +64,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const [fundDialogOpen, setFundDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showReserveDialog, setShowReserveDialog] = useState(false)
+  const [reserveWalletId, setReserveWalletId] = useState('')
+  const [adjustWalletId, setAdjustWalletId] = useState('')
   const setReserve = useSetPartnerReserve()
 
   const [form, setForm] = useState({
@@ -88,28 +76,59 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     description: '',
   })
 
-  const { data: escrowData, isLoading: escrowLoading, refetch: refetchEscrow } = usePartnerWalletBalance(partnerId, 'ESCROW')
-  const { data: commissionData, isLoading: commissionLoading, refetch: refetchCommission } = usePartnerWalletBalance(partnerId, 'COMMISSION')
+  const { data: walletsData, isLoading: walletsLoading, refetch: refetchWallets } =
+    usePartnerWallets(partnerId)
 
-  const escrowBalance = escrowData?.wallet
-  const commissionBalance = commissionData?.wallet
+  const allWallets = walletsData?.wallets ?? []
+  const escrowWallets = allWallets.filter(
+    (w) => (w.walletType || '').toUpperCase() === 'ESCROW',
+  )
+  const commissionWallet = allWallets.find(
+    (w) => (w.walletType || '').toUpperCase() === 'COMMISSION',
+  )
+
+  const reserveDialogTarget = useMemo(() => {
+    if (reserveWalletId) {
+      const w = escrowWallets.find((x) => x.id === reserveWalletId)
+      if (w) {
+        return {
+          walletId: w.id,
+          balance: Number(w.balance ?? 0),
+          frozen: Number(w.frozenBalance ?? 0),
+          currency: w.currency || 'UGX',
+        }
+      }
+    }
+    const fallback = escrowWallets.find((w) => w.isDefault) || escrowWallets[0]
+    return {
+      walletId: fallback?.id,
+      balance: Number(fallback?.balance ?? 0),
+      frozen: Number(fallback?.frozenBalance ?? 0),
+      currency: fallback?.currency || 'UGX',
+    }
+  }, [reserveWalletId, escrowWallets])
 
   const resolveWalletId = (wt: 'ESCROW' | 'COMMISSION'): string | undefined => {
+    if (adjustWalletId) return adjustWalletId
     const fromList = findPartnerWalletId(partnerWallets, wt)
     if (fromList) return fromList
-    const fromApi = wt === 'ESCROW' ? escrowBalance?.walletId : commissionBalance?.walletId
-    return fromApi || undefined
+    if (wt === 'ESCROW') {
+      const def = escrowWallets.find((w) => w.isDefault) || escrowWallets[0]
+      return def?.id
+    }
+    return commissionWallet?.id
   }
 
   const handleRefresh = () => {
-    refetchEscrow()
-    refetchCommission()
+    refetchWallets()
   }
 
   const handleOpenAdjustment = (
     walletType: 'ESCROW' | 'COMMISSION',
     transactionType: 'CREDIT' | 'DEBIT',
+    walletId?: string,
   ) => {
+    setAdjustWalletId(walletId || '')
     setForm({
       walletType,
       transactionType,
@@ -155,13 +174,12 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           reference,
         })
       } else {
-        // Top-up flow only supports adding funds (creates wallet if needed)
-        // Top-up flow only supports adding funds (creates wallet if needed)
         await api.post('/api/v1/admin/gateway-partners/wallets/top-up', {
           partnerId,
           amount: parsedAmount,
           currency: 'UGX',
           walletType: form.walletType,
+          walletId: adjustWalletId || undefined,
           reference,
           description: reason,
         })
@@ -172,10 +190,12 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         `${action}: ${parsedAmount.toLocaleString()} UGX on ${form.walletType} wallet for ${partnerName}`,
       )
       setFundDialogOpen(false)
+      setAdjustWalletId('')
 
       queryClient.invalidateQueries({ queryKey: ['partner-wallet-balance', partnerId] })
-      refetchEscrow()
-      refetchCommission()
+      queryClient.invalidateQueries({ queryKey: ['gateway-partner-wallets', partnerId] })
+      queryClient.invalidateQueries({ queryKey: ['gateway-partner-wallet', partnerId] })
+      refetchWallets()
       onActionComplete?.()
     } catch (error: any) {
       const msg =
@@ -191,18 +211,22 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
   const WalletCard = ({
     label,
-    data,
+    wallet,
     loading,
     type,
     color,
     onSetReserve,
+    onFund,
+    onDeduct,
   }: {
     label: string
-    data: WalletBalance | undefined
+    wallet: PartnerWalletListItem | undefined
     loading: boolean
     type: 'ESCROW' | 'COMMISSION'
     color: 'blue' | 'green'
     onSetReserve?: () => void
+    onFund?: () => void
+    onDeduct?: () => void
   }) => {
     const bg = color === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
     const textColor = color === 'blue' ? 'text-blue-700' : 'text-green-700'
@@ -212,21 +236,29 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         ? 'mt-4 w-full gap-1.5 border-blue-300 hover:bg-blue-100'
         : 'mt-4 w-full gap-1.5 border-green-300 hover:bg-green-100'
 
-    const frozen = Number(data?.frozenBalance ?? 0)
-    const available = data?.availableBalance ?? Math.max(0, Number(data?.balance ?? 0) - frozen)
+    const frozen = Number(wallet?.frozenBalance ?? 0)
+    const available =
+      wallet?.availableBalance ?? Math.max(0, Number(wallet?.balance ?? 0) - frozen)
 
     return (
       <div className={`rounded-lg border p-5 ${bg}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Wallet className={`h-4 w-4 ${textColor}`} />
-                <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Wallet className={`h-4 w-4 shrink-0 ${textColor}`} />
+                <span className={`text-sm font-semibold ${textColor} truncate`}>{label}</span>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
-                {data ? (data.isActive ? 'Active' : 'Inactive') : '—'}
-              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                {wallet?.isDefault && (
+                  <Badge variant="outline" className="text-[10px]">
+                    Default
+                  </Badge>
+                )}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
+                  {wallet ? (wallet.isActive ? 'Active' : 'Inactive') : '—'}
+                </span>
+              </div>
             </div>
             {loading ? (
               <div className="flex items-center gap-2 py-2">
@@ -235,35 +267,47 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               </div>
             ) : (
               <>
-                {data?.publicWalletId ? (
+                {wallet?.publicWalletId ? (
                   <p className="text-xs text-gray-600">
-                    RukaPay No. <span className="font-semibold">{data.publicWalletId}</span>
-                    {data.walletNumber != null ? ` · Wallet #${data.walletNumber}` : ''}
+                    RukaPay No. <span className="font-semibold">{wallet.publicWalletId}</span>
+                    {wallet.walletNumber != null ? ` · Wallet #${wallet.walletNumber}` : ''}
                   </p>
                 ) : null}
-                {type === 'ESCROW' && data && (
+                {type === 'ESCROW' && wallet && (
                   <div className="mt-1 space-y-0.5 text-xs">
                     {frozen > 0 ? (
                       <p className="text-orange-700 flex items-center gap-1">
                         <Lock className="h-3 w-3" />
-                        Reserved: {frozen.toLocaleString('en-UG')} {data.currency || 'UGX'}
+                        Reserved: {frozen.toLocaleString('en-UG')} {wallet.currency || 'UGX'}
                       </p>
                     ) : (
                       <p className="text-blue-500">No reserve — full balance available</p>
                     )}
                   </div>
                 )}
-                {data?.walletId && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
+                {wallet?.id && (
+                  <p className="text-xs text-gray-500 mt-1 truncate">ID: {wallet.id}</p>
                 )}
               </>
             )}
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+              <Button
+                size="sm"
+                variant="outline"
+                className={btnOutline.replace('mt-4 w-full ', '')}
+                onClick={onFund ?? (() => handleOpenAdjustment(type, 'CREDIT', wallet?.id))}
+                disabled={!wallet && !loading}
+              >
                 <PlusCircle className="h-3.5 w-3.5" />
                 Fund
               </Button>
-              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+              <Button
+                size="sm"
+                variant="outline"
+                className={btnOutline.replace('mt-4 w-full ', '')}
+                onClick={onDeduct ?? (() => handleOpenAdjustment(type, 'DEBIT', wallet?.id))}
+                disabled={!wallet && !loading}
+              >
                 <MinusCircle className="h-3.5 w-3.5" />
                 Deduct
               </Button>
@@ -274,7 +318,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 variant="outline"
                 className="mt-2 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
                 onClick={onSetReserve}
-                disabled={!data?.walletId}
+                disabled={!wallet?.id}
               >
                 <Lock className="h-3.5 w-3.5" />
                 {frozen > 0 ? 'Manage Reserve' : 'Set Reserve'}
@@ -287,11 +331,11 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                 {available.toLocaleString('en-UG')}
               </p>
               <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                Available {data?.currency || 'UGX'}
+                Available {wallet?.currency || 'UGX'}
               </p>
-              {data ? (
+              {wallet ? (
                 <p className="mt-1 text-xs text-gray-500">
-                  Total {Number(data.balance).toLocaleString('en-UG')}
+                  Total {Number(wallet.balance).toLocaleString('en-UG')}
                 </p>
               ) : null}
             </div>
@@ -323,19 +367,41 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           </div>
         </CardHeader>
         <CardContent>
+          {escrowWallets.length > 1 && (
+            <p className="mb-3 text-xs text-gray-500">
+              This partner has {escrowWallets.length} ESCROW wallets — fund, deduct, or set reserve on each
+              individually.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <WalletCard
-              label="ESCROW Wallet"
-              data={escrowBalance}
-              loading={escrowLoading}
-              type="ESCROW"
-              color="blue"
-              onSetReserve={() => setShowReserveDialog(true)}
-            />
+            {escrowWallets.length > 0 ? (
+              escrowWallets.map((w) => (
+                <WalletCard
+                  key={w.id}
+                  label={escrowWalletLabel(w)}
+                  wallet={w}
+                  loading={walletsLoading}
+                  type="ESCROW"
+                  color="blue"
+                  onSetReserve={() => {
+                    setReserveWalletId(w.id)
+                    setShowReserveDialog(true)
+                  }}
+                />
+              ))
+            ) : (
+              <WalletCard
+                label="ESCROW Wallet"
+                wallet={undefined}
+                loading={walletsLoading}
+                type="ESCROW"
+                color="blue"
+              />
+            )}
             <WalletCard
               label="COMMISSION Wallet"
-              data={commissionBalance}
-              loading={commissionLoading}
+              wallet={commissionWallet}
+              loading={walletsLoading}
               type="COMMISSION"
               color="green"
             />
@@ -343,7 +409,13 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         </CardContent>
       </Card>
 
-      <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>
+      <Dialog
+        open={fundDialogOpen}
+        onOpenChange={(open) => {
+          setFundDialogOpen(open)
+          if (!open) setAdjustWalletId('')
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -447,11 +519,13 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
                   {` on ${form.walletType}`}
                 </p>
                 {(() => {
-                  const bal =
-                    form.walletType === 'ESCROW'
-                      ? escrowBalance?.balance
-                      : commissionBalance?.balance
-                  const n = bal != null ? Number(bal) : NaN
+                  const target =
+                    adjustWalletId
+                      ? allWallets.find((w) => w.id === adjustWalletId)
+                      : form.walletType === 'ESCROW'
+                        ? escrowWallets.find((w) => w.isDefault) || escrowWallets[0]
+                        : commissionWallet
+                  const n = target?.balance != null ? Number(target.balance) : NaN
                   if (Number.isNaN(n)) return null
                   const amt = parseFloat(form.amount)
                   const after =
@@ -494,16 +568,18 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
 
       <SetPartnerReserveDialog
         open={showReserveDialog}
-        onOpenChange={setShowReserveDialog}
+        onOpenChange={(open) => {
+          setShowReserveDialog(open)
+          if (!open) setReserveWalletId('')
+        }}
         partnerId={partnerId}
         partnerName={partnerName}
-        currentBalance={Number(escrowBalance?.balance ?? 0)}
-        currentReserve={Number(escrowBalance?.frozenBalance ?? 0)}
-        currency={escrowBalance?.currency || 'UGX'}
-        walletId={escrowBalance?.walletId || undefined}
+        currentBalance={reserveDialogTarget.balance}
+        currentReserve={reserveDialogTarget.frozen}
+        currency={reserveDialogTarget.currency}
+        walletId={reserveDialogTarget.walletId}
         onSuccess={() => {
-          refetchEscrow()
-          refetchCommission()
+          refetchWallets()
           onActionComplete?.()
         }}
         setReserveMutation={setReserve}
