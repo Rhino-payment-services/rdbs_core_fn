@@ -8,10 +8,12 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2 } from 'lucide-react'
+import { Wallet, TrendingUp, RefreshCw, PlusCircle, MinusCircle, Loader2, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSetPartnerReserve } from '@/lib/hooks/useGatewayPartners'
+import { SetPartnerReserveDialog } from '@/components/dashboard/gateway-partners/SetPartnerReserveDialog'
 
 interface PartnerWalletRow {
   id: string
@@ -34,8 +36,12 @@ interface WalletBalance {
   walletId: string | null
   walletType: string
   balance: number
+  frozenBalance?: number
+  availableBalance?: number
   currency: string
   isActive: boolean
+  publicWalletId?: string | null
+  walletNumber?: number | null
 }
 
 function usePartnerWalletBalance(partnerId: string, walletType: 'ESCROW' | 'COMMISSION') {
@@ -71,6 +77,8 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
   const queryClient = useQueryClient()
   const [fundDialogOpen, setFundDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showReserveDialog, setShowReserveDialog] = useState(false)
+  const setReserve = useSetPartnerReserve()
 
   const [form, setForm] = useState({
     walletType: 'ESCROW' as 'ESCROW' | 'COMMISSION',
@@ -187,12 +195,14 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
     loading,
     type,
     color,
+    onSetReserve,
   }: {
     label: string
     data: WalletBalance | undefined
     loading: boolean
     type: 'ESCROW' | 'COMMISSION'
     color: 'blue' | 'green'
+    onSetReserve?: () => void
   }) => {
     const bg = color === 'blue' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
     const textColor = color === 'blue' ? 'text-blue-700' : 'text-green-700'
@@ -202,42 +212,90 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         ? 'mt-4 w-full gap-1.5 border-blue-300 hover:bg-blue-100'
         : 'mt-4 w-full gap-1.5 border-green-300 hover:bg-green-100'
 
+    const frozen = Number(data?.frozenBalance ?? 0)
+    const available = data?.availableBalance ?? Math.max(0, Number(data?.balance ?? 0) - frozen)
+
     return (
       <div className={`rounded-lg border p-5 ${bg}`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Wallet className={`h-4 w-4 ${textColor}`} />
-            <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
-          </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
-            {data ? (data.isActive ? 'Active' : 'Inactive') : '—'}
-          </span>
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-            <span className="text-sm text-gray-500">Loading...</span>
-          </div>
-        ) : (
-          <>
-            <p className={`text-2xl font-bold ${textColor}`}>
-              {data ? Number(data.balance).toLocaleString('en-UG') : '0'}{' '}
-              <span className="text-sm font-medium">{data?.currency || 'UGX'}</span>
-            </p>
-            {data?.walletId && (
-              <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Wallet className={`h-4 w-4 ${textColor}`} />
+                <span className={`text-sm font-semibold ${textColor}`}>{label}</span>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>
+                {data ? (data.isActive ? 'Active' : 'Inactive') : '—'}
+              </span>
+            </div>
+            {loading ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <span className="text-sm text-gray-500">Loading...</span>
+              </div>
+            ) : (
+              <>
+                {data?.publicWalletId ? (
+                  <p className="text-xs text-gray-600">
+                    RukaPay No. <span className="font-semibold">{data.publicWalletId}</span>
+                    {data.walletNumber != null ? ` · Wallet #${data.walletNumber}` : ''}
+                  </p>
+                ) : null}
+                {type === 'ESCROW' && data && (
+                  <div className="mt-1 space-y-0.5 text-xs">
+                    {frozen > 0 ? (
+                      <p className="text-orange-700 flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Reserved: {frozen.toLocaleString('en-UG')} {data.currency || 'UGX'}
+                      </p>
+                    ) : (
+                      <p className="text-blue-500">No reserve — full balance available</p>
+                    )}
+                  </div>
+                )}
+                {data?.walletId && (
+                  <p className="text-xs text-gray-500 mt-1 truncate">ID: {data.walletId}</p>
+                )}
+              </>
             )}
-          </>
-        )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            Fund
-          </Button>
-          <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
-            <MinusCircle className="h-3.5 w-3.5" />
-            Deduct
-          </Button>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'CREDIT')}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                Fund
+              </Button>
+              <Button size="sm" variant="outline" className={btnOutline.replace('mt-4 w-full ', '')} onClick={() => handleOpenAdjustment(type, 'DEBIT')}>
+                <MinusCircle className="h-3.5 w-3.5" />
+                Deduct
+              </Button>
+            </div>
+            {type === 'ESCROW' && onSetReserve && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+                onClick={onSetReserve}
+                disabled={!data?.walletId}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                {frozen > 0 ? 'Manage Reserve' : 'Set Reserve'}
+              </Button>
+            )}
+          </div>
+          {!loading && (
+            <div className="shrink-0 text-right">
+              <p className={`text-2xl font-bold tabular-nums ${textColor}`}>
+                {available.toLocaleString('en-UG')}
+              </p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                Available {data?.currency || 'UGX'}
+              </p>
+              {data ? (
+                <p className="mt-1 text-xs text-gray-500">
+                  Total {Number(data.balance).toLocaleString('en-UG')}
+                </p>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -272,6 +330,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
               loading={escrowLoading}
               type="ESCROW"
               color="blue"
+              onSetReserve={() => setShowReserveDialog(true)}
             />
             <WalletCard
               label="COMMISSION Wallet"
@@ -432,6 +491,23 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SetPartnerReserveDialog
+        open={showReserveDialog}
+        onOpenChange={setShowReserveDialog}
+        partnerId={partnerId}
+        partnerName={partnerName}
+        currentBalance={Number(escrowBalance?.balance ?? 0)}
+        currentReserve={Number(escrowBalance?.frozenBalance ?? 0)}
+        currency={escrowBalance?.currency || 'UGX'}
+        walletId={escrowBalance?.walletId || undefined}
+        onSuccess={() => {
+          refetchEscrow()
+          refetchCommission()
+          onActionComplete?.()
+        }}
+        setReserveMutation={setReserve}
+      />
     </div>
   )
 }

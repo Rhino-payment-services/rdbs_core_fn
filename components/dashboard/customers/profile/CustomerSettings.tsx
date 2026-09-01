@@ -26,11 +26,17 @@ import {
   Droplets,
   Receipt,
   ExternalLink,
+  Lock,
+  Unlock,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
 import { extractErrorMessage } from '@/lib/utils'
+import { getAvailableBalance } from '@/lib/utils/wallet-balance'
+import { useFreezeWallet, useUnfreezeWallet } from '@/lib/hooks/useWallets'
+import { WalletFreezeDialog } from '@/components/dashboard/wallets/WalletFreezeDialog'
+import { WalletUnfreezeDialog } from '@/components/dashboard/wallets/WalletUnfreezeDialog'
 import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeSelect'
 import { useUgandaBanks } from '@/lib/hooks/useUgandaBanks'
 
@@ -38,6 +44,9 @@ interface WalletItem {
   id: string
   walletType?: string
   balance?: number | string
+  frozenBalance?: number | string
+  availableBalance?: number | string
+  freezeReason?: string | null
   currency?: string
 }
 
@@ -150,6 +159,11 @@ const CustomerSettings = ({
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
   const [unsuspendDialogOpen, setUnsuspendDialogOpen] = useState(false)
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
+  const [freezeDialogOpen, setFreezeDialogOpen] = useState(false)
+  const [unfreezeDialogOpen, setUnfreezeDialogOpen] = useState(false)
+  const [freezeWalletTarget, setFreezeWalletTarget] = useState<WalletItem | null>(null)
+  const freezeWallet = useFreezeWallet()
+  const unfreezeWallet = useUnfreezeWallet()
   const [resetPinDialogOpen, setResetPinDialogOpen] = useState(false)
   const [isResettingPin, setIsResettingPin] = useState(false)
   const [resetPortalPinDialogOpen, setResetPortalPinDialogOpen] = useState(false)
@@ -185,6 +199,95 @@ const CustomerSettings = ({
   const effectiveWalletId = selectedWalletIdForTx || walletId || effectiveWallets[0]?.id
   const effectiveBalance = effectiveWalletId ? (effectiveWallets.find(w => w.id === effectiveWalletId)?.balance ?? walletBalance) : walletBalance
   const effectiveBalanceNum = typeof effectiveBalance === 'number' ? effectiveBalance : parseFloat(String(effectiveBalance ?? 0)) || 0
+
+  const getWalletBalance = (w: WalletItem) =>
+    w.balance != null ? Number(w.balance) : 0
+
+  const getWalletFrozen = (w: WalletItem) =>
+    w.frozenBalance != null ? Number(w.frozenBalance) : 0
+
+  const getWalletAvailable = (w: WalletItem) =>
+    w.availableBalance != null
+      ? Number(w.availableBalance)
+      : getAvailableBalance(getWalletBalance(w), getWalletFrozen(w))
+
+  const openFreezeDialog = (w: WalletItem) => {
+    setFreezeWalletTarget(w)
+    setFreezeDialogOpen(true)
+  }
+
+  const openUnfreezeDialog = (w: WalletItem) => {
+    setFreezeWalletTarget(w)
+    setUnfreezeDialogOpen(true)
+  }
+
+  const handleFreezeSuccess = () => {
+    setFreezeWalletTarget(null)
+    onActionComplete?.()
+  }
+
+  const renderWalletBalanceCard = (w: WalletItem) => {
+    const bal = getWalletBalance(w)
+    const frozen = getWalletFrozen(w)
+    const available = getWalletAvailable(w)
+    const curr = w.currency || currency
+
+    return (
+      <div key={w.id} className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium">{walletTypeLabel(w.walletType)}</div>
+            <div className="text-2xl font-bold tabular-nums text-gray-900 mt-1">
+              {available.toLocaleString()} {curr}
+            </div>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+              Available
+            </p>
+          </div>
+          <DollarSign className="h-4 w-4 text-gray-400 shrink-0 mt-1" />
+        </div>
+        <div className="text-xs space-y-0.5 text-gray-600">
+          <div className="flex justify-between">
+            <span>Total</span>
+            <span className="tabular-nums">{bal.toLocaleString()} {curr}</span>
+          </div>
+          {frozen > 0 ? (
+            <div className="flex justify-between text-orange-700">
+              <span className="flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Frozen
+              </span>
+              <span className="tabular-nums font-medium">{frozen.toLocaleString()} {curr}</span>
+            </div>
+          ) : (
+            <p className="text-blue-500">No freeze — full balance available</p>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
+            onClick={() => openFreezeDialog(w)}
+          >
+            <Lock className="h-3.5 w-3.5" />
+            {frozen > 0 ? 'Manage Freeze' : 'Freeze Funds'}
+          </Button>
+          {frozen > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 border-green-300 text-green-700 hover:bg-green-50"
+              onClick={() => openUnfreezeDialog(w)}
+            >
+              <Unlock className="h-3.5 w-3.5" />
+              Release
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
   const hasWallet = effectiveWallets.length > 0
 
   const handleCreateWallet = async () => {
@@ -1369,32 +1472,10 @@ const CustomerSettings = ({
               </div>
             ) : effectiveWallets.length > 1 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {effectiveWallets.map((w) => {
-                  const bal = w.balance != null ? Number(w.balance) : 0
-                  const curr = w.currency || currency
-                  return (
-                    <div key={w.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <DollarSign className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <div className="text-sm font-medium">{walletTypeLabel(w.walletType)}</div>
-                          <div className="text-sm text-gray-600">{Number.isNaN(bal) ? '0' : bal.toLocaleString()} {curr}</div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                {effectiveWallets.map((w) => renderWalletBalanceCard(w))}
               </div>
             ) : (
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-4 w-4 text-gray-500" />
-                  <div>
-                    <div className="text-sm font-medium">Current Balance</div>
-                    <div className="text-sm text-gray-600">{(effectiveBalanceNum ?? 0).toLocaleString()} {currency}</div>
-                  </div>
-                </div>
-              </div>
+              renderWalletBalanceCard(effectiveWallets[0])
             )}
 
             {hasWallet && (
@@ -1522,6 +1603,62 @@ const CustomerSettings = ({
           </div>
         </CardContent>
       </Card>
+
+      {freezeWalletTarget && (
+        <>
+          <WalletFreezeDialog
+            open={freezeDialogOpen}
+            onOpenChange={(open) => {
+              setFreezeDialogOpen(open)
+              if (!open) setFreezeWalletTarget(null)
+            }}
+            subjectLabel={`${walletTypeLabel(freezeWalletTarget.walletType)} wallet`}
+            currentBalance={getWalletBalance(freezeWalletTarget)}
+            currentFrozen={getWalletFrozen(freezeWalletTarget)}
+            currency={freezeWalletTarget.currency || currency}
+            variant="freeze"
+            isPending={freezeWallet.isPending}
+            onSubmit={async (payload) => {
+              await freezeWallet.mutateAsync({
+                walletId: freezeWalletTarget.id,
+                amount: payload.amount,
+                reason: payload.reason,
+                reference: payload.reference,
+                userId: customerId,
+              })
+              toast.success(
+                payload.amount === 0
+                  ? 'Wallet freeze cleared'
+                  : `Frozen balance set to ${payload.amount.toLocaleString()} ${freezeWalletTarget.currency || currency}`,
+              )
+              handleFreezeSuccess()
+            }}
+          />
+          <WalletUnfreezeDialog
+            open={unfreezeDialogOpen}
+            onOpenChange={(open) => {
+              setUnfreezeDialogOpen(open)
+              if (!open) setFreezeWalletTarget(null)
+            }}
+            subjectLabel={`${walletTypeLabel(freezeWalletTarget.walletType)} wallet`}
+            currentBalance={getWalletBalance(freezeWalletTarget)}
+            currentFrozen={getWalletFrozen(freezeWalletTarget)}
+            currency={freezeWalletTarget.currency || currency}
+            isPending={unfreezeWallet.isPending}
+            onSubmit={async (payload) => {
+              await unfreezeWallet.mutateAsync({
+                walletId: freezeWalletTarget.id,
+                amount: payload.amount,
+                reason: payload.reason,
+                reference: payload.reference,
+                userId: customerId,
+              })
+              toast.success('Frozen funds released')
+              handleFreezeSuccess()
+            }}
+          />
+        </>
+      )}
 
       {/* Security Actions */}
       <Card>

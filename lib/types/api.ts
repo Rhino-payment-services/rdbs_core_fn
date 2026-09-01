@@ -364,9 +364,9 @@ export interface Wallet {
   balance: number
   frozenBalance?: number
   availableBalance?: number
-  frozenAt?: string
-  frozenBy?: string
-  freezeReason?: string
+  frozenAt?: string | null
+  frozenBy?: string | null
+  freezeReason?: string | null
   currency: string
   isActive: boolean
   isSuspended: boolean

@@ -14,6 +14,8 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
+  Lock,
+  Unlock,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -24,6 +26,9 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useAdminWallets, useUpdateWalletBalance, useSuspendWallet, useFundWallet, useUpdateDailyLimit, useUpdateMonthlyLimit, useFreezeWallet, useUnfreezeWallet } from '@/lib/hooks/useWallets'
+import { WalletFreezeDialog } from '@/components/dashboard/wallets/WalletFreezeDialog'
+import { WalletUnfreezeDialog } from '@/components/dashboard/wallets/WalletUnfreezeDialog'
+import { getAvailableBalance } from '@/lib/utils/wallet-balance'
 import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { extractErrorMessage } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -56,17 +61,6 @@ const WalletPage = () => {
     amount: '',
     reason: '',
     reference: ''
-  })
-  const [freezeForm, setFreezeForm] = useState({
-    amount: '',
-    reason: '',
-    reference: '',
-  })
-  const [unfreezeForm, setUnfreezeForm] = useState({
-    amount: '',
-    reason: '',
-    reference: '',
-    releaseAll: true,
   })
   const [limitForm, setLimitForm] = useState({
     dailyLimit: '',
@@ -274,85 +268,6 @@ const WalletPage = () => {
       refetch()
     } catch (error) {
       handleError(error, 'Failed to fund wallet')
-    }
-  }
-
-  const handleFreezeWallet = async () => {
-    if (!selectedWallet) return
-
-    const amount = parseFloat(freezeForm.amount)
-    if (isNaN(amount) || amount < 0) {
-      toast.error('Please enter a valid freeze amount')
-      return
-    }
-    if (amount > Number(selectedWallet.balance || 0)) {
-      toast.error('Freeze amount cannot exceed wallet balance')
-      return
-    }
-    if (!freezeForm.reason.trim()) {
-      toast.error('Please provide a reason for freezing funds')
-      return
-    }
-
-    try {
-      await freezeWallet.mutateAsync({
-        walletId: selectedWallet.id,
-        amount,
-        reason: freezeForm.reason.trim(),
-        reference: freezeForm.reference || undefined,
-      })
-      toast.success(
-        amount === 0
-          ? 'Wallet freeze cleared'
-          : `Frozen ${formatCurrency(amount, selectedWallet.currency)} on wallet`,
-      )
-      setFreezeForm({ amount: '', reason: '', reference: '' })
-      setShowFreezeWallet(false)
-      setSelectedWallet(null)
-      refetch()
-    } catch (error) {
-      handleError(error, 'Failed to freeze wallet funds')
-    }
-  }
-
-  const handleUnfreezeWallet = async () => {
-    if (!selectedWallet) return
-    if (!unfreezeForm.reason.trim()) {
-      toast.error('Please provide a reason for releasing frozen funds')
-      return
-    }
-
-    let amount: number | undefined
-    if (!unfreezeForm.releaseAll) {
-      amount = parseFloat(unfreezeForm.amount)
-      if (isNaN(amount) || amount <= 0) {
-        toast.error('Please enter a valid amount to release')
-        return
-      }
-      if (amount > Number(selectedWallet.frozenBalance || 0)) {
-        toast.error('Cannot release more than the frozen amount')
-        return
-      }
-    }
-
-    try {
-      await unfreezeWallet.mutateAsync({
-        walletId: selectedWallet.id,
-        amount,
-        reason: unfreezeForm.reason.trim(),
-        reference: unfreezeForm.reference || undefined,
-      })
-      toast.success(
-        unfreezeForm.releaseAll
-          ? 'All frozen funds released'
-          : `Released ${formatCurrency(amount!, selectedWallet.currency)}`,
-      )
-      setUnfreezeForm({ amount: '', reason: '', reference: '', releaseAll: true })
-      setShowUnfreezeWallet(false)
-      setSelectedWallet(null)
-      refetch()
-    } catch (error) {
-      handleError(error, 'Failed to unfreeze wallet funds')
     }
   }
 
@@ -973,6 +888,8 @@ const WalletPage = () => {
                           )}
                         </button>
                       </TableHead>
+                      <TableHead className="text-right">Available</TableHead>
+                      <TableHead className="text-right">Frozen</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -1037,6 +954,23 @@ const WalletPage = () => {
                               </div>
                             )}
                           </TableCell>
+                          <TableCell className="text-right font-semibold text-emerald-700">
+                            {formatCurrency(
+                              (wallet as any).availableBalance ??
+                                getAvailableBalance(wallet.balance, (wallet as any).frozenBalance),
+                              wallet.currency,
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-orange-700">
+                            {Number((wallet as any).frozenBalance ?? 0) > 0 ? (
+                              <span className="inline-flex items-center gap-1 font-medium">
+                                <Lock className="h-3 w-3" />
+                                {formatCurrency((wallet as any).frozenBalance, wallet.currency)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>{getStatusBadge(wallet)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -1075,36 +1009,27 @@ const WalletPage = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                                className="border-orange-500 text-orange-600 hover:bg-orange-50"
                                 onClick={() => {
                                   setSelectedWallet(wallet)
-                                  setFreezeForm({
-                                    amount: wallet.frozenBalance?.toString() || '',
-                                    reason: '',
-                                    reference: '',
-                                  })
                                   setShowFreezeWallet(true)
                                 }}
                               >
+                                <Lock className="w-4 h-4 mr-1" />
                                 Freeze
                               </Button>
-                              {(wallet.frozenBalance ?? 0) > 0 && (
+                              {Number((wallet as any).frozenBalance ?? 0) > 0 && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                                  className="border-green-500 text-green-600 hover:bg-green-50"
                                   onClick={() => {
                                     setSelectedWallet(wallet)
-                                    setUnfreezeForm({
-                                      amount: '',
-                                      reason: '',
-                                      reference: '',
-                                      releaseAll: true,
-                                    })
                                     setShowUnfreezeWallet(true)
                                   }}
                                 >
-                                  Unfreeze
+                                  <Unlock className="w-4 h-4 mr-1" />
+                                  Release
                                 </Button>
                               )}
                               <Button
@@ -1431,200 +1356,6 @@ const WalletPage = () => {
             </DialogContent>
           </Dialog>
 
-          {/* Freeze Wallet Funds Dialog */}
-          <Dialog open={showFreezeWallet} onOpenChange={(open) => {
-            setShowFreezeWallet(open)
-            if (!open) {
-              setSelectedWallet(null)
-              setFreezeForm({ amount: '', reason: '', reference: '' })
-            }
-          }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Freeze Wallet Funds</DialogTitle>
-                <DialogDescription>
-                  {selectedWallet && (
-                    <>
-                      Set a dispute floor on{' '}
-                      <strong>{(selectedWallet as any).ownerName || 'this wallet'}</strong>.
-                      The user can still spend anything above this amount.
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="bg-amber-50 rounded-lg p-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-amber-700 font-medium mb-1">Current Balance</p>
-                    <p className="text-lg font-bold text-amber-900">
-                      {formatCurrency(selectedWallet?.balance || 0, selectedWallet?.currency || 'UGX')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-amber-700 font-medium mb-1">Currently Frozen</p>
-                    <p className="text-lg font-bold text-amber-900">
-                      {formatCurrency(selectedWallet?.frozenBalance || 0, selectedWallet?.currency || 'UGX')}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="freezeAmount">Freeze Amount <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="freezeAmount"
-                    type="number"
-                    placeholder="e.g. 30000000"
-                    value={freezeForm.amount}
-                    onChange={(e) => setFreezeForm(prev => ({ ...prev, amount: e.target.value }))}
-                    className="mt-1"
-                    min={0}
-                    max={selectedWallet?.balance || undefined}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Absolute floor. Max {formatCurrency(selectedWallet?.balance || 0, selectedWallet?.currency || 'UGX')}.
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="freezeReason">Reason <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="freezeReason"
-                    placeholder="e.g., Customer dispute TICKET-12345"
-                    value={freezeForm.reason}
-                    onChange={(e) => setFreezeForm(prev => ({ ...prev, reason: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="freezeReference">Reference (Optional)</Label>
-                  <Input
-                    id="freezeReference"
-                    placeholder="Ticket or case ID"
-                    value={freezeForm.reference}
-                    onChange={(e) => setFreezeForm(prev => ({ ...prev, reference: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowFreezeWallet(false)
-                      setSelectedWallet(null)
-                      setFreezeForm({ amount: '', reason: '', reference: '' })
-                    }}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleFreezeWallet}
-                    disabled={freezeWallet.isPending}
-                    className="flex-1 bg-amber-600 hover:bg-amber-700"
-                  >
-                    {freezeWallet.isPending ? 'Freezing…' : 'Freeze Funds'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Unfreeze Wallet Funds Dialog */}
-          <Dialog open={showUnfreezeWallet} onOpenChange={(open) => {
-            setShowUnfreezeWallet(open)
-            if (!open) {
-              setSelectedWallet(null)
-              setUnfreezeForm({ amount: '', reason: '', reference: '', releaseAll: true })
-            }
-          }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Release Frozen Funds</DialogTitle>
-                <DialogDescription>
-                  {selectedWallet && (
-                    <>
-                      Release some or all frozen funds on{' '}
-                      <strong>{(selectedWallet as any).ownerName || 'this wallet'}</strong>.
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="bg-emerald-50 rounded-lg p-3">
-                  <p className="text-xs text-emerald-700 font-medium mb-1">Currently Frozen</p>
-                  <p className="text-2xl font-bold text-emerald-900">
-                    {formatCurrency(selectedWallet?.frozenBalance || 0, selectedWallet?.currency || 'UGX')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="releaseAll"
-                    type="checkbox"
-                    checked={unfreezeForm.releaseAll}
-                    onChange={(e) =>
-                      setUnfreezeForm(prev => ({ ...prev, releaseAll: e.target.checked }))
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="releaseAll">Release all frozen funds</Label>
-                </div>
-                {!unfreezeForm.releaseAll && (
-                  <div>
-                    <Label htmlFor="unfreezeAmount">Amount to Release <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="unfreezeAmount"
-                      type="number"
-                      placeholder="Enter amount to release"
-                      value={unfreezeForm.amount}
-                      onChange={(e) => setUnfreezeForm(prev => ({ ...prev, amount: e.target.value }))}
-                      className="mt-1"
-                      min={1}
-                      max={selectedWallet?.frozenBalance || undefined}
-                    />
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="unfreezeReason">Reason <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="unfreezeReason"
-                    placeholder="e.g., Dispute resolved"
-                    value={unfreezeForm.reason}
-                    onChange={(e) => setUnfreezeForm(prev => ({ ...prev, reason: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="unfreezeReference">Reference (Optional)</Label>
-                  <Input
-                    id="unfreezeReference"
-                    placeholder="Ticket or case ID"
-                    value={unfreezeForm.reference}
-                    onChange={(e) => setUnfreezeForm(prev => ({ ...prev, reference: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowUnfreezeWallet(false)
-                      setSelectedWallet(null)
-                      setUnfreezeForm({ amount: '', reason: '', reference: '', releaseAll: true })
-                    }}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleUnfreezeWallet}
-                    disabled={unfreezeWallet.isPending}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    {unfreezeWallet.isPending ? 'Releasing…' : 'Release Funds'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
           {/* Wallet Details Dialog */}
           <Dialog open={showWalletDetails} onOpenChange={(open) => {
             setShowWalletDetails(open)
@@ -1668,23 +1399,28 @@ const WalletPage = () => {
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Frozen</label>
-                      <p className="text-sm font-semibold text-amber-700 mt-1">
-                        {formatCurrency(selectedWallet.frozenBalance || 0, selectedWallet.currency)}
-                      </p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-gray-500">Available</label>
-                      <p className="text-sm font-semibold text-emerald-700 mt-1">
+                      <p className="text-sm font-bold text-emerald-700 mt-1">
                         {formatCurrency(
-                          selectedWallet.availableBalance ??
-                            Math.max(
-                              0,
-                              Number(selectedWallet.balance) - Number(selectedWallet.frozenBalance || 0),
+                          (selectedWallet as any).availableBalance ??
+                            getAvailableBalance(
+                              selectedWallet.balance,
+                              (selectedWallet as any).frozenBalance,
                             ),
                           selectedWallet.currency,
                         )}
                       </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Frozen</label>
+                      <p className="text-sm font-bold text-orange-700 mt-1">
+                        {formatCurrency((selectedWallet as any).frozenBalance ?? 0, selectedWallet.currency)}
+                      </p>
+                      {(selectedWallet as any).freezeReason && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {(selectedWallet as any).freezeReason}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-500">Status</label>
@@ -1870,6 +1606,62 @@ const WalletPage = () => {
               )}
             </DialogContent>
           </Dialog>
+
+          {selectedWallet && (
+            <>
+              <WalletFreezeDialog
+                open={showFreezeWallet}
+                onOpenChange={(open) => {
+                  setShowFreezeWallet(open)
+                  if (!open && !showUnfreezeWallet) setSelectedWallet(null)
+                }}
+                subjectLabel={`${selectedWallet.walletType} wallet${(selectedWallet as any).ownerName ? ` — ${(selectedWallet as any).ownerName}` : ''}`}
+                currentBalance={Number(selectedWallet.balance ?? 0)}
+                currentFrozen={Number((selectedWallet as any).frozenBalance ?? 0)}
+                currency={selectedWallet.currency || 'UGX'}
+                variant="freeze"
+                isPending={freezeWallet.isPending}
+                onSubmit={async (payload) => {
+                  await freezeWallet.mutateAsync({
+                    walletId: selectedWallet.id,
+                    amount: payload.amount,
+                    reason: payload.reason,
+                    reference: payload.reference,
+                    userId: selectedWallet.userId,
+                  })
+                  toast.success(
+                    payload.amount === 0
+                      ? 'Wallet freeze cleared'
+                      : `Frozen balance set to ${payload.amount.toLocaleString()} ${selectedWallet.currency}`,
+                  )
+                  refetch()
+                }}
+              />
+              <WalletUnfreezeDialog
+                open={showUnfreezeWallet}
+                onOpenChange={(open) => {
+                  setShowUnfreezeWallet(open)
+                  if (!open && !showFreezeWallet) setSelectedWallet(null)
+                }}
+                subjectLabel={`${selectedWallet.walletType} wallet${(selectedWallet as any).ownerName ? ` — ${(selectedWallet as any).ownerName}` : ''}`}
+                currentBalance={Number(selectedWallet.balance ?? 0)}
+                currentFrozen={Number((selectedWallet as any).frozenBalance ?? 0)}
+                currency={selectedWallet.currency || 'UGX'}
+                isPending={unfreezeWallet.isPending}
+                onSubmit={async (payload) => {
+                  await unfreezeWallet.mutateAsync({
+                    walletId: selectedWallet.id,
+                    amount: payload.amount,
+                    reason: payload.reason,
+                    reference: payload.reference,
+                    userId: selectedWallet.userId,
+                  })
+                  toast.success('Frozen funds released')
+                  refetch()
+                }}
+              />
+            </>
+          )}
     </DashboardPageLayout>
   )
 }

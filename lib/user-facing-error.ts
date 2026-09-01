@@ -12,6 +12,10 @@ const TECHNICAL_PATTERNS = [
 
 const MESSAGE_RULES: Array<{ test: RegExp; message: string }> = [
   { test: /insufficient\s+(funds|balance)/i, message: 'Insufficient wallet balance.' },
+  {
+    test: /insufficient\s+available\s+balance|frozen:/i,
+    message: 'Insufficient available balance (funds may be frozen).',
+  },
   { test: /daily\s+limit/i, message: 'Daily transaction limit reached.' },
   { test: /wallet\s+not\s+found/i, message: 'Wallet not found.' },
   { test: /user\s+not\s+found|account\s+not\s+found|customer\s+not\s+found/i, message: 'Account not found.' },
