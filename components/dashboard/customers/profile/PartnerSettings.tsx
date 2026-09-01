@@ -500,6 +500,7 @@ const PartnerSettings: React.FC<PartnerSettingsProps> = ({
         currentBalance={Number(escrowBalance?.balance ?? 0)}
         currentReserve={Number(escrowBalance?.frozenBalance ?? 0)}
         currency={escrowBalance?.currency || 'UGX'}
+        walletId={escrowBalance?.walletId || undefined}
         onSuccess={() => {
           refetchEscrow()
           refetchCommission()

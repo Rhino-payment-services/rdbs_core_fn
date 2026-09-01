@@ -255,40 +255,62 @@ export const useFundWallet = () => {
   })
 }
 
+export interface FreezeWalletRequest {
+  walletId: string
+  amount: number
+  reason: string
+  reference?: string
+  userId?: string
+}
+
+export interface UnfreezeWalletRequest {
+  walletId: string
+  amount?: number
+  reason: string
+  reference?: string
+  userId?: string
+}
+
+function invalidateWalletFreezeCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  walletId: string,
+  userId?: string,
+) {
+  queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallet(walletId) })
+  queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
+  queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+  if (userId) {
+    queryClient.invalidateQueries({ queryKey: walletQueryKeys.walletsByUserId(userId) })
+  }
+  queryClient.invalidateQueries({ queryKey: ['wallet'] })
+}
+
+/** Set absolute dispute freeze floor on a wallet (amount=0 clears). */
 export const useFreezeWallet = () => {
   const queryClient = useQueryClient()
-  return useMutation<
-    ApiResponse<Wallet>,
-    Error,
-    { walletId: string; amount: number; reason: string; reference?: string }
-  >({
+  return useMutation<any, Error, FreezeWalletRequest>({
     mutationFn: ({ walletId, amount, reason, reference }) =>
       apiFetch(`/wallet/admin/${walletId}/freeze`, {
         method: 'PATCH',
         data: { amount, reason, reference },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
-      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    onSuccess: (_, variables) => {
+      invalidateWalletFreezeCaches(queryClient, variables.walletId, variables.userId)
     },
   })
 }
 
+/** Release some or all of the dispute freeze floor (omit amount to clear entirely). */
 export const useUnfreezeWallet = () => {
   const queryClient = useQueryClient()
-  return useMutation<
-    ApiResponse<Wallet>,
-    Error,
-    { walletId: string; amount?: number; reason: string; reference?: string }
-  >({
+  return useMutation<any, Error, UnfreezeWalletRequest>({
     mutationFn: ({ walletId, amount, reason, reference }) =>
       apiFetch(`/wallet/admin/${walletId}/unfreeze`, {
         method: 'PATCH',
         data: { amount, reason, reference },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'wallets'] })
-      queryClient.invalidateQueries({ queryKey: walletQueryKeys.wallets })
+    onSuccess: (_, variables) => {
+      invalidateWalletFreezeCaches(queryClient, variables.walletId, variables.userId)
     },
   })
 }

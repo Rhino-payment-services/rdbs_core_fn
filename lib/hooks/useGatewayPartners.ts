@@ -383,6 +383,8 @@ export interface SetPartnerReserveRequest {
   amount: number;
   reason: string;
   reference?: string;
+  /** Specific ESCROW wallet when partner has multiple */
+  walletId?: string;
 }
 
 // Hook: List all wallets for a gateway partner
@@ -511,6 +513,7 @@ export const useSetPartnerReserve = () => {
           amount: data.amount,
           reason: data.reason,
           reference: data.reference,
+          walletId: data.walletId,
         },
       );
       return response.data;

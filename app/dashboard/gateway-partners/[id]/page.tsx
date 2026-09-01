@@ -109,6 +109,7 @@ const GatewayPartnerDetailsPage = () => {
   const [editMaxTxnAmount, setEditMaxTxnAmount] = useState('')
 
   const [showReserveDialog, setShowReserveDialog] = useState(false)
+  const [reserveWalletId, setReserveWalletId] = useState<string>('')
 
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
@@ -136,6 +137,24 @@ const GatewayPartnerDetailsPage = () => {
   const escrowWallets = partnerWallets.filter(
     (w) => (w.walletType || '').toUpperCase() === 'ESCROW',
   )
+
+  const reserveDialogTarget = React.useMemo(() => {
+    if (reserveWalletId) {
+      const w = escrowWallets.find((x) => x.id === reserveWalletId)
+      if (w) {
+        return {
+          walletId: w.id,
+          balance: Number(w.balance ?? 0),
+          frozen: Number(w.frozenBalance ?? 0),
+        }
+      }
+    }
+    return {
+      walletId: undefined as string | undefined,
+      balance: Number(escrowBalance?.wallet?.balance ?? 0),
+      frozen: Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0),
+    }
+  }, [reserveWalletId, escrowWallets, escrowBalance])
 
   const handleFundWallet = async () => {
     const amount = parseFloat(fundAmount)
@@ -733,7 +752,10 @@ const GatewayPartnerDetailsPage = () => {
                         size="sm"
                         variant="outline"
                         className="mt-3 w-full gap-1.5 border-orange-300 text-orange-700 hover:bg-orange-50"
-                        onClick={() => setShowReserveDialog(true)}
+                        onClick={() => {
+                          setReserveWalletId('')
+                          setShowReserveDialog(true)
+                        }}
                         disabled={!escrowBalance?.wallet?.walletId}
                       >
                         <Lock className="h-3.5 w-3.5" />
@@ -866,6 +888,11 @@ const GatewayPartnerDetailsPage = () => {
                                   Suspended
                                 </Badge>
                               )}
+                              {Number(w.frozenBalance ?? 0) > 0 && (
+                                <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700">
+                                  Reserved
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-right space-x-1">
                               <Button
@@ -885,6 +912,18 @@ const GatewayPartnerDetailsPage = () => {
                                 }}
                               >
                                 Fund
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-orange-300 text-orange-700"
+                                onClick={() => {
+                                  setReserveWalletId(w.id)
+                                  setShowReserveDialog(true)
+                                }}
+                              >
+                                <Lock className="h-3.5 w-3.5 mr-1" />
+                                Reserve
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1794,12 +1833,16 @@ const GatewayPartnerDetailsPage = () => {
       {/* Set Partner ESCROW Reserve Dialog */}
       <SetPartnerReserveDialog
         open={showReserveDialog}
-        onOpenChange={setShowReserveDialog}
+        onOpenChange={(open) => {
+          setShowReserveDialog(open)
+          if (!open) setReserveWalletId('')
+        }}
         partnerId={partnerId}
         partnerName={partner?.partnerName ?? ''}
-        currentBalance={Number(escrowBalance?.wallet?.balance ?? 0)}
-        currentReserve={Number((escrowBalance?.wallet as any)?.frozenBalance ?? 0)}
+        currentBalance={reserveDialogTarget.balance}
+        currentReserve={reserveDialogTarget.frozen}
         currency="UGX"
+        walletId={reserveDialogTarget.walletId}
         onSuccess={() => {
           refetchBalance()
           refetchWallets()
