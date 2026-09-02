@@ -54,9 +54,14 @@ export interface SuspiciousTransactionExportRow {
   description: string
 }
 
+export type ExportProgressCallback = (message: string) => void
+
 const PAGE_SIZE = 100
-const TX_PAGE_SIZE = 200
+const TX_PAGE_SIZE = 500
 const MAX_ROWS = 50_000
+const EXPORT_TIMEOUT_MS = 90_000
+const TX_PAGE_CONCURRENCY = 4
+const PROFILE_FETCH_CONCURRENCY = 10
 
 function dateRangeQuery(startDate: string, endDate: string) {
   return {
@@ -125,7 +130,20 @@ export function resolveTransactorProfile(user: Record<string, unknown> | undefin
 }
 
 function applyProfile(
-  row: Omit<SuspiciousTransactionExportRow, keyof TransactorProfile | 'transactorFullName' | 'transactorEmail' | 'transactorPhone' | 'transactorUserType' | 'transactorSubscriberType' | 'transactorRole' | 'transactorStatus' | 'transactorKycStatus' | 'transactorNationalId' | 'transactorCity' | 'transactorCountry'>,
+  row: Omit<
+    SuspiciousTransactionExportRow,
+    | 'transactorFullName'
+    | 'transactorEmail'
+    | 'transactorPhone'
+    | 'transactorUserType'
+    | 'transactorSubscriberType'
+    | 'transactorRole'
+    | 'transactorStatus'
+    | 'transactorKycStatus'
+    | 'transactorNationalId'
+    | 'transactorCity'
+    | 'transactorCountry'
+  >,
   profile: TransactorProfile,
   fallback?: { email?: string; phone?: string; name?: string },
 ): SuspiciousTransactionExportRow {
@@ -145,49 +163,86 @@ function applyProfile(
   }
 }
 
-async function fetchUserProfileMap(): Promise<Map<string, TransactorProfile>> {
-  const map = new Map<string, TransactorProfile>()
-  try {
-    const { data } = await api.get('/admin/users')
-    const users = Array.isArray(data) ? data : data?.data || data?.users || []
-    if (!Array.isArray(users)) return map
+async function fetchTransactionPage(
+  page: number,
+  startDate: string,
+  endDate: string,
+): Promise<{ transactions: Record<string, unknown>[]; total: number }> {
+  const { data } = await api.get('/transactions/all', {
+    params: { page, limit: TX_PAGE_SIZE, startDate, endDate },
+    timeout: EXPORT_TIMEOUT_MS,
+  })
 
-    users.forEach((user: Record<string, unknown>) => {
-      const id = String(user.id ?? '')
-      if (id) map.set(id, resolveTransactorProfile(user))
-    })
-  } catch {
-    // Export still works without profile enrichment
+  const payload = data?.data ?? data
+  const transactions = Array.isArray(payload?.transactions) ? payload.transactions : []
+  const total = typeof payload?.total === 'number' ? payload.total : transactions.length
+  return { transactions, total }
+}
+
+async function fetchProfilesForUserIds(
+  userIds: string[],
+  onProgress?: ExportProgressCallback,
+): Promise<Map<string, TransactorProfile>> {
+  const map = new Map<string, TransactorProfile>()
+  const unique = [...new Set(userIds.filter(Boolean))]
+  if (!unique.length) return map
+
+  onProgress?.(`Loading profiles for ${unique.length} transactor${unique.length === 1 ? '' : 's'}…`)
+
+  for (let i = 0; i < unique.length; i += PROFILE_FETCH_CONCURRENCY) {
+    const batch = unique.slice(i, i + PROFILE_FETCH_CONCURRENCY)
+    await Promise.all(
+      batch.map(async (userId) => {
+        try {
+          const { data } = await api.get(`/users/${userId}`, { timeout: EXPORT_TIMEOUT_MS })
+          const user = (data?.data ?? data) as Record<string, unknown> | undefined
+          if (user) map.set(userId, resolveTransactorProfile(user))
+        } catch {
+          // Profile enrichment is best-effort
+        }
+      }),
+    )
   }
+
   return map
 }
 
 async function fetchAllTransactionsInRange(
   startDate: string,
   endDate: string,
+  onProgress?: ExportProgressCallback,
 ): Promise<Record<string, unknown>[]> {
-  const all: Record<string, unknown>[] = []
-  let page = 1
-  let total = Number.POSITIVE_INFINITY
+  onProgress?.('Loading transactions for pattern detection…')
 
-  while (all.length < MAX_ROWS && all.length < total) {
-    const { data } = await api.get('/transactions/all', {
-      params: {
-        page,
-        limit: TX_PAGE_SIZE,
-        startDate,
-        endDate,
-      },
+  const firstPage = await fetchTransactionPage(1, startDate, endDate)
+  const all = [...firstPage.transactions]
+  const total = firstPage.total
+  const totalPages = Math.min(Math.ceil(total / TX_PAGE_SIZE), Math.ceil(MAX_ROWS / TX_PAGE_SIZE))
+
+  if (totalPages <= 1 || all.length >= MAX_ROWS) {
+    onProgress?.(`Loaded ${all.length} transactions`)
+    return all.slice(0, MAX_ROWS)
+  }
+
+  for (let page = 2; page <= totalPages && all.length < MAX_ROWS; page += TX_PAGE_CONCURRENCY) {
+    const pages = Array.from(
+      { length: Math.min(TX_PAGE_CONCURRENCY, totalPages - page + 1) },
+      (_, idx) => page + idx,
+    )
+
+    const batches = await Promise.all(
+      pages.map((p) => fetchTransactionPage(p, startDate, endDate).catch(() => ({ transactions: [], total }))),
+    )
+
+    batches.forEach(({ transactions }) => {
+      if (transactions.length) all.push(...transactions)
     })
 
-    const payload = data?.data ?? data
-    const batch = Array.isArray(payload?.transactions) ? payload.transactions : []
-    total = typeof payload?.total === 'number' ? payload.total : batch.length
+    onProgress?.(`Loaded ${Math.min(all.length, total)} of ${total} transactions…`)
 
-    if (!batch.length) break
-    all.push(...batch)
-    if (batch.length < TX_PAGE_SIZE) break
-    page += 1
+    if (batches.some(({ transactions }) => transactions.length < TX_PAGE_SIZE)) {
+      break
+    }
   }
 
   return all.slice(0, MAX_ROWS)
@@ -211,7 +266,9 @@ async function fetchAllSuspiciousActivityLogs(
       endDate: range.endDate,
     })
 
-    const { data } = await api.get(`/activity-logs?${params.toString()}`)
+    const { data } = await api.get(`/activity-logs?${params.toString()}`, {
+      timeout: EXPORT_TIMEOUT_MS,
+    })
     const logs = Array.isArray(data?.logs) ? (data.logs as ActivityLog[]) : []
     totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1
 
@@ -242,7 +299,9 @@ async function fetchAllFlaggedTransactionLogs(
       endDate: range.endDate,
     })
 
-    const { data } = await api.get(`/transaction-logs/system?${params.toString()}`)
+    const { data } = await api.get(`/transaction-logs/system?${params.toString()}`, {
+      timeout: EXPORT_TIMEOUT_MS,
+    })
     const logs = Array.isArray(data?.logs) ? (data.logs as Record<string, unknown>[]) : []
     totalPages = typeof data?.totalPages === 'number' ? data.totalPages : 1
 
@@ -476,20 +535,37 @@ export function suspiciousTransactionsToCsv(rows: SuspiciousTransactionExportRow
 export async function fetchSuspiciousTransactionsForExport(
   startDate: string,
   endDate: string,
+  onProgress?: ExportProgressCallback,
 ): Promise<SuspiciousTransactionExportRow[]> {
-  const [transactions, activityLogs, transactionLogs, profileMap] = await Promise.all([
-    fetchAllTransactionsInRange(startDate, endDate).catch(() => [] as Record<string, unknown>[]),
+  onProgress?.('Loading flagged audit logs…')
+
+  const [activityLogs, transactionLogs] = await Promise.all([
     fetchAllSuspiciousActivityLogs(startDate, endDate).catch(() => [] as ActivityLog[]),
     fetchAllFlaggedTransactionLogs(startDate, endDate).catch(() => [] as Record<string, unknown>[]),
-    fetchUserProfileMap(),
   ])
 
-  const patternRows = detectSuspiciousPatterns(transactions).map((tx) =>
-    patternToRow(tx, profileMap),
-  )
+  const transactions = await fetchAllTransactionsInRange(startDate, endDate, onProgress)
 
+  onProgress?.('Detecting suspicious patterns…')
+  const patternRows = detectSuspiciousPatterns(transactions)
+
+  const userIds = new Set<string>()
+  patternRows.forEach((tx) => userIds.add(tx.userId))
+  activityLogs.forEach((log) => {
+    const meta = (log.metadata ?? {}) as Record<string, unknown>
+    const id = String(meta.targetUserId ?? meta.prismaUserId ?? log.userId ?? '')
+    if (id) userIds.add(id)
+  })
+  transactionLogs.forEach((log) => {
+    const id = String(log.userId ?? '')
+    if (id) userIds.add(id)
+  })
+
+  const profileMap = await fetchProfilesForUserIds([...userIds], onProgress)
+
+  onProgress?.('Building export…')
   const rows = dedupeRows([
-    ...patternRows,
+    ...patternRows.map((tx) => patternToRow(tx, profileMap)),
     ...activityLogs.map((log) => activityLogToRow(log, profileMap)),
     ...transactionLogs.map((log) => transactionLogToRow(log, profileMap)),
   ])
@@ -501,13 +577,15 @@ export async function fetchSuspiciousTransactionsForExport(
 export async function exportSuspiciousTransactionsByDateRange(
   startDate: string,
   endDate: string,
+  onProgress?: ExportProgressCallback,
 ): Promise<number> {
-  const rows = await fetchSuspiciousTransactionsForExport(startDate, endDate)
+  const rows = await fetchSuspiciousTransactionsForExport(startDate, endDate, onProgress)
 
   if (!rows.length) {
     return 0
   }
 
+  onProgress?.('Generating CSV…')
   const csv = suspiciousTransactionsToCsv(rows)
   const filename = `suspicious-transactions_${startDate}_to_${endDate}.csv`
   downloadTextFile(filename, csv)

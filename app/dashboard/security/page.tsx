@@ -77,9 +77,13 @@ const SecurityPage = () => {
 
   const handleExportByDateRange = async (startDate: string, endDate: string) => {
     setIsExporting(true)
-    const toastId = toast.loading('Fetching suspicious transactions…')
+    const toastId = toast.loading('Starting export…')
     try {
-      const count = await exportSuspiciousTransactionsByDateRange(startDate, endDate)
+      const count = await exportSuspiciousTransactionsByDateRange(
+        startDate,
+        endDate,
+        (message) => toast.loading(message, { id: toastId }),
+      )
       if (count === 0) {
         toast.error('No suspicious transactions found in the selected date range', { id: toastId })
         return
@@ -88,7 +92,7 @@ const SecurityPage = () => {
       setExportStartDate('')
       setExportEndDate('')
     } catch {
-      toast.error('Failed to export suspicious transactions', { id: toastId })
+      toast.error('Export failed or timed out — try a shorter date range', { id: toastId })
     } finally {
       setIsExporting(false)
     }
