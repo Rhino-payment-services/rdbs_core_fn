@@ -710,7 +710,7 @@ const SecurityPage = () => {
         onEndDateChange={setExportEndDate}
         onExport={handleExportByDateRange}
         title="Export Suspicious Transactions"
-        description="Exports flagged and suspicious transaction records from activity logs and transaction audit logs for the selected date range."
+        description="Exports all suspicious transactions for the selected date range: dashboard pattern detections (rapid failures, velocity checks, etc.), backend limit flags, and transactor profile details."
         exportButtonLabel="Export CSV"
       />
     </DashboardPageLayout>
