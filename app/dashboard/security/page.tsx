@@ -34,9 +34,15 @@ import { useSecurityStats, useFlaggedTransactions, useSecurityIncidents } from '
 import { useRecentActivity } from '@/lib/hooks/useActivityLogs'
 import { SuspiciousUsersTable } from '@/components/dashboard/security/SuspiciousUsersTable'
 import { useSuspiciousUsers } from '@/lib/hooks/useSuspiciousTransactions'
+import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
+import { exportSuspiciousTransactionsByDateRange } from '@/lib/utils/exportSuspiciousTransactions'
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
 
   // Fetch real data
   const { data: securityStats, isLoading: statsLoading, refetch: refetchStats } = useSecurityStats()
@@ -66,7 +72,26 @@ const SecurityPage = () => {
   }
 
   const handleExport = () => {
-    toast.success('Export functionality coming soon')
+    setExportOpen(true)
+  }
+
+  const handleExportByDateRange = async (startDate: string, endDate: string) => {
+    setIsExporting(true)
+    const toastId = toast.loading('Fetching suspicious transactions…')
+    try {
+      const count = await exportSuspiciousTransactionsByDateRange(startDate, endDate)
+      if (count === 0) {
+        toast.error('No suspicious transactions found in the selected date range', { id: toastId })
+        return
+      }
+      toast.success(`Exported ${count} suspicious transaction record${count === 1 ? '' : 's'}`, { id: toastId })
+      setExportStartDate('')
+      setExportEndDate('')
+    } catch {
+      toast.error('Failed to export suspicious transactions', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const formatCurrency = (amount: number, currency: string = 'UGX') => {
@@ -674,6 +699,20 @@ const SecurityPage = () => {
               </Card>
             </TabsContent>
           </Tabs>
+
+      <ExportDialog
+        isOpen={exportOpen}
+        onOpenChange={setExportOpen}
+        exportStartDate={exportStartDate}
+        exportEndDate={exportEndDate}
+        isExporting={isExporting}
+        onStartDateChange={setExportStartDate}
+        onEndDateChange={setExportEndDate}
+        onExport={handleExportByDateRange}
+        title="Export Suspicious Transactions"
+        description="Exports flagged and suspicious transaction records from activity logs and transaction audit logs for the selected date range."
+        exportButtonLabel="Export CSV"
+      />
     </DashboardPageLayout>
   )
 }

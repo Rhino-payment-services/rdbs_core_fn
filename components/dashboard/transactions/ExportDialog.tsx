@@ -16,6 +16,9 @@ interface ExportDialogProps {
   onStartDateChange: (date: string) => void
   onEndDateChange: (date: string) => void
   onExport: (startDate: string, endDate: string) => Promise<void>
+  title?: string
+  description?: string
+  exportButtonLabel?: string
 }
 
 export const ExportDialog = ({
@@ -26,7 +29,10 @@ export const ExportDialog = ({
   isExporting,
   onStartDateChange,
   onEndDateChange,
-  onExport
+  onExport,
+  title = 'Export Transactions by Date Range',
+  description = "Exports transactions by created date. Each row's RukaPay Fee matches the dashboard fee when available; the revenue summary sheet still uses booked platform revenue totals (same as Dashboard / Transaction Ledgers).",
+  exportButtonLabel = 'Export Transactions',
 }: ExportDialogProps) => {
   const handleExport = async () => {
     if (!exportStartDate || !exportEndDate) {
@@ -53,13 +59,9 @@ export const ExportDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Export Transactions by Date Range
+            {title}
           </DialogTitle>
-          <DialogDescription>
-            Exports transactions by created date. Each row&apos;s RukaPay Fee matches the
-            dashboard fee when available; the revenue summary sheet still uses booked
-            platform revenue totals (same as Dashboard / Transaction Ledgers).
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -116,7 +118,7 @@ export const ExportDialog = ({
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Export Transactions
+                {exportButtonLabel}
               </>
             )}
           </Button>
