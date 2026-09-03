@@ -158,3 +158,84 @@ export function useSuspiciousUsers() {
     staleTime: 30000,
   })
 }
+
+// ---------------------------------------------------------------------------
+// Date-range aware hooks for the Suspicious Transactions tab
+// ---------------------------------------------------------------------------
+
+export interface SuspiciousLogsParams {
+  startDate?: string
+  endDate?: string
+  page?: number
+  limit?: number
+}
+
+export interface ActivityLogEntry {
+  _id: string
+  userId?: string
+  userEmail?: string
+  userPhone?: string
+  action: string
+  category: string
+  description?: string
+  status: string
+  metadata?: Record<string, unknown>
+  channel?: string
+  ipAddress?: string
+  endpoint?: string
+  createdAt: string
+}
+
+export interface FlaggedTransactionLogEntry {
+  _id: string
+  transactionId?: string
+  userId?: string
+  amount?: number
+  currency?: string
+  transactionStatus: string
+  transactionType?: string
+  channel?: string
+  riskIndicators?: string[]
+  errorCode?: string
+  errorMessage?: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+}
+
+export interface PaginatedResponse<T> {
+  logs: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export function useSuspiciousActivityLogs(params: SuspiciousLogsParams) {
+  return useQuery<PaginatedResponse<ActivityLogEntry>>({
+    queryKey: ['suspicious-activity-logs', params],
+    queryFn: () =>
+      api
+        .get('/activity-logs', {
+          params: { category: 'SUSPICIOUS_TRANSACTION', ...params },
+        })
+        .then((r) => r.data),
+    enabled: !!(params.startDate && params.endDate),
+    staleTime: 30_000,
+    placeholderData: { logs: [], total: 0, page: 1, limit: 50, totalPages: 0 },
+  })
+}
+
+export function useFlaggedTransactionLogs(params: SuspiciousLogsParams) {
+  return useQuery<PaginatedResponse<FlaggedTransactionLogEntry>>({
+    queryKey: ['flagged-transaction-logs', params],
+    queryFn: () =>
+      api
+        .get('/transaction-logs/system', {
+          params: { status: 'FLAGGED', ...params },
+        })
+        .then((r) => r.data),
+    enabled: !!(params.startDate && params.endDate),
+    staleTime: 30_000,
+    placeholderData: { logs: [], total: 0, page: 1, limit: 50, totalPages: 0 },
+  })
+}

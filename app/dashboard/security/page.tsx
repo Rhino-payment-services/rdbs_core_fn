@@ -33,9 +33,10 @@ import toast from 'react-hot-toast'
 import { useSecurityStats, useFlaggedTransactions, useSecurityIncidents } from '@/lib/hooks/useSecurityData'
 import { useRecentActivity } from '@/lib/hooks/useActivityLogs'
 import { SuspiciousUsersTable } from '@/components/dashboard/security/SuspiciousUsersTable'
-import { useSuspiciousUsers } from '@/lib/hooks/useSuspiciousTransactions'
+import { useSuspiciousUsers, useSuspiciousActivityLogs, useFlaggedTransactionLogs } from '@/lib/hooks/useSuspiciousTransactions'
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { exportSuspiciousTransactionsByDateRange } from '@/lib/utils/exportSuspiciousTransactions'
+import { Input } from '@/components/ui/input'
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
@@ -44,11 +45,43 @@ const SecurityPage = () => {
   const [exportEndDate, setExportEndDate] = useState('')
   const [isExporting, setIsExporting] = useState(false)
 
+  // Suspicious Transactions tab state
+  const [txnTimeRange, setTxnTimeRange] = useState<'24h' | '7d' | '30d' | 'custom'>('7d')
+  const [txnCustomStart, setTxnCustomStart] = useState('')
+  const [txnCustomEnd, setTxnCustomEnd] = useState('')
+  const [activityPage, setActivityPage] = useState(1)
+  const [flaggedPage, setFlaggedPage] = useState(1)
+  const TXN_PAGE_LIMIT = 50
+
   // Fetch real data
   const { data: securityStats, isLoading: statsLoading, refetch: refetchStats } = useSecurityStats()
   const { data: flaggedTransactions, isLoading: transactionsLoading, refetch: refetchTransactions } = useFlaggedTransactions(50)
   const { data: securityIncidents, isLoading: incidentsLoading, refetch: refetchIncidents } = useSecurityIncidents()
   const { data: recentActivity, isLoading: activityLoading } = useRecentActivity(10)
+
+  // Suspicious Transactions tab — derive date range and fetch
+  const txnDates = useMemo(() => {
+    if (txnTimeRange === 'custom') {
+      return { startDate: txnCustomStart, endDate: txnCustomEnd }
+    }
+    const end = new Date()
+    const start = new Date()
+    if (txnTimeRange === '24h') start.setHours(start.getHours() - 24)
+    else if (txnTimeRange === '7d') start.setDate(start.getDate() - 7)
+    else start.setDate(start.getDate() - 30)
+    return { startDate: start.toISOString(), endDate: end.toISOString() }
+  }, [txnTimeRange, txnCustomStart, txnCustomEnd])
+
+  const suspiciousActivityLogs = useSuspiciousActivityLogs({
+    ...txnDates,
+    page: activityPage,
+    limit: TXN_PAGE_LIMIT,
+  })
+  const flaggedTxLogs = useFlaggedTransactionLogs({
+    ...txnDates,
+    page: flaggedPage,
+    limit: TXN_PAGE_LIMIT,
+  })
 
   const isLoading = statsLoading || transactionsLoading || incidentsLoading
 
@@ -73,6 +106,31 @@ const SecurityPage = () => {
 
   const handleExport = () => {
     setExportOpen(true)
+  }
+
+  const handleTxnExport = async () => {
+    if (!txnDates.startDate || !txnDates.endDate) {
+      toast.error('Please set a valid date range first')
+      return
+    }
+    setIsExporting(true)
+    const toastId = toast.loading('Starting export…')
+    try {
+      const count = await exportSuspiciousTransactionsByDateRange(
+        txnDates.startDate,
+        txnDates.endDate,
+        (message) => toast.loading(message, { id: toastId }),
+      )
+      if (count === 0) {
+        toast.error('No suspicious transactions found in the selected date range', { id: toastId })
+        return
+      }
+      toast.success(`Exported ${count} suspicious transaction record${count === 1 ? '' : 's'}`, { id: toastId })
+    } catch {
+      toast.error('Export failed or timed out — try a shorter date range', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const handleExportByDateRange = async (startDate: string, endDate: string) => {
@@ -253,7 +311,7 @@ const SecurityPage = () => {
 
           {/* Security Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-8">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Overview
@@ -269,6 +327,10 @@ const SecurityPage = () => {
               <TabsTrigger value="suspicious" className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
                 Suspicious Users
+              </TabsTrigger>
+              <TabsTrigger value="suspicious-txns" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Suspicious Txns
               </TabsTrigger>
               <TabsTrigger value="platforms" className="flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
@@ -548,6 +610,234 @@ const SecurityPage = () => {
                 </CardHeader>
                 <CardContent>
                   <SuspiciousUsersTable limit={50} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Suspicious Transactions Tab */}
+            <TabsContent value="suspicious-txns" className="space-y-6">
+              {/* Date filter bar */}
+              <Card>
+                <CardContent className="pt-5">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex gap-1">
+                      {(['24h', '7d', '30d'] as const).map((preset) => (
+                        <Button
+                          key={preset}
+                          size="sm"
+                          variant={txnTimeRange === preset ? 'default' : 'outline'}
+                          onClick={() => { setTxnTimeRange(preset); setActivityPage(1); setFlaggedPage(1) }}
+                        >
+                          Last {preset}
+                        </Button>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant={txnTimeRange === 'custom' ? 'default' : 'outline'}
+                        onClick={() => setTxnTimeRange('custom')}
+                      >
+                        Custom
+                      </Button>
+                    </div>
+                    {txnTimeRange === 'custom' && (
+                      <>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-gray-500">From</span>
+                          <Input
+                            type="date"
+                            className="h-8 text-sm w-36"
+                            value={txnCustomStart}
+                            onChange={(e) => { setTxnCustomStart(e.target.value); setActivityPage(1); setFlaggedPage(1) }}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-gray-500">To</span>
+                          <Input
+                            type="date"
+                            className="h-8 text-sm w-36"
+                            value={txnCustomEnd}
+                            onChange={(e) => { setTxnCustomEnd(e.target.value); setActivityPage(1); setFlaggedPage(1) }}
+                          />
+                        </div>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-auto flex items-center gap-2"
+                      disabled={isExporting || (!txnDates.startDate || !txnDates.endDate)}
+                      onClick={handleTxnExport}
+                    >
+                      <Download className="h-4 w-4" />
+                      {isExporting ? 'Exporting…' : 'Export CSV'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Activity-log flags (SUSPICIOUS_TRANSACTION category) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Backend Flagged Events</CardTitle>
+                  <CardDescription>
+                    Activity log entries where the backend flagged a limit breach or suspicious pattern
+                    (category: SUSPICIOUS_TRANSACTION).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {suspiciousActivityLogs.isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400 mr-2" />
+                      <span className="text-sm text-gray-500">Loading…</span>
+                    </div>
+                  ) : (suspiciousActivityLogs.data?.logs ?? []).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <ShieldCheck className="h-10 w-10 mx-auto mb-3 text-green-500" />
+                      <p className="text-sm">No flagged events in this period.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50">
+                              <TableHead>Date</TableHead>
+                              <TableHead>User</TableHead>
+                              <TableHead>Action / Flag</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Severity</TableHead>
+                              <TableHead>Channel</TableHead>
+                              <TableHead>Description</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(suspiciousActivityLogs.data?.logs ?? []).map((log) => {
+                              const meta = (log.metadata ?? {}) as Record<string, unknown>
+                              const amount = meta.amount != null ? `${meta.currency ?? ''} ${meta.amount}`.trim() : '—'
+                              const severity = (meta.severity as string) || log.status
+                              return (
+                                <TableRow key={log._id}>
+                                  <TableCell className="text-xs whitespace-nowrap">
+                                    {new Date(log.createdAt).toLocaleString('en-UG', { dateStyle: 'short', timeStyle: 'short' })}
+                                  </TableCell>
+                                  <TableCell className="text-xs max-w-32 truncate">
+                                    {log.userPhone || log.userEmail || log.userId || '—'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-xs">{log.action}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm font-medium">{amount}</TableCell>
+                                  <TableCell>
+                                    <Badge className={severity === 'HIGH' || severity === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}>
+                                      {severity}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs">{log.channel || '—'}</TableCell>
+                                  <TableCell className="text-xs max-w-48 truncate text-gray-600">{log.description || '—'}</TableCell>
+                                </TableRow>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {/* Pagination */}
+                      {(suspiciousActivityLogs.data?.totalPages ?? 0) > 1 && (
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-xs text-gray-500">
+                            Page {suspiciousActivityLogs.data?.page} of {suspiciousActivityLogs.data?.totalPages}
+                            {' '}({suspiciousActivityLogs.data?.total} total)
+                          </span>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" disabled={activityPage <= 1} onClick={() => setActivityPage(p => p - 1)}>Previous</Button>
+                            <Button size="sm" variant="outline" disabled={activityPage >= (suspiciousActivityLogs.data?.totalPages ?? 1)} onClick={() => setActivityPage(p => p + 1)}>Next</Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Transaction log flags (FLAGGED status) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Flagged Transaction Logs</CardTitle>
+                  <CardDescription>
+                    Transaction log records with FLAGGED status — limit breaches recorded at processing time.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {flaggedTxLogs.isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-gray-400 mr-2" />
+                      <span className="text-sm text-gray-500">Loading…</span>
+                    </div>
+                  ) : (flaggedTxLogs.data?.logs ?? []).length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <ShieldCheck className="h-10 w-10 mx-auto mb-3 text-green-500" />
+                      <p className="text-sm">No flagged transaction logs in this period.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-gray-50">
+                              <TableHead>Date</TableHead>
+                              <TableHead>Transaction ID</TableHead>
+                              <TableHead>User</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Channel</TableHead>
+                              <TableHead>Risk Indicators</TableHead>
+                              <TableHead>Error</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(flaggedTxLogs.data?.logs ?? []).map((log) => (
+                              <TableRow key={log._id}>
+                                <TableCell className="text-xs whitespace-nowrap">
+                                  {new Date(log.createdAt).toLocaleString('en-UG', { dateStyle: 'short', timeStyle: 'short' })}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs max-w-28 truncate">
+                                  {log.transactionId || '—'}
+                                </TableCell>
+                                <TableCell className="text-xs max-w-28 truncate">
+                                  {log.userId || '—'}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium">
+                                  {log.currency && log.amount != null ? `${log.currency} ${log.amount}` : '—'}
+                                </TableCell>
+                                <TableCell>
+                                  {log.transactionType ? <Badge variant="outline" className="text-xs">{log.transactionType}</Badge> : '—'}
+                                </TableCell>
+                                <TableCell className="text-xs">{log.channel || '—'}</TableCell>
+                                <TableCell className="text-xs max-w-36 truncate text-gray-600">
+                                  {log.riskIndicators?.join(', ') || '—'}
+                                </TableCell>
+                                <TableCell className="text-xs max-w-36 truncate text-red-600">
+                                  {log.errorMessage || log.errorCode || '—'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {/* Pagination */}
+                      {(flaggedTxLogs.data?.totalPages ?? 0) > 1 && (
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-xs text-gray-500">
+                            Page {flaggedTxLogs.data?.page} of {flaggedTxLogs.data?.totalPages}
+                            {' '}({flaggedTxLogs.data?.total} total)
+                          </span>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" disabled={flaggedPage <= 1} onClick={() => setFlaggedPage(p => p - 1)}>Previous</Button>
+                            <Button size="sm" variant="outline" disabled={flaggedPage >= (flaggedTxLogs.data?.totalPages ?? 1)} onClick={() => setFlaggedPage(p => p + 1)}>Next</Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
