@@ -99,6 +99,25 @@ function normalizeTransactionPayload(raw: unknown): Record<string, unknown> | nu
   return null
 }
 
+/** Maps an axios-interceptor error object to a human-readable message for the summary panel. */
+function getSummaryErrorMessage(err: unknown): string {
+  if (!err) return 'Could not load revenue by source.'
+  const e = err as { status?: number; isTimeout?: boolean; isNetworkError?: boolean; message?: string }
+  if (e.isTimeout) {
+    return 'Revenue data is taking too long to load. The server is processing a large dataset — please retry in a moment.'
+  }
+  if (e.isNetworkError || e.status === 0) {
+    return 'Cannot reach the server. Please check your connection and retry.'
+  }
+  if (e.status === 404) {
+    return 'Revenue summary endpoint not found. The feature may not be deployed on this environment yet.'
+  }
+  if (e.status && e.status >= 500) {
+    return 'Server error loading revenue data. Please retry or contact support if this persists.'
+  }
+  return e.message || 'Could not load revenue by source. Please retry.'
+}
+
 function extractPartnerSummaryItems(summaryRes: unknown) {
   if (!summaryRes || typeof summaryRes !== 'object') return []
   const res = summaryRes as Record<string, unknown>
@@ -285,6 +304,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
     refetch: refetchSummary,
     isLoading: summaryLoading,
     isError: summaryError,
+    error: summaryQueryError,
   } = usePlatformRevenuePartnerSummary({
     currency,
     startDate: periodStart || undefined,
@@ -977,7 +997,7 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           ) : summaryError ? (
             <div className="text-center py-6 space-y-3">
               <p className="text-sm text-red-600">
-                Could not load revenue by source. The summary API may not be deployed yet.
+                {getSummaryErrorMessage(summaryQueryError)}
               </p>
               <Button variant="outline" size="sm" onClick={() => refetchSummary()}>
                 Retry

@@ -551,7 +551,7 @@ export interface ListPlatformRevenueEntriesParams {
 export const usePlatformRevenueBalance = () => {
   return useQuery<{ success?: boolean; data: PlatformRevenueBalance }>({
     queryKey: ['platform-revenue', 'balance'],
-    queryFn: () => apiFetch('/wallet/platform-revenue/balance'),
+    queryFn: () => apiFetch('/wallet/platform-revenue/balance', { timeout: 45000 }),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -582,11 +582,11 @@ export const usePlatformRevenueEntries = (params: ListPlatformRevenueEntriesPara
     }
   }>({
     queryKey: ['platform-revenue', 'entries', params],
-    queryFn: () => apiFetch(`/wallet/platform-revenue/entries${qs ? `?${qs}` : ''}`),
+    queryFn: () => apiFetch(`/wallet/platform-revenue/entries${qs ? `?${qs}` : ''}`, { timeout: 45000 }),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    refetchInterval: 8_000,
+    refetchInterval: 30_000,
   })
 }
 
@@ -619,7 +619,7 @@ export const usePlatformRevenuePartnerSummary = (
     }
   }>({
     queryKey: ['platform-revenue', 'summary-by-partner', params],
-    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?${qs}`),
+    queryFn: () => apiFetch(`/wallet/platform-revenue/summary-by-partner?${qs}`, { timeout: 45000 }),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,

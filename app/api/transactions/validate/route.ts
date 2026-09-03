@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/config"
 import axios from "axios"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { getApiUrl } from "@/lib/config"
 
 export async function POST(request: NextRequest) {
+  const API_URL = getApiUrl()
   try {
     const session = await getServerSession(authOptions)
     if (!session?.accessToken) {
