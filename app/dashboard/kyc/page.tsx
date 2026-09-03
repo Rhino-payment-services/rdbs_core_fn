@@ -41,6 +41,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Plus,
   Edit,
   Trash2,
@@ -239,6 +240,7 @@ const KycPage = () => {
   const [showDocumentsDialog, setShowDocumentsDialog] = useState(false)
   const [selectedDocumentsUserId, setSelectedDocumentsUserId] = useState<string | null>(null)
   const [selectedUserDocuments, setSelectedUserDocuments] = useState<KycUserDocument[]>([])
+  const [previewDocId, setPreviewDocId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -451,6 +453,13 @@ const KycPage = () => {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
+  }
+
+  const getDocumentPreviewType = (url: string): 'image' | 'pdf' | 'unknown' => {
+    const clean = url.split('?')[0].toLowerCase()
+    if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(clean)) return 'image'
+    if (/\.pdf$/.test(clean)) return 'pdf'
+    return 'unknown'
   }
 
   const pendingKycRequests = pendingKycData || []
@@ -1344,6 +1353,7 @@ const KycPage = () => {
             if (!open) {
               setSelectedDocumentsUserId(null)
               setSelectedUserDocuments([])
+              setPreviewDocId(null)
               fetchUserDocumentsMutation.reset()
             }
           }}
@@ -1398,14 +1408,27 @@ const KycPage = () => {
                           {doc.status}
                         </Badge>
                         {doc.documentUrl ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(doc.documentUrl as string, '_blank')}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" />
-                            Open
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPreviewDocId(previewDocId === doc.id ? null : doc.id)}
+                            >
+                              {previewDocId === doc.id ? (
+                                <><ChevronUp className="h-4 w-4 mr-1" />Hide</>
+                              ) : (
+                                <><Eye className="h-4 w-4 mr-1" />Preview</>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(doc.documentUrl as string, '_blank')}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Open
+                            </Button>
+                          </>
                         ) : (
                           <Button variant="outline" size="sm" disabled>
                             No file
@@ -1413,6 +1436,29 @@ const KycPage = () => {
                         )}
                       </div>
                     </div>
+                    {previewDocId === doc.id && doc.documentUrl && (() => {
+                      const previewType = getDocumentPreviewType(doc.documentUrl)
+                      if (previewType === 'image') return (
+                        <img
+                          src={doc.documentUrl}
+                          alt={formatDocumentType(doc.documentType)}
+                          className="mt-3 w-full rounded-md border object-contain max-h-[480px]"
+                        />
+                      )
+                      if (previewType === 'pdf') return (
+                        <iframe
+                          src={doc.documentUrl}
+                          title={formatDocumentType(doc.documentType)}
+                          className="mt-3 w-full rounded-md border"
+                          style={{ height: '480px' }}
+                        />
+                      )
+                      return (
+                        <p className="mt-3 text-xs text-gray-500 italic">
+                          Preview not available for this file type. Use Open to view it.
+                        </p>
+                      )
+                    })()}
                   </div>
                 ))}
               </div>
