@@ -261,6 +261,30 @@ export function getNormalizedRukapayFee(
   return normalizeFeeBreakdown(transaction).rukapayFee
 }
 
+/** Partner (API partner / lender) fee — processing fee on loans, MNO partner share elsewhere. */
+export function getNormalizedPartnerFee(
+  transaction: Parameters<typeof normalizeFeeBreakdown>[0],
+): number {
+  const fromBreakdown = normalizeFeeBreakdown(transaction).partnerFee
+  if (fromBreakdown !== 0) {
+    return fromBreakdown
+  }
+  const meta = (transaction as { metadata?: Record<string, unknown> } | null)?.metadata || {}
+  const fromMeta = finiteOrZero(meta.partnerFee)
+  if (fromMeta !== 0) {
+    return fromMeta
+  }
+  const type = String(
+    (transaction as { type?: string } | null)?.type || '',
+  ).toUpperCase()
+  if (type === 'LOAN_DISBURSEMENT' || type === 'LOAN_REPAYMENT') {
+    return finiteOrZero(
+      (transaction as { processingFee?: unknown }).processingFee,
+    )
+  }
+  return 0
+}
+
 /** Whether a revenue accrual creditedAt falls within EAT calendar bounds (matches Platform Revenue). */
 export function isPlatformRevenueCreditedInRange(
   creditedAt: string | Date | null | undefined,

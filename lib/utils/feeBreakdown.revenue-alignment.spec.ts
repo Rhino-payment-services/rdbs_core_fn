@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getBookedRukapayFeeForLedgerExport,
+  getNormalizedPartnerFee,
   getNormalizedRukapayFee,
   isPlatformRevenueCreditedInRange,
   resolveExportFeeColumns,
@@ -160,5 +161,31 @@ describe('revenue alignment — export column L vs dashboard booked revenue', ()
 
     expect(columnSum).toBe(500.5)
     expect(accrualSum).toBe(columnSum)
+  })
+})
+
+describe('getNormalizedPartnerFee', () => {
+  it('reads feeBreakdown.partnerFee on a loan collection', () => {
+    expect(
+      getNormalizedPartnerFee({
+        type: 'LOAN_REPAYMENT',
+        fee: 150,
+        processingFee: 150,
+        metadata: {
+          feeBreakdown: { rukapayFee: 0, partnerFee: 150 },
+          partnerFee: 150,
+        },
+      }),
+    ).toBe(150)
+  })
+
+  it('falls back to processingFee on loan types when breakdown is missing', () => {
+    expect(
+      getNormalizedPartnerFee({
+        type: 'LOAN_DISBURSEMENT',
+        processingFee: 80,
+        metadata: {},
+      }),
+    ).toBe(80)
   })
 })

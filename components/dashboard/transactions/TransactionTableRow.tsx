@@ -22,7 +22,7 @@ import {
 } from './partyResolver'
 import { SenderCell } from './SenderCell'
 import { ReceiverCell } from './ReceiverCell'
-import { RukapayFeeCell, NetAmountCell } from './FeeCell'
+import { RukapayFeeCell, PartnerFeeCell, NetAmountCell } from './FeeCell'
 import { ActionCell } from './ActionCell'
 import type { TransactionTableRowProps, TransactionDerived } from './types'
 
@@ -97,6 +97,7 @@ export const TransactionTableRow = ({
         })()}
       </TableCell>
       <RukapayFeeCell transaction={transaction} />
+      <PartnerFeeCell transaction={transaction} />
       <NetAmountCell transaction={transaction} />
       <StatusCell transaction={transaction} />
       <TableCell className="text-sm">{formatDate(transaction.createdAt)}</TableCell>
