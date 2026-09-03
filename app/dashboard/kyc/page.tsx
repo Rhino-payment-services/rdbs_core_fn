@@ -241,6 +241,7 @@ const KycPage = () => {
   const [selectedDocumentsUserId, setSelectedDocumentsUserId] = useState<string | null>(null)
   const [selectedUserDocuments, setSelectedUserDocuments] = useState<KycUserDocument[]>([])
   const [previewDocId, setPreviewDocId] = useState<string | null>(null)
+  const [kycDetailsPreviewDocId, setKycDetailsPreviewDocId] = useState<string | null>(null)
 
   const queryClient = useQueryClient()
 
@@ -460,6 +461,13 @@ const KycPage = () => {
     if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(clean)) return 'image'
     if (/\.pdf$/.test(clean)) return 'pdf'
     return 'unknown'
+  }
+
+  const resolveDocumentUrl = (url: string | null | undefined): string | null => {
+    if (!url) return null
+    if (url.startsWith('http://') || url.startsWith('https://')) return url
+    const base = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+    return `${base}${url}`
   }
 
   const pendingKycRequests = pendingKycData || []
@@ -1125,7 +1133,7 @@ const KycPage = () => {
         </Dialog>
 
         {/* KYC Details Dialog */}
-        <Dialog open={showKycDetails} onOpenChange={setShowKycDetails}>
+        <Dialog open={showKycDetails} onOpenChange={(open) => { setShowKycDetails(open); if (!open) setKycDetailsPreviewDocId(null) }}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -1309,33 +1317,72 @@ const KycPage = () => {
                   <h3 className="text-lg font-semibold mb-3">Submitted Documents</h3>
                   <div className="space-y-2">
                     {selectedKycRequest.documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium">{doc.documentType.replace('_', ' ')}</p>
-                            <p className="text-xs text-gray-500">
-                              {doc.documentNumber && `Number: ${doc.documentNumber}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Uploaded: {formatDate(doc.createdAt)}
-                            </p>
+                      <div key={doc.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <FileText className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="text-sm font-medium">{doc.documentType.replace('_', ' ')}</p>
+                              <p className="text-xs text-gray-500">
+                                {doc.documentNumber && `Number: ${doc.documentNumber}`}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Uploaded: {formatDate(doc.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge className={getStatusColor(doc.status)}>
+                              {doc.status}
+                            </Badge>
+                            {doc.documentUrl && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setKycDetailsPreviewDocId(kycDetailsPreviewDocId === doc.id ? null : doc.id)}
+                                >
+                                  {kycDetailsPreviewDocId === doc.id ? (
+                                    <><ChevronUp className="h-4 w-4 mr-1" />Hide</>
+                                  ) : (
+                                    <><Eye className="h-4 w-4 mr-1" />Preview</>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(resolveDocumentUrl(doc.documentUrl)!, '_blank')}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(doc.status)}>
-                            {doc.status}
-                          </Badge>
-                          {doc.documentUrl && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(doc.documentUrl, '_blank')}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        {kycDetailsPreviewDocId === doc.id && doc.documentUrl && (() => {
+                          const previewType = getDocumentPreviewType(doc.documentUrl)
+                          const resolvedUrl = resolveDocumentUrl(doc.documentUrl)!
+                          if (previewType === 'image') return (
+                            <img
+                              src={resolvedUrl}
+                              alt={doc.documentType.replace('_', ' ')}
+                              className="mt-3 w-full rounded-md border object-contain max-h-[480px]"
+                            />
+                          )
+                          if (previewType === 'pdf') return (
+                            <iframe
+                              src={resolvedUrl}
+                              title={doc.documentType.replace('_', ' ')}
+                              className="mt-3 w-full rounded-md border"
+                              style={{ height: '480px' }}
+                            />
+                          )
+                          return (
+                            <p className="mt-3 text-xs text-gray-500 italic">
+                              Preview not available for this file type. Use Open to view it.
+                            </p>
+                          )
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -1423,7 +1470,7 @@ const KycPage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(doc.documentUrl as string, '_blank')}
+                              onClick={() => window.open(resolveDocumentUrl(doc.documentUrl)!, '_blank')}
                             >
                               <ExternalLink className="h-4 w-4 mr-1" />
                               Open
@@ -1438,16 +1485,17 @@ const KycPage = () => {
                     </div>
                     {previewDocId === doc.id && doc.documentUrl && (() => {
                       const previewType = getDocumentPreviewType(doc.documentUrl)
+                      const resolvedUrl = resolveDocumentUrl(doc.documentUrl)!
                       if (previewType === 'image') return (
                         <img
-                          src={doc.documentUrl}
+                          src={resolvedUrl}
                           alt={formatDocumentType(doc.documentType)}
                           className="mt-3 w-full rounded-md border object-contain max-h-[480px]"
                         />
                       )
                       if (previewType === 'pdf') return (
                         <iframe
-                          src={doc.documentUrl}
+                          src={resolvedUrl}
                           title={formatDocumentType(doc.documentType)}
                           className="mt-3 w-full rounded-md border"
                           style={{ height: '480px' }}
