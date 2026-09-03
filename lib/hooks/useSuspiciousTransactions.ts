@@ -175,6 +175,11 @@ export interface ActivityLogEntry {
   userId?: string
   userEmail?: string
   userPhone?: string
+  userDetails?: {
+    fullName?: string
+    email?: string
+    phone?: string
+  }
   action: string
   category: string
   description?: string

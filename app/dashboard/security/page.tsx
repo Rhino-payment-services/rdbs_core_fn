@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import Navbar from '@/components/dashboard/Navbar'
 import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
 import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   Shield,
   Radar,
@@ -30,13 +31,79 @@ import {
   Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import api from '@/lib/axios'
 import { useSecurityStats, useFlaggedTransactions, useSecurityIncidents } from '@/lib/hooks/useSecurityData'
 import { useRecentActivity } from '@/lib/hooks/useActivityLogs'
 import { SuspiciousUsersTable } from '@/components/dashboard/security/SuspiciousUsersTable'
-import { useSuspiciousUsers, useSuspiciousActivityLogs, useFlaggedTransactionLogs } from '@/lib/hooks/useSuspiciousTransactions'
+import {
+  useSuspiciousActivityLogs,
+  useFlaggedTransactionLogs,
+  type ActivityLogEntry,
+  type FlaggedTransactionLogEntry,
+} from '@/lib/hooks/useSuspiciousTransactions'
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
-import { exportSuspiciousTransactionsByDateRange } from '@/lib/utils/exportSuspiciousTransactions'
+import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
+import {
+  exportSuspiciousTransactionsByDateRange,
+  exportBackendFlaggedSuspiciousByDateRange,
+  fetchProfilesForUserIds,
+  type TransactorProfile,
+} from '@/lib/utils/exportSuspiciousTransactions'
 import { Input } from '@/components/ui/input'
+
+const MAX_CUSTOM_RANGE_DAYS = 31
+
+type SuspiciousFlagDetail = {
+  source: 'activity_log' | 'transaction_log'
+  recordId: string
+  createdAt: string
+  userId: string
+  action: string
+  amount: string
+  severity: string
+  channel: string
+  description: string
+  reason: string
+  riskIndicators: string
+  transactionId?: string
+  error?: string
+}
+
+function normalizeTransactionPayload(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== 'object') return null
+  const payload = raw as Record<string, unknown>
+  if (payload.id) return payload
+  if (payload.data && typeof payload.data === 'object' && (payload.data as Record<string, unknown>).id) {
+    return payload.data as Record<string, unknown>
+  }
+  return null
+}
+
+function toDateOnly(value: string): string {
+  return value.includes('T') ? value.slice(0, 10) : value
+}
+
+function formatRangeLabel(startDate: string, endDate: string): string {
+  if (!startDate || !endDate) return ''
+  const start = toDateOnly(startDate)
+  const end = toDateOnly(endDate)
+  const fmt = (d: string) => {
+    const [y, m, day] = d.split('-')
+    return `${day}/${m}/${y?.slice(2) ?? ''}`
+  }
+  return `${fmt(start)}–${fmt(end)}`
+}
+
+function daysBetween(startDate: string, endDate: string): number {
+  const start = new Date(`${toDateOnly(startDate)}T00:00:00.000Z`)
+  const end = new Date(`${toDateOnly(endDate)}T00:00:00.000Z`)
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function activityUserId(log: ActivityLogEntry): string {
+  const meta = (log.metadata ?? {}) as Record<string, unknown>
+  return String(meta.targetUserId ?? meta.prismaUserId ?? log.userId ?? '')
+}
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
@@ -51,6 +118,13 @@ const SecurityPage = () => {
   const [txnCustomEnd, setTxnCustomEnd] = useState('')
   const [activityPage, setActivityPage] = useState(1)
   const [flaggedPage, setFlaggedPage] = useState(1)
+  const [profileMap, setProfileMap] = useState<Map<string, TransactorProfile>>(new Map())
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [flagDetail, setFlagDetail] = useState<SuspiciousFlagDetail | null>(null)
+  const [flagDetailOpen, setFlagDetailOpen] = useState(false)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailTransaction, setDetailTransaction] = useState<Record<string, unknown> | null>(null)
   const TXN_PAGE_LIMIT = 50
 
   // Fetch real data
@@ -72,6 +146,11 @@ const SecurityPage = () => {
     return { startDate: start.toISOString(), endDate: end.toISOString() }
   }, [txnTimeRange, txnCustomStart, txnCustomEnd])
 
+  const txnRangeLabel = useMemo(
+    () => formatRangeLabel(txnDates.startDate, txnDates.endDate),
+    [txnDates.startDate, txnDates.endDate],
+  )
+
   const suspiciousActivityLogs = useSuspiciousActivityLogs({
     ...txnDates,
     page: activityPage,
@@ -82,6 +161,154 @@ const SecurityPage = () => {
     page: flaggedPage,
     limit: TXN_PAGE_LIMIT,
   })
+
+  // Batch-fetch profiles for users visible on the current pages
+  useEffect(() => {
+    const ids = new Set<string>()
+    for (const log of suspiciousActivityLogs.data?.logs ?? []) {
+      const id = activityUserId(log)
+      if (id) ids.add(id)
+    }
+    for (const log of flaggedTxLogs.data?.logs ?? []) {
+      if (log.userId) ids.add(log.userId)
+    }
+    const missing = [...ids].filter((id) => !profileMap.has(id))
+    if (!missing.length) return
+
+    let cancelled = false
+    setProfilesLoading(true)
+    fetchProfilesForUserIds(missing)
+      .then((map) => {
+        if (cancelled) return
+        setProfileMap((prev) => {
+          const next = new Map(prev)
+          map.forEach((profile, id) => next.set(id, profile))
+          return next
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setProfilesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // Intentionally omit profileMap to avoid re-fetch loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suspiciousActivityLogs.data?.logs, flaggedTxLogs.data?.logs])
+
+  const renderUserCell = useCallback(
+    (userId: string, fallback?: { name?: string; email?: string; phone?: string }) => {
+      const profile = userId ? profileMap.get(userId) : undefined
+      const name =
+        profile?.fullName ||
+        fallback?.name ||
+        profile?.phone ||
+        fallback?.phone ||
+        profile?.email ||
+        fallback?.email ||
+        (userId ? `${userId.slice(0, 8)}…` : '—')
+      const phone = profile?.phone || fallback?.phone || ''
+      const email = profile?.email || fallback?.email || ''
+      const secondary = [phone, email].filter(Boolean).join(' · ')
+
+      return (
+        <div className="min-w-[140px] max-w-[200px]">
+          <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
+          {secondary ? (
+            <div className="text-xs text-gray-500 truncate">{secondary}</div>
+          ) : userId && !profile && profilesLoading ? (
+            <div className="text-xs text-gray-400">Loading profile…</div>
+          ) : userId ? (
+            <div className="text-xs text-gray-400 font-mono truncate" title={userId}>
+              {userId}
+            </div>
+          ) : null}
+        </div>
+      )
+    },
+    [profileMap, profilesLoading],
+  )
+
+  const openFlagDetail = useCallback((detail: SuspiciousFlagDetail) => {
+    setFlagDetail(detail)
+    setFlagDetailOpen(true)
+  }, [])
+
+  const handleViewTransaction = useCallback(async (transactionId: string) => {
+    setDetailModalOpen(true)
+    setDetailLoading(true)
+    setDetailTransaction(null)
+    try {
+      const response = await api.get(`/transactions/${transactionId}`)
+      const tx = normalizeTransactionPayload(response.data)
+      if (!tx) {
+        toast.error('Transaction not found')
+        setDetailModalOpen(false)
+        return
+      }
+      setDetailTransaction(tx)
+    } catch {
+      toast.error('Failed to load transaction details')
+      setDetailModalOpen(false)
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [])
+
+  const handleViewActivityFlag = useCallback(
+    (log: ActivityLogEntry) => {
+      const meta = (log.metadata ?? {}) as Record<string, unknown>
+      const userId = activityUserId(log)
+      const transactionId = meta.transactionId ? String(meta.transactionId) : undefined
+      openFlagDetail({
+        source: 'activity_log',
+        recordId: log._id,
+        createdAt: log.createdAt,
+        userId,
+        action: log.action,
+        amount: meta.amount != null ? `${meta.currency ?? ''} ${meta.amount}`.trim() : '—',
+        severity: String(meta.severity ?? log.status ?? '—'),
+        channel: log.channel || String(meta.channel ?? '—'),
+        description: log.description || '—',
+        reason: String(meta.reason ?? log.description ?? '—'),
+        riskIndicators: String(meta.flagType ?? ''),
+        transactionId,
+      })
+      if (transactionId) {
+        void handleViewTransaction(transactionId)
+      }
+    },
+    [openFlagDetail, handleViewTransaction],
+  )
+
+  const handleViewFlaggedLog = useCallback(
+    (log: FlaggedTransactionLogEntry) => {
+      const meta = (log.metadata ?? {}) as Record<string, unknown>
+      const transactionId = log.transactionId || (meta.transactionId ? String(meta.transactionId) : undefined)
+      openFlagDetail({
+        source: 'transaction_log',
+        recordId: log._id,
+        createdAt: log.createdAt,
+        userId: log.userId || '',
+        action: log.transactionStatus || 'FLAGGED',
+        amount: log.currency && log.amount != null ? `${log.currency} ${log.amount}` : '—',
+        severity: 'HIGH',
+        channel: log.channel || '—',
+        description: log.errorMessage || String(meta.reason ?? '—'),
+        reason: String(meta.reason ?? log.errorMessage ?? '—'),
+        riskIndicators: Array.isArray(log.riskIndicators)
+          ? log.riskIndicators.join(', ')
+          : String(meta.flagType ?? '—'),
+        transactionId,
+        error: log.errorMessage || log.errorCode || undefined,
+      })
+      if (transactionId) {
+        void handleViewTransaction(transactionId)
+      }
+    },
+    [openFlagDetail, handleViewTransaction],
+  )
 
   const isLoading = statsLoading || transactionsLoading || incidentsLoading
 
@@ -113,19 +340,33 @@ const SecurityPage = () => {
       toast.error('Please set a valid date range first')
       return
     }
+    if (txnTimeRange === 'custom' && (!txnCustomStart || !txnCustomEnd)) {
+      toast.error('Please select both From and To dates')
+      return
+    }
+    const span = daysBetween(txnDates.startDate, txnDates.endDate)
+    if (span < 0) {
+      toast.error('From date must be before To date')
+      return
+    }
+    if (span > MAX_CUSTOM_RANGE_DAYS) {
+      toast.error(`Date range cannot exceed ${MAX_CUSTOM_RANGE_DAYS} days — pick a shorter range`)
+      return
+    }
+
     setIsExporting(true)
-    const toastId = toast.loading('Starting export…')
+    const toastId = toast.loading(`Exporting ${txnRangeLabel || 'selected range'}…`)
     try {
-      const count = await exportSuspiciousTransactionsByDateRange(
-        txnDates.startDate,
-        txnDates.endDate,
+      const count = await exportBackendFlaggedSuspiciousByDateRange(
+        toDateOnly(txnDates.startDate),
+        toDateOnly(txnDates.endDate),
         (message) => toast.loading(message, { id: toastId }),
       )
       if (count === 0) {
         toast.error('No suspicious transactions found in the selected date range', { id: toastId })
         return
       }
-      toast.success(`Exported ${count} suspicious transaction record${count === 1 ? '' : 's'}`, { id: toastId })
+      toast.success(`Exported ${count} flagged record${count === 1 ? '' : 's'} (${txnRangeLabel})`, { id: toastId })
     } catch {
       toast.error('Export failed or timed out — try a shorter date range', { id: toastId })
     } finally {
@@ -661,16 +902,24 @@ const SecurityPage = () => {
                         </div>
                       </>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="ml-auto flex items-center gap-2"
-                      disabled={isExporting || (!txnDates.startDate || !txnDates.endDate)}
-                      onClick={handleTxnExport}
-                    >
-                      <Download className="h-4 w-4" />
-                      {isExporting ? 'Exporting…' : 'Export CSV'}
-                    </Button>
+                    <div className="ml-auto flex items-center gap-3">
+                      {txnRangeLabel ? (
+                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                          Range: {txnRangeLabel}
+                          {txnTimeRange === 'custom' ? ` (max ${MAX_CUSTOM_RANGE_DAYS}d)` : ''}
+                        </span>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center gap-2"
+                        disabled={isExporting || (!txnDates.startDate || !txnDates.endDate)}
+                        onClick={handleTxnExport}
+                      >
+                        <Download className="h-4 w-4" />
+                        {isExporting ? 'Exporting…' : 'Export CSV'}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -708,6 +957,7 @@ const SecurityPage = () => {
                               <TableHead>Severity</TableHead>
                               <TableHead>Channel</TableHead>
                               <TableHead>Description</TableHead>
+                              <TableHead className="w-16">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -715,13 +965,18 @@ const SecurityPage = () => {
                               const meta = (log.metadata ?? {}) as Record<string, unknown>
                               const amount = meta.amount != null ? `${meta.currency ?? ''} ${meta.amount}`.trim() : '—'
                               const severity = (meta.severity as string) || log.status
+                              const userId = activityUserId(log)
                               return (
                                 <TableRow key={log._id}>
                                   <TableCell className="text-xs whitespace-nowrap">
                                     {new Date(log.createdAt).toLocaleString('en-UG', { dateStyle: 'short', timeStyle: 'short' })}
                                   </TableCell>
-                                  <TableCell className="text-xs max-w-32 truncate">
-                                    {log.userPhone || log.userEmail || log.userId || '—'}
+                                  <TableCell>
+                                    {renderUserCell(userId, {
+                                      name: log.userDetails?.fullName,
+                                      email: log.userEmail || log.userDetails?.email,
+                                      phone: log.userPhone || log.userDetails?.phone,
+                                    })}
                                   </TableCell>
                                   <TableCell>
                                     <Badge variant="outline" className="text-xs">{log.action}</Badge>
@@ -734,6 +989,11 @@ const SecurityPage = () => {
                                   </TableCell>
                                   <TableCell className="text-xs">{log.channel || '—'}</TableCell>
                                   <TableCell className="text-xs max-w-48 truncate text-gray-600">{log.description || '—'}</TableCell>
+                                  <TableCell>
+                                    <Button variant="ghost" size="sm" onClick={() => handleViewActivityFlag(log)} title="View flag">
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               )
                             })}
@@ -791,6 +1051,7 @@ const SecurityPage = () => {
                               <TableHead>Channel</TableHead>
                               <TableHead>Risk Indicators</TableHead>
                               <TableHead>Error</TableHead>
+                              <TableHead className="w-16">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -802,8 +1063,8 @@ const SecurityPage = () => {
                                 <TableCell className="font-mono text-xs max-w-28 truncate">
                                   {log.transactionId || '—'}
                                 </TableCell>
-                                <TableCell className="text-xs max-w-28 truncate">
-                                  {log.userId || '—'}
+                                <TableCell>
+                                  {renderUserCell(log.userId || '')}
                                 </TableCell>
                                 <TableCell className="text-sm font-medium">
                                   {log.currency && log.amount != null ? `${log.currency} ${log.amount}` : '—'}
@@ -817,6 +1078,11 @@ const SecurityPage = () => {
                                 </TableCell>
                                 <TableCell className="text-xs max-w-36 truncate text-red-600">
                                   {log.errorMessage || log.errorCode || '—'}
+                                </TableCell>
+                                <TableCell>
+                                  <Button variant="ghost" size="sm" onClick={() => handleViewFlaggedLog(log)} title="View flag">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1006,6 +1272,106 @@ const SecurityPage = () => {
         title="Export Suspicious Transactions"
         description="Exports all suspicious transactions for the selected date range: dashboard pattern detections (rapid failures, velocity checks, etc.), backend limit flags, and transactor profile details."
         exportButtonLabel="Export CSV"
+      />
+
+      <Dialog
+        open={flagDetailOpen}
+        onOpenChange={(open) => {
+          setFlagDetailOpen(open)
+          if (!open) setFlagDetail(null)
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Suspicious Flag Details</DialogTitle>
+            <DialogDescription>
+              {flagDetail?.source === 'activity_log' ? 'Backend activity flag' : 'Flagged transaction log'}
+              {flagDetail?.transactionId ? ` · Tx ${flagDetail.transactionId}` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {flagDetail ? (
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">User</p>
+                {renderUserCell(flagDetail.userId)}
+                {flagDetail.userId && profileMap.get(flagDetail.userId) ? (
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <div>Type: {profileMap.get(flagDetail.userId)?.userType || '—'}</div>
+                    <div>KYC: {profileMap.get(flagDetail.userId)?.kycStatus || '—'}</div>
+                    <div>Status: {profileMap.get(flagDetail.userId)?.status || '—'}</div>
+                    <div>National ID: {profileMap.get(flagDetail.userId)?.nationalId || '—'}</div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-gray-500">Date</p>
+                  <p>{new Date(flagDetail.createdAt).toLocaleString('en-UG')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Action / Status</p>
+                  <Badge variant="outline">{flagDetail.action}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Amount</p>
+                  <p className="font-medium">{flagDetail.amount}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Severity</p>
+                  <Badge className="bg-red-100 text-red-700">{flagDetail.severity}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Channel</p>
+                  <p>{flagDetail.channel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Risk / Flag type</p>
+                  <p>{flagDetail.riskIndicators || '—'}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Reason</p>
+                <p className="text-gray-800 whitespace-pre-wrap">{flagDetail.reason}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Description</p>
+                <p className="text-gray-800 whitespace-pre-wrap">{flagDetail.description}</p>
+              </div>
+              {flagDetail.error ? (
+                <div>
+                  <p className="text-xs text-gray-500">Error</p>
+                  <p className="text-red-600">{flagDetail.error}</p>
+                </div>
+              ) : null}
+              {flagDetail.transactionId ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={detailLoading}
+                  onClick={() => handleViewTransaction(flagDetail.transactionId!)}
+                >
+                  {detailLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Loading transaction…</>
+                  ) : (
+                    <><Eye className="h-4 w-4 mr-2" />Open full transaction</>
+                  )}
+                </Button>
+              ) : (
+                <p className="text-xs text-gray-500 italic">No linked transaction ID on this flag.</p>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <TransactionDetailsModal
+        isOpen={detailModalOpen}
+        onOpenChange={(open) => {
+          setDetailModalOpen(open)
+          if (!open) setDetailTransaction(null)
+        }}
+        transaction={detailLoading ? null : detailTransaction}
       />
     </DashboardPageLayout>
   )

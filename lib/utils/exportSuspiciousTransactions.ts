@@ -64,9 +64,11 @@ const TX_PAGE_CONCURRENCY = 4
 const PROFILE_FETCH_CONCURRENCY = 10
 
 function dateRangeQuery(startDate: string, endDate: string) {
+  const start = startDate.includes('T') ? startDate.slice(0, 10) : startDate
+  const end = endDate.includes('T') ? endDate.slice(0, 10) : endDate
   return {
-    startDate: `${startDate}T00:00:00.000Z`,
-    endDate: `${endDate}T23:59:59.999Z`,
+    startDate: `${start}T00:00:00.000Z`,
+    endDate: `${end}T23:59:59.999Z`,
   }
 }
 
@@ -179,7 +181,7 @@ async function fetchTransactionPage(
   return { transactions, total }
 }
 
-async function fetchProfilesForUserIds(
+export async function fetchProfilesForUserIds(
   userIds: string[],
   onProgress?: ExportProgressCallback,
 ): Promise<Map<string, TransactorProfile>> {
@@ -588,6 +590,71 @@ export async function exportSuspiciousTransactionsByDateRange(
   onProgress?.('Generating CSV…')
   const csv = suspiciousTransactionsToCsv(rows)
   const filename = `suspicious-transactions_${startDate}_to_${endDate}.csv`
+  downloadTextFile(filename, csv)
+  return rows.length
+}
+
+/**
+ * Lightweight export for the Suspicious Txns tab:
+ * only backend-flagged activity logs + FLAGGED transaction logs for the date range.
+ * Skips full-ledger pattern scanning (avoids huge/slow exports).
+ */
+export async function fetchBackendFlaggedSuspiciousForExport(
+  startDate: string,
+  endDate: string,
+  onProgress?: ExportProgressCallback,
+): Promise<SuspiciousTransactionExportRow[]> {
+  onProgress?.('Loading backend flagged events…')
+
+  const [activityLogs, transactionLogs] = await Promise.all([
+    fetchAllSuspiciousActivityLogs(startDate, endDate).catch(() => [] as ActivityLog[]),
+    fetchAllFlaggedTransactionLogs(startDate, endDate).catch(() => [] as Record<string, unknown>[]),
+  ])
+
+  onProgress?.(
+    `Found ${activityLogs.length} activity flag${activityLogs.length === 1 ? '' : 's'} and ` +
+      `${transactionLogs.length} flagged transaction log${transactionLogs.length === 1 ? '' : 's'}…`,
+  )
+
+  const userIds = new Set<string>()
+  activityLogs.forEach((log) => {
+    const meta = (log.metadata ?? {}) as Record<string, unknown>
+    const id = String(meta.targetUserId ?? meta.prismaUserId ?? log.userId ?? '')
+    if (id) userIds.add(id)
+  })
+  transactionLogs.forEach((log) => {
+    const id = String(log.userId ?? '')
+    if (id) userIds.add(id)
+  })
+
+  const profileMap = await fetchProfilesForUserIds([...userIds], onProgress)
+
+  onProgress?.('Building export…')
+  const rows = dedupeRows([
+    ...activityLogs.map((log) => activityLogToRow(log, profileMap)),
+    ...transactionLogs.map((log) => transactionLogToRow(log, profileMap)),
+  ])
+
+  rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return rows
+}
+
+export async function exportBackendFlaggedSuspiciousByDateRange(
+  startDate: string,
+  endDate: string,
+  onProgress?: ExportProgressCallback,
+): Promise<number> {
+  const rows = await fetchBackendFlaggedSuspiciousForExport(startDate, endDate, onProgress)
+
+  if (!rows.length) {
+    return 0
+  }
+
+  onProgress?.('Generating CSV…')
+  const csv = suspiciousTransactionsToCsv(rows)
+  const safeStart = startDate.slice(0, 10)
+  const safeEnd = endDate.slice(0, 10)
+  const filename = `suspicious-flagged_${safeStart}_to_${safeEnd}.csv`
   downloadTextFile(filename, csv)
   return rows.length
 }
