@@ -2,7 +2,10 @@
 
 import { TableCell } from '@/components/ui/table'
 import { formatAmount } from '@/lib/utils/transactions'
-import { getNormalizedRukapayFee } from '@/lib/utils/feeBreakdown'
+import {
+  getNormalizedPartnerFee,
+  getNormalizedRukapayFee,
+} from '@/lib/utils/feeBreakdown'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 interface FeeCellProps {
@@ -15,6 +18,16 @@ export const RukapayFeeCell = ({ transaction }: FeeCellProps) => {
   return (
     <TableCell className="font-medium text-blue-600">
       {formatAmount(rukapayFee)}
+    </TableCell>
+  )
+}
+
+export const PartnerFeeCell = ({ transaction }: FeeCellProps) => {
+  const partnerFee = getNormalizedPartnerFee(transaction)
+
+  return (
+    <TableCell className="font-medium text-orange-600">
+      {formatAmount(partnerFee)}
     </TableCell>
   )
 }

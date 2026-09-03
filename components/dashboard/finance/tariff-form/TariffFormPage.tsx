@@ -505,6 +505,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
       'MNO_TO_WALLET', 'WALLET_TO_MERCHANT', 'WALLET_TO_BANK', 'BANK_TO_WALLET',
       'CARD_TO_WALLET', 'REVERSAL', 'FEE_CHARGE', 'CUSTOM',
       'WALLET_TO_PARTNER_INSTITUTION', 'PARTNER_INSTITUTION_TO_WALLET',
+      'MERCHANT_SELF_LIQUIDATION', 'LOAN_DISBURSEMENT', 'LOAN_REPAYMENT',
     ]
     
     // If transactionType is not in allowed list, default to CUSTOM
@@ -949,6 +950,12 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                               </SelectItem>
                               <SelectItem value="PARTNER_INSTITUTION_TO_WALLET">
                                 Partner Institution to Wallet (SACCO settlement out)
+                              </SelectItem>
+                              <SelectItem value="LOAN_DISBURSEMENT">
+                                Loan Disbursement (RukaSente / API partner)
+                              </SelectItem>
+                              <SelectItem value="LOAN_REPAYMENT">
+                                Loan Collection (RukaSente / API partner)
                               </SelectItem>
                               <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>

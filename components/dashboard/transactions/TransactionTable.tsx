@@ -71,6 +71,7 @@ export const TransactionTable = ({
                 <TableHead>Receiver</TableHead>
                 <TableHead>Amount</TableHead>
                 <TableHead>RukaPay Fee</TableHead>
+                <TableHead>Partner Fee</TableHead>
                 <TableHead>Net Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
