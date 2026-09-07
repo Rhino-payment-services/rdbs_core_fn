@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff, Ticket, Banknote, Store } from 'lucide-react'
+import { Bell, Search, Settings, User, LogOut, Home,Users, CreditCard, Shield, FileText, Database, Cog, DollarSign, AlertCircle, BarChart3, ChevronLeft, ChevronRight, Package, Wallet, Activity, Globe, Layers, Building2, Images, EyeOff, Ticket, Banknote, Store, Watch } from 'lucide-react'
 import { SearchInput } from '@/components/ui/search-input'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -435,6 +435,20 @@ const Navbar = () => {
                     >
                       <CreditCard className="nav-icon" />
                       <span>Cards</span>
+                    </Link>
+                  </PermissionGuard>
+                )}
+
+                {isVisible('wristbands') && (
+                  <PermissionGuard permission={PERMISSIONS.WALLETS_VIEW}>
+                    <Link
+                      href="/dashboard/wristbands"
+                      className={`nav-slider-item ${
+                        isActive('/dashboard/wristbands') ? 'active' : ''
+                      }`}
+                    >
+                      <Watch className="nav-icon" />
+                      <span>Wristbands</span>
                     </Link>
                   </PermissionGuard>
                 )}

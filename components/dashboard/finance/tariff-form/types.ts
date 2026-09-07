@@ -25,6 +25,8 @@ export interface CreateTariffForm {
     | 'CUSTOM'
     | 'WALLET_TO_PARTNER_INSTITUTION'
     | 'PARTNER_INSTITUTION_TO_WALLET'
+    | 'LOAN_DISBURSEMENT'
+    | 'LOAN_REPAYMENT'
     | 'MERCHANT_SELF_LIQUIDATION'
   network?: 'MTN' | 'AIRTEL'
   transactionModeId?: string
