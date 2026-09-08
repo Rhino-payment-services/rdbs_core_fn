@@ -2,13 +2,14 @@
 
 import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Link, Save, X, UserSearch, Search, CheckCircle, Wallet } from 'lucide-react'
+import { Link as LinkIcon, Save, X, UserSearch, Search, CheckCircle, Wallet } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useLinkCardToUser } from '@/lib/hooks/useCards'
 import { useUsers as useUsersList } from '@/lib/hooks/useAuth'
+import { useAllWalletsByUserId } from '@/lib/hooks/useWallets'
 import Navbar from '@/components/dashboard/Navbar'
 import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
 import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
@@ -108,8 +109,9 @@ function LinkCardContent() {
     handleInputChange('walletId', wallet.id)
   }
 
-  // Get wallets from selected user
-  const userWallets = selectedUser?.wallets || []
+  const selectedUserId = selectedUser?.id as string | undefined
+  const { data: userWallets = [], isLoading: walletsLoading } =
+    useAllWalletsByUserId(selectedUserId)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,7 +142,7 @@ function LinkCardContent() {
         <DashboardBreadcrumbs items={getDashboardPageCrumbs('cards/link')} />
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Link className="h-8 w-8 text-[#08163d]" />
+            <LinkIcon className="h-8 w-8 text-[#08163d]" />
             Link Card to User
           </h1>
           <p className="text-gray-600 mt-2">Link a registered card to a user account</p>
@@ -284,7 +286,11 @@ function LinkCardContent() {
               )}
 
               {/* Wallet Selection */}
-              {selectedUser && userWallets.length > 0 && (
+              {selectedUser && walletsLoading && (
+                <div className="text-sm text-gray-500 py-4 text-center">Loading wallets...</div>
+              )}
+
+              {selectedUser && !walletsLoading && userWallets.length > 0 && (
                 <div className="space-y-2">
                   <Label htmlFor="walletSelect">Select Wallet *</Label>
                   <div className="border border-gray-200 rounded-lg">
@@ -331,7 +337,7 @@ function LinkCardContent() {
                 </div>
               )}
 
-              {selectedUser && userWallets.length === 0 && (
+              {selectedUser && !walletsLoading && userWallets.length === 0 && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <Wallet className="h-5 w-5 text-yellow-600 mt-0.5" />

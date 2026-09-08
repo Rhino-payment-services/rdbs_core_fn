@@ -120,7 +120,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     }
     try {
       await linkRukaSente.mutateAsync(rukaSenteUserId)
-      toast.success( 
+      toast.success(
         rukaSenteStatusQ.data?.data?.exists
           ? 'Ruka Sente profile re-synced'
           : 'Customer linked to Ruka Sente',
@@ -158,7 +158,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     if (type === 'partner' && regularPartner) {
       return `${regularPartner?.profile?.firstName || ''} ${regularPartner?.profile?.lastName || ''}`.trim() ||
              `${regularPartner?.firstName || ''} ${regularPartner?.lastName || ''}`.trim() ||
-             regularPartner?.email ||
+             regularPartner?.phone ||
              'Unknown Partner'
     }
     if (type === 'merchant' && merchantData?.businessTradeName) {
@@ -166,7 +166,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
     }
     return `${customer?.profile?.firstName || ''} ${customer?.profile?.lastName || ''}`.trim() ||
            `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
-           customer?.email ||
+           customer?.phone ||
            'Unknown Customer'
   }, [type, isGatewayPartner, partner, regularPartner, merchantData, customer])
 
