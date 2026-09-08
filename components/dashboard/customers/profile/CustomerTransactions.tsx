@@ -25,6 +25,10 @@ import {
 } from 'lucide-react'
 import type { Transaction } from '@/lib/types/api'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
+import {
+  getNormalizedRukapayFee,
+  isAirtimeFaceValueLedger,
+} from '@/lib/utils/feeBreakdown'
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
@@ -413,7 +417,30 @@ const CustomerTransactions = ({
                       {formatCurrency(transaction.amount)}
                     </TableCell>
                     <TableCell className="text-red-600">
-                      {transaction.fee > 0 ? formatCurrency(transaction.fee) : '-'}
+                      {(() => {
+                        if (isAirtimeFaceValueLedger(transaction)) {
+                          const margin = getNormalizedRukapayFee(transaction)
+                          if (margin > 0) {
+                            const storedPct = Number(
+                              (transaction as any)?.metadata?.revenue?.marginPercent ??
+                                (transaction as any)?.metadata?.feeBreakdown?.marginPercent,
+                            )
+                            const pctLabel =
+                              Number.isFinite(storedPct) && storedPct > 0
+                                ? ` (${storedPct}%)`
+                                : ''
+                            return (
+                              <span
+                                className="text-blue-600"
+                                title={`Internal RukaPay margin${pctLabel}, not charged on top of amount`}
+                              >
+                                {formatCurrency(margin)}
+                              </span>
+                            )
+                          }
+                        }
+                        return transaction.fee > 0 ? formatCurrency(transaction.fee) : '-'
+                      })()}
                     </TableCell>
                     <TableCell className="font-medium">
                       {netDisplay == null ? (

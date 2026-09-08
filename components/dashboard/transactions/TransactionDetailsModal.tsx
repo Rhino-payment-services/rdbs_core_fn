@@ -28,7 +28,8 @@ import {
 import toast from 'react-hot-toast'
 import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from './partyResolver'
 import { usePermissions } from '@/lib/hooks/usePermissions'
-import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
+import { normalizeFeeBreakdown, isAirtimeFaceValueLedger } from '@/lib/utils/feeBreakdown'
+import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 
 interface TransactionDetailsModalProps {
   isOpen: boolean
@@ -118,6 +119,7 @@ export const TransactionDetailsModal = ({
     Math.abs(partnerFee) >= 0.01 &&
     (!showTelecomCharge || Math.abs(partnerFee - telecomDisplay) >= 0.01)
   const partnerRole = getPartnerRole(transaction)
+  const isAirtimeLedger = isAirtimeFaceValueLedger(transaction)
   const senderInfo = transaction.senderInfo
     ? normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
     : null
@@ -126,6 +128,13 @@ export const TransactionDetailsModal = ({
     : null
   const basicPartnerLabel = getBasicPartnerDisplayLabel(transaction)
   const metadata = transaction.metadata || {}
+  const storedMarginPercent = Number(
+    metadata.revenue?.marginPercent ?? metadata.feeBreakdown?.marginPercent,
+  )
+  const airtimeMarginPercent =
+    Number.isFinite(storedMarginPercent) && storedMarginPercent > 0
+      ? storedMarginPercent
+      : null
   const bulkQueuePosition =
     metadata.bulkQueuePosition ??
     metadata.queuePosition ??
@@ -386,7 +395,13 @@ export const TransactionDetailsModal = ({
                   <span className="font-bold text-gray-900">{formatAmount(Number(transaction.amount))}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
-                  <span className="text-blue-600">RukaPay Fee:</span>
+                  <span className="text-blue-600">
+                    {isAirtimeLedger
+                      ? airtimeMarginPercent != null
+                        ? `RukaPay margin (${airtimeMarginPercent}%):`
+                        : 'RukaPay margin:'
+                      : 'RukaPay Fee:'}
+                  </span>
                   <span className="font-medium text-blue-600">
                     {formatAmount(rukapayFee)}
                   </span>
@@ -423,6 +438,10 @@ export const TransactionDetailsModal = ({
                   <span className="text-green-600 font-bold">Net Amount:</span>
                   <span className="font-bold text-green-600 text-lg">
                     {(() => {
+                      if (isAirtimeLedger) {
+                        const displayNet = getDisplayNetAmount(transaction)
+                        return formatAmount(displayNet ?? (Number(transaction.amount) || 0))
+                      }
                       // Net Amount should show the total amount debited from sender (amount + all fees)
                       // For DEBIT transactions: amount + all fees (total debited)
                       // For CREDIT transactions: netAmount (amount received)

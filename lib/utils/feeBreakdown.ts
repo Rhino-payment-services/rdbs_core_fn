@@ -14,7 +14,20 @@ function finiteOrZero(value: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
-/** Airtime sold via Africa's Talking: face value is split (RukaPay margin vs partner settlement), not customer fees. */
+/** Africa's Talking airtime/data: face value is split (RukaPay margin vs wholesale), not customer or partner fees. */
+function isAfricaTalkingFaceValueUtility(
+  metadata: Record<string, unknown>,
+): boolean {
+  const util = String(metadata.utilityProvider || '').toUpperCase()
+  const pt = String(metadata.payment_type || '').toLowerCase()
+  return (
+    util === 'AIRTIME' ||
+    util === 'DATA_BUNDLES' ||
+    pt === 'airtime' ||
+    pt === 'mobile_data'
+  )
+}
+
 export function isAirtimeFaceValueLedger(transaction: {
   type?: string | null
   externalReference?: string | null
@@ -24,17 +37,12 @@ export function isAirtimeFaceValueLedger(transaction: {
   const meta = transaction?.metadata || {}
   const fb = (meta.feeBreakdown as Record<string, unknown>) || {}
   if (fb.allocationOfFaceValue === true) {
-    const util = String(meta.utilityProvider || '').toUpperCase()
-    const pt = String(meta.payment_type || '').toLowerCase()
-    return util === 'AIRTIME' || pt === 'airtime'
+    return isAfricaTalkingFaceValueUtility(meta)
   }
 
   const type = String(transaction?.type || '').toUpperCase()
   if (type !== 'BILL_PAYMENT' && type !== 'UTILITIES') return false
-
-  const util = String(meta.utilityProvider || '').toUpperCase()
-  const pt = String(meta.payment_type || '').toLowerCase()
-  if (util !== 'AIRTIME' && pt !== 'airtime') return false
+  if (!isAfricaTalkingFaceValueUtility(meta)) return false
 
   const code = String(meta.partnerCode || '').toUpperCase()
   const atRef =
