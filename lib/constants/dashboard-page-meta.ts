@@ -13,6 +13,17 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
   cards: [root, { label: 'Cards' }],
   'cards/link': [root, { label: 'Cards', href: '/dashboard/cards' }, { label: 'Link Card' }],
   'cards/register': [root, { label: 'Cards', href: '/dashboard/cards' }, { label: 'Register Card' }],
+  wristbands: [root, { label: 'Wristbands' }],
+  'wristbands/link': [
+    root,
+    { label: 'Wristbands', href: '/dashboard/wristbands' },
+    { label: 'Link Wristband' },
+  ],
+  'wristbands/register': [
+    root,
+    { label: 'Wristbands', href: '/dashboard/wristbands' },
+    { label: 'Register Wristband' },
+  ],
   carousel: [root, { label: 'Carousel' }],
   customers: [root, { label: 'Customers' }],
   'customers/merchant-onboard': [
@@ -44,6 +55,12 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     finance,
     { label: 'External Partners', href: '/dashboard/finance/partners' },
     { label: 'Bank Routing' },
+  ],
+  'finance/partners/equity-test': [
+    root,
+    finance,
+    { label: 'External Partners', href: '/dashboard/finance/partners' },
+    { label: 'Equity Test' },
   ],
   'finance/tariffs': [root, finance, { label: 'Tariffs (classic)' }],
   'finance/tariffs-new': [root, finance, { label: 'Tariffs' }],

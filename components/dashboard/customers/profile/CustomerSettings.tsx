@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Lock,
   Unlock,
+  Watch,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
@@ -1476,6 +1477,29 @@ const CustomerSettings = ({
               </div>
             ) : (
               renderWalletBalanceCard(effectiveWallets[0])
+            )}
+
+            {hasWallet && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <Watch className="h-4 w-4 text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium">Wristbands</div>
+                  <div className="text-sm text-gray-600">
+                    Link NFC wristbands to this customer&apos;s wallet for tap payments
+                  </div>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={`/dashboard/wristbands/link?userId=${encodeURIComponent(customerId)}`}
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Manage Wristbands
+                </Link>
+              </Button>
+            </div>
             )}
 
             {hasWallet && (
