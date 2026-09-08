@@ -43,6 +43,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
+  fetchAllActivityLogsForExport,
   useActivityLogs,
   useActivityStats,
   useSearchActivityLogs,
@@ -132,6 +133,7 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [isExporting, setIsExporting] = useState(false)
   const limit = 20
 
   const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
@@ -208,32 +210,72 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
     setPage(1)
   }
 
-  const handleExport = () => {
-    if (!logs.length) { toast.error('No logs to export'); return }
-    const headers = ['Date', 'User', 'Action', 'Category', 'Status', 'Description', 'Channel', 'IP Address']
-    const rows = logs.map((log: ActivityLog) => [
-      new Date(log.createdAt).toLocaleString(),
-      log.userEmail || log.userPhone || log.userId || '',
-      log.action || '',
-      log.category || '',
-      log.status || '',
-      log.description || '',
-      log.channel || '',
-      log.ipAddress || '',
-    ])
-    const csvContent = [headers, ...rows]
-      .map(row => row.map((cell: string) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `activity-logs-${tab}-${new Date().toISOString().split('T')[0]}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    toast.success(`Exported ${logs.length} activity logs to CSV`)
+  const handleExport = async () => {
+    setIsExporting(true)
+    const toastId = toast.loading('Fetching activity logs for the selected date range…')
+    try {
+      const allLogs = await fetchAllActivityLogsForExport(
+        { ...searchFilters, query: searchQuery || undefined },
+        (loaded, totalRows) =>
+          toast.loading(`Fetched ${loaded} of ${totalRows} activity logs…`, { id: toastId }),
+      )
+
+      // Partner / SACCO is an action-prefix filter the backend does not support.
+      const exportLogs =
+        auditFilter === 'partner'
+          ? allLogs.filter(
+              (log) =>
+                log.action?.startsWith('PARTNER_') || log.action?.startsWith('SACCO_'),
+            )
+          : allLogs
+
+      if (!exportLogs.length) {
+        toast.error('No logs to export for the selected filters', { id: toastId })
+        return
+      }
+
+      const headers = [
+        'Date',
+        'User',
+        'Action',
+        'Category',
+        'Status',
+        'Description',
+        'Channel',
+        'Session / Endpoint',
+        'IP Address',
+      ]
+      const rows = exportLogs.map((log: ActivityLog) => [
+        new Date(log.createdAt).toLocaleString(),
+        log.userDetails?.fullName || log.userEmail || log.userPhone || log.userId || '',
+        log.action || '',
+        log.category || '',
+        log.status || '',
+        log.description || '',
+        log.channel || '',
+        log.sessionId || log.metadata?.sessionId || log.endpoint || '',
+        log.ipAddress || '',
+      ])
+      const csvContent = [headers, ...rows]
+        .map(row => row.map((cell: string) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+        .join('\n')
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const startLabel = startDate.split('T')[0]
+      const endLabel = endDate.split('T')[0]
+      link.download = `activity-logs-${tab}-${startLabel}_to_${endLabel}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success(`Exported ${exportLogs.length} activity logs to CSV`, { id: toastId })
+    } catch {
+      toast.error('Failed to export activity logs — try a shorter date range', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -316,8 +358,22 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-1" /> Export
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Exporting…
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-1" /> Export
+              </>
+            )}
           </Button>
         </div>
 

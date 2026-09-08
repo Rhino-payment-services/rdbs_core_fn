@@ -267,6 +267,49 @@ async function searchActivityLogs(filters: ActivityLogFilters): Promise<Activity
   return data
 }
 
+// ─── export scan ──────────────────────────────────────────────────────────────
+
+/** Backend caps `limit` at 100 for /activity-logs. */
+const EXPORT_PAGE_SIZE = 100
+const EXPORT_MAX_ROWS = 50_000
+
+/**
+ * Fetches every page of activity logs matching `filters` (date range, status,
+ * category, action prefix, tab, search query) rather than only the page the
+ * table is currently showing. Pagination fields on `filters` are ignored.
+ */
+export async function fetchAllActivityLogsForExport(
+  filters: ActivityLogFilters,
+  onProgress?: (loaded: number, total: number) => void,
+): Promise<ActivityLog[]> {
+  const useSearch = !!filters.query?.trim()
+  const fetchPage = (page: number) => {
+    const pageFilters = { ...filters, page, limit: EXPORT_PAGE_SIZE }
+    return useSearch ? searchActivityLogs(pageFilters) : getActivityLogs(pageFilters)
+  }
+
+  const first = await fetchPage(1)
+  const all: ActivityLog[] = [...(first.logs ?? [])]
+  const total = first.total ?? all.length
+  onProgress?.(all.length, total)
+
+  const totalPages = first.totalPages ?? 1
+  const lastPage = Math.min(totalPages, Math.ceil(EXPORT_MAX_ROWS / EXPORT_PAGE_SIZE))
+
+  for (let page = 2; page <= lastPage && all.length < EXPORT_MAX_ROWS; page++) {
+    const batch = await fetchPage(page)
+    const logs = batch.logs ?? []
+    if (!logs.length) break
+
+    all.push(...logs)
+    onProgress?.(Math.min(all.length, total), total)
+
+    if (logs.length < EXPORT_PAGE_SIZE) break
+  }
+
+  return all.slice(0, EXPORT_MAX_ROWS)
+}
+
 // ─── hooks ────────────────────────────────────────────────────────────────────
 
 export function useActivityLogs(filters: ActivityLogFilters = {}) {
