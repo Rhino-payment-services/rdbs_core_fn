@@ -42,6 +42,7 @@ import {
   Building2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import {
   fetchAllActivityLogsForExport,
   useActivityLogs,
@@ -56,6 +57,10 @@ const TIME_RANGES = [
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
 ] as const
+
+function toDateInputValue(iso: string) {
+  return iso.split('T')[0]
+}
 
 function getTimeRangeDates(value: string): { startDate: string; endDate: string } {
   const end = new Date()
@@ -134,6 +139,9 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
   const limit = 20
 
   const { startDate, endDate } = useMemo(() => getTimeRangeDates(timeRange), [timeRange])
@@ -210,12 +218,24 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
     setPage(1)
   }
 
-  const handleExport = async () => {
+  // Prefill the dialog with the time range currently applied to the table.
+  const handleOpenExport = () => {
+    setExportStartDate(toDateInputValue(startDate))
+    setExportEndDate(toDateInputValue(endDate))
+    setExportOpen(true)
+  }
+
+  const handleExport = async (pickedStart: string, pickedEnd: string) => {
     setIsExporting(true)
     const toastId = toast.loading('Fetching activity logs for the selected date range…')
     try {
       const allLogs = await fetchAllActivityLogsForExport(
-        { ...searchFilters, query: searchQuery || undefined },
+        {
+          ...searchFilters,
+          query: searchQuery || undefined,
+          startDate: `${pickedStart}T00:00:00.000Z`,
+          endDate: `${pickedEnd}T23:59:59.999Z`,
+        },
         (loaded, totalRows) =>
           toast.loading(`Fetched ${loaded} of ${totalRows} activity logs…`, { id: toastId }),
       )
@@ -263,9 +283,7 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      const startLabel = startDate.split('T')[0]
-      const endLabel = endDate.split('T')[0]
-      link.download = `activity-logs-${tab}-${startLabel}_to_${endLabel}.csv`
+      link.download = `activity-logs-${tab}-${pickedStart}_to_${pickedEnd}.csv`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -362,7 +380,7 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
             variant="ghost"
             size="sm"
             className="ml-auto"
-            onClick={handleExport}
+            onClick={handleOpenExport}
             disabled={isExporting}
           >
             {isExporting ? (
@@ -470,6 +488,20 @@ function LogTable({ tab, timeRange, onTimeRangeChange }: LogTableProps) {
             </Button>
           </div>
         </div>
+
+        <ExportDialog
+          isOpen={exportOpen}
+          onOpenChange={setExportOpen}
+          exportStartDate={exportStartDate}
+          exportEndDate={exportEndDate}
+          isExporting={isExporting}
+          onStartDateChange={setExportStartDate}
+          onEndDateChange={setExportEndDate}
+          onExport={handleExport}
+          title="Export Activity Logs by Date Range"
+          description="Exports every activity log in the selected date range — not just the current page. The status, category, audit and tab filters applied above are also included."
+          exportButtonLabel="Export CSV"
+        />
       </CardContent>
     </Card>
   )
