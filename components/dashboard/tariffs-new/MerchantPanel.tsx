@@ -2,16 +2,28 @@
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Store } from 'lucide-react'
-import type { PartnerBucket } from '@/lib/tariffs-new/types'
-import { MERCHANT_TRANSACTION_TYPES } from '@/lib/tariffs-new/constants'
+import { Plus, Settings, Store } from 'lucide-react'
+import type { PartnerBucket, Tariff, TransactionTypeConfig } from '@/lib/tariffs-new/types'
+import {
+  MERCHANT_TRANSACTION_TYPES,
+  TRANSACTION_TYPE_LABELS,
+} from '@/lib/tariffs-new/constants'
 import {
   countTariffStatuses,
   groupTariffsByTransactionType,
 } from '@/lib/tariffs-new/utils'
 import { PendingApprovalBanner } from './PendingApprovalBanner'
 import { TransactionTypeScheduleCard } from './TransactionTypeScheduleCard'
-import type { Tariff } from '@/lib/tariffs-new/types'
+
+function fallbackMerchantTypeConfig(type: string): TransactionTypeConfig {
+  return {
+    name: TRANSACTION_TYPE_LABELS[type] || type.replace(/_/g, ' '),
+    description: 'Merchant custom tariff schedule',
+    icon: Settings,
+    color: 'bg-gray-600',
+    tabId: type.toLowerCase().replace(/_/g, '-'),
+  }
+}
 
 type MerchantPanelProps = {
   merchant: PartnerBucket
@@ -43,6 +55,10 @@ export function MerchantPanel({
   const typeKeys = Object.keys(MERCHANT_TRANSACTION_TYPES)
   const byType = groupTariffsByTransactionType(merchant.tariffs, typeKeys)
   const activeTypes = typeKeys.filter((k) => (byType[k]?.length ?? 0) > 0)
+  const orphanTypes = Object.keys(byType).filter(
+    (k) => (byType[k]?.length ?? 0) > 0 && !typeKeys.includes(k),
+  )
+  const visibleTypes = [...activeTypes, ...orphanTypes]
   const stats = countTariffStatuses(merchant.tariffs)
 
   const merchantId = merchant.key.startsWith('merchant:')
@@ -64,7 +80,7 @@ export function MerchantPanel({
             <p className="text-sm text-gray-500 mt-1 font-mono">{merchant.sublabel}</p>
           )}
           <p className="text-sm text-gray-600 mt-2">
-            {activeTypes.length} product{activeTypes.length === 1 ? '' : 's'} ·{' '}
+            {visibleTypes.length} product{visibleTypes.length === 1 ? '' : 's'} ·{' '}
             {merchant.tariffs.length} tier{merchant.tariffs.length === 1 ? '' : 's'}
             {stats.pending > 0 && (
               <span className="text-amber-800 font-medium">
@@ -93,13 +109,13 @@ export function MerchantPanel({
         onApprove={onApprove}
       />
 
-      {activeTypes.length === 0 ? (
+      {merchant.tariffs.length === 0 ? (
         <p className="text-gray-500 text-sm">No custom tariffs for this merchant yet.</p>
       ) : (
         <div className="space-y-4">
-          {activeTypes.map((type) => {
-            const config = MERCHANT_TRANSACTION_TYPES[type]
-            if (!config) return null
+          {visibleTypes.map((type) => {
+            const config =
+              MERCHANT_TRANSACTION_TYPES[type] ?? fallbackMerchantTypeConfig(type)
             const tiers = byType[type] || []
             return (
               <TransactionTypeScheduleCard
