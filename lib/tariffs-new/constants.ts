@@ -223,6 +223,27 @@ export const MERCHANT_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
     color: 'bg-orange-600',
     tabId: 'merchant-self-liquidation',
   },
+  BILL_PAYMENT: {
+    name: 'Bill Payment',
+    description: 'Bill payments for this merchant',
+    icon: Zap,
+    color: 'bg-purple-600',
+    tabId: 'bill-payment',
+  },
+  SCHOOL_FEES: {
+    name: 'School Fees',
+    description: 'School fees payments for this merchant',
+    icon: Zap,
+    color: 'bg-blue-600',
+    tabId: 'school-fees',
+  },
+  WALLET_TO_UTILITY: {
+    name: 'Wallet to Utility',
+    description: 'Utility bill payments for this merchant',
+    icon: Zap,
+    color: 'bg-yellow-600',
+    tabId: 'wallet-to-utility',
+  },
   CUSTOM: {
     name: 'Custom',
     description: 'Custom merchant transaction modes',
