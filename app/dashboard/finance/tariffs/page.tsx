@@ -258,6 +258,8 @@ const TariffsPage = () => {
       'CARD_TO_WALLET': 'Card to Wallet',
       'WALLET_TO_PARTNER_INSTITUTION': 'Wallet to Partner Institution',
       'PARTNER_INSTITUTION_TO_WALLET': 'Partner Institution to Wallet',
+      'LOAN_DISBURSEMENT': 'Loan Disbursement (RukaSente / API partner)',
+      'LOAN_REPAYMENT': 'Loan Collection (RukaSente / API partner)',
       'CUSTOM': 'Custom',
     }
     return typeLabels[type] || type
@@ -430,6 +432,20 @@ const TariffsPage = () => {
       color: 'bg-sky-700',
       tabId: 'partner-institution-to-wallet'
     },
+    'LOAN_DISBURSEMENT': {
+      name: 'Loan Disbursement (RukaSente / API partner)',
+      description: 'API-partner loan payout from escrow',
+      icon: DollarSign,
+      color: 'bg-emerald-700',
+      tabId: 'loan-disbursement'
+    },
+    'LOAN_REPAYMENT': {
+      name: 'Loan Collection (RukaSente / API partner)',
+      description: 'API-partner loan collection to escrow',
+      icon: ArrowDownLeft,
+      color: 'bg-lime-700',
+      tabId: 'loan-repayment'
+    },
     'CUSTOM': {
       name: 'Custom',
       description: 'Custom transaction types (e.g., School Fees)',
@@ -489,6 +505,12 @@ const TariffsPage = () => {
     ),
     'PARTNER_INSTITUTION_TO_WALLET': externalTariffs.filter(
       (t: Tariff) => t.transactionType === 'PARTNER_INSTITUTION_TO_WALLET',
+    ),
+    'LOAN_DISBURSEMENT': externalTariffs.filter(
+      (t: Tariff) => t.transactionType === 'LOAN_DISBURSEMENT',
+    ),
+    'LOAN_REPAYMENT': externalTariffs.filter(
+      (t: Tariff) => t.transactionType === 'LOAN_REPAYMENT',
     ),
     'CUSTOM': externalTariffs.filter((t: Tariff) => t.transactionType === 'CUSTOM'),
   }

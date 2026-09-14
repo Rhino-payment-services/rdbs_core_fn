@@ -36,6 +36,7 @@ export {
   useWallet,
   useWalletBalance,
   useCreateWallet,
+  useAllWalletsByUserId,
   useWalletTransactions,
   useAdminWallets,
   useUpdateWalletBalance,

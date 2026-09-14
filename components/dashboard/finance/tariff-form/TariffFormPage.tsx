@@ -499,12 +499,15 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
 
     // Validate transactionType is one of the allowed values
     const allowedTransactionTypes = [
-      'DEPOSIT', 'WITHDRAWAL', 'BILL_PAYMENT', 'WALLET_CREATION', 'WALLET_INIT',
+      'DEPOSIT', 'WITHDRAWAL', 'BILL_PAYMENT', 'SCHOOL_FEES', 'WALLET_CREATION', 'WALLET_INIT',
       'WALLET_TO_INTERNAL_MERCHANT', 'WALLET_TO_EXTERNAL_MERCHANT', 'MERCHANT_WITHDRAWAL',
       'MERCHANT_TO_WALLET', 'WALLET_TO_WALLET', 'WALLET_TO_MNO', 'WALLET_TO_UTILITY',
       'MNO_TO_WALLET', 'WALLET_TO_MERCHANT', 'WALLET_TO_BANK', 'BANK_TO_WALLET',
       'CARD_TO_WALLET', 'REVERSAL', 'FEE_CHARGE', 'CUSTOM',
       'WALLET_TO_PARTNER_INSTITUTION', 'PARTNER_INSTITUTION_TO_WALLET',
+      'MERCHANT_SELF_LIQUIDATION',
+      'LOAN_DISBURSEMENT', 'LOAN_REPAYMENT',
+
     ]
     
     // If transactionType is not in allowed list, default to CUSTOM
@@ -838,6 +841,8 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                                 'MERCHANT_TO_WALLET': 'MERCHANT_TO_WALLET',
                                 'WALLET_TO_PARTNER_INSTITUTION': 'WALLET_TO_PARTNER_INSTITUTION',
                                 'PARTNER_INSTITUTION_TO_WALLET': 'PARTNER_INSTITUTION_TO_WALLET',
+                                'LOAN_DISBURSEMENT': 'LOAN_DISBURSEMENT',
+                                'LOAN_REPAYMENT': 'LOAN_REPAYMENT',
                               }
                               const mappedType = codeToType[selectedMode.code] || form.transactionType
                               handleInputChange('transactionType', mappedType as any)
@@ -927,6 +932,9 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                               <SelectItem value="MERCHANT_SELF_LIQUIDATION">Merchant Self Liquidation</SelectItem>
                               <SelectItem value="WALLET_TO_BANK">Wallet to Bank (Payout)</SelectItem>
                               <SelectItem value="WALLET_TO_MNO">Wallet to MNO (Payout)</SelectItem>
+                              <SelectItem value="BILL_PAYMENT">Bill Payment</SelectItem>
+                              <SelectItem value="SCHOOL_FEES">School Fees</SelectItem>
+                              <SelectItem value="WALLET_TO_UTILITY">Wallet to Utility</SelectItem>
                               <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>
                           ) : (
@@ -949,6 +957,12 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                               </SelectItem>
                               <SelectItem value="PARTNER_INSTITUTION_TO_WALLET">
                                 Partner Institution to Wallet (SACCO settlement out)
+                              </SelectItem>
+                              <SelectItem value="LOAN_DISBURSEMENT">
+                                Loan Disbursement (RukaSente / API partner)
+                              </SelectItem>
+                              <SelectItem value="LOAN_REPAYMENT">
+                                Loan Collection (RukaSente / API partner)
                               </SelectItem>
                               <SelectItem value="CUSTOM">Custom</SelectItem>
                             </>

@@ -171,6 +171,20 @@ export const EXTERNAL_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
     color: 'bg-sky-700',
     tabId: 'partner-institution-to-wallet',
   },
+  LOAN_DISBURSEMENT: {
+    name: 'Loan Disbursement (RukaSente / API partner)',
+    description: 'API-partner loan payout from escrow to subscriber or merchant',
+    icon: DollarSign,
+    color: 'bg-emerald-700',
+    tabId: 'loan-disbursement',
+  },
+  LOAN_REPAYMENT: {
+    name: 'Loan Collection (RukaSente / API partner)',
+    description: 'API-partner loan collection from subscriber to escrow',
+    icon: ArrowDownLeft,
+    color: 'bg-lime-700',
+    tabId: 'loan-repayment',
+  },
   CUSTOM: {
     name: 'Custom',
     description: 'Custom partner modes',
@@ -223,6 +237,27 @@ export const MERCHANT_TRANSACTION_TYPES: Record<string, TransactionTypeConfig> =
     color: 'bg-orange-600',
     tabId: 'merchant-self-liquidation',
   },
+  BILL_PAYMENT: {
+    name: 'Bill Payment',
+    description: 'Bill payments for this merchant',
+    icon: Zap,
+    color: 'bg-purple-600',
+    tabId: 'bill-payment',
+  },
+  SCHOOL_FEES: {
+    name: 'School Fees',
+    description: 'School fees payments for this merchant',
+    icon: Zap,
+    color: 'bg-blue-600',
+    tabId: 'school-fees',
+  },
+  WALLET_TO_UTILITY: {
+    name: 'Wallet to Utility',
+    description: 'Utility bill payments for this merchant',
+    icon: Zap,
+    color: 'bg-yellow-600',
+    tabId: 'wallet-to-utility',
+  },
   CUSTOM: {
     name: 'Custom',
     description: 'Custom merchant transaction modes',
@@ -256,5 +291,7 @@ export const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   CARD_TO_WALLET: 'Card to Wallet',
   WALLET_TO_PARTNER_INSTITUTION: 'Wallet to Partner Institution',
   PARTNER_INSTITUTION_TO_WALLET: 'Partner Institution to Wallet',
+  LOAN_DISBURSEMENT: 'Loan Disbursement (RukaSente / API partner)',
+  LOAN_REPAYMENT: 'Loan Collection (RukaSente / API partner)',
   CUSTOM: 'Custom',
 }
