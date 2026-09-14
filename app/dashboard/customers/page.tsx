@@ -24,6 +24,11 @@ import type { User } from '@/lib/types/api'
 import type { ApiPartner } from '@/lib/hooks/usePartners'
 import toast from 'react-hot-toast'
 import api from '@/lib/axios'
+import {
+  getPromotableMerchants,
+  getSuperMerchantAccounts,
+  toMerchantOption,
+} from '@/lib/utils/superMerchant'
 import { Users, Building2, Handshake, Plus, Crown, Shield } from 'lucide-react'
 import { PermissionGuard } from '@/components/ui/PermissionGuard'
 import { PERMISSIONS, usePermissions } from '@/lib/hooks/usePermissions'
@@ -544,20 +549,10 @@ const CustomersPage = () => {
   // Get merchant options for the selected subscriber (from user.merchants or merchantsData)
   const subscriberMerchants = useMemo(() => {
     if (!selectedSubscriberForPromote) return []
-    const userId = selectedSubscriberForPromote.id
-    // Use subscriber.merchants if available
-    const fromUser = (selectedSubscriberForPromote as any).merchants || []
-    // Fallback: filter merchantsData by userId
-    const fromMerchantsData = (merchantsData?.merchants || []).filter(
-      (m: any) => m.userId === userId
-    )
-    const merged = fromUser.length > 0 ? fromUser : fromMerchantsData
-    return merged.map((m: any) => ({
-      id: m.id,
-      merchantCode: m.merchantCode || m.code,
-      businessTradeName: m.businessTradeName || m.name || 'Unknown',
-      isSuperMerchant: m.isSuperMerchant,
-    }))
+    return getPromotableMerchants(
+      selectedSubscriberForPromote,
+      merchantsData?.merchants || [],
+    ).map(toMerchantOption)
   }, [selectedSubscriberForPromote, merchantsData?.merchants])
 
   const handleConfirmPromote = async (merchantId: string) => {
@@ -584,20 +579,10 @@ const CustomersPage = () => {
   // Get super merchant accounts for the selected subscriber
   const superMerchantAccountsForRevoke = useMemo(() => {
     if (!selectedSubscriberForRevoke) return []
-    const userId = selectedSubscriberForRevoke.id
-    const fromUser = ((selectedSubscriberForRevoke as any).merchants || []).filter(
-      (m: any) => m.isSuperMerchant === true
-    )
-    const fromMerchantsData = (merchantsData?.merchants || []).filter(
-      (m: any) => m.userId === userId && m.isSuperMerchant === true
-    )
-    const merged = fromUser.length > 0 ? fromUser : fromMerchantsData
-    return merged.map((m: any) => ({
-      id: m.id,
-      merchantCode: m.merchantCode || m.code,
-      businessTradeName: m.businessTradeName || m.name || 'Unknown',
-      isSuperMerchant: true,
-    }))
+    return getSuperMerchantAccounts(
+      selectedSubscriberForRevoke,
+      merchantsData?.merchants || [],
+    ).map((m) => ({ ...toMerchantOption(m), isSuperMerchant: true as const }))
   }, [selectedSubscriberForRevoke, merchantsData?.merchants])
 
   const handleConfirmRevoke = async (merchantId: string) => {
@@ -1285,6 +1270,7 @@ const CustomersPage = () => {
               isSubscribersTab={true}
               onPromoteToSuperMerchant={handlePromoteToSuperMerchant}
               onRevokeSuperMerchant={handleRevokeSuperMerchant}
+              allMerchants={merchantsData?.merchants || []}
             />
           </TabsContent>
 

@@ -86,7 +86,28 @@ interface SuperMerchantDashboard {
   totalWalletBalance: number;
   totalTransactionsCount: number;
   totalTransactionVolume: number;
-  childMerchants: any[];
+  childMerchants: Array<{
+    id: string;
+    merchantCode: string;
+    businessTradeName: string;
+    businessCity?: string;
+    isActive?: boolean;
+    userId?: string;
+    ownerFirstName?: string;
+    ownerLastName?: string;
+    parentMerchantId?: string | null;
+  }>;
+}
+
+function formatMerchantOwner(m: {
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  userId?: string;
+}): string {
+  const name = [m.ownerFirstName, m.ownerLastName].filter(Boolean).join(' ').trim();
+  if (name) return name;
+  if (m.userId) return `User ${m.userId.slice(0, 8)}…`;
+  return '—';
 }
 
 const AccessDeniedFallback = () => {
@@ -442,6 +463,7 @@ export default function SuperMerchantsPage() {
                     <DialogTitle>Assign Merchant to Super Merchant</DialogTitle>
                     <DialogDescription>
                       Select a super merchant and a merchant to assign under them.
+                      Assigned merchants keep their own owner account and login; the super merchant can monitor them only.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -569,7 +591,7 @@ export default function SuperMerchantsPage() {
               Child Merchants of {viewingSuperMerchant?.businessTradeName}
             </DialogTitle>
             <DialogDescription>
-              Merchants assigned under this super merchant, plus aggregate performance
+              Merchants assigned under this super merchant (each keeps its own owner). Aggregate performance below.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4 max-h-[64vh] overflow-y-auto">
@@ -630,6 +652,7 @@ export default function SuperMerchantsPage() {
                     <TableRow>
                       <TableHead>Business Name</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Owner</TableHead>
                       <TableHead>City</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -640,6 +663,9 @@ export default function SuperMerchantsPage() {
                       <TableRow key={m.id}>
                         <TableCell className="font-medium">{m.businessTradeName}</TableCell>
                         <TableCell>{m.merchantCode}</TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {formatMerchantOwner(m)}
+                        </TableCell>
                         <TableCell>{m.businessCity}</TableCell>
                         <TableCell>
                           <Badge variant={m.isActive ? 'default' : 'secondary'}>
@@ -724,6 +750,11 @@ export default function SuperMerchantsPage() {
                 {viewingSuperMerchant?.businessTradeName}
               </span>
               . The merchant will no longer appear under this super merchant.
+              {childToUnassign && (
+                <span className="block mt-1 text-gray-500">
+                  Owner: {formatMerchantOwner(childToUnassign)} — merchant remains standalone after unassign.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 text-sm text-gray-600">

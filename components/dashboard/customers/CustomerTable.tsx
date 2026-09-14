@@ -43,6 +43,11 @@ import {
 import type { User } from '@/lib/types/api'
 import { MerchantQRCodeDialog } from './MerchantQRCodeDialog'
 import { useBlockUser, useUnblockUser } from '@/lib/hooks/useUserBlocking'
+import {
+  getSuperMerchantAccounts,
+  hasSuperMerchantAccount,
+  hasPromotableMerchant,
+} from '@/lib/utils/superMerchant'
 
 interface CustomerTableProps {
   customers: User[] | any[]  // Can be User[] or Merchant[]
@@ -65,6 +70,8 @@ interface CustomerTableProps {
   onPromoteToSuperMerchant?: (subscriber: any) => void  // For Subscribers tab
   onRevokeSuperMerchant?: (subscriber: any) => void  // For Subscribers tab - when user is already super merchant
   isSubscribersTab?: boolean  // Show Promote button on Subscribers tab
+  /** All merchants for resolving per-account super status on subscribers tab */
+  allMerchants?: any[]
 }
 
 export const CustomerTable: React.FC<CustomerTableProps> = ({
@@ -88,6 +95,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   onPromoteToSuperMerchant,
   onRevokeSuperMerchant,
   isSubscribersTab = false,
+  allMerchants = [],
 }) => {
   const blockUserMutation = useBlockUser()
   const unblockUserMutation = useUnblockUser()
@@ -173,11 +181,23 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
   const getSubscriberTypeBadge = (customer: User | any) => {
     // Use subscriberTypes array if available, otherwise fallback to subscriberType
-    const types = customer.subscriberTypes && customer.subscriberTypes.length > 0
-      ? customer.subscriberTypes
-      : customer.subscriberType ? [customer.subscriberType] : []
-    
-    if (types.length === 0) return <Badge variant="outline">Unknown</Badge>
+    const rawTypes =
+      customer.subscriberTypes && customer.subscriberTypes.length > 0
+        ? [...customer.subscriberTypes]
+        : customer.subscriberType
+          ? [customer.subscriberType]
+          : []
+
+    const superAccounts = getSuperMerchantAccounts(customer, allMerchants)
+    // Prefer merchant-level super status over user-level SUPER_MERCHANT label
+    const types =
+      superAccounts.length > 0
+        ? rawTypes.filter((t: string) => t !== 'SUPER_MERCHANT')
+        : rawTypes
+
+    if (types.length === 0 && superAccounts.length === 0) {
+      return <Badge variant="outline">Unknown</Badge>
+    }
     
     const typeConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
       'INDIVIDUAL': { 
@@ -215,10 +235,10 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
     return (
       <div className="flex flex-col gap-1">
         {types.map((t: string) => {
-          const config = typeConfig[t] || { 
-            color: 'bg-gray-100 text-gray-800', 
-            icon: null, 
-            label: t.replace('_', ' ') 
+          const config = typeConfig[t] || {
+            color: 'bg-gray-100 text-gray-800',
+            icon: null,
+            label: t.replace('_', ' '),
           }
           return (
             <Badge key={t} className={`${config.color} flex items-center`}>
@@ -227,6 +247,14 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
             </Badge>
           )
         })}
+        {superAccounts.length > 0 && (
+          <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-300 flex items-center">
+            <Crown className="h-3 w-3 mr-1" />
+            {superAccounts.length === 1
+              ? '1 Super Merchant account'
+              : `${superAccounts.length} Super Merchant accounts`}
+          </Badge>
+        )}
       </div>
     )
   }
@@ -556,36 +584,34 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                       )}
                       {/* Promote/Revoke Super Merchant - Subscribers tab, SUPER_ADMIN only */}
                       {isSubscribersTab && isSuperAdmin && (() => {
-                        const isSuperMerchantUser =
-                          (customer as any).subscriberType === 'SUPER_MERCHANT' ||
-                          ((customer as any).subscriberTypes || []).includes('SUPER_MERCHANT')
-                        if (isSuperMerchantUser && onRevokeSuperMerchant) {
-                          return (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onRevokeSuperMerchant(customer)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                              title="Revoke Super Merchant"
-                            >
-                              <Crown className="h-4 w-4" />
-                            </Button>
-                          )
-                        }
-                        if (!isSuperMerchantUser && onPromoteToSuperMerchant) {
-                          return (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onPromoteToSuperMerchant(customer)}
-                              className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700"
-                              title="Promote to Super Merchant"
-                            >
-                              <Crown className="h-4 w-4" />
-                            </Button>
-                          )
-                        }
-                        return null
+                        const canRevoke = hasSuperMerchantAccount(customer, allMerchants)
+                        const canPromote = hasPromotableMerchant(customer, allMerchants)
+                        return (
+                          <>
+                            {canRevoke && onRevokeSuperMerchant && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onRevokeSuperMerchant(customer)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                title="Revoke Super Merchant (select account)"
+                              >
+                                <Crown className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canPromote && onPromoteToSuperMerchant && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onPromoteToSuperMerchant(customer)}
+                                className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700"
+                                title="Promote to Super Merchant (select account)"
+                              >
+                                <Crown className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
+                        )
                       })()}
                       {/* Block/Unblock buttons - only show for non-merchant tabs or if user has userId */}
                       {(!isMerchantTab || customer.userId) && (

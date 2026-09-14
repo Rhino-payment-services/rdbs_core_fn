@@ -187,6 +187,12 @@ const PartnersPage = () => {
               >
                 Bank routing
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push('/dashboard/finance/partners/equity-test')}
+              >
+                Equity test
+              </Button>
               {canManagePartners && (
                 <Button onClick={() => router.push('/dashboard/finance/partners/create')}>
                   <Plus className="w-4 h-4 mr-2" />

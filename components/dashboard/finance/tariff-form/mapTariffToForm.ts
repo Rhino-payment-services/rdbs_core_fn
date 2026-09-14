@@ -149,6 +149,8 @@ const VALID_TRANSACTION_TYPES = new Set<CreateTariffForm['transactionType']>([
   'CUSTOM',
   'WALLET_TO_PARTNER_INSTITUTION',
   'PARTNER_INSTITUTION_TO_WALLET',
+  'LOAN_DISBURSEMENT',
+  'LOAN_REPAYMENT',
 ])
 
 function normalizeTariffType(
