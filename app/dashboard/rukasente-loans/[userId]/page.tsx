@@ -89,13 +89,14 @@ export default function RukaSenteBorrowerLoanPage({
 
   const user = detailQ.data?.data?.user
   const loans = detailQ.data?.data?.loans ?? []
+  const linked = detailQ.data?.data?.linked
+  const rukaSenteError = detailQ.data?.data?.rukaSenteError
+  const wallets = user?.wallets || []
   const personalWallets = useMemo(
-    () =>
-      (user?.wallets || []).filter(
-        (w) => String(w.walletType).toUpperCase() === 'PERSONAL',
-      ),
-    [user],
+    () => wallets.filter((w) => String(w.walletType).toUpperCase() === 'PERSONAL'),
+    [wallets],
   )
+  const collectWallets = personalWallets.length > 0 ? personalWallets : wallets
 
   const totalOutstanding = useMemo(
     () =>
@@ -116,8 +117,8 @@ export default function RukaSenteBorrowerLoanPage({
     setAmount(outstanding > 0 ? String(outstanding) : '')
     const preferred =
       loan.disbursement_wallet_id ||
-      personalWallets.find((w) => w.isDefault)?.id ||
-      personalWallets[0]?.id ||
+      collectWallets.find((w) => w.isDefault)?.id ||
+      collectWallets[0]?.id ||
       ''
     setWalletId(preferred)
   }
@@ -219,8 +220,8 @@ export default function RukaSenteBorrowerLoanPage({
         <MiniStat
           label="Wallet cash"
           value={money(
-            personalWallets.reduce((s, w) => s + Number(w.balance || 0), 0),
-            personalWallets[0]?.currency || 'UGX',
+            collectWallets.reduce((s, w) => s + Number(w.balance || 0), 0),
+            collectWallets[0]?.currency || 'UGX',
           )}
         />
       </div>
@@ -244,11 +245,11 @@ export default function RukaSenteBorrowerLoanPage({
 
         <Card className="border-slate-200/80 shadow-sm lg:col-span-2">
           <CardHeader className="px-4 py-3">
-            <CardTitle className="text-sm font-semibold">Personal wallets</CardTitle>
+            <CardTitle className="text-sm font-semibold">Wallets</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 pt-0">
-            {personalWallets.length === 0 ? (
-              <p className="text-xs text-slate-500">No active personal wallets.</p>
+            {wallets.length === 0 ? (
+              <p className="text-xs text-slate-500">No active wallets.</p>
             ) : (
               <div className="overflow-x-auto rounded-md border border-slate-100">
                 <table className="min-w-full text-left text-xs">
@@ -261,7 +262,7 @@ export default function RukaSenteBorrowerLoanPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {personalWallets.map((w) => (
+                    {wallets.map((w) => (
                       <tr key={w.id} className="border-t border-slate-100">
                         <td className="px-2.5 py-2 font-mono text-[11px] text-slate-600">
                           {w.id.slice(0, 8)}…
@@ -300,8 +301,13 @@ export default function RukaSenteBorrowerLoanPage({
             </p>
           ) : loans.length === 0 ? (
             <div className="rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2.5 text-xs text-amber-900">
-              No loan accounts returned from RukaSente. The RukaPay active-loan flag can still be set
-              if partner ownership or sync is incomplete — refresh after restarting RukaSente.
+              {rukaSenteError
+                ? `RukaSente did not return loan accounts: ${rukaSenteError}`
+                : linked === false
+                  ? 'This borrower is not linked to the configured RukaSente partner. The RukaPay active-loan flag can still be set from an older disbursement or a different partner.'
+                  : user?.hasActiveRukaSenteLoan
+                    ? 'RukaSente has no collectible loan for this borrower. The RukaPay active-loan flag can stay on after a full repayment or incomplete sync — refresh after checking RukaSente.'
+                    : 'No loan accounts returned from RukaSente for this borrower.'}
             </div>
           ) : (
             <div className="space-y-3">
@@ -483,7 +489,7 @@ export default function RukaSenteBorrowerLoanPage({
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
                 <SelectContent>
-                  {personalWallets.map((w) => (
+                  {collectWallets.map((w) => (
                     <SelectItem key={w.id} value={w.id} className="text-sm">
                       {w.walletType} · {money(w.balance, w.currency)}
                       {w.isDefault ? ' (default)' : ''}
