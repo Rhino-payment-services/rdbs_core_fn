@@ -20,7 +20,7 @@ import {
 } from '@/lib/utils/feeBreakdown'
 import { getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from '@/components/dashboard/transactions/partyResolver'
 import { getKampalaCalendarDate } from '@/lib/utils/kampalaDate'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx' // TODO: replace with exceljs (xlsx has no patched npm release)
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
 
 // Import extracted components

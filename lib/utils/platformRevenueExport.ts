@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx' // TODO: replace with exceljs (xlsx has no patched npm release)
 import type {
   PlatformRevenueEntry,
   PlatformRevenuePartnerSummaryRow,
