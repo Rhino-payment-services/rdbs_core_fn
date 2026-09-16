@@ -186,6 +186,11 @@ export function TariffViewDialog({ tariff, open, onOpenChange }: TariffViewDialo
 
           <section className="flex flex-wrap gap-2 text-xs text-gray-500">
             <Badge variant="outline">{tariff.feeType}</Badge>
+            <Badge variant="outline">
+              {tariff.feeApplicationMode === 'INCLUSIVE'
+                ? 'Inclusive fee'
+                : 'Exclusive fee'}
+            </Badge>
             <Badge variant="outline">{tariff.userType}</Badge>
             {tariff.subscriberType && (
               <Badge variant="outline">{tariff.subscriberType}</Badge>
