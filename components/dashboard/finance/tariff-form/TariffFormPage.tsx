@@ -1183,11 +1183,11 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                     <div>
                       <Label htmlFor="feeApplicationMode">Fee application *</Label>
                       <Select
-                        value={form.feeApplicationMode}
+                        value={form.feeApplicationMode || 'EXCLUSIVE'}
                         onValueChange={(value) =>
                           handleInputChange(
                             'feeApplicationMode',
-                            value as CreateTariffForm['feeApplicationMode'],
+                            value === 'INCLUSIVE' ? 'INCLUSIVE' : 'EXCLUSIVE',
                           )
                         }
                       >
