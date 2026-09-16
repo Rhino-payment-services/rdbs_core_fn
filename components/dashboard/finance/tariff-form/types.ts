@@ -32,6 +32,8 @@ export interface CreateTariffForm {
   transactionModeId?: string
   currency: string
   feeType: 'FIXED' | 'PERCENTAGE' | 'TIERED' | 'HYBRID'
+  /** EXCLUSIVE (default): fee on top. INCLUSIVE: fee taken from amount. */
+  feeApplicationMode: 'EXCLUSIVE' | 'INCLUSIVE'
   feeAmount: number
   feePercentage?: number
   minAmount?: number

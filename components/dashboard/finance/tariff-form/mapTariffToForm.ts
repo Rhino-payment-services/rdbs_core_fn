@@ -11,6 +11,7 @@ export type ApiTariffRecord = {
   network?: 'MTN' | 'AIRTEL' | null
   currency?: string
   feeType: CreateTariffForm['feeType']
+  feeApplicationMode?: 'EXCLUSIVE' | 'INCLUSIVE' | null
   feeAmount?: number | string | null
   feePercentage?: number | string | null
   minAmount?: number | string | null
@@ -219,6 +220,8 @@ export function mapTariffToForm(
     transactionModeId: resolveTransactionModeId(tariff, transactionModes),
     currency: tariff.currency || 'UGX',
     feeType: tariff.feeType,
+    feeApplicationMode:
+      tariff.feeApplicationMode === 'INCLUSIVE' ? 'INCLUSIVE' : 'EXCLUSIVE',
     feeAmount: num(tariff.feeAmount),
     feePercentage,
     minAmount: num(tariff.minAmount),

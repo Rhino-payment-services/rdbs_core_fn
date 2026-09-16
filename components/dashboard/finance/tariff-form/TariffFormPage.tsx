@@ -106,6 +106,7 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
     transactionModeId: undefined,
     currency: 'UGX',
     feeType: apiPartnerIdFromQuery ? 'PERCENTAGE' : 'FIXED',
+    feeApplicationMode: 'EXCLUSIVE',
     feeAmount: 0,
     feePercentage: 0,
     maxAmount: 0,
@@ -1177,6 +1178,36 @@ export function TariffFormPage({ mode, tariffId }: TariffFormPageProps) {
                           EXTERNAL MNO_TO_WALLET tariffs use percentage fees.
                         </p>
                       )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="feeApplicationMode">Fee application *</Label>
+                      <Select
+                        value={form.feeApplicationMode}
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            'feeApplicationMode',
+                            value as CreateTariffForm['feeApplicationMode'],
+                          )
+                        }
+                      >
+                        <SelectTrigger id="feeApplicationMode">
+                          <SelectValue placeholder="Select fee application" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EXCLUSIVE">
+                            Exclusive — fee added on top
+                          </SelectItem>
+                          <SelectItem value="INCLUSIVE">
+                            Inclusive — fee taken from amount
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {form.feeApplicationMode === 'INCLUSIVE'
+                          ? 'Customer pays the entered amount; recipient gets amount minus fee.'
+                          : 'Customer pays amount plus fee; recipient gets the entered amount.'}
+                      </p>
                     </div>
 
                     {form.feeType === 'FIXED' && form.tariffType === 'INTERNAL' && (

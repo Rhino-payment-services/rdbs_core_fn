@@ -1200,7 +1200,7 @@ const CustomerSettings = ({
               Payment SMS Recipients
             </CardTitle>
             <CardDescription>
-              Control who receives SMS after successful MNO-to-wallet payments to this merchant. Customer SMS is off by default.
+              Control who receives SMS after successful MNO collections and RukaPay wallet-to-merchant payments. Customer SMS is off by default and applies to MNO collections only.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1235,7 +1235,7 @@ const CustomerSettings = ({
                     {paymentSmsRecipients?.owner?.email ? ` • ${paymentSmsRecipients.owner.email}` : ''}
                   </div>
                   <p className="text-xs text-green-700 mt-1">
-                    Receives successful merchant payment SMS when enabled.
+                    Owner SMS only. Team members below can stay enabled if the owner does not want payment messages.
                   </p>
                 </div>
                 <Switch
@@ -1261,11 +1261,9 @@ const CustomerSettings = ({
                   )}
                 </div>
 
-                {paymentSmsRecipients?.merchantPaymentSmsEnabled === false && (
-                  <p className="text-xs text-gray-500">
-                    Enable merchant owner SMS above to allow team member payment notifications.
-                  </p>
-                )}
+                <p className="text-xs text-gray-500">
+                  Team member SMS is independent of the owner toggle. Enable only the people who should be notified.
+                </p>
 
                 {!paymentSmsRecipientsLoading && (paymentSmsRecipients?.teamMembers?.length || 0) === 0 ? (
                   <div className="text-sm text-gray-500 border rounded-lg p-4">
@@ -1281,8 +1279,7 @@ const CustomerSettings = ({
                         'Team member'
                       const disabled =
                         savingPaymentSmsMember === member.id ||
-                        !member.phone ||
-                        paymentSmsRecipients?.merchantPaymentSmsEnabled === false
+                        !member.phone
 
                       return (
                         <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">

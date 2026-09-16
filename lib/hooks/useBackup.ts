@@ -65,7 +65,7 @@ const apiFetch = async (endpoint: string, options: any = {}) => {
 /** Prefer a readable message when axios rejects a blob response as JSON. */
 const rethrowBackupDownloadError = async (error: any): Promise<never> => {
   const blobError = error?.response?.data
-  const errorContentType = error?.response?.headers?.['content-type'] || ''
+  const errorContentType = String(error?.response?.headers?.['content-type'] || '')
   if (blobError instanceof Blob && errorContentType.includes('application/json')) {
     const text = await blobError.text()
     try {
@@ -215,12 +215,14 @@ export const downloadJobFile = async (job: BackupJob): Promise<void> => {
     throw new Error('Backup download failed')
   }
 
-  const contentType = downloadResponse.headers?.['content-type'] || 'application/octet-stream'
+  const contentType = String(
+    downloadResponse.headers?.['content-type'] || 'application/octet-stream',
+  )
   if (contentType.includes('application/json')) {
     throw new Error(await parseJsonBlobMessage(downloadResponse.data as Blob))
   }
 
-  const disposition: string = downloadResponse.headers?.['content-disposition'] || ''
+  const disposition = String(downloadResponse.headers?.['content-disposition'] || '')
   const filenameMatch = disposition.match(/filename="?([^"]+)"?/i)
   const filename =
     filenameMatch?.[1] ||
