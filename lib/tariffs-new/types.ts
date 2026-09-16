@@ -11,6 +11,7 @@ export interface Tariff {
   feeType: 'FIXED' | 'PERCENTAGE' | 'HYBRID'
   feeAmount: number
   feePercentage: number
+  feeApplicationMode?: 'EXCLUSIVE' | 'INCLUSIVE'
   minFee: number
   maxFee: number
   minAmount: number

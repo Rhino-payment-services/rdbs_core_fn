@@ -12,6 +12,7 @@ export interface Tariff {
   feeType: 'FIXED' | 'PERCENTAGE' | 'HYBRID' | 'TIERED';
   feeAmount: number;
   feePercentage?: number;
+  feeApplicationMode?: 'EXCLUSIVE' | 'INCLUSIVE';
   minFee?: number;
   maxFee?: number;
   minAmount?: number;
@@ -47,6 +48,7 @@ export interface CreateTariffRequest {
   feeType: 'FIXED' | 'PERCENTAGE' | 'HYBRID' | 'TIERED';
   feeAmount: number;
   feePercentage?: number;
+  feeApplicationMode?: 'EXCLUSIVE' | 'INCLUSIVE';
   minAmount?: number;
   maxAmount?: number;
   userType?: string;

@@ -367,22 +367,8 @@ const TransactionsPage = () => {
       // Compute once here — used both in the fetch params and in per-row column logic below.
       const isDatedLedgerExport = !!(exportStart || exportEnd)
 
-      // Only statuses that can have platform_revenue_entries should use the revenue-aligned path.
-      // FAILED / PENDING transactions never have revenue entries — sending them to the
-      // revenue-aligned endpoint would return 0 rows.
-      const NON_REVENUE_STATUSES = ['FAILED', 'PENDING', 'CANCELLED']
-      const isNonRevenueStatusFilter = NON_REVENUE_STATUSES.includes(statusFilter)
-      // Revenue-aligned path: use when we have a date range AND the status filter isn't
-      // explicitly a non-revenue status (e.g. SUCCESS, or no filter = "all").
-      const useRevenueAligned = isDatedLedgerExport && !isNonRevenueStatusFilter
-      // After the revenue-aligned primary fetch, also fetch ALL transactions by createdAt for
-      // the same period and append any that weren't in the primary set. This catches:
-      //   • Zero-fee transactions (bill payments, wallet topups with rukapayFee = 0) — these
-      //     never get a platform_revenue_entry so are invisible to the revenue-aligned path.
-      //   • Failed transactions — also have no revenue entries.
-      //   • Any transaction created in the period whose revenue was credited in the next period.
-      // All of these contribute 0 to column L, so the column sum still equals the dashboard card.
-      const shouldSupplementFromCreatedAt = useRevenueAligned
+      // Daily ledger exports assign each transaction to exactly one day by createdAt
+      // (Africa/Kampala). Revenue totals come from the stats API, not the row roster.
 
       let bookedRevenueTotalFromApi: number | null = null
       let revenueEntryCountFromApi: number | null = null
@@ -405,9 +391,8 @@ const TransactionsPage = () => {
               // Revenue-aligned: paginates platform_revenue_entries by creditedAt so that
               // column L sums exactly to bookedRevenueTotal (= the dashboard card).
               // Non-revenue status filters (FAILED, PENDING) use startDate/endDate instead.
-              ...(useRevenueAligned
-                ? { revenueStartDate: exportStart || undefined, revenueEndDate: exportEnd || undefined }
-                : { startDate: exportStart || undefined, endDate: exportEnd || undefined }),
+              startDate: exportStart || undefined,
+              endDate: exportEnd || undefined,
             },
           })
 
@@ -431,51 +416,7 @@ const TransactionsPage = () => {
 
         transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
 
-        // --- Supplementary fetch: all transactions by createdAt in the same period ---
-        // The revenue-aligned primary fetch only returns transactions with a booked
-        // platform_revenue_entry. Any transaction where rukapayFee = 0 (common for bill
-        // payments and wallet topups where the entire fee goes to the utility/telecom) never
-        // gets a revenue entry and is completely absent from the primary set. Failed
-        // transactions are also invisible. This second pass fetches everything by createdAt
-        // and appends only the IDs that weren't already returned by the primary fetch.
-        // Because these supplementary rows often have no in-range accrual, the per-row
-        // RukaPay Fee falls back to the transaction fee via resolveRukapayFeeForLedgerExport.
-        // The Revenue Summary sheet still uses the API booked-revenue total.
-        if (shouldSupplementFromCreatedAt) {
-          const revenueIds = new Set(transactionsToExport.map((tx: any) => tx.id))
-          const supplementRows: any[] = []
-          let suppPage = 1
-          let suppTotal = Number.POSITIVE_INFINITY
-          const remainingCap = EXPORT_ALL_TRANSACTIONS_LIMIT - transactionsToExport.length
-
-          while (supplementRows.length < remainingCap && supplementRows.length < suppTotal) {
-            const suppRes = await api({
-              url: '/transactions/all',
-              method: 'GET',
-              params: {
-                page: suppPage,
-                limit: EXPORT_PAGE_SIZE,
-                // Respect any active type filter so the ledger stays coherent.
-                // No status filter — we want everything: zero-fee SUCCESS, FAILED, PENDING, etc.
-                type: typeFilter || undefined,
-                startDate: exportStart || undefined,
-                endDate: exportEnd || undefined,
-              },
-            })
-            const sp = suppRes.data?.data ?? suppRes.data
-            const sb = sp?.transactions ?? []
-            suppTotal = typeof sp?.total === 'number' ? sp.total : sb.length
-            if (!sb.length) break
-            // Only add IDs not already in the revenue-aligned primary set.
-            supplementRows.push(...sb.filter((tx: any) => !revenueIds.has(tx.id)))
-            if (sb.length < EXPORT_PAGE_SIZE) break
-            suppPage += 1
-          }
-
-          transactionsToExport = [...transactionsToExport, ...supplementRows]
-        }
-
-        // Revenue-aligned export: WALLET_INIT has no platform_revenue_entries so they never
+        // WALLET_INIT is excluded server-side unless the type filter is set to it.
         // appear in the results. Non-dated exports filter them client-side.
         if (!isDatedLedgerExport) {
           transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
@@ -766,11 +707,7 @@ const TransactionsPage = () => {
           Metric: 'Transactions in export',
           Value: transactionsToExport.length,
           Note: isDatedLedgerExport
-            ? shouldSupplementFromCreatedAt
-              ? 'Revenue transactions (by creditedAt) + all transactions by created date (zero-fee, failed, etc.)'
-              : isNonRevenueStatusFilter
-                ? 'Transactions by created date — no revenue alignment'
-                : 'Transactions with booked revenue in period'
+            ? 'Transactions by created date (Africa/Kampala) — each row appears on exactly one day'
             : 'Rows in file',
         },
       ]
