@@ -86,6 +86,8 @@ export function buildTariffSubmitPayload(
       form.tariffType === 'EXTERNAL' && validTransactionType === 'MNO_TO_WALLET'
         ? 'PERCENTAGE'
         : form.feeType,
+    feeApplicationMode:
+      form.feeApplicationMode === 'INCLUSIVE' ? 'INCLUSIVE' : 'EXCLUSIVE',
     feeAmount: isFeeSplitTariffType(form.tariffType) ? totalFeeAmount : form.feeAmount,
     feePercentage:
       form.feePercentage !== undefined && form.feePercentage !== null
