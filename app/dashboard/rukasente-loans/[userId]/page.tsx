@@ -304,7 +304,7 @@ export default function RukaSenteBorrowerLoanPage({
               {rukaSenteError
                 ? `RukaSente did not return loan accounts: ${rukaSenteError}`
                 : linked === false
-                  ? 'This borrower is not linked to the configured RukaSente partner. The RukaPay active-loan flag can still be set from an older disbursement or a different partner.'
+                  ? 'This borrower is not linked in RukaSente. The RukaPay active-loan flag can still be set from an older disbursement or a different partner.'
                   : user?.hasActiveRukaSenteLoan
                     ? 'RukaSente has no collectible loan for this borrower. The RukaPay active-loan flag can stay on after a full repayment or incomplete sync — refresh after checking RukaSente.'
                     : 'No loan accounts returned from RukaSente for this borrower.'}

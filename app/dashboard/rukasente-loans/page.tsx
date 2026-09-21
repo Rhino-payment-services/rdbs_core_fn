@@ -305,7 +305,7 @@ export default function RukaSenteLoansPage() {
             <p className="text-[11px] text-amber-800">
               RukaPay still flags {flaggedActiveCount} subscriber
               {flaggedActiveCount === 1 ? '' : 's'} with an active loan. This table shows live
-              RukaSente accounts for the configured partner.
+              RukaSente loan accounts.
             </p>
           ) : null}
 
