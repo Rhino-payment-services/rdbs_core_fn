@@ -18,7 +18,7 @@ export function cn(...inputs: ClassValue[]) {
  * - Standard Error objects
  * - Axios error responses
  */
-export function extractErrorMessage(error: unknown): string {
+export function extractErrorMessage(error: unknown, fallback = 'An unexpected error occurred'): string {
   // If it's already a string, return it
   if (typeof error === 'string') {
     return error
@@ -69,8 +69,7 @@ export function extractErrorMessage(error: unknown): string {
     }
   }
 
-  // Default fallback
-  return 'An unexpected error occurred'
+  return fallback
 }
 
 /**
