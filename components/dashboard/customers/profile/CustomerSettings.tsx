@@ -40,6 +40,7 @@ import { WalletFreezeDialog } from '@/components/dashboard/wallets/WalletFreezeD
 import { WalletUnfreezeDialog } from '@/components/dashboard/wallets/WalletUnfreezeDialog'
 import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeSelect'
 import { useUgandaBanks } from '@/lib/hooks/useUgandaBanks'
+import { MerchantTeamCard } from './MerchantTeamCard'
 
 interface WalletItem {
   id: string
@@ -1189,6 +1190,10 @@ const CustomerSettings = ({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {type === 'merchant' && merchantId && (
+        <MerchantTeamCard merchantId={merchantId} />
       )}
 
       {/* Merchant payment SMS recipients (for merchant profiles only) */}
