@@ -47,6 +47,8 @@ const emptyDraft = {
   maxAmount: '',
   minOutstanding: '',
   maxOutstanding: '',
+  minWalletBalance: '',
+  maxWalletBalance: '',
 }
 
 function formatMoney(amount?: number | null, currency = 'UGX') {
@@ -102,6 +104,8 @@ export default function RukaSenteLoansPage() {
     maxAmount: filters.maxAmount,
     minOutstanding: filters.minOutstanding,
     maxOutstanding: filters.maxOutstanding,
+    minWalletBalance: filters.minWalletBalance,
+    maxWalletBalance: filters.maxWalletBalance,
   }
 
   const listQ = useActiveRukaSenteLoans(applied)
@@ -140,6 +144,8 @@ export default function RukaSenteLoansPage() {
         maxAmount: filters.maxAmount,
         minOutstanding: filters.minOutstanding,
         maxOutstanding: filters.maxOutstanding,
+        minWalletBalance: filters.minWalletBalance,
+        maxWalletBalance: filters.maxWalletBalance,
       })
       if (!rows.length) {
         toast.error('No loans to export for the current filters')
@@ -178,8 +184,8 @@ export default function RukaSenteLoansPage() {
         title={<span className="text-xl md:text-2xl">RukaSente loans</span>}
         description={
           <span className="text-xs md:text-sm">
-            Active loans from RukaSente. Filter by date, amount, or remaining balance, then open a
-            borrower to collect repayment from their wallet.
+            Active loans from RukaSente. Filter by date, amount, remaining, or RukaPay wallet
+            balance, then open a borrower to collect repayment from their wallet.
           </span>
         }
         actions={
@@ -290,6 +296,26 @@ export default function RukaSenteLoansPage() {
             onChange={(e) => setDraft((d) => ({ ...d, maxOutstanding: e.target.value }))}
           />
         </FilterField>
+        <FilterField label="Min wallet">
+          <Input
+            type="number"
+            min={0}
+            className="h-8 text-xs"
+            placeholder="0"
+            value={draft.minWalletBalance}
+            onChange={(e) => setDraft((d) => ({ ...d, minWalletBalance: e.target.value }))}
+          />
+        </FilterField>
+        <FilterField label="Max wallet">
+          <Input
+            type="number"
+            min={0}
+            className="h-8 text-xs"
+            placeholder="Any"
+            value={draft.maxWalletBalance}
+            onChange={(e) => setDraft((d) => ({ ...d, maxWalletBalance: e.target.value }))}
+          />
+        </FilterField>
       </FilterBar>
 
       <Card className="mb-4 border-slate-200/80 shadow-sm">
@@ -338,6 +364,9 @@ export default function RukaSenteLoansPage() {
                     <TableHead className="h-8 text-[10px] uppercase tracking-wide">
                       Remaining
                     </TableHead>
+                    <TableHead className="h-8 text-[10px] uppercase tracking-wide">
+                      Wallet
+                    </TableHead>
                     <TableHead className="h-8 text-[10px] uppercase tracking-wide">Status</TableHead>
                     <TableHead className="h-8 text-right text-[10px] uppercase tracking-wide">
                       Action
@@ -363,6 +392,9 @@ export default function RukaSenteLoansPage() {
                       </TableCell>
                       <TableCell className="py-2 text-xs font-medium">
                         {formatMoney(row.outstandingBalance, row.currency)}
+                      </TableCell>
+                      <TableCell className="py-2 text-xs font-medium">
+                        {formatMoney(row.walletAvailable, row.walletCurrency || row.currency)}
                       </TableCell>
                       <TableCell className="py-2">{statusBadge(row.status)}</TableCell>
                       <TableCell className="py-2 text-right">

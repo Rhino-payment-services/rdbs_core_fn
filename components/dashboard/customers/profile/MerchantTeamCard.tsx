@@ -82,7 +82,7 @@ export function MerchantTeamCard({ merchantId }: { merchantId: string }) {
       const res = await api.get(`/merchant-kyc/${merchantId}/team`)
       setData(res.data)
     } catch (error) {
-      toast.error(extractErrorMessage(error, 'Failed to load merchant team'))
+      toast.error(extractErrorMessage(error) || 'Failed to load merchant team')
     } finally {
       setLoading(false)
     }
@@ -127,7 +127,7 @@ export function MerchantTeamCard({ merchantId }: { merchantId: string }) {
       })
       await loadTeam()
     } catch (error) {
-      toast.error(extractErrorMessage(error, 'Failed to invite team member'))
+      toast.error(extractErrorMessage(error) || 'Failed to invite team member')
     } finally {
       setSaving(false)
     }
@@ -147,7 +147,7 @@ export function MerchantTeamCard({ merchantId }: { merchantId: string }) {
       )
       await loadTeam()
     } catch (error) {
-      toast.error(extractErrorMessage(error, 'Failed to grant all wallets'))
+      toast.error(extractErrorMessage(error) || 'Failed to grant all wallets')
     } finally {
       setSyncingEmail(null)
     }
