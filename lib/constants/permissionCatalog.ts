@@ -22,6 +22,8 @@ export const NAV_PERMISSION_ITEMS: { permName: string; label: string; desc: stri
   { permName: PERMISSIONS.WALLETS_VIEW,      label: 'Wallets / Cards',         desc: 'Wallet details and cards (WALLETS_VIEW)' },
   { permName: PERMISSIONS.KYC_VIEW,          label: 'Security / KYC',          desc: 'Security dropdown → KYC verification' },
   { permName: PERMISSIONS.SYSTEM_CONFIGURE,  label: 'Settings',                desc: 'System configuration & settings' },
+  { permName: PERMISSIONS.MINI_APPS_VIEW,    label: 'Mini Apps',               desc: 'Mini App catalog and configuration' },
+  { permName: PERMISSIONS.APP_CONFIG_VIEW,   label: 'App Configuration',       desc: 'Mobile app icons, colors, and navigation' },
 ]
 
 export const PERMISSION_GROUPS: PermissionGroup[] = [
@@ -150,6 +152,20 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { name: PERMISSIONS.PARTNERS_DELETE,  label: 'Delete Partners' },
       { name: PERMISSIONS.PARTNERS_APPROVE, label: 'Approve Partners' },
       { name: PERMISSIONS.PARTNERS_REJECT,  label: 'Reject Partners' },
+    ],
+  },
+  {
+    group: 'Mini Apps',
+    permissions: [
+      { name: PERMISSIONS.MINI_APPS_VIEW,   label: 'View Mini Apps' },
+      { name: PERMISSIONS.MINI_APPS_MANAGE, label: 'Manage Mini Apps' },
+    ],
+  },
+  {
+    group: 'App Configuration',
+    permissions: [
+      { name: PERMISSIONS.APP_CONFIG_VIEW,   label: 'View App Configuration' },
+      { name: PERMISSIONS.APP_CONFIG_MANAGE, label: 'Manage App Configuration' },
     ],
   },
   {

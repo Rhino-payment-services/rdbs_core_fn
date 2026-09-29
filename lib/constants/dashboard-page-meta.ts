@@ -25,6 +25,7 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Register Wristband' },
   ],
   carousel: [root, { label: 'Carousel' }],
+  'mini-apps': [root, { label: 'Mini Apps' }],
   customers: [root, { label: 'Customers' }],
   'customers/merchant-onboard': [
     root,
@@ -130,6 +131,11 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     root,
     { label: 'Settings', href: '/dashboard/settings' },
     { label: 'Mobile app versions' },
+  ],
+  'settings/app-config': [
+    root,
+    { label: 'Settings', href: '/dashboard/settings' },
+    { label: 'App Configuration' },
   ],
   'system-logs': [root, { label: 'System Logs' }],
   'test-permissions': [root, { label: 'Permissions Test' }],
