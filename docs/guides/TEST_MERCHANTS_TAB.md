@@ -8,7 +8,7 @@
 - Mac: `Cmd + Shift + R`
 
 ### 2. Login
-Use: `superadmin@rukapay.co.ug` / `superAdmin@RukA2025`
+Sign in with a staff account that already has dashboard access. Do not put account emails or passwords in this guide.
 
 ### 3. Go to Customers Page
 Dashboard → Customers
