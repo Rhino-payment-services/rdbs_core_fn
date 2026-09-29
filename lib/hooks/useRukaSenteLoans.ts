@@ -61,6 +61,10 @@ export type PartnerLoanListItem = {
   dueDate?: string | null
   hasActiveRukaSenteLoan?: boolean
   account?: RukaSenteLoanAccount | null
+  walletId?: string | null
+  walletBalance?: number | null
+  walletAvailable?: number | null
+  walletCurrency?: string | null
 }
 
 export type RukaSenteLoanListFilters = {
@@ -74,6 +78,8 @@ export type RukaSenteLoanListFilters = {
   maxAmount?: string
   minOutstanding?: string
   maxOutstanding?: string
+  minWalletBalance?: string
+  maxWalletBalance?: string
 }
 
 export type PartnerLoanListData = {
@@ -120,6 +126,8 @@ function listParams(filters: RukaSenteLoanListFilters) {
     maxAmount: filters.maxAmount || undefined,
     minOutstanding: filters.minOutstanding || undefined,
     maxOutstanding: filters.maxOutstanding || undefined,
+    minWalletBalance: filters.minWalletBalance || undefined,
+    maxWalletBalance: filters.maxWalletBalance || undefined,
   }
 }
 
@@ -157,6 +165,8 @@ export function useActiveRukaSenteLoans(filters: RukaSenteLoanListFilters = {}) 
   const maxAmount = filters.maxAmount ?? ''
   const minOutstanding = filters.minOutstanding ?? ''
   const maxOutstanding = filters.maxOutstanding ?? ''
+  const minWalletBalance = filters.minWalletBalance ?? ''
+  const maxWalletBalance = filters.maxWalletBalance ?? ''
   return useQuery({
     queryKey: [
       'rukasente-active-loans',
@@ -170,6 +180,8 @@ export function useActiveRukaSenteLoans(filters: RukaSenteLoanListFilters = {}) 
       maxAmount,
       minOutstanding,
       maxOutstanding,
+      minWalletBalance,
+      maxWalletBalance,
     ],
     queryFn: () =>
       fetchRukaSenteLoans({
@@ -183,6 +195,8 @@ export function useActiveRukaSenteLoans(filters: RukaSenteLoanListFilters = {}) 
         maxAmount,
         minOutstanding,
         maxOutstanding,
+        minWalletBalance,
+        maxWalletBalance,
       }),
   })
 }

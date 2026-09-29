@@ -188,7 +188,7 @@ export default function TransactionReversalsPage() {
       const id = String(r?.id || r?.reversalId || r?._id || "")
       const createdAt = r?.createdAt || r?.requestedAt || r?.created_at || null
       const currency = String(r?.transaction?.currency || r?.currency || "UGX")
-      const originalRef = r?.transactionReference || r?.originalTransactionReference || r?.transactionId || r?.originalTransactionId || r?.reference || ""
+      const originalRef = r?.transaction?.reference || r?.transactionReference || r?.originalTransactionReference || r?.transactionId || r?.originalTransactionId || r?.reference || ""
       const reason = r?.reason || r?.reversalReason || r?.requestReason || ""
       const status = String(r?.status || "PENDING")
 
@@ -311,7 +311,7 @@ export default function TransactionReversalsPage() {
                   <Badge className="bg-gray-900 text-white">{filteredCount}</Badge>
                 </CardTitle>
                 <CardDescription>
-                  Partner-submitted reversal requests from the gateway.{" "}
+                  Customer (USSD) and staff reversal requests.{" "}
                   {showActionButtons
                     ? "Approve or reject reversal requests. Reject requires a reason."
                     : "Viewing reversals in the selected status. Approve/Reject is only available for Pending."}
