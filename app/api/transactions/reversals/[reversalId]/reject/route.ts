@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
 import axios from 'axios'
-import { partnerReversalRequestsUrl } from '@/lib/server/partner-reversal-api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -23,11 +22,9 @@ export async function POST(
       return NextResponse.json({ error: 'Missing required field: reason' }, { status: 400 })
     }
 
-    const baseUrl = partnerReversalRequestsUrl(API_URL)
-
-    const response = await axios.patch(
-      `${baseUrl}/${reversalId}/reject`,
-      { reviewNote: String(body.reason).trim() },
+    const response = await axios.post(
+      `${API_URL}/transactions/reversals/${encodeURIComponent(reversalId)}/reject`,
+      { reason: String(body.reason).trim() },
       {
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
