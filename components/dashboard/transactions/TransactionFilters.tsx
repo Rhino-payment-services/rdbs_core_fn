@@ -118,6 +118,7 @@ export const TransactionFilters = ({
           <SelectItem value="USSD">USSD</SelectItem>
           <SelectItem value="APP">Mobile App</SelectItem>
           <SelectItem value="CARD">Card Payment</SelectItem>
+          <SelectItem value="WRISTBAND">Wristband</SelectItem>
           <SelectItem value="POS">POS Terminal</SelectItem>
           <SelectItem value="BACKOFFICE">Admin Portal</SelectItem>
           <SelectItem value="MERCHANT_PORTAL">Merchant Portal</SelectItem>
