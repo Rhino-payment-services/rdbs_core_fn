@@ -11,7 +11,8 @@ import {
   Wallet,
   TrendingUp,
   Loader2,
-  Calendar
+  Calendar,
+  Watch
 } from 'lucide-react'
 import { useChannelStatistics, useDailyNewWallets } from '@/lib/hooks/useTransactions'
 
@@ -46,6 +47,7 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
       BACKOFFICE: <Store className="h-5 w-5" />,
       AGENT_PORTAL: <Store className="h-5 w-5" />,
       PARTNER_PORTAL: <Store className="h-5 w-5" />,
+      WRISTBAND: <Watch className="h-5 w-5" />,
       OTHER: <Globe className="h-5 w-5" />,
     }
     return icons[channel] || <Globe className="h-5 w-5" />
@@ -61,6 +63,7 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
       BACKOFFICE: 'bg-indigo-100 text-indigo-700 border-indigo-200',
       AGENT_PORTAL: 'bg-teal-100 text-teal-700 border-teal-200',
       PARTNER_PORTAL: 'bg-pink-100 text-pink-700 border-pink-200',
+      WRISTBAND: 'bg-sky-100 text-sky-700 border-sky-200',
       OTHER: 'bg-slate-100 text-slate-700 border-slate-200',
     }
     return colors[channel] || 'bg-gray-100 text-gray-700 border-gray-200'
@@ -70,6 +73,7 @@ const ChannelStatsCard: React.FC<ChannelStatsCardProps> = ({
   // Note: WEB is mapped to MERCHANT_PORTAL on backend, so WEB is not included here
   const allChannels = [
     { channel: 'APP', label: 'Mobile App' },
+    { channel: 'WRISTBAND', label: 'Wristband' },
     { channel: 'USSD', label: 'USSD' },
     { channel: 'API', label: 'API' },
     { channel: 'BACKOFFICE', label: 'Back Office' },
