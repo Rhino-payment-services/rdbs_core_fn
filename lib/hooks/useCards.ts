@@ -92,7 +92,7 @@ export const cardQueryKeys = {
 export const useCards = () => {
   return useQuery<ApiResponse<Card[]>>({
     queryKey: cardQueryKeys.cards,
-    queryFn: () => apiFetch('/cards'),
+    queryFn: () => apiFetch('/cards/all'),
     staleTime: 2 * 60 * 1000,
   })
 }
