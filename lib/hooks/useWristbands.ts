@@ -83,7 +83,7 @@ export const wristbandQueryKeys = {
 export const useWristbands = () => {
   return useQuery<ApiResponse<WristbandWithUser[]>>({
     queryKey: wristbandQueryKeys.wristbands,
-    queryFn: () => apiFetch('/wristbands'),
+    queryFn: () => apiFetch('/wristbands/all'),
     staleTime: 2 * 60 * 1000,
   })
 }
