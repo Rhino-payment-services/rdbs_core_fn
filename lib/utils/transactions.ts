@@ -242,6 +242,19 @@ export const isPlatformRevenueLiquidationTx = (
   return !!reference && /^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(String(reference))
 }
 
+/** RukaSente clawback: original loan credit reversed, funds returned to partner escrow. */
+export const isLoanDisbursementReversal = (
+  type?: string | null,
+  metadata?: { loanReversal?: boolean; rukasenteLoan?: boolean; loanOperation?: string } | null,
+): boolean => {
+  if (metadata?.loanReversal === true) return true
+  return (
+    String(type || '').toUpperCase() === 'REVERSAL' &&
+    metadata?.rukasenteLoan === true &&
+    String(metadata?.loanOperation || '').toLowerCase().includes('reversal')
+  )
+}
+
 export const getTypeDisplay = (
   type: string,
   direction?: string,
@@ -256,6 +269,11 @@ export const getTypeDisplay = (
     type === 'WALLET_TO_WALLET' &&
     (meta?.sweepToDisbursement || meta?.sweepFromCollection || (reference && String(reference).startsWith('SWEEP_')))
   if (isSweep) return 'Liquidate'
+
+  if (isLoanDisbursementReversal(type, meta)) {
+    const reason = String(meta?.reversalReason || '').trim()
+    return reason ? `Loan reversal · ${reason}` : 'Loan reversal'
+  }
 
   if (type === 'BILL_PAYMENT') {
     const util = meta?.utilityProvider

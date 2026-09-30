@@ -81,6 +81,17 @@ export function getPartnerRole(tx: any): PartnerRole | null {
   if (type === 'WALLET_TO_PARTNER_INSTITUTION') return 'receiver'
   if (type === 'PARTNER_INSTITUTION_TO_WALLET') return 'sender'
 
+  // A loan clawback returns funds to partner escrow. The partner is the receiver,
+  // the opposite of a disbursement where escrow is the sender.
+  if (
+    m?.loanReversal === true ||
+    (type === 'REVERSAL' &&
+      m?.rukasenteLoan === true &&
+      String(m?.loanOperation || '').toLowerCase().includes('reversal'))
+  ) {
+    return 'receiver'
+  }
+
   // RukaSente loan rails: partner escrow always disburses (sender) / collects (receiver).
   // Do not use CREDIT→receiver / DEBIT→sender fallbacks — that paints the borrower as RUKASENTE.
   if (

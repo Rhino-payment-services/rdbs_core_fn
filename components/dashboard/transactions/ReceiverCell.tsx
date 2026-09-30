@@ -1,7 +1,7 @@
 "use client"
 
 import { TableCell } from '@/components/ui/table'
-import { getDisplayName, getContactInfo } from '@/lib/utils/transactions'
+import { getDisplayName, getContactInfo, isLoanDisbursementReversal } from '@/lib/utils/transactions'
 import { PartyDisplay } from './PartyDisplay'
 import type { TransactionDerived } from './types'
 import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
@@ -36,7 +36,7 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
   const { metadata } = derived
   const txType = String(transaction.type || '').toUpperCase()
 
-  if (transaction.type === 'REVERSAL') {
+  if (transaction.type === 'REVERSAL' && !isLoanDisbursementReversal(transaction.type, metadata)) {
     return (
       <TableCell>
         <div className="flex flex-col">
@@ -175,6 +175,9 @@ export const ReceiverCell = ({ transaction, derived }: ReceiverCellProps) => {
           <span className="font-medium">{primary}</span>
           {secondary && <span className="text-xs text-gray-500">📱 {secondary}</span>}
           <span className="text-xs text-blue-600 font-medium">API Partner</span>
+          {isLoanDisbursementReversal(transaction.type, metadata) && metadata?.reversalReason ? (
+            <span className="text-xs text-gray-500 italic">Reason: {metadata.reversalReason}</span>
+          ) : null}
           {creditLabel && (
             <span className="text-xs text-green-700 font-medium">Credited: {metadata.creditWalletType || 'Disbursement'} wallet</span>
           )}

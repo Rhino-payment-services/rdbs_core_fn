@@ -1,7 +1,7 @@
 "use client"
 
 import { TableCell } from '@/components/ui/table'
-import { getDisplayName, getContactInfo } from '@/lib/utils/transactions'
+import { getDisplayName, getContactInfo, isLoanDisbursementReversal } from '@/lib/utils/transactions'
 import { PartyDisplay } from './PartyDisplay'
 import type { TransactionDerived } from './types'
 import { getPartnerRole, normalizePartyInfoForDisplay, resolvePartnerDisplay } from './partyResolver'
@@ -32,7 +32,7 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
   const { metadata, senderMeta, resolvedPartner, resolvedPartnerName } = derived
   const txType = String(transaction.type || '').toUpperCase()
 
-  if (transaction.type === 'REVERSAL') {
+  if (transaction.type === 'REVERSAL' && !isLoanDisbursementReversal(transaction.type, metadata)) {
     return (
       <TableCell>
         <div className="flex flex-col gap-[0.5px]">
