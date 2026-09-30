@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
-import { Calendar, Loader2, Smartphone, Phone, Code, Building2, Store, Users, School } from 'lucide-react'
+import { Calendar, Loader2, Smartphone, Phone, Code, Building2, Store, Users, School, CreditCard, Watch } from 'lucide-react'
 import { formatAmount } from '@/lib/utils/transactions'
 import { AnalyticsErrorAlert } from '@/components/dashboard/AnalyticsStates'
 import { extractErrorMessage } from '@/lib/utils'
@@ -25,6 +25,8 @@ export const ChannelStatistics = ({ channelStatsData, isLoading, error, onRetry,
   // Define all possible channels with default values
   const allChannels = [
     { channel: 'APP', label: 'Mobile App', icon: Smartphone, color: 'border-blue-200 bg-blue-50' },
+    { channel: 'CARD', label: 'Card Payment', icon: CreditCard, color: 'border-violet-200 bg-violet-50' },
+    { channel: 'WRISTBAND', label: 'Wristband', icon: Watch, color: 'border-sky-200 bg-sky-50' },
     { channel: 'USSD', label: 'USSD', icon: Phone, color: 'border-green-200 bg-green-50' },
     { channel: 'API', label: 'API', icon: Code, color: 'border-gray-200 bg-gray-50' },
     { channel: 'BACKOFFICE', label: 'Back Office', icon: Building2, color: 'border-indigo-200 bg-indigo-50' },

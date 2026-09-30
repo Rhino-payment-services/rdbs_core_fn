@@ -6,7 +6,8 @@ import {
   Store,
   Users,
   School,
-  CreditCard
+  CreditCard,
+  Watch
 } from 'lucide-react'
 import {
   resolveMerchantBusinessName,
@@ -391,6 +392,12 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       color: 'text-violet-600',
       bgColor: 'bg-violet-50 border-violet-200'
     },
+    WRISTBAND: {
+      label: 'Wristband',
+      icon: Watch,
+      color: 'text-sky-700',
+      bgColor: 'bg-sky-50 border-sky-200'
+    },
     POS: {
       label: 'POS Terminal',
       icon: Store,
@@ -420,6 +427,8 @@ export const getChannelDisplay = (channel: string | null | undefined, metadata?:
       matchedChannel = channelMap.AGENT_PORTAL
     } else if (normalizedChannel.includes('PARTNER')) {
       matchedChannel = channelMap.PARTNER_PORTAL
+    } else if (normalizedChannel.includes('WRISTBAND')) {
+      matchedChannel = channelMap.WRISTBAND
     } else if (normalizedChannel.includes('CARD') || normalizedChannel.includes('NFC')) {
       matchedChannel = channelMap.CARD
     } else if (normalizedChannel.includes('POS')) {
