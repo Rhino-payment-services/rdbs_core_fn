@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -25,6 +26,7 @@ interface TransactionFiltersProps {
   onExportCurrentPage: () => void
   onExportAll: () => void
   onExportByDateRange: () => void
+  onGenerateStatement?: () => void
   transactionsCount: number
 }
 
@@ -44,6 +46,7 @@ export const TransactionFilters = ({
   onExportCurrentPage,
   onExportAll,
   onExportByDateRange,
+  onGenerateStatement,
   transactionsCount
 }: TransactionFiltersProps) => {
   return (
@@ -177,6 +180,15 @@ export const TransactionFilters = ({
             <Calendar className="h-4 w-4 mr-2" />
             Export by Date Range
           </DropdownMenuItem>
+          {onGenerateStatement && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onGenerateStatement} disabled={isExporting}>
+                <FileText className="h-4 w-4 mr-2" />
+                Generate statement (PDF)
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
