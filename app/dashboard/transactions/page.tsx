@@ -33,6 +33,9 @@ import { TransactionDetailsModal } from '@/components/dashboard/transactions/Tra
 import { ReversalModal } from '@/components/dashboard/transactions/ReversalModal'
 import { ExportDialog } from '@/components/dashboard/transactions/ExportDialog'
 import { StatusCheckModal } from '@/components/dashboard/transactions/StatusCheckModal'
+import { GenerateStatementDialog } from '@/components/dashboard/statements/GenerateStatementDialog'
+import { Button } from '@/components/ui/button'
+import { FileText } from 'lucide-react'
 
 const EXPORT_ALL_TRANSACTIONS_LIMIT = 100_000
 const EXPORT_PAGE_SIZE = 5000
@@ -97,6 +100,7 @@ const TransactionsPage = () => {
   // Export state
   const [isExporting, setIsExporting] = useState(false)
   const [exportDateRangeOpen, setExportDateRangeOpen] = useState(false)
+  const [statementOpen, setStatementOpen] = useState(false)
   const [exportStartDate, setExportStartDate] = useState("")
   const [exportEndDate, setExportEndDate] = useState("")
 
@@ -814,6 +818,14 @@ const TransactionsPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">Transaction Ledgers</h1>
               <p className="mt-2 text-gray-600">Investigate and analyze transaction information</p>
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setStatementOpen(true)}
+              className="shrink-0"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Generate statement
+            </Button>
           </div>
 
           {/* Overall summary — own date filter (defaults to last 30 days) */}
@@ -933,6 +945,7 @@ const TransactionsPage = () => {
                 onExportCurrentPage={() => exportTransactionsToCSV(false)}
                 onExportAll={() => exportTransactionsToCSV(true)}
                 onExportByDateRange={() => setExportDateRangeOpen(true)}
+                onGenerateStatement={() => setStatementOpen(true)}
                 transactionsCount={transactions.length}
               />
 
@@ -1041,6 +1054,16 @@ const TransactionsPage = () => {
           setExportStartDate("")
           setExportEndDate("")
         }}
+      />
+
+      <GenerateStatementDialog
+        open={statementOpen}
+        onOpenChange={setStatementOpen}
+        name="All customers"
+        allWalletsLabel="All wallets"
+        defaultStartDate={startDate || defaultStatsStart}
+        defaultEndDate={endDate || defaultStatsEnd}
+        footer="totals"
       />
     </div>
   )

@@ -16,6 +16,7 @@ import {
 import { 
   Download,
   Filter,
+  FileText,
   CreditCard,
   ArrowUpRight,
   ArrowDownLeft,
@@ -41,6 +42,7 @@ interface CustomerTransactionsProps {
   statementWalletId?: string
   transactionUserId?: string
   onExportWalletTransactions?: (walletId: string | undefined, label: string) => Promise<void>
+  onGenerateStatement?: () => void
 }
 
 function walletRowLabel(w: any): string {
@@ -64,6 +66,7 @@ const CustomerTransactions = ({
   statementWalletId,
   transactionUserId,
   onExportWalletTransactions,
+  onGenerateStatement,
 }: CustomerTransactionsProps) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -218,6 +221,12 @@ const CustomerTransactions = ({
             <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
+          {onGenerateStatement && (
+            <Button variant="outline" size="sm" onClick={onGenerateStatement}>
+              <FileText className="h-4 w-4 mr-2" />
+              Generate statement
+            </Button>
+          )}
           {canExportByWallet ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

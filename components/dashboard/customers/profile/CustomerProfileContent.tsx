@@ -10,6 +10,7 @@ import CustomerActivity from './CustomerActivity'
 import CustomerSettings from './CustomerSettings'
 import PartnerSettings from './PartnerSettings'
 import LiquidateToDisbursementModal from './LiquidateToDisbursementModal'
+import { GenerateStatementDialog } from '@/components/dashboard/statements/GenerateStatementDialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { User, CreditCard, Activity, Settings, Wallet, ShieldCheck } from 'lucide-react'
@@ -104,6 +105,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
 }) => {
   const [activeTab, setActiveTab] = React.useState("overview")
   const [liquidateOpen, setLiquidateOpen] = React.useState(false)
+  const [statementOpen, setStatementOpen] = React.useState(false)
 
   const rukaSenteUserId = React.useMemo(() => {
     if (type === 'partner' && isGatewayPartner) return undefined
@@ -169,6 +171,12 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
            customer?.phone ||
            'Unknown Customer'
   }, [type, isGatewayPartner, partner, regularPartner, merchantData, customer])
+
+  const allWalletsLabel = React.useMemo(() => {
+    if (type === 'merchant') return 'All business wallets'
+    if (type === 'partner') return 'All partner wallets'
+    return 'All personal wallets'
+  }, [type])
 
   // Build customer email
   const customerEmail = React.useMemo(() => {
@@ -439,6 +447,9 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
                 statementWalletId={effectiveWalletId}
                 transactionUserId={transactionUserId}
                 onExportWalletTransactions={onExportWalletTransactions}
+                onGenerateStatement={
+                  transactionUserId ? () => setStatementOpen(true) : undefined
+                }
               />
             </>
           )}
@@ -527,6 +538,16 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
           </div>
         </TabsContent>
       </Tabs>
+      <GenerateStatementDialog
+        open={statementOpen}
+        onOpenChange={setStatementOpen}
+        name={customerName}
+        allWalletsLabel={allWalletsLabel}
+        wallets={allUserWallets}
+        defaultWalletId={effectiveWalletId}
+        userId={transactionUserId}
+        footer="balance"
+      />
     </>
   )
 }
