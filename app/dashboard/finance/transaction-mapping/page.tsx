@@ -28,6 +28,7 @@ import {
   Building2,
   CreditCard,
   Smartphone,
+  Wifi,
   ChevronRight,
   Eye,
   Edit,
@@ -68,6 +69,7 @@ interface TransactionMapping {
   transactionType: string
   primaryPartner?: Partner | null
   secondaryPartner?: Partner | null
+  defaultPartner?: Partner | null
   totalMappings: number
   network?: string
   networks?: string[] // For MNO transactions with multiple network mappings
@@ -124,6 +126,22 @@ const TransactionMappingPage = () => {
       color: 'bg-blue-500',
       tabId: 'mno-to-wallet',
       category: 'Mobile Money'
+    },
+    'AIRTIME': {
+      name: 'Airtime',
+      description: 'Mobile airtime top-up',
+      icon: Wifi,
+      color: 'bg-cyan-600',
+      tabId: 'airtime',
+      category: 'Airtime & Data'
+    },
+    'DATA_BUNDLES': {
+      name: 'Data Bundles',
+      description: 'Mobile data bundle purchases',
+      icon: Wifi,
+      color: 'bg-teal-600',
+      tabId: 'data-bundles',
+      category: 'Airtime & Data'
     },
   }
 
@@ -343,6 +361,8 @@ const TransactionMappingPage = () => {
         ...(serviceType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
         ...(serviceType === 'WALLET_TO_MNO' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
         ...(serviceType === 'MNO_TO_WALLET' ? ['MNO_TO_WALLET', 'MNO_TOPUP', 'WALLET_TOPUP_PULL'] : []),
+        ...(serviceType === 'AIRTIME' ? ['AIRTIME', 'AIRTIMES'] : []),
+        ...(serviceType === 'DATA_BUNDLES' ? ['DATA_BUNDLES', 'DATA_BUNDLE'] : []),
       ]
       
       const supportsServiceType = partner.supportedServices && 
@@ -593,6 +613,20 @@ const TransactionMappingPage = () => {
                             </p>
                           </div>
                         </div>
+                      ) : mapping.defaultPartner ? (
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-cyan-700">
+                              {mapping.defaultPartner.partnerCode?.charAt(0) || 'A'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {mapping.defaultPartner.partnerName || "Africa's Talking"} (default)
+                            </p>
+                            <p className="text-sm text-gray-500">Used until a mapping is assigned</p>
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex items-center space-x-2">
                           <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -632,6 +666,8 @@ const TransactionMappingPage = () => {
                         <Badge variant={mapping.primaryPartner.isActive ? "default" : "secondary"}>
                           {mapping.primaryPartner.isActive ? 'Active' : 'Inactive'}
                         </Badge>
+                      ) : mapping.defaultPartner ? (
+                        <Badge variant="secondary">Default</Badge>
                       ) : (
                         <Badge variant="secondary">Unassigned</Badge>
                       )}
@@ -646,7 +682,7 @@ const TransactionMappingPage = () => {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => handleSwitchPartner(mapping)}
+                              onClick={() => handleSwitchPartner(mapping, type)}
                             >
                               <ArrowLeftRight className="w-4 h-4" />
                             </Button>
