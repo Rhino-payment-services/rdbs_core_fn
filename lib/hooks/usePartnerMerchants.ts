@@ -59,6 +59,7 @@ export interface PartnerMerchantTransaction {
   id: string
   type: string
   status: string
+  direction?: string | null
   amount: number | string
   currency: string
   fee?: number | string
@@ -74,6 +75,18 @@ export interface PartnerMerchantTransaction {
   processedAt?: string | null
 }
 
+export interface PartnerMerchantTxSummary {
+  currency: string
+  totalCredit: number
+  totalDebit: number
+  net: number
+  successCount: number
+  failedCount: number
+  otherCount: number
+}
+
+export type PartnerMerchantTxStatusFilter = 'ALL' | 'SUCCESS' | 'FAILED'
+
 export interface PartnerMerchantTransactionsResponse {
   merchant: {
     id: string
@@ -83,12 +96,22 @@ export interface PartnerMerchantTransactionsResponse {
     status: string
   }
   items: PartnerMerchantTransaction[]
+  summary?: PartnerMerchantTxSummary
   pagination: {
     page: number
     limit: number
     total: number
     totalPages: number
   }
+}
+
+export interface PartnerMerchantTransactionsExportResponse {
+  merchant: PartnerMerchantTransactionsResponse['merchant']
+  summary: PartnerMerchantTxSummary
+  rows: PartnerMerchantTransaction[]
+  total: number
+  truncated: boolean
+  limit: number
 }
 
 export interface PartnerMerchantListParams {
@@ -139,21 +162,59 @@ export function usePartnerMerchant(merchantId: string) {
   })
 }
 
+function buildMerchantTxQuery(params: {
+  page?: number
+  limit?: number
+  status?: PartnerMerchantTxStatusFilter
+  from?: string
+  to?: string
+}) {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.status) query.set('status', params.status)
+  if (params.from) query.set('from', params.from)
+  if (params.to) query.set('to', params.to)
+  const qs = query.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export function usePartnerMerchantTransactions(
   merchantId: string,
   page = 1,
   limit = 20,
+  status: PartnerMerchantTxStatusFilter = 'ALL',
 ) {
   return useQuery({
-    queryKey: ['partner-merchants', merchantId, 'transactions', page, limit],
+    queryKey: ['partner-merchants', merchantId, 'transactions', page, limit, status],
     queryFn: async () => {
       const response = await api.get(
-        `/api/v1/admin/partner-management/merchants/${encodeURIComponent(merchantId)}/transactions?page=${page}&limit=${limit}`,
+        `/api/v1/admin/partner-management/merchants/${encodeURIComponent(merchantId)}/transactions${buildMerchantTxQuery(
+          { page, limit, status },
+        )}`,
       )
       return response.data as PartnerMerchantTransactionsResponse
     },
     enabled: Boolean(merchantId),
     staleTime: 60 * 1000,
+  })
+}
+
+export function useExportPartnerMerchantTransactions() {
+  return useMutation({
+    mutationFn: async (payload: {
+      merchantId: string
+      status?: PartnerMerchantTxStatusFilter
+      from?: string
+      to?: string
+    }) => {
+      const response = await api.get(
+        `/api/v1/admin/partner-management/merchants/${encodeURIComponent(payload.merchantId)}/transactions/export${buildMerchantTxQuery(
+          { status: payload.status, from: payload.from, to: payload.to },
+        )}`,
+      )
+      return response.data as PartnerMerchantTransactionsExportResponse
+    },
   })
 }
 

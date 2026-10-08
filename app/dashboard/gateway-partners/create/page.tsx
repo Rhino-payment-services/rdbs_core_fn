@@ -69,7 +69,11 @@ const CreateGatewayPartnerPage = () => {
       const newPartnerId = result.partner.id
       setPartnerId(newPartnerId)
       setStep(2)
-      toast.success('Partner created successfully!')
+      if (result.credentialsEmailSent) {
+        toast.success(`Login credentials emailed to ${formData.contactEmail}`)
+      } else {
+        toast.success('Partner created successfully!')
+      }
     } catch (error: any) {
       console.error('Failed to create partner:', error)
       toast.error(error.response?.data?.message || 'Failed to create partner')

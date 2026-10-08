@@ -161,10 +161,51 @@ export const useCreateGatewayPartner = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gateway-partners'] });
-      toast.success('Gateway partner created successfully!');
     },
     onError: (error: any) => {
       toast.error(error?.data?.message || 'Failed to create gateway partner');
+    },
+  });
+};
+
+export const useResendPartnerCredentials = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (partnerId: string) => {
+      const response = await api.post(
+        `/api/v1/admin/gateway-partners/${partnerId}/resend-credentials`,
+      );
+      return response.data;
+    },
+    onSuccess: (data, partnerId) => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-partners'] });
+      queryClient.invalidateQueries({ queryKey: ['gateway-partner', partnerId] });
+      toast.success(data?.message || 'Login credentials emailed to the partner');
+    },
+    onError: (error: any) => {
+      toast.error(error?.data?.message || 'Failed to resend credentials');
+    },
+  });
+};
+
+export const useSendPartnerPasswordReset = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (partnerId: string) => {
+      const response = await api.post(
+        `/api/v1/admin/gateway-partners/${partnerId}/send-password-reset`,
+      );
+      return response.data;
+    },
+    onSuccess: (data, partnerId) => {
+      queryClient.invalidateQueries({ queryKey: ['gateway-partners'] });
+      queryClient.invalidateQueries({ queryKey: ['gateway-partner', partnerId] });
+      toast.success(data?.message || 'Password reset link emailed to the partner');
+    },
+    onError: (error: any) => {
+      toast.error(error?.data?.message || 'Failed to send password reset');
     },
   });
 };
