@@ -12,6 +12,13 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,16 +28,23 @@ import {
 } from '@/components/ui/table'
 import {
   AlertTriangle,
+  ArrowDownRight,
   ArrowLeft,
+  ArrowUpRight,
+  Download,
   RefreshCw,
   ShieldBan,
   ShieldCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { usePermissions, PERMISSIONS } from '@/lib/hooks/usePermissions'
+import { downloadCsv } from '@/lib/utils/merchantEventsExport'
 import {
   useBlockPartnerMerchant,
+  useExportPartnerMerchantTransactions,
   usePartnerMerchant,
   usePartnerMerchantTransactions,
+  type PartnerMerchantTxStatusFilter,
 } from '@/lib/hooks/usePartnerMerchants'
 
 function formatDateTime(value?: string | null) {
@@ -49,7 +63,24 @@ function getStatusBadge(status: string) {
   if (normalized === 'ACTIVE') return <Badge className="bg-green-500">Active</Badge>
   if (normalized === 'INACTIVE') return <Badge variant="secondary">Inactive</Badge>
   if (normalized === 'BLOCKED') return <Badge variant="destructive">Blocked</Badge>
+  if (normalized === 'SUCCESS') return <Badge className="bg-green-500">Success</Badge>
+  if (normalized === 'FAILED') return <Badge variant="destructive">Failed</Badge>
   return <Badge variant="outline">{status}</Badge>
+}
+
+function formatMoney(value: number | string | undefined, currency = 'UGX') {
+  const amount = Number(value || 0)
+  const safe = Number.isFinite(amount) ? amount : 0
+  return `${currency} ${safe.toLocaleString()}`
+}
+
+function slugify(value: string) {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'merchant'
+  )
 }
 
 export default function PartnerMerchantDetailPage() {
@@ -57,6 +88,7 @@ export default function PartnerMerchantDetailPage() {
   const router = useRouter()
   const merchantId = String(params.id ?? '')
   const [txPage, setTxPage] = useState(1)
+  const [txStatus, setTxStatus] = useState<PartnerMerchantTxStatusFilter>('ALL')
   const [blockReason, setBlockReason] = useState('')
   const [actionError, setActionError] = useState('')
 
@@ -68,8 +100,51 @@ export default function PartnerMerchantDetailPage() {
     data: txData,
     isLoading: txLoading,
     refetch: refetchTx,
-  } = usePartnerMerchantTransactions(merchantId, txPage, 20)
+  } = usePartnerMerchantTransactions(merchantId, txPage, 20, txStatus)
   const blockMutation = useBlockPartnerMerchant()
+  const exportMutation = useExportPartnerMerchantTransactions()
+  const summary = txData?.summary
+  const currency = summary?.currency || 'UGX'
+
+  const handleExport = async () => {
+    if (!merchant) return
+    try {
+      const result = await exportMutation.mutateAsync({
+        merchantId: merchant.merchantId,
+        status: txStatus,
+      })
+      if (!result.rows?.length) {
+        toast.info('No transactions to export')
+        return
+      }
+      const stamp = new Date().toISOString().slice(0, 10)
+      downloadCsv(
+        `${slugify(merchant.merchantName)}-transactions-${stamp}.csv`,
+        result.rows.map((tx) => ({
+          date: tx.createdAt,
+          reference: tx.reference || tx.id,
+          type: tx.type,
+          direction: tx.direction || '',
+          status: tx.status,
+          amount: Number(tx.amount),
+          fee: Number(tx.fee || 0),
+          net: Number(tx.netAmount || 0),
+          currency: tx.currency,
+          mode: tx.mode || '',
+          channel: tx.channel || '',
+        })),
+      )
+      if (result.truncated) {
+        toast.success(
+          `Exported the latest ${result.rows.length.toLocaleString()} of ${result.total.toLocaleString()} transactions`,
+        )
+      } else {
+        toast.success(`Exported ${result.rows.length.toLocaleString()} transactions`)
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Export failed')
+    }
+  }
 
   const handleBlockToggle = async () => {
     if (!merchant) return
@@ -304,9 +379,76 @@ export default function PartnerMerchantDetailPage() {
             </CardContent>
           </Card>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total credit</p>
+                <p className="mt-2 text-lg font-semibold text-emerald-700">
+                  {formatMoney(summary?.totalCredit, currency)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Successful inbound</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total debit</p>
+                <p className="mt-2 text-lg font-semibold text-red-700">
+                  {formatMoney(summary?.totalDebit, currency)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Successful outbound</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Net</p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {formatMoney(summary?.net, currency)}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">Credit minus debit</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Failed</p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {(summary?.failedCount || 0).toLocaleString()}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {(summary?.successCount || 0).toLocaleString()} successful
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Transactions</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={txStatus}
+                  onValueChange={(value) => {
+                    setTxPage(1)
+                    setTxStatus(value as PartnerMerchantTxStatusFilter)
+                  }}
+                >
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All</SelectItem>
+                    <SelectItem value="SUCCESS">Success</SelectItem>
+                    <SelectItem value="FAILED">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleExport()}
+                  disabled={exportMutation.isPending || !merchant}
+                >
+                  <Download className={`h-4 w-4 mr-2 ${exportMutation.isPending ? 'animate-pulse' : ''}`} />
+                  {exportMutation.isPending ? 'Exporting…' : 'Export CSV'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -314,6 +456,7 @@ export default function PartnerMerchantDetailPage() {
                   <TableRow>
                     <TableHead>Reference</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Direction</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Created</TableHead>
@@ -322,13 +465,13 @@ export default function PartnerMerchantDetailPage() {
                 <TableBody>
                   {txLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         Loading transactions...
                       </TableCell>
                     </TableRow>
                   ) : (txData?.items || []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                         No transactions attributed to this merchant yet.
                       </TableCell>
                     </TableRow>
@@ -339,9 +482,24 @@ export default function PartnerMerchantDetailPage() {
                           {tx.reference || tx.id.slice(0, 8)}
                         </TableCell>
                         <TableCell>{tx.type}</TableCell>
-                        <TableCell>{tx.status}</TableCell>
                         <TableCell>
-                          {Number(tx.amount).toLocaleString()} {tx.currency}
+                          {String(tx.direction || '').toUpperCase() === 'CREDIT' ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-700">
+                              <ArrowDownRight className="h-3.5 w-3.5" />
+                              Credit
+                            </span>
+                          ) : String(tx.direction || '').toUpperCase() === 'DEBIT' ? (
+                            <span className="inline-flex items-center gap-1 text-red-700">
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                              Debit
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                        <TableCell>
+                          {formatMoney(tx.amount, tx.currency)}
                         </TableCell>
                         <TableCell>{formatDateTime(tx.createdAt)}</TableCell>
                       </TableRow>

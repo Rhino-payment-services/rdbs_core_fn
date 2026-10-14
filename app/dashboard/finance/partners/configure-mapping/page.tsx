@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Zap,
   Smartphone,
+  Wifi,
   CreditCard,
   X
 } from 'lucide-react'
@@ -121,6 +122,26 @@ const ConfigureMappingPage = () => {
       tabId: 'bank-transfers',
       category: 'Banking',
       isExternal: true
+    },
+    'AIRTIME': {
+      name: 'Airtime',
+      description: 'Mobile airtime top-up',
+      icon: Wifi,
+      color: 'bg-cyan-600',
+      tabId: 'airtime',
+      category: 'Airtime & Data',
+      isExternal: true,
+      requiresNetwork: false
+    },
+    'DATA_BUNDLES': {
+      name: 'Data Bundles',
+      description: 'Mobile data bundle purchases',
+      icon: Wifi,
+      color: 'bg-teal-600',
+      tabId: 'data-bundles',
+      category: 'Airtime & Data',
+      isExternal: true,
+      requiresNetwork: false
     },
     'WALLET_TO_INTERNAL_MERCHANT': {
       name: 'Internal Merchant',
@@ -409,7 +430,9 @@ const ConfigureMappingPage = () => {
         ...(transactionType === 'BILL_PAYMENT' ? ['BILL_PAYMENTS', 'UTILITIES'] : []),
         ...(transactionType === 'WITHDRAWAL' ? ['WALLET_TO_MNO', 'MNO_DISBURSEMENT'] : []),
         ...(transactionType === 'DEPOSIT' ? ['MNO_TO_WALLET', 'MNO_TOPUP'] : []),
-        ...(transactionType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : [])
+        ...(transactionType === 'WALLET_TO_EXTERNAL_MERCHANT' ? ['WALLET_TO_BANK', 'BANK_TRANSFER'] : []),
+        ...(transactionType === 'AIRTIME' ? ['AIRTIME', 'AIRTIMES'] : []),
+        ...(transactionType === 'DATA_BUNDLES' ? ['DATA_BUNDLES', 'DATA_BUNDLE'] : []),
       ]
       
       const supportsTransactionType = partner.supportedServices && 

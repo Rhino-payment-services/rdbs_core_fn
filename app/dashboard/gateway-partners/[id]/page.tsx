@@ -51,6 +51,8 @@ import {
   useUpdatePartnerAuthType,
   useUpdateGatewayPartner,
   useSetPartnerReserve,
+  useResendPartnerCredentials,
+  useSendPartnerPasswordReset,
 } from '@/lib/hooks/useGatewayPartners'
 import { GatewayPartnerRoutingPanel } from '@/components/dashboard/gateway-partners/GatewayPartnerRoutingPanel'
 import { SetPartnerReserveDialog } from '@/components/dashboard/gateway-partners/SetPartnerReserveDialog'
@@ -110,6 +112,8 @@ const GatewayPartnerDetailsPage = () => {
 
   const [showReserveDialog, setShowReserveDialog] = useState(false)
   const [reserveWalletId, setReserveWalletId] = useState<string>('')
+  const [showResendCredentialsDialog, setShowResendCredentialsDialog] = useState(false)
+  const [showSendResetDialog, setShowSendResetDialog] = useState(false)
 
   const { data: partner, isLoading, error, refetch } = useGatewayPartner(partnerId)
   const generateKey = useGenerateApiKey()
@@ -119,6 +123,8 @@ const GatewayPartnerDetailsPage = () => {
   const updateAuthType = useUpdatePartnerAuthType()
   const updatePartner = useUpdateGatewayPartner()
   const setReserve = useSetPartnerReserve()
+  const resendCredentials = useResendPartnerCredentials()
+  const sendPasswordReset = useSendPartnerPasswordReset()
 
   const { data: escrowBalance, refetch: refetchBalance } = usePartnerWalletBalance(
     partnerId,
@@ -412,10 +418,26 @@ const GatewayPartnerDetailsPage = () => {
                 </div>
                 <p className="text-gray-600">{partner.description || 'Gateway Partner'}</p>
               </div>
-              <div className="flex space-x-3">
+              <div className="flex flex-wrap justify-end gap-3">
                 <Button variant="outline" onClick={() => refetch()}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResendCredentialsDialog(true)}
+                  disabled={resendCredentials.isPending}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Resend Credentials
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSendResetDialog(true)}
+                  disabled={sendPasswordReset.isPending}
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Send Reset Link
                 </Button>
                 <Button
                   variant={partner.isSuspended ? 'default' : 'destructive'}
@@ -1383,6 +1405,79 @@ const GatewayPartnerDetailsPage = () => {
           <DialogFooter>
             <Button onClick={() => setShowGenerateKeyDialog(false)}>
               I've Saved the Key
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showResendCredentialsDialog}
+        onOpenChange={setShowResendCredentialsDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resend login credentials</DialogTitle>
+            <DialogDescription>
+              A new temporary password will be emailed to{' '}
+              <span className="font-medium text-gray-900">{partner.contactEmail}</span>.
+              The current password will stop working immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowResendCredentialsDialog(false)}
+              disabled={resendCredentials.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await resendCredentials.mutateAsync(partnerId)
+                  setShowResendCredentialsDialog(false)
+                } catch {
+                  // toast handled by the hook
+                }
+              }}
+              disabled={resendCredentials.isPending}
+            >
+              {resendCredentials.isPending ? 'Sending...' : 'Resend Credentials'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSendResetDialog} onOpenChange={setShowSendResetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send password reset link</DialogTitle>
+            <DialogDescription>
+              A one-hour reset link will be emailed to{' '}
+              <span className="font-medium text-gray-900">{partner.contactEmail}</span>{' '}
+              so they can choose a new password.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSendResetDialog(false)}
+              disabled={sendPasswordReset.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await sendPasswordReset.mutateAsync(partnerId)
+                  setShowSendResetDialog(false)
+                } catch {
+                  // toast handled by the hook
+                }
+              }}
+              disabled={sendPasswordReset.isPending}
+            >
+              {sendPasswordReset.isPending ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </DialogFooter>
         </DialogContent>
