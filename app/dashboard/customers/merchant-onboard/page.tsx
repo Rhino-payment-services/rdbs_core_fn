@@ -105,6 +105,7 @@ const MerchantOnboardingPage = () => {
   const [isSearchMode, setIsSearchMode] = useState(true)
   const [existingUserId, setExistingUserId] = useState<string | null>(null)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [apiErrorMessage, setApiErrorMessage] = useState<string | null>(null)
   
   // Form data
   const [formData, setFormData] = useState<MerchantFormData>({
@@ -148,6 +149,9 @@ const MerchantOnboardingPage = () => {
         delete newErrors[field]
         return newErrors
       })
+    }
+    if (apiErrorMessage) {
+      setApiErrorMessage(null)
     }
   }
 
@@ -220,6 +224,7 @@ const MerchantOnboardingPage = () => {
     
     setIsSubmitting(true)
     setFormErrors({})
+    setApiErrorMessage(null)
     
     try {
       if (!session?.user?.id) {
@@ -292,18 +297,47 @@ const MerchantOnboardingPage = () => {
         errorMessage = errorResponse.error
       }
 
+      const mapIdentityFieldErrors = (message: string) => {
+        const lowerMessage = message.toLowerCase()
+        if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
+          setFormErrors(prev => ({ ...prev, nationalId: message }))
+        } else if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
+          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: message }))
+        } else if (lowerMessage.includes('email')) {
+          setFormErrors(prev => ({ ...prev, businessEmail: message }))
+        } else if (
+          lowerMessage.includes('certificate') ||
+          lowerMessage.includes('incorporation')
+        ) {
+          setFormErrors(prev => ({ ...prev, certificateOfIncorporation: message }))
+        } else if (
+          lowerMessage.includes('tax identification') ||
+          lowerMessage.includes('tin')
+        ) {
+          setFormErrors(prev => ({ ...prev, taxIdentificationNumber: message }))
+        } else if (
+          lowerMessage.includes('business') &&
+          (lowerMessage.includes('trade') || lowerMessage.includes('name'))
+        ) {
+          setFormErrors(prev => ({ ...prev, businessTradeName: message }))
+        }
+      }
+
+      setApiErrorMessage(errorMessage)
+
       // Handle validation errors (400) - show descriptive message and map to form fields
       if (errorStatus === 400) {
         toast.error(errorMessage)
         const lowerMessage = errorMessage.toLowerCase()
-        if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
-          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered' }))
-        } else if (lowerMessage.includes('email')) {
-          setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered' }))
-        } else if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
-          setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered' }))
-        } else if (lowerMessage.includes('business') && (lowerMessage.includes('trade') || lowerMessage.includes('name'))) {
-          setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
+        if (
+          lowerMessage.includes('already') ||
+          lowerMessage.includes('registered') ||
+          lowerMessage.includes('duplicate') ||
+          lowerMessage.includes('national') ||
+          lowerMessage.includes('phone') ||
+          lowerMessage.includes('email')
+        ) {
+          mapIdentityFieldErrors(errorMessage)
         } else if (lowerMessage.includes('businessaddress') || lowerMessage.includes('business address')) {
           setFormErrors(prev => ({ ...prev, businessAddress: 'Business address must be at least 5 characters' }))
         } else if (lowerMessage.includes('businesscity') || lowerMessage.includes('business city')) {
@@ -317,19 +351,14 @@ const MerchantOnboardingPage = () => {
         }
       }
       // Handle specific conflict errors (409)
-      else if (errorStatus === 409 || errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
+      else if (
+        errorStatus === 409 ||
+        errorMessage.toLowerCase().includes('already exists') ||
+        errorMessage.toLowerCase().includes('already registered') ||
+        errorMessage.toLowerCase().includes('duplicate')
+      ) {
         toast.error(errorMessage)
-        // Parse the conflict error for specific field
-        const lowerMessage = errorMessage.toLowerCase()
-        if (lowerMessage.includes('phone') || lowerMessage.includes('mobile')) {
-          setFormErrors(prev => ({ ...prev, registeredPhoneNumber: 'This phone number is already registered with another merchant' }))
-        } else if (lowerMessage.includes('email')) {
-          setFormErrors(prev => ({ ...prev, businessEmail: 'This email is already registered with another merchant' }))
-        } else if (lowerMessage.includes('national') || lowerMessage.includes('nin')) {
-          setFormErrors(prev => ({ ...prev, nationalId: 'This National ID is already registered with another merchant' }))
-        } else if (lowerMessage.includes('business') || lowerMessage.includes('trade')) {
-          setFormErrors(prev => ({ ...prev, businessTradeName: 'This business name is already registered' }))
-        }
+        mapIdentityFieldErrors(errorMessage)
       }
       // Handle permission errors (403)
       else if (errorStatus === 403) {
@@ -346,6 +375,7 @@ const MerchantOnboardingPage = () => {
       // Handle network/connection errors
       else if (!errorStatus && (error?.code === 'ECONNREFUSED' || error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network'))) {
         toast.error('Network error: Please check your internet connection and try again.')
+        setApiErrorMessage(null)
       }
       // Handle all other errors - ALWAYS show toast (fallback)
       else {
@@ -624,7 +654,11 @@ const MerchantOnboardingPage = () => {
                             value={formData.certificateOfIncorporation}
                             onChange={(e) => handleFormDataChange('certificateOfIncorporation', e.target.value)}
                             placeholder="Enter certificate number (optional)"
+                            className={formErrors.certificateOfIncorporation ? 'border-red-500' : ''}
                           />
+                          {formErrors.certificateOfIncorporation && (
+                            <p className="text-sm text-red-500">{formErrors.certificateOfIncorporation}</p>
+                          )}
                         </div>
                         
                         <div className="space-y-2">
@@ -634,7 +668,11 @@ const MerchantOnboardingPage = () => {
                             value={formData.taxIdentificationNumber}
                             onChange={(e) => handleFormDataChange('taxIdentificationNumber', e.target.value)}
                             placeholder="Enter TIN (optional)"
+                            className={formErrors.taxIdentificationNumber ? 'border-red-500' : ''}
                           />
+                          {formErrors.taxIdentificationNumber && (
+                            <p className="text-sm text-red-500">{formErrors.taxIdentificationNumber}</p>
+                          )}
                         </div>
                       </div>
 
@@ -742,11 +780,11 @@ const MerchantOnboardingPage = () => {
                         </div>
                       </div>
 
-                      {Object.keys(formErrors).length > 0 && (
+                      {(apiErrorMessage || Object.keys(formErrors).length > 0) && (
                         <Alert variant="destructive">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription>
-                            Please fix the errors above before submitting.
+                            {apiErrorMessage || 'Please fix the errors above before submitting.'}
                           </AlertDescription>
                         </Alert>
                       )}
