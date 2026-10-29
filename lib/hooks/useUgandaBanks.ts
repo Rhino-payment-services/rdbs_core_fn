@@ -5,7 +5,15 @@ import { UGANDA_BANKS } from '@/lib/constants/ugandaBanks'
 import type { UgandanBank } from '@/lib/types/api'
 
 const BANKS_QUERY_KEY = ['uganda-banks'] as const
-const BANK_ROUTING_PARTNER_CODES = ['ABC', 'PEGASUS', 'ETRANZACT'] as const
+/** Must match backend ALLOWED_BANK_AGGREGATOR_PARTNER_CODES */
+const BANK_ROUTING_PARTNER_CODES = [
+  'ABC',
+  'PEGASUS',
+  'ETRANZACT',
+  'EQUITY',
+  'DFCU',
+  'STANBIC',
+] as const
 
 function fallbackBanksFromStatic(): UgandanBank[] {
   const seen = new Set<string>()
