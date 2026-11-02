@@ -71,6 +71,12 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Tariffs', href: '/dashboard/finance/tariffs-new' },
     { label: 'Create' },
   ],
+  'finance/tariffs/sync': [
+    root,
+    finance,
+    { label: 'Tariffs', href: '/dashboard/finance/tariffs-new' },
+    { label: 'Synchronize Partner Tariffs' },
+  ],
   'finance/transaction-mapping': [root, finance, { label: 'Transaction Mapping' }],
   'finance/routing-rules': [root, finance, { label: 'Amount Routing Rules' }],
   'gateway-partners': [root, { label: 'Gateway Partners' }],
