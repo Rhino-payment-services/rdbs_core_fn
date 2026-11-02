@@ -310,3 +310,83 @@ export const CURRENCIES = [
   { value: 'USD', label: 'US Dollar (USD)' },
   { value: 'EUR', label: 'Euro (EUR)' },
 ]
+
+export type PartnerTariffSyncKind = 'API_PARTNER' | 'EXTERNAL_PARTNER'
+
+export type PartnerTariffSyncRequest = {
+  partnerKind: PartnerTariffSyncKind
+  sourcePartnerId: string
+  destinationPartnerId: string
+  activeOnly?: boolean
+}
+
+export type TariffSyncSummaryItem = {
+  sourceTariffId: string
+  sourceName: string
+  transactionType: string
+  currency: string
+  network: string | null
+  channel: string | null
+  group: string | null
+  minAmount: number | null
+  maxAmount: number | null
+  matchKey: string
+  destinationTariffId?: string
+  destinationName?: string
+  createdTariffId?: string
+  createdName?: string
+  reason?: string
+}
+
+export type PartnerTariffSyncPreview = {
+  partnerKind: PartnerTariffSyncKind
+  sourcePartner: { id: string; name: string; code?: string | null }
+  destinationPartner: { id: string; name: string; code?: string | null }
+  sourceTotal: number
+  destinationTotal: number
+  matchingCount: number
+  missingCount: number
+  toCreateCount: number
+  alreadySynchronized: boolean
+  matching: TariffSyncSummaryItem[]
+  missing: TariffSyncSummaryItem[]
+}
+
+export type PartnerTariffSyncResult = PartnerTariffSyncPreview & {
+  created: TariffSyncSummaryItem[]
+  skipped: TariffSyncSummaryItem[]
+  failed: TariffSyncSummaryItem[]
+  createdCount: number
+  skippedCount: number
+  failedCount: number
+  synchronizedTotal: number
+}
+
+export const usePreviewPartnerTariffSync = () => {
+  return useMutation<PartnerTariffSyncPreview, Error, PartnerTariffSyncRequest>({
+    mutationFn: async (data) => {
+      const response = await apiFetch('/finance/tariffs/sync/preview', {
+        method: 'POST',
+        data,
+      })
+      return (response?.data || response) as PartnerTariffSyncPreview
+    },
+  })
+}
+
+export const useExecutePartnerTariffSync = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation<PartnerTariffSyncResult, Error, PartnerTariffSyncRequest>({
+    mutationFn: async (data) => {
+      const response = await apiFetch('/finance/tariffs/sync/execute', {
+        method: 'POST',
+        data,
+      })
+      return (response?.data || response) as PartnerTariffSyncResult
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tariffQueryKeys.lists() })
+    },
+  })
+}

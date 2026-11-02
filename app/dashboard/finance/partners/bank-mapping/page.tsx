@@ -158,8 +158,8 @@ export default function BankPartnerMappingPage() {
           </Button>
           <h1 className="mb-2 text-3xl font-bold text-gray-900">Bank routing</h1>
           <p className="text-gray-600">
-            Assign an external partner (ABC, Pegasus, Etranzact) per bank sort code for wallet-to-bank
-            transfers.
+            Assign an external partner (ABC, Pegasus, Etranzact, Equity, DFCU, Stanbic) per bank sort
+            code for wallet-to-bank transfers.
           </p>
         </div>
         <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
@@ -310,7 +310,7 @@ export default function BankPartnerMappingPage() {
                 disabled={partnersLoading}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select partner (ABC, Pegasus, Etranzact)" />
+                  <SelectValue placeholder="Select partner (ABC, Pegasus, Equity, DFCU, …)" />
                 </SelectTrigger>
                 <SelectContent>
                   {routingPartners.map((partner: { id: string; partnerName: string; partnerCode: string }) => (
