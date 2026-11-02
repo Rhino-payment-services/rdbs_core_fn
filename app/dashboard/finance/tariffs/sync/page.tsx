@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/dashboard/Navbar'
 import { DashboardPageLayout } from '@/components/dashboard/DashboardPageLayout'
 import { DashboardBreadcrumbs } from '@/components/dashboard/DashboardBreadcrumbs'
 import { getDashboardPageCrumbs } from '@/lib/constants/dashboard-page-meta'
@@ -218,18 +217,15 @@ export default function PartnerTariffSyncPage() {
 
   if (!canManage) {
     return (
-      <>
-        <Navbar />
-        <DashboardPageLayout>
-          <main className={DASHBOARD_MAIN_CLASS}>
-            <div className={dashboardPageShellClass}>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                You do not have permission to synchronize partner tariffs.
-              </div>
+      <DashboardPageLayout>
+        <main className={DASHBOARD_MAIN_CLASS}>
+          <div className={dashboardPageShellClass}>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              You do not have permission to synchronize partner tariffs.
             </div>
-          </main>
-        </DashboardPageLayout>
-      </>
+          </div>
+        </main>
+      </DashboardPageLayout>
     )
   }
 
@@ -240,7 +236,6 @@ export default function PartnerTariffSyncPage() {
 
   return (
     <>
-      <Navbar />
       <DashboardPageLayout>
         <main className={DASHBOARD_MAIN_CLASS}>
           <div className={dashboardPageShellClass}>
