@@ -415,6 +415,11 @@ const GatewayPartnerDetailsPage = () => {
                   <h1 className="text-3xl font-bold text-gray-900">{partner.partnerName}</h1>
                   {getStatusBadge()}
                   <Badge className={getTierColor(partner.tier)}>{partner.tier}</Badge>
+                  {partner.partnerCode && (
+                    <Badge variant="outline" className="font-mono text-xs">
+                      Code: {partner.partnerCode}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-gray-600">{partner.description || 'Gateway Partner'}</p>
               </div>
