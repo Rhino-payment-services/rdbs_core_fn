@@ -234,6 +234,15 @@ const ReportsPage = () => {
     ;(report.transactions.walletToBankByBank || []).forEach((row) => {
       lines.push(`Wallet To Bank By Bank,"${String(row.bank).replace(/"/g, '""')}",${row.transactionCount},${row.volume}`)
     })
+    lines.push('')
+    lines.push(`Bill Payments,Count,${report.transactions.billPayments?.count ?? 0}`)
+    lines.push(`Bill Payments,Volume,${report.transactions.billPayments?.volume ?? 0}`)
+    lines.push('Bill Payments By Provider,Provider,Transaction Count,Volume')
+    ;(report.transactions.billPaymentsByProvider || []).forEach((row) => {
+      lines.push(
+        `Bill Payments By Provider,"${String(row.provider).replace(/"/g, '""')}",${row.transactionCount},${row.volume}`,
+      )
+    })
     lines.push(`Merchant To Wallet,Count,${report.transactions.merchantToWallet.count}`)
     lines.push(`Merchant To Wallet,Volume,${report.transactions.merchantToWallet.volume}`)
     lines.push(`Personal To Business,Count,${report.transactions.personalToBusiness.count}`)
@@ -253,18 +262,43 @@ const ReportsPage = () => {
     })
     lines.push('')
     lines.push('Entity,Metric,Value')
-    lines.push(`Customers,Total Registered,${report.customers.total}`)
-    lines.push(`Customers,Registered Female,${report.customers.female}`)
-    lines.push(`Customers,Registered Male,${report.customers.male}`)
+    const customersAsOf = report.customers.totalAsOfMonthEnd
+    if (customersAsOf) {
+      lines.push(`Customers,Total As Of Month End,${customersAsOf.total}`)
+      lines.push(`Customers,Total As Of Month End - Female,${customersAsOf.female}`)
+      lines.push(`Customers,Total As Of Month End - Male,${customersAsOf.male}`)
+      lines.push(`Customers,Total As Of Month End - Unknown,${customersAsOf.unknown ?? 0}`)
+    }
+    lines.push(`Customers,Registered in Month - Total,${report.customers.total}`)
+    lines.push(`Customers,Registered in Month - Female,${report.customers.female}`)
+    lines.push(`Customers,Registered in Month - Male,${report.customers.male}`)
+    lines.push(`Customers,Registered in Month - Unknown,${report.customers.unknown ?? 0}`)
     lines.push(`Customers,Active in Month - Total,${report.customers.activeInMonth.total}`)
     lines.push(`Customers,Active in Month - Female,${report.customers.activeInMonth.female}`)
     lines.push(`Customers,Active in Month - Male,${report.customers.activeInMonth.male}`)
+    lines.push(`Customers,Active in Month - Unknown,${report.customers.activeInMonth.unknown ?? 0}`)
     lines.push(`Customers,Active in 90 Days - Total,${report.customers.activeIn90Days.total}`)
     lines.push(`Customers,Active in 90 Days - Female,${report.customers.activeIn90Days.female}`)
     lines.push(`Customers,Active in 90 Days - Male,${report.customers.activeIn90Days.male}`)
-    lines.push(`Merchants,Total,${report.merchants.total}`)
-    lines.push(`Merchants,Female,${report.merchants.female}`)
-    lines.push(`Merchants,Male,${report.merchants.male}`)
+    lines.push(`Customers,Active in 90 Days - Unknown,${report.customers.activeIn90Days.unknown ?? 0}`)
+    const merchantsRegistered = report.merchants.registeredInMonth ?? {
+      total: report.merchants.total,
+      female: report.merchants.female,
+      male: report.merchants.male,
+      unknown: report.merchants.unknown ?? 0,
+    }
+    lines.push(`Merchants,Registered in Month - Total,${merchantsRegistered.total}`)
+    lines.push(`Merchants,Registered in Month - Female,${merchantsRegistered.female}`)
+    lines.push(`Merchants,Registered in Month - Male,${merchantsRegistered.male}`)
+    lines.push(`Merchants,Registered in Month - Unknown,${merchantsRegistered.unknown ?? 0}`)
+    lines.push(`Merchants,Active in Month - Total,${report.merchants.activeInMonth?.total ?? 0}`)
+    lines.push(`Merchants,Active in Month - Female,${report.merchants.activeInMonth?.female ?? 0}`)
+    lines.push(`Merchants,Active in Month - Male,${report.merchants.activeInMonth?.male ?? 0}`)
+    lines.push(`Merchants,Active in Month - Unknown,${report.merchants.activeInMonth?.unknown ?? 0}`)
+    lines.push(`Merchants,Active in 90 Days - Total,${report.merchants.activeIn90Days?.total ?? 0}`)
+    lines.push(`Merchants,Active in 90 Days - Female,${report.merchants.activeIn90Days?.female ?? 0}`)
+    lines.push(`Merchants,Active in 90 Days - Male,${report.merchants.activeIn90Days?.male ?? 0}`)
+    lines.push(`Merchants,Active in 90 Days - Unknown,${report.merchants.activeIn90Days?.unknown ?? 0}`)
     lines.push(`Wallets,Total Active Balance,${report.wallets.totalActiveBalance}`)
     const nm = report.wallets.activeNonMerchantLinked
     const ml = report.wallets.activeMerchantLinked
@@ -329,6 +363,38 @@ const ReportsPage = () => {
       )
       .join('')
 
+    const billByProviderRows = (report.transactions.billPaymentsByProvider || [])
+      .map(
+        (b) => `
+        <tr>
+          <td>${escapeHtml(String(b.provider))}</td>
+          <td>${b.transactionCount}</td>
+          <td>${b.volume}</td>
+        </tr>
+      `,
+      )
+      .join('')
+
+    const merchantsRegistered = report.merchants.registeredInMonth ?? {
+      total: report.merchants.total,
+      female: report.merchants.female,
+      male: report.merchants.male,
+      unknown: report.merchants.unknown ?? 0,
+    }
+    const merchantsActiveMonth = report.merchants.activeInMonth ?? {
+      total: 0,
+      female: 0,
+      male: 0,
+      unknown: 0,
+    }
+    const merchantsActive90 = report.merchants.activeIn90Days ?? {
+      total: 0,
+      female: 0,
+      male: 0,
+      unknown: 0,
+    }
+    const customersAsOf = report.customers.totalAsOfMonthEnd
+
     const nm = report.wallets.activeNonMerchantLinked
     const ml = report.wallets.activeMerchantLinked
     const blk = report.wallets.blocked
@@ -374,9 +440,11 @@ const ReportsPage = () => {
                 <tr><td>P2P - Volume</td><td>${report.transactions.p2p.volume}</td></tr>
                 <tr><td>Wallet to Bank - Count</td><td>${report.transactions.walletToBank.count}</td></tr>
                 <tr><td>Wallet to Bank - Volume</td><td>${report.transactions.walletToBank.volume}</td></tr>
+                <tr><td>Bill Payments - Count</td><td>${report.transactions.billPayments?.count ?? 0}</td></tr>
+                <tr><td>Bill Payments - Volume</td><td>${report.transactions.billPayments?.volume ?? 0}</td></tr>
               </tbody>
             </table>
-            <h3 style="margin-top:16px;font-size:15px;">Wallet to bank by destination (metadata)</h3>
+            <h3 style="margin-top:16px;font-size:15px;">Wallet to bank by destination (merged names/codes)</h3>
             <table>
               <thead>
                 <tr>
@@ -387,6 +455,19 @@ const ReportsPage = () => {
               </thead>
               <tbody>
                 ${walletToBankByBankRows || '<tr><td colspan="3">No wallet-to-bank rows</td></tr>'}
+              </tbody>
+            </table>
+            <h3 style="margin-top:16px;font-size:15px;">Bill payments by provider</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Transactions</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${billByProviderRows || '<tr><td colspan="3">No bill payment rows</td></tr>'}
               </tbody>
             </table>
             <table style="margin-top:16px;">
@@ -424,17 +505,30 @@ const ReportsPage = () => {
             <table>
               <tbody>
                 <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Total Registered in Month</td><td>${report.customers.total}</td></tr>
-                <tr><td>Registered - Female</td><td>${report.customers.female}</td></tr>
-                <tr><td>Registered - Male</td><td>${report.customers.male}</td></tr>
+                ${
+                  customersAsOf
+                    ? `<tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Total Customers As Of Month End</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${customersAsOf.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${customersAsOf.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${customersAsOf.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${customersAsOf.unknown ?? 0}</td></tr>`
+                    : ''
+                }
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Registered in Month</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${report.customers.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${report.customers.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${report.customers.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${report.customers.unknown ?? 0}</td></tr>
                 <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in Month (with transactions)</td></tr>
                 <tr><td>&nbsp;&nbsp;Total</td><td>${report.customers.activeInMonth.total}</td></tr>
                 <tr><td>&nbsp;&nbsp;Female</td><td>${report.customers.activeInMonth.female}</td></tr>
                 <tr><td>&nbsp;&nbsp;Male</td><td>${report.customers.activeInMonth.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${report.customers.activeInMonth.unknown ?? 0}</td></tr>
                 <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in 90 Days (with transactions)</td></tr>
                 <tr><td>&nbsp;&nbsp;Total</td><td>${report.customers.activeIn90Days.total}</td></tr>
                 <tr><td>&nbsp;&nbsp;Female</td><td>${report.customers.activeIn90Days.female}</td></tr>
                 <tr><td>&nbsp;&nbsp;Male</td><td>${report.customers.activeIn90Days.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${report.customers.activeIn90Days.unknown ?? 0}</td></tr>
               </tbody>
             </table>
           </div>
@@ -444,9 +538,21 @@ const ReportsPage = () => {
             <table>
               <tbody>
                 <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Total Merchants</td><td>${report.merchants.total}</td></tr>
-                <tr><td>Female Merchants</td><td>${report.merchants.female}</td></tr>
-                <tr><td>Male Merchants</td><td>${report.merchants.male}</td></tr>
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Registered in Month</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${merchantsRegistered.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${merchantsRegistered.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${merchantsRegistered.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${merchantsRegistered.unknown ?? 0}</td></tr>
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in Month (with transactions)</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${merchantsActiveMonth.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${merchantsActiveMonth.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${merchantsActiveMonth.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${merchantsActiveMonth.unknown ?? 0}</td></tr>
+                <tr><td colspan="2" style="background: #f9fafb; font-weight: 600;">Active in 90 Days (with transactions)</td></tr>
+                <tr><td>&nbsp;&nbsp;Total</td><td>${merchantsActive90.total}</td></tr>
+                <tr><td>&nbsp;&nbsp;Female</td><td>${merchantsActive90.female}</td></tr>
+                <tr><td>&nbsp;&nbsp;Male</td><td>${merchantsActive90.male}</td></tr>
+                <tr><td>&nbsp;&nbsp;Unknown</td><td>${merchantsActive90.unknown ?? 0}</td></tr>
               </tbody>
             </table>
           </div>
@@ -842,13 +948,23 @@ const ReportsPage = () => {
                       <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">
                         Customers
                       </p>
+                      {bouReport.customers.totalAsOfMonthEnd && (
+                        <p className="mt-1 text-sm text-gray-700">
+                          Total as of month end:{' '}
+                          <span className="font-semibold">
+                            {bouReport.customers.totalAsOfMonthEnd.total.toLocaleString()}
+                          </span>
+                          {' '}
+                          (F: {bouReport.customers.totalAsOfMonthEnd.female.toLocaleString()}, M: {bouReport.customers.totalAsOfMonthEnd.male.toLocaleString()}, U: {(bouReport.customers.totalAsOfMonthEnd.unknown ?? 0).toLocaleString()})
+                        </p>
+                      )}
                       <p className="mt-1 text-sm text-gray-700">
-                        Registered:{' '}
+                        Registered in month:{' '}
                         <span className="font-semibold">
                           {bouReport.customers.total.toLocaleString()}
                         </span>
                         {' '}
-                        (F: {bouReport.customers.female.toLocaleString()}, M: {bouReport.customers.male.toLocaleString()})
+                        (F: {bouReport.customers.female.toLocaleString()}, M: {bouReport.customers.male.toLocaleString()}, U: {(bouReport.customers.unknown ?? 0).toLocaleString()})
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
                         Active in Month:{' '}
@@ -856,7 +972,7 @@ const ReportsPage = () => {
                           {bouReport.customers.activeInMonth.total.toLocaleString()}
                         </span>
                         {' '}
-                        (F: {bouReport.customers.activeInMonth.female.toLocaleString()}, M: {bouReport.customers.activeInMonth.male.toLocaleString()})
+                        (F: {bouReport.customers.activeInMonth.female.toLocaleString()}, M: {bouReport.customers.activeInMonth.male.toLocaleString()}, U: {(bouReport.customers.activeInMonth.unknown ?? 0).toLocaleString()})
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
                         Active in 90d:{' '}
@@ -864,7 +980,7 @@ const ReportsPage = () => {
                           {bouReport.customers.activeIn90Days.total.toLocaleString()}
                         </span>
                         {' '}
-                        (F: {bouReport.customers.activeIn90Days.female.toLocaleString()}, M: {bouReport.customers.activeIn90Days.male.toLocaleString()})
+                        (F: {bouReport.customers.activeIn90Days.female.toLocaleString()}, M: {bouReport.customers.activeIn90Days.male.toLocaleString()}, U: {(bouReport.customers.activeIn90Days.unknown ?? 0).toLocaleString()})
                       </p>
                     </div>
                     <div className="bg-purple-50 rounded-lg p-4">
@@ -872,10 +988,28 @@ const ReportsPage = () => {
                         Merchants & Wallets
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
-                        Merchants:{' '}
+                        Registered in month:{' '}
                         <span className="font-semibold">
-                          {bouReport.merchants.total.toLocaleString()}
+                          {(bouReport.merchants.registeredInMonth?.total ?? bouReport.merchants.total).toLocaleString()}
                         </span>
+                        {' '}
+                        (F: {(bouReport.merchants.registeredInMonth?.female ?? bouReport.merchants.female).toLocaleString()}, M: {(bouReport.merchants.registeredInMonth?.male ?? bouReport.merchants.male).toLocaleString()}, U: {(bouReport.merchants.registeredInMonth?.unknown ?? bouReport.merchants.unknown ?? 0).toLocaleString()})
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Active in month:{' '}
+                        <span className="font-semibold text-green-700">
+                          {(bouReport.merchants.activeInMonth?.total ?? 0).toLocaleString()}
+                        </span>
+                        {' '}
+                        (F: {(bouReport.merchants.activeInMonth?.female ?? 0).toLocaleString()}, M: {(bouReport.merchants.activeInMonth?.male ?? 0).toLocaleString()}, U: {(bouReport.merchants.activeInMonth?.unknown ?? 0).toLocaleString()})
+                      </p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Active in 90d:{' '}
+                        <span className="font-semibold text-green-700">
+                          {(bouReport.merchants.activeIn90Days?.total ?? 0).toLocaleString()}
+                        </span>
+                        {' '}
+                        (F: {(bouReport.merchants.activeIn90Days?.female ?? 0).toLocaleString()}, M: {(bouReport.merchants.activeIn90Days?.male ?? 0).toLocaleString()}, U: {(bouReport.merchants.activeIn90Days?.unknown ?? 0).toLocaleString()})
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
                         Active Wallet Balance:{' '}
@@ -965,7 +1099,7 @@ const ReportsPage = () => {
                     </div>
                     <div className="rounded-lg border border-gray-200 bg-white p-4">
                       <p className="text-sm font-semibold text-gray-900 mb-2">
-                        Wallet to bank by destination (month)
+                        Wallet to bank by destination (merged)
                       </p>
                       <div className="max-h-56 overflow-auto text-sm">
                         <table className="w-full text-left border-collapse">
@@ -995,6 +1129,45 @@ const ReportsPage = () => {
                           </tbody>
                         </table>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 mt-4">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      Bill payments by provider (month)
+                    </p>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Total:{' '}
+                      {(bouReport.transactions.billPayments?.count ?? 0).toLocaleString()} tx ·{' '}
+                      {(bouReport.transactions.billPayments?.volume ?? 0).toLocaleString()} volume
+                    </p>
+                    <div className="max-h-56 overflow-auto text-sm">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-gray-600 text-xs uppercase">
+                            <th className="py-1 pr-2">Provider</th>
+                            <th className="py-1 pr-2 text-right">Tx</th>
+                            <th className="py-1 text-right">Volume</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(bouReport.transactions.billPaymentsByProvider || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="py-2 text-gray-500">
+                                No bill payment rows (or legacy report).
+                              </td>
+                            </tr>
+                          ) : (
+                            (bouReport.transactions.billPaymentsByProvider || []).map((row) => (
+                              <tr key={row.provider} className="border-b border-gray-100">
+                                <td className="py-1 pr-2">{row.provider}</td>
+                                <td className="py-1 pr-2 text-right">{row.transactionCount.toLocaleString()}</td>
+                                <td className="py-1 text-right">{row.volume.toLocaleString()}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>

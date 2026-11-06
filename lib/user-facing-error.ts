@@ -39,7 +39,9 @@ const MESSAGE_RULES: Array<{ test: RegExp; message: string }> = [
   },
   { test: /session\s+expired/i, message: 'Session expired. Please log in again.' },
   { test: /too\s+many\s+requests|rate\s+limit/i, message: 'Too many requests. Please wait and try again.' },
-  { test: /duplicate|already\s+(exists|used|submitted)|still\s+processing|still\s+pending/i, message: 'This transaction was already submitted.' },
+  // Idempotency / duplicate only — do not match "still pending for retry" liquidation errors.
+  { test: /already\s+submitted|duplicate\s+transaction|idempotenc|in\s+flight|still\s+processing|request\s+already\s+(exists|used)/i, message: 'This transaction was already submitted.' },
+  { test: /payout\s+failed/i, message: 'Payout failed. You can retry approval or cancel the request.' },
   { test: /permission|not\s+allowed|forbidden/i, message: 'You do not have permission for this action.' },
   { test: /unauthorized|authentication\s+failed|log\s*in\s+again/i, message: 'Please log in again.' },
   { test: /timeout|timed\s+out|no\s+response/i, message: 'Request timed out. Please try again.' },
