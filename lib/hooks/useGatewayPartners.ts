@@ -7,6 +7,7 @@ export interface GatewayPartner {
   id: string;
   partnerName: string;
   partnerType: string;
+  partnerCode?: string | null;
   contactEmail: string;
   contactPhone: string;
   contactPerson?: string;

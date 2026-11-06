@@ -7,6 +7,7 @@ export interface ApiPartner {
   userId?: string
   partnerName: string
   partnerType: string
+  partnerCode?: string | null
   contactEmail: string
   contactPhone: string
   country?: string
