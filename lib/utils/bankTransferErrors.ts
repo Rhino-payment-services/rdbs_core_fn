@@ -3,6 +3,19 @@ export function mapBankTransferError(message: string): string {
   const raw = message?.trim() || ''
   const upper = raw.toUpperCase()
 
+  // Ambiguous / in-flight outcomes must not read as hard failures.
+  if (
+    upper.includes('STILL PROCESSING') ||
+    upper.includes('CHECK BACK LATER') ||
+    upper.includes('TIMED OUT') ||
+    upper.includes('TIMEOUT') ||
+    upper.includes('NO RESPONSE') ||
+    upper.includes('ECONNABORTED') ||
+    upper.includes('NETWORK ERROR')
+  ) {
+    return 'Your bank transfer is still processing. Please check back later — do not retry the same transfer.'
+  }
+
   if (
     upper.includes('NO EXTERNAL PARTNER MAPPED') ||
     upper.includes('NOT AVAILABLE FOR TRANSFERS') ||

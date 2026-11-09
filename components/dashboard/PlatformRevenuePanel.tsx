@@ -695,16 +695,23 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
                 bankSortCode,
               }),
       })
+      const partnerRef = result?.data?.partnerReference
+        ? ` (ref: ${result.data.partnerReference})`
+        : ''
+      const bankPending =
+        isBank &&
+        (result?.data?.pending === true ||
+          /still processing|check back later/i.test(
+            String(result?.data?.message || result?.message || ''),
+          ))
       toast.success(
         isOffset
           ? `Recorded ${formatCurrency(amount, currency)} partner offset`
           : isMno
-            ? `Sent ${formatCurrency(amount, currency)} to ${liquidateForm.mnoProvider} ${liquidateForm.phoneNumber}${
-                result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
-              }`
-            : `Sent ${formatCurrency(amount, currency)} to ${bankName}${
-                result?.data?.partnerReference ? ` (ref: ${result.data.partnerReference})` : ''
-              }`,
+            ? `Sent ${formatCurrency(amount, currency)} to ${liquidateForm.mnoProvider} ${liquidateForm.phoneNumber}${partnerRef}`
+            : bankPending
+              ? `Bank transfer of ${formatCurrency(amount, currency)} to ${bankName} is still processing${partnerRef}. Check back later — do not retry the same transfer.`
+              : `Sent ${formatCurrency(amount, currency)} to ${bankName}${partnerRef}`,
       )
       setShowLiquidate(false)
       setSelectedSettleKeys([])
