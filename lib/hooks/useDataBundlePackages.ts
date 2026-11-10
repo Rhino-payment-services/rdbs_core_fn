@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { toast } from 'sonner';
 
-export type DataBundleNetwork = 'MTN' | 'AIRTEL';
+export type DataBundleNetwork = 'MTN' | 'AIRTEL' | 'LYCA';
 export type DataBundleUnit = 'MB' | 'GB';
 export type DataBundleValidity = 'Day' | 'Week' | 'Month';
 

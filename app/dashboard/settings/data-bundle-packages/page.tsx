@@ -278,6 +278,7 @@ export default function DataBundlePackagesPage() {
                 <SelectContent>
                   <SelectItem value="MTN">MTN</SelectItem>
                   <SelectItem value="AIRTEL">Airtel</SelectItem>
+                  <SelectItem value="LYCA">Lyca</SelectItem>
                 </SelectContent>
               </Select>
             </div>
