@@ -317,7 +317,10 @@ export const getTypeDisplay = (
     SCHOOL_FEES: 'School Fees',
     WALLET_TO_PARTNER_INSTITUTION: 'Wallet to SACCO',
     PARTNER_INSTITUTION_TO_WALLET: 'SACCO to Wallet',
-    LIQUIDATION: 'SACCO Liquidation',
+    // Platform revenue settlements also use LIQUIDATION; getTypeDisplay checks
+    // isPlatformRevenueLiquidationTx() first and returns "Platform revenue settlement".
+    LIQUIDATION: 'Liquidation',
+    MERCHANT_SELF_LIQUIDATION: 'Merchant Self Liquidation',
     
     // Wallet Operations
     DEPOSIT: 'Wallet Deposit',

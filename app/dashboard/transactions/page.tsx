@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useTransactionSystemStats, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck, type ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
-import { getChannelDisplay } from '@/lib/utils/transactions'
+import { getChannelDisplay, getTypeDisplay, isPlatformRevenueLiquidationTx } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import {
   getNormalizedRukapayFee,
@@ -611,11 +611,28 @@ const TransactionsPage = () => {
             })
           : ''
 
+        const isPlatformRevenueSettlement = isPlatformRevenueLiquidationTx(tx)
+        const payoutMethod = String(metadata.payoutMethod || '').toUpperCase()
+        const settlementDestination = isPlatformRevenueSettlement
+          ? payoutMethod === 'BANK'
+            ? [metadata.bankName, metadata.bankAccountName, metadata.bankAccountNumber]
+                .filter(Boolean)
+                .join(' · ')
+            : payoutMethod === 'MNO' || payoutMethod === 'MOBILE_MONEY'
+              ? [metadata.mnoProvider, metadata.phoneNumber, metadata.recipientName]
+                  .filter(Boolean)
+                  .join(' · ')
+              : payoutMethod === 'PARTNER_OFFSET'
+                ? 'Partner offset'
+                : payoutMethod || ''
+          : ''
+
         return {
           Reference: tx.reference || tx.id,
           'External Reference': tx.externalReference || '',
           'Transaction ID': tx.id,
-          Type: tx.type || '',
+          // Human label so platform revenue settlements are visible (not raw WITHDRAWAL/LIQUIDATION).
+          Type: getTypeDisplay(tx.type, tx.direction, tx),
           Channel: getChannelDisplay(tx.channel, tx.metadata).label,
           Status: tx.status || '',
           Direction: tx.direction || '',
@@ -632,7 +649,9 @@ const TransactionsPage = () => {
           'Sender Contact': senderContact,
           'Receiver Name': walletToBankReceiverName || receiverName,
           'Receiver Contact': receiverContact,
-          'Bank Name': bankName,
+          'Bank Name': bankName || (isPlatformRevenueSettlement ? String(metadata.bankName || '') : ''),
+          'Payout Method': isPlatformRevenueSettlement ? payoutMethod || '' : '',
+          Destination: settlementDestination,
           Partner: partnerLabel,
           'Date & Time': dateTime,
           Description: tx.description || '',
