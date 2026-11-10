@@ -343,6 +343,7 @@ const CustomerSettings = ({
     featurePayroll: false,
     featurePayrollApprovals: false,
     featurePinLogin: false,
+    featureDataBundleDistribution: false,
   })
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
   const [savingFlag, setSavingFlag] = useState<string | null>(null)
@@ -1942,6 +1943,18 @@ const CustomerSettings = ({
                     checked={featureFlags.featurePayrollApprovals}
                     onCheckedChange={(val) => handleFeatureFlagToggle('featurePayrollApprovals', val)}
                     disabled={savingFlag === 'featurePayrollApprovals' || liquidationOnlyMode}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <div className="text-sm font-medium">Data Bundles Distribution</div>
+                    <div className="text-sm text-gray-500">Show the Data Bundles module (maker-checker bulk data bundles) in the dashboard</div>
+                  </div>
+                  <Switch
+                    checked={featureFlags.featureDataBundleDistribution}
+                    onCheckedChange={(val) => handleFeatureFlagToggle('featureDataBundleDistribution', val)}
+                    disabled={savingFlag === 'featureDataBundleDistribution' || liquidationOnlyMode}
                   />
                 </div>
               </div>

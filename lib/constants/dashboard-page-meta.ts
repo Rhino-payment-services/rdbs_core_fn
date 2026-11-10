@@ -143,6 +143,11 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Settings', href: '/dashboard/settings' },
     { label: 'App Configuration' },
   ],
+  'settings/data-bundle-packages': [
+    root,
+    { label: 'Settings', href: '/dashboard/settings' },
+    { label: 'Data Bundle Packages' },
+  ],
   'system-logs': [root, { label: 'System Logs' }],
   'test-permissions': [root, { label: 'Permissions Test' }],
   'transaction-modes': [root, { label: 'Transaction Modes' }],
