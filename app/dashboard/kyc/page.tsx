@@ -1026,7 +1026,7 @@ const KycPage = () => {
                             Customer pays all external fee
                           </SelectItem>
                           <SelectItem value="CUSTOMER_PAYS_PARTIAL">
-                            Customer pays partial external fee
+                            Split fee: customer + merchant
                           </SelectItem>
                           <SelectItem value="CUSTOMER_PAYS_NONE">
                             Customer pays no external fee
@@ -1037,7 +1037,7 @@ const KycPage = () => {
                       {collectionFeeMode === 'CUSTOMER_PAYS_PARTIAL' && (
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-600">
-                            Customer share of external fee (%)
+                            Customer share of total fee (%)
                           </label>
                           <Input
                             type="number"
@@ -1050,7 +1050,7 @@ const KycPage = () => {
                             className="h-8 text-sm"
                           />
                           <p className="text-[11px] text-gray-500">
-                            Example: if external fee is 2% and you set 50%, customer pays 1% and RukaPay absorbs 1%.
+                            Example: total 2.5% and 60 → customer ~1.5%, merchant ~1%. Prompt is grossed up; remainder is not absorbed by RukaPay.
                           </p>
                         </div>
                       )}
