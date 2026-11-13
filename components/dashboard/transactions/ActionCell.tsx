@@ -2,7 +2,9 @@
 
 import { TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Eye, RotateCcw, FileText, Download, RefreshCcw } from 'lucide-react'
+import { Eye, RotateCcw, FileText, Download, RefreshCcw, Receipt } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { downloadProofOfPayment } from '@/lib/utils/proofOfPaymentPdf'
 
 const REVERSIBLE_TYPES = new Set([
   'WALLET_TO_MNO',
@@ -44,6 +46,16 @@ export const ActionCell = ({
     transaction.type !== 'REVERSAL'
 
   const showReversalButton = !isDisplayLeg && REVERSIBLE_TYPES.has(transaction.type as string)
+
+  const handleProofOfPayment = async () => {
+    try {
+      await downloadProofOfPayment(transaction)
+      toast.success('Proof of payment downloaded')
+    } catch (error) {
+      console.error('Failed to generate proof of payment:', error)
+      toast.error('Could not generate proof of payment')
+    }
+  }
 
   const handleDownloadJson = () => {
     try {
@@ -92,6 +104,14 @@ export const ActionCell = ({
           title="View API Logs"
         >
           <FileText className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleProofOfPayment}
+          title="Generate proof of payment"
+        >
+          <Receipt className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"

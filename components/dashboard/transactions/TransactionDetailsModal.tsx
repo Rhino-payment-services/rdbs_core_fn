@@ -26,6 +26,7 @@ import {
   shortenTransactionId
 } from '@/lib/utils/transactions'
 import toast from 'react-hot-toast'
+import { downloadProofOfPayment } from '@/lib/utils/proofOfPaymentPdf'
 import { getPartnerRole, getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePaymentPartnerLabel } from './partyResolver'
 import { usePermissions } from '@/lib/hooks/usePermissions'
 import { normalizeFeeBreakdown } from '@/lib/utils/feeBreakdown'
@@ -53,6 +54,21 @@ export const TransactionDetailsModal = ({
   const [showOverrideSection, setShowOverrideSection] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideProcessing, setOverrideProcessing] = useState(false)
+
+  const [proofLoading, setProofLoading] = useState(false)
+
+  const handleProofOfPayment = async () => {
+    if (!transaction) return
+    setProofLoading(true)
+    try {
+      await downloadProofOfPayment(transaction)
+      toast.success('Proof of payment downloaded')
+    } catch {
+      toast.error('Could not generate proof of payment')
+    } finally {
+      setProofLoading(false)
+    }
+  }
 
   const handleStatusOverride = async () => {
     if (!overrideReason.trim()) {
@@ -1264,9 +1280,13 @@ export const TransactionDetailsModal = ({
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Close
             </Button>
-            <Button variant="default">
-              <Download className="h-4 w-4 mr-2" />
-              Export Details
+            <Button variant="default" onClick={handleProofOfPayment} disabled={proofLoading}>
+              {proofLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Proof of payment
             </Button>
           </div>
         </div>

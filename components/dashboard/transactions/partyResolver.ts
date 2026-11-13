@@ -21,14 +21,18 @@ function upper(v: any) {
 
 export function isApiDrivenTransaction(tx: any): boolean {
   const m = tx?.metadata || {}
+  const withdrawalType = String(m.withdrawalType || '')
   if (
-    m.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION_RECORD' ||
+    m.manualKind === 'PLATFORM_REVENUE' ||
+    m.manualKind === 'PLATFORM_REVENUE_LIQUIDATION' ||
     tx?.platformRevenueSettlement === true
   ) {
     return false
   }
   const ref = String(tx?.reference || '')
-  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) return false
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_|MANUAL_PREV_|MANUAL_REV_)/.test(ref)) return false
   return !!(
     tx?.partner ||
     tx?.partnerId ||
@@ -211,14 +215,18 @@ export function resolvePartnerDisplay(tx: any): { primary: string; secondary?: s
 export function getBasicPartnerDisplayLabel(tx: any): string {
   const m = tx?.metadata || {}
 
+  const withdrawalType = String(m.withdrawalType || '')
   if (
-    m.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION_RECORD' ||
+    m.manualKind === 'PLATFORM_REVENUE' ||
+    m.manualKind === 'PLATFORM_REVENUE_LIQUIDATION' ||
     tx?.platformRevenueSettlement === true
   ) {
     return 'Platform revenue'
   }
   const ref = String(tx?.reference || '')
-  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) {
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_|MANUAL_PREV_|MANUAL_REV_)/.test(ref)) {
     return 'Platform revenue'
   }
 
@@ -331,14 +339,18 @@ export function resolveApprovingApiPartnerLabel(tx: any): string | null {
 export function resolvePaymentPartnerLabel(tx: any): string | null {
   const metadata = tx?.metadata || {}
 
+  const withdrawalType = String(metadata.withdrawalType || '')
   if (
-    metadata.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION_RECORD' ||
+    metadata.manualKind === 'PLATFORM_REVENUE' ||
+    metadata.manualKind === 'PLATFORM_REVENUE_LIQUIDATION' ||
     tx?.platformRevenueSettlement === true
   ) {
     return 'Platform revenue'
   }
   const ref = String(tx?.reference || '')
-  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(ref)) {
+  if (/^(PREV_OFFSET_|PREV_REV_|PREV_MNO_|MANUAL_PREV_|MANUAL_REV_)/.test(ref)) {
     return 'Platform revenue'
   }
 
