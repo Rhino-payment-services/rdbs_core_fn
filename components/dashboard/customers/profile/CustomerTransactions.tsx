@@ -23,9 +23,12 @@ import {
   ExternalLink,
   Eye,
   ChevronDown,
+  Receipt,
 } from 'lucide-react'
 import type { Transaction } from '@/lib/types/api'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
+import { downloadProofOfPayment } from '@/lib/utils/proofOfPaymentPdf'
+import toast from 'react-hot-toast'
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
@@ -470,9 +473,26 @@ const CustomerTransactions = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" title="View details">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Generate proof of payment"
+                          onClick={async () => {
+                            try {
+                              await downloadProofOfPayment(transaction)
+                              toast.success('Proof of payment downloaded')
+                            } catch {
+                              toast.error('Could not generate proof of payment')
+                            }
+                          }}
+                        >
+                          <Receipt className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                   )

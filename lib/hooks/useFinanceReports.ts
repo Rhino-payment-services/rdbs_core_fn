@@ -63,8 +63,16 @@ export interface BouMonthlyReport {
     cashOut: { count: number; volume: number }
     p2p: { count: number; volume: number }
     walletToBank: { count: number; volume: number }
-    /** Per destination bank from transaction metadata (UNKNOWN when missing) */
+    /** Per destination bank from transaction metadata (UNKNOWN when missing); names/codes merged */
     walletToBankByBank?: Array<{ bank: string; transactionCount: number; volume: number }>
+    /** Bill / utility payments in the month */
+    billPayments?: { count: number; volume: number }
+    /** Breakdown by utility provider (NWSC, UMEME (UEDCL), URA, …) */
+    billPaymentsByProvider?: Array<{
+      provider: string
+      transactionCount: number
+      volume: number
+    }>
     merchantToWallet: { count: number; volume: number }
     personalToBusiness: { count: number; volume: number }
     personalToMerchant: { count: number; volume: number }
@@ -80,21 +88,58 @@ export interface BouMonthlyReport {
     total: number
     female: number
     male: number
+    /** Missing / blank / other gender */
+    unknown?: number
+    registeredInMonth?: {
+      total: number
+      female: number
+      male: number
+      unknown?: number
+    }
+    /** All subscribers registered on/before month end */
+    totalAsOfMonthEnd?: {
+      total: number
+      female: number
+      male: number
+      unknown?: number
+    }
     activeInMonth: {
       total: number
       female: number
       male: number
+      unknown?: number
     }
     activeIn90Days: {
       total: number
       female: number
       male: number
+      unknown?: number
     }
   }
   merchants: {
+    /** Registered (created) in report month — same as registeredInMonth.total */
     total: number
     female: number
     male: number
+    unknown?: number
+    registeredInMonth?: {
+      total: number
+      female: number
+      male: number
+      unknown?: number
+    }
+    activeInMonth?: {
+      total: number
+      female: number
+      male: number
+      unknown?: number
+    }
+    activeIn90Days?: {
+      total: number
+      female: number
+      male: number
+      unknown?: number
+    }
   }
   wallets: {
     totalActiveBalance: number
@@ -199,14 +244,53 @@ export const getTransactionsByGender = async (params: {
     })
     const data = response.data
     
-    // Transform the data to match expected format
+    // Transform the data to match expected format; blank/null gender → Unknown
     const rawStats = data?.genderStats || data?.distribution || []
-    const genderStats = Array.isArray(rawStats) ? rawStats.map((stat: any) => ({
-      gender: stat.gender || stat._id || 'Unknown',
-      totalVolume: stat.totalVolume || 0,
-      totalCount: stat.count || stat.totalCount || 0,
-      averageAmount: stat.averageAmount || 0
-    })) : []
+    const normalizeGenderLabel = (raw: unknown): string => {
+      const s = String(raw ?? '').trim()
+      if (!s || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') {
+        return 'Unknown'
+      }
+      const upper = s.toUpperCase()
+      if (upper === 'F' || upper === 'FEMALE') return 'Female'
+      if (upper === 'M' || upper === 'MALE') return 'Male'
+      if (upper === 'UNKNOWN' || upper === 'OTHER' || upper === 'N/A') return 'Unknown'
+      return s
+    }
+    const merged = new Map<
+      string,
+      { gender: string; totalVolume: number; totalCount: number; averageAmount: number }
+    >()
+    if (Array.isArray(rawStats)) {
+      for (const stat of rawStats) {
+        const gender = normalizeGenderLabel(stat.gender ?? stat._id)
+        const totalVolume = Number(stat.totalVolume || 0)
+        const totalCount = Number(stat.count || stat.totalCount || 0)
+        const cur = merged.get(gender) || {
+          gender,
+          totalVolume: 0,
+          totalCount: 0,
+          averageAmount: 0,
+        }
+        cur.totalVolume += totalVolume
+        cur.totalCount += totalCount
+        merged.set(gender, cur)
+      }
+    }
+    const genderStats = Array.from(merged.values()).map((g) => ({
+      ...g,
+      averageAmount: g.totalCount > 0 ? g.totalVolume / g.totalCount : 0,
+    }))
+    // Prefer Female, Male, Unknown order when present
+    const order = ['Female', 'Male', 'Unknown']
+    genderStats.sort((a, b) => {
+      const ai = order.indexOf(a.gender)
+      const bi = order.indexOf(b.gender)
+      if (ai === -1 && bi === -1) return a.gender.localeCompare(b.gender)
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    })
     
     return {
       genderStats,

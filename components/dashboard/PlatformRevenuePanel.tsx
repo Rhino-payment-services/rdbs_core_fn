@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { CreditCard, Download, ExternalLink, FileText, Loader2 } from 'lucide-react'
+import { CreditCard, Download, ExternalLink, FileText, Loader2, Receipt } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import api from '@/lib/axios'
 import { TransactionDetailsModal } from '@/components/dashboard/transactions/TransactionDetailsModal'
@@ -55,6 +55,7 @@ import {
   type PlatformRevenueExportPayload,
 } from '@/lib/utils/platformRevenueExport'
 import toast from 'react-hot-toast'
+import { RecordLedgerEntryDialog } from '@/components/dashboard/ledger/RecordLedgerEntryDialog'
 
 /** Match ledger formatting: show decimals when the amount is not a whole number. */
 const formatCurrency = (amount: number, currency: string) => {
@@ -253,6 +254,7 @@ interface PlatformRevenuePanelProps {
 export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanelProps) {
   const { handleError } = useErrorHandler()
   const [showLiquidate, setShowLiquidate] = useState(false)
+  const [showLedgerDialog, setShowLedgerDialog] = useState(false)
   const [selectedSettleKeys, setSelectedSettleKeys] = useState<string[]>([])
 
   const [statementPage, setStatementPage] = useState(1)
@@ -873,6 +875,10 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
               }}
             >
               Refresh statement
+            </Button>
+            <Button variant="outline" onClick={() => setShowLedgerDialog(true)}>
+              <Receipt className="w-4 h-4 mr-2" />
+              Record ledger
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-700"
@@ -1615,6 +1621,18 @@ export function PlatformRevenuePanel({ walletDescription }: PlatformRevenuePanel
           </div>
         </DialogContent>
       </Dialog>
+
+      <RecordLedgerEntryDialog
+        open={showLedgerDialog}
+        onOpenChange={setShowLedgerDialog}
+        mode="platform-revenue"
+        currency={currency}
+        onSuccess={() => {
+          refetchBalance()
+          refetchSummary()
+          refetchEntries()
+        }}
+      />
 
       <TransactionDetailsModal
         isOpen={detailModalOpen}
