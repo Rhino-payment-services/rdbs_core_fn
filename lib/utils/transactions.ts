@@ -234,12 +234,18 @@ export const isPlatformRevenueLiquidationTx = (
   transactionOrMeta?: { metadata?: any; reference?: string } | null,
 ): boolean => {
   const meta = transactionOrMeta?.metadata ?? transactionOrMeta
-  if ((meta as any)?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION') return true
+  const withdrawalType = String((meta as any)?.withdrawalType || '')
+  if (
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+    withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION_RECORD'
+  ) {
+    return true
+  }
   const reference =
     transactionOrMeta && 'reference' in transactionOrMeta
       ? transactionOrMeta.reference
       : (meta as any)?.reference
-  return !!reference && /^(PREV_OFFSET_|PREV_REV_|PREV_MNO_)/.test(String(reference))
+  return !!reference && /^(PREV_OFFSET_|PREV_REV_|PREV_MNO_|MANUAL_PREV_)/.test(String(reference))
 }
 
 /** RukaSente clawback: original loan credit reversed, funds returned to partner escrow. */

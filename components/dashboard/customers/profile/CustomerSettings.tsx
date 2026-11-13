@@ -41,6 +41,7 @@ import { WalletUnfreezeDialog } from '@/components/dashboard/wallets/WalletUnfre
 import { BankSortCodeSelect } from '@/components/dashboard/finance/BankSortCodeSelect'
 import { useUgandaBanks } from '@/lib/hooks/useUgandaBanks'
 import { MerchantTeamCard } from './MerchantTeamCard'
+import { RecordLedgerEntryDialog } from '@/components/dashboard/ledger/RecordLedgerEntryDialog'
 
 interface WalletItem {
   id: string
@@ -112,6 +113,7 @@ interface CustomerSettingsProps {
   customerId: string
   customerStatus: string
   customerPhone?: string
+  customerName?: string
   walletBalance?: number
   walletId?: string
   currency?: string
@@ -143,6 +145,7 @@ const CustomerSettings = ({
   customerId, 
   customerStatus,
   customerPhone = '',
+  customerName = '',
   walletBalance = 0,
   walletId,
   currency = 'UGX',
@@ -161,6 +164,7 @@ const CustomerSettings = ({
   const [suspendDialogOpen, setSuspendDialogOpen] = useState(false)
   const [unsuspendDialogOpen, setUnsuspendDialogOpen] = useState(false)
   const [manualTransactionDialogOpen, setManualTransactionDialogOpen] = useState(false)
+  const [ledgerDialogOpen, setLedgerDialogOpen] = useState(false)
   const [freezeDialogOpen, setFreezeDialogOpen] = useState(false)
   const [unfreezeDialogOpen, setUnfreezeDialogOpen] = useState(false)
   const [freezeWalletTarget, setFreezeWalletTarget] = useState<WalletItem | null>(null)
@@ -180,12 +184,12 @@ const CustomerSettings = ({
     amount: '' // Add amount field
   })
   
-  // Manual transaction form state
+  // Manual transaction form state (add / remove money)
   const [transactionForm, setTransactionForm] = useState({
     type: 'CREDIT',
     amount: '',
     description: '',
-    reference: ''
+    reference: '',
   })
   // When customer has multiple wallets, which wallet to credit/debit
   const effectiveWallets = Array.isArray(allUserWallets) && allUserWallets.length > 0 ? allUserWallets : (walletId ? [{ id: walletId, walletType: undefined, balance: walletBalance, currency }] : [])
@@ -1102,7 +1106,7 @@ const CustomerSettings = ({
                       Customer pays all external fee
                     </SelectItem>
                     <SelectItem value="CUSTOMER_PAYS_PARTIAL">
-                      Customer pays partial external fee
+                      Split fee: customer + merchant
                     </SelectItem>
                     <SelectItem value="CUSTOMER_PAYS_NONE">
                       Merchant pays fee (deducted from collection)
@@ -1148,7 +1152,7 @@ const CustomerSettings = ({
 
               {collectionMode === 'CUSTOMER_PAYS_PARTIAL' && (
                 <div className="space-y-2">
-                  <Label htmlFor="customerSharePercent">Customer share of external fee (%)</Label>
+                  <Label htmlFor="customerSharePercent">Customer share of total fee (%)</Label>
                   <Input
                     id="customerSharePercent"
                     type="number"
@@ -1159,10 +1163,11 @@ const CustomerSettings = ({
                       const value = Number(e.target.value)
                       setCustomerSharePercent(Number.isNaN(value) ? 0 : value)
                     }}
-                    placeholder="Enter percentage (e.g. 50)"
+                    placeholder="Enter percentage (e.g. 60)"
                   />
                   <p className="text-xs text-gray-500">
-                    Example: if external fee is 2% and you set 50%, customer pays 1% and RukaPay absorbs 1%.
+                    Share of the total fee the customer pays (0–100). Remainder is deducted from the merchant.
+                    Example: total 2.5% and 60 → customer ~1.5%, merchant ~1%. Prompt is grossed up so fees do not create a shortfall.
                   </p>
                 </div>
               )}
@@ -1510,7 +1515,7 @@ const CustomerSettings = ({
                 <Plus className="h-4 w-4 text-gray-500" />
                 <div>
                   <div className="text-sm font-medium">Manual Transaction</div>
-                  <div className="text-sm text-gray-600">Create manual credit/debit transaction</div>
+                  <div className="text-sm text-gray-600">Add money or remove money from this wallet</div>
                 </div>
               </div>
               <Dialog open={manualTransactionDialogOpen} onOpenChange={setManualTransactionDialogOpen}>
@@ -1548,7 +1553,6 @@ const CustomerSettings = ({
                         </Select>
                       </div>
                     )}
-                    {/* Current balance context */}
                     <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-4 py-2 text-sm">
                       <span className="text-gray-500">Current balance{effectiveWallets.length > 1 ? ` (${walletTypeLabel(effectiveWallets.find(w => w.id === effectiveWalletId)?.walletType)})` : ''}</span>
                       <span className="font-semibold text-gray-800">
@@ -1578,7 +1582,6 @@ const CustomerSettings = ({
                         value={transactionForm.amount}
                         onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
                       />
-                      {/* Balance preview */}
                       {transactionForm.amount && !Number.isNaN(parseFloat(transactionForm.amount)) && parseFloat(transactionForm.amount) > 0 && (
                         <div className="mt-1 flex items-center justify-between rounded border border-dashed px-3 py-1.5 text-xs text-gray-600">
                           <span>Balance after this transaction</span>
@@ -1626,6 +1629,48 @@ const CustomerSettings = ({
               </Dialog>
             </div>
             )}
+
+            {hasWallet && (
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-3">
+                <Receipt className="h-4 w-4 text-gray-500" />
+                <div>
+                  <div className="text-sm font-medium">Ledger-only entry</div>
+                  <div className="text-sm text-gray-600">
+                    Record a normal transaction type in the ledger (WALLET_TO_MNO, MNO_TO_WALLET, bank, and more). No money is sent out.
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setLedgerDialogOpen(true)}
+              >
+                <Receipt className="h-4 w-4" />
+                Record Ledger
+              </Button>
+            </div>
+            )}
+
+            <RecordLedgerEntryDialog
+              open={ledgerDialogOpen}
+              onOpenChange={setLedgerDialogOpen}
+              mode="customer"
+              currency={currency}
+              wallets={effectiveWallets.map((w) => ({
+                id: w.id,
+                label: walletTypeLabel(w.walletType),
+                balance: w.balance != null ? Number(w.balance) : 0,
+              }))}
+              walletId={effectiveWalletId}
+              onWalletChange={setSelectedWalletIdForTx}
+              customerId={customerId}
+              customerName={customerName}
+              customerPhone={customerPhone}
+              onSuccess={onActionComplete}
+            />
+
           </div>
         </CardContent>
       </Card>

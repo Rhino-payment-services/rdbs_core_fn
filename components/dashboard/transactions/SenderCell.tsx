@@ -167,8 +167,12 @@ export const SenderCell = ({ transaction, derived }: SenderCellProps) => {
             null,
         }
       : normalizePartyInfoForDisplay(transaction.senderInfo, transaction, 'sender')
+    const withdrawalType = String(metadata?.withdrawalType || '')
     const isPlatformRevenue =
-      metadata?.withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+      withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION' ||
+      withdrawalType === 'PLATFORM_REVENUE_LIQUIDATION_RECORD' ||
+      metadata?.manualKind === 'PLATFORM_REVENUE' ||
+      metadata?.manualKind === 'PLATFORM_REVENUE_LIQUIDATION' ||
       transaction.platformRevenueSettlement === true ||
       senderInfo.platformRevenueSettlement === true
     return (
