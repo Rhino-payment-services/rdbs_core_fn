@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useTransactionSystemStats, useChannelStatistics, useTransactionLogs, useManualTransactionStatusCheck, type ManualStatusCheckResult } from '@/lib/hooks/useTransactions'
 import api from '@/lib/axios'
 import toast from 'react-hot-toast'
-import { getChannelDisplay, getTypeDisplay, isPlatformRevenueLiquidationTx } from '@/lib/utils/transactions'
+import { getChannelDisplay, isPlatformRevenueLiquidationTx } from '@/lib/utils/transactions'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import {
   getNormalizedRukapayFee,
@@ -22,6 +22,7 @@ import { getBasicPartnerDisplayLabel, normalizePartyInfoForDisplay, resolvePayme
 import { getKampalaCalendarDate } from '@/lib/utils/kampalaDate'
 import * as XLSX from 'xlsx' // TODO: replace with exceljs (xlsx has no patched npm release)
 import { useOpsTransactionSearch } from '@/lib/hooks/useOpsTransactionSearch'
+import { downloadTransactionsExport } from '@/lib/utils/transactionExport'
 
 // Import extracted components
 import { TransactionStatsCards } from '@/components/dashboard/transactions/TransactionStatsCards'
@@ -36,9 +37,6 @@ import { StatusCheckModal } from '@/components/dashboard/transactions/StatusChec
 import { GenerateStatementDialog } from '@/components/dashboard/statements/GenerateStatementDialog'
 import { Button } from '@/components/ui/button'
 import { FileText } from 'lucide-react'
-
-const EXPORT_ALL_TRANSACTIONS_LIMIT = 100_000
-const EXPORT_PAGE_SIZE = 5000
 
 const TransactionsPage = () => {
   // Pagination and filtering state
@@ -359,115 +357,36 @@ const TransactionsPage = () => {
     }
   }
 
-  // Export transactions to CSV
+  // Export transactions — export-all uses server CSV stream (RukaSente-style blob).
+  // Current page keeps the local Excel workbook path.
   const exportTransactionsToCSV = async (exportAll: boolean = false, customStartDate?: string, customEndDate?: string) => {
     setIsExporting(true)
     try {
-      let transactionsToExport: any[] = transactions
-      
       // Use custom dates if provided, otherwise use current filters
       const exportStart = customStartDate || startDate
       const exportEnd = customEndDate || endDate
-      // Compute once here — used both in the fetch params and in per-row column logic below.
+
+      if (exportAll) {
+        await downloadTransactionsExport({
+          startDate: exportStart || undefined,
+          endDate: exportEnd || undefined,
+          status: statusFilter || undefined,
+          type: typeFilter || undefined,
+        })
+        toast.success('Transaction export downloaded')
+        return
+      }
+
+      let transactionsToExport: any[] = transactions
       const isDatedLedgerExport = !!(exportStart || exportEnd)
-
-      // Daily ledger exports assign each transaction to exactly one day by createdAt
-      // (Africa/Kampala). Revenue totals come from the stats API, not the row roster.
-
       let bookedRevenueTotalFromApi: number | null = null
       let revenueEntryCountFromApi: number | null = null
-      
-      if (exportAll) {
-        // --- Primary fetch ---
-        const allRows: any[] = []
-        let page = 1
-        let total = Number.POSITIVE_INFINITY
 
-        while (allRows.length < EXPORT_ALL_TRANSACTIONS_LIMIT && allRows.length < total) {
-          const response = await api({
-            url: '/transactions/all',
-            method: 'GET',
-            params: {
-              page,
-              limit: EXPORT_PAGE_SIZE,
-              status: statusFilter || undefined,
-              type: typeFilter || undefined,
-              // Revenue-aligned: paginates platform_revenue_entries by creditedAt so that
-              // column L sums exactly to bookedRevenueTotal (= the dashboard card).
-              // Non-revenue status filters (FAILED, PENDING) use startDate/endDate instead.
-              startDate: exportStart || undefined,
-              endDate: exportEnd || undefined,
-            },
-          })
-
-          const payload = response.data?.data ?? response.data
-          const batch = payload?.transactions ?? []
-          total = typeof payload?.total === 'number' ? payload.total : batch.length
-          if (payload?.bookedRevenueTotal != null) {
-            bookedRevenueTotalFromApi = Number(payload.bookedRevenueTotal)
-          }
-          if (payload?.revenueEntryCount != null) {
-            revenueEntryCountFromApi = Number(payload.revenueEntryCount)
-          } else if (typeof payload?.total === 'number') {
-            revenueEntryCountFromApi = Number(payload.total)
-          }
-
-          if (!batch.length) break
-          allRows.push(...batch)
-          if (batch.length < EXPORT_PAGE_SIZE) break
-          page += 1
-        }
-
-        transactionsToExport = allRows.slice(0, EXPORT_ALL_TRANSACTIONS_LIMIT)
-
-        // WALLET_INIT is excluded server-side unless the type filter is set to it.
-        // appear in the results. Non-dated exports filter them client-side.
-        if (!isDatedLedgerExport) {
-          transactionsToExport = transactionsToExport.filter((tx: any) => tx.type !== 'WALLET_INIT')
-        }
-        
-        // Apply search filter if exists
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase()
-          transactionsToExport = transactionsToExport.filter((tx: any) => {
-            const matchesId = tx.id?.toLowerCase().includes(searchLower) || 
-                              tx.reference?.toLowerCase().includes(searchLower)
-            
-            const senderName = tx.direction === 'DEBIT' 
-              ? (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-                  ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-                  : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
-              : (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-                 tx.metadata?.merchantName?.toLowerCase() || 
-                 tx.metadata?.userName?.toLowerCase() || '')
-            
-            const receiverName = tx.direction === 'DEBIT'
-              ? (tx.metadata?.counterpartyInfo?.name?.toLowerCase() || 
-                 tx.metadata?.merchantName?.toLowerCase() || 
-                 tx.metadata?.userName?.toLowerCase() || 
-                 tx.counterpartyUser?.profile?.firstName && tx.counterpartyUser?.profile?.lastName
-                   ? `${tx.counterpartyUser.profile.firstName} ${tx.counterpartyUser.profile.lastName}`.toLowerCase()
-                   : '')
-              : (tx.user?.profile?.firstName && tx.user?.profile?.lastName 
-                  ? `${tx.user.profile.firstName} ${tx.user.profile.lastName}`.toLowerCase()
-                  : tx.user?.phone?.toLowerCase() || tx.user?.email?.toLowerCase() || '')
-            
-            return matchesId || senderName.includes(searchLower) || receiverName.includes(searchLower)
-          })
-        }
-        
-        if (transactionsToExport.length === 0) {
-          toast.error('No transactions to export')
-          setIsExporting(false)
-          return
-        }
-      } else {
-        // Export current page only
-        if (transactions.length === 0) {
-          toast.error('No transactions on current page to export')
-          setIsExporting(false)
-          return
-        }
+      // Export current page only
+      if (transactions.length === 0) {
+        toast.error('No transactions on current page to export')
+        setIsExporting(false)
+        return
       }
 
       // Convert transactions to Excel rows
@@ -631,8 +550,14 @@ const TransactionsPage = () => {
           Reference: tx.reference || tx.id,
           'External Reference': tx.externalReference || '',
           'Transaction ID': tx.id,
-          // Human label so platform revenue settlements are visible (not raw WITHDRAWAL/LIQUIDATION).
-          Type: getTypeDisplay(tx.type, tx.direction, tx),
+          // Raw transaction mode/type (e.g. WALLET_TO_MNO), not the UI display label.
+          Type:
+            tx.mode ||
+            metadata.mode ||
+            metadata.transactionMode ||
+            metadata.transactionModeCode ||
+            tx.type ||
+            '',
           Channel: getChannelDisplay(tx.channel, tx.metadata).label,
           Status: tx.status || '',
           Direction: tx.direction || '',
@@ -787,7 +712,9 @@ const TransactionsPage = () => {
       )
     } catch (error) {
       console.error('Export error:', error)
-      toast.error('Failed to export transactions')
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to export transactions',
+      )
     } finally {
       setIsExporting(false)
     }
