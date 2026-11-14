@@ -229,7 +229,7 @@ export const downloadJobFile = async (job: BackupJob): Promise<void> => {
     (job.target === 'both'
       ? 'backup-both.zip'
       : job.target === 'postgres'
-        ? 'backup-postgres.dump'
+        ? 'backup-postgres.tar'
         : 'backup-mongodb.tar.gz')
 
   const blob = new Blob([downloadResponse.data], { type: contentType })
