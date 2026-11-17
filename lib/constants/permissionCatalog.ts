@@ -22,7 +22,7 @@ export const NAV_PERMISSION_ITEMS: { permName: string; label: string; desc: stri
   { permName: PERMISSIONS.WALLETS_VIEW,      label: 'Wallets / Cards',         desc: 'Wallet details and cards (WALLETS_VIEW)' },
   { permName: PERMISSIONS.KYC_VIEW,          label: 'Security / KYC',          desc: 'Security dropdown → KYC verification' },
   { permName: PERMISSIONS.SYSTEM_CONFIGURE,  label: 'Settings',                desc: 'System configuration & settings' },
-  { permName: PERMISSIONS.MINI_APPS_VIEW,    label: 'Mini Apps',               desc: 'Mini App catalog and configuration' },
+  { permName: PERMISSIONS.MINI_APPS_VIEW,    label: 'RukaPlus',                desc: 'RukaPlus Mini App catalog and configuration' },
   { permName: PERMISSIONS.APP_CONFIG_VIEW,   label: 'App Configuration',       desc: 'Mobile app icons, colors, and navigation' },
 ]
 
@@ -155,10 +155,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    group: 'Mini Apps',
+    group: 'RukaPlus',
     permissions: [
-      { name: PERMISSIONS.MINI_APPS_VIEW,   label: 'View Mini Apps' },
-      { name: PERMISSIONS.MINI_APPS_MANAGE, label: 'Manage Mini Apps' },
+      { name: PERMISSIONS.MINI_APPS_VIEW,   label: 'View RukaPlus apps' },
+      { name: PERMISSIONS.MINI_APPS_MANAGE, label: 'Manage RukaPlus apps' },
     ],
   },
   {

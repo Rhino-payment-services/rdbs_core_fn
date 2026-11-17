@@ -25,7 +25,7 @@ export const DASHBOARD_PAGE_CRUMBS: Record<string, DashboardBreadcrumbItem[]> = 
     { label: 'Register Wristband' },
   ],
   carousel: [root, { label: 'Carousel' }],
-  'mini-apps': [root, { label: 'Mini Apps' }],
+  'mini-apps': [root, { label: 'RukaPlus (Mini Apps)' }],
   customers: [root, { label: 'Customers' }],
   'customers/merchant-onboard': [
     root,
