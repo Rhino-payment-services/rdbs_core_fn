@@ -160,7 +160,7 @@ export default function MiniAppsPage() {
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
           <p className="text-gray-600 mb-6">
-            You don&apos;t have permission to view Mini Apps.
+            You don&apos;t have permission to view RukaPlus apps.
           </p>
           <Button onClick={() => router.push('/dashboard')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -252,9 +252,10 @@ export default function MiniAppsPage() {
       <DashboardBreadcrumbs items={getDashboardPageCrumbs('mini-apps')} />
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Mini Apps</h1>
+          <h1 className="text-3xl font-bold text-gray-900">RukaPlus</h1>
           <p className="text-gray-600 mt-1">
-            Register and control Mini Apps shown in the RukaPay app.
+            Register and control Mini Apps shown in RukaPlus inside the RukaPay
+            app.
           </p>
         </div>
         <PermissionGuard permission={PERMISSIONS.MINI_APPS_MANAGE}>
@@ -309,13 +310,13 @@ export default function MiniAppsPage() {
               <TableRow>
                 <TableCell colSpan={8} className="py-10 text-center text-gray-500">
                   <Loader2 className="h-5 w-5 animate-spin inline mr-2" />
-                  Loading Mini Apps
+                  Loading RukaPlus apps
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-10 text-center text-gray-500">
-                  No Mini Apps found.
+                  No RukaPlus apps found.
                 </TableCell>
               </TableRow>
             ) : (

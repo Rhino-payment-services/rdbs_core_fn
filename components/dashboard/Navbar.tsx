@@ -901,7 +901,7 @@ const Navbar = () => {
                       }`}
                       onClick={() => setIsSettingsDropdownOpen(false)}
                     >
-                      Mini Apps
+                      RukaPlus
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.APP_CONFIG_VIEW}>
