@@ -394,7 +394,8 @@ const TransactionsPage = () => {
         const metadata = tx.metadata || {}
 
         // Use the same sender/receiver resolution as the transaction table (partyResolver).
-        // Gateway partners (LIPAD, BOBPLUS) belong in Partner — external MNO rail is the sender.
+        // Partner column = External Payment Partner / payment rail (resolvePaymentPartnerLabel),
+        // not the Gateway Partner (ApiPartner).
         const senderParty = tx.senderInfo
           ? normalizePartyInfoForDisplay(tx.senderInfo, tx, 'sender')
           : null
