@@ -158,6 +158,11 @@ export interface ManualStatusCheckResult {
   }
 }
 
+// Partner enquiry + optional wallet credit can exceed the default 10s axios timeout
+// (Airtel/MTN latency, lock waits). Without this the UI shows "Request timeout"
+// while the server may still be finishing the recheck.
+const MANUAL_STATUS_CHECK_TIMEOUT_MS = 120_000
+
 // Hook to manually check transaction status with external partner (admin use)
 export const useManualTransactionStatusCheck = () => {
   const queryClient = useQueryClient()
@@ -166,6 +171,7 @@ export const useManualTransactionStatusCheck = () => {
       apiFetch(`/transactions/manual-status-check`, {
         method: 'POST',
         data: { transactionId },
+        timeout: MANUAL_STATUS_CHECK_TIMEOUT_MS,
       }),
     onSuccess: (data, transactionId) => {
       // Helpful debug log for partner responses (ABC, Airtel, MTN, Pegasus, etc.)
@@ -183,6 +189,10 @@ export const useManualTransactionStatusCheck = () => {
       // Invalidate queries so table re-fetches with latest status/balances
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.list })
+      // Wallet cards must refresh after a credit from uncredited SUCCESS settles.
+      queryClient.invalidateQueries({ queryKey: ['wallets'] })
+      queryClient.invalidateQueries({ queryKey: ['wallet'] })
+      queryClient.invalidateQueries({ queryKey: ['customer'] })
       if (transactionId) {
         queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transaction(transactionId) })
       }
