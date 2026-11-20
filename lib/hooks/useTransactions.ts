@@ -152,6 +152,24 @@ export interface ManualStatusCheckResult {
       amount: number
       reason: string
     } | null
+    /** Explicit collection wallet-credit audit from manual status check */
+    walletCredit?: {
+      outcome:
+        | 'ALREADY_CREDITED'
+        | 'CREDITED_NOW'
+        | 'CREDIT_FAILED'
+        | 'NOT_NEEDED'
+        | 'PARTNER_NOT_SUCCESS'
+        | 'NO_WALLET'
+        | 'NOT_COLLECTION'
+      walletCredited: boolean
+      creditSource: string | null
+      creditAmount: number | null
+      balanceBefore: number | null
+      balanceAfter: number | null
+      message: string
+      error?: string
+    } | null
     checkedAt: string
     /** Subscriber / PIN context from backend (e.g. still in progress at operator, or PIN hinted in partner payload) */
     subscriberActionNote?: string

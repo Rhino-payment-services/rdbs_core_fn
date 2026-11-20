@@ -239,10 +239,25 @@ const TransactionsPage = () => {
           previousStatus: result?.data?.previousStatus,
           newStatus: result?.data?.newStatus,
           statusChanged: result?.data?.statusChanged,
+          walletCredit: result?.data?.walletCredit,
         })
         setStatusCheckResult(result)
-        if (result?.data?.statusChanged) {
+        const creditOutcome = result?.data?.walletCredit?.outcome
+        if (creditOutcome === 'CREDITED_NOW') {
+          toast.success(
+            result.message ||
+              'Partner SUCCESS — merchant wallet credited',
+          )
+        } else if (creditOutcome === 'CREDIT_FAILED') {
+          toast.error(
+            result?.data?.walletCredit?.error ||
+              result?.data?.walletCredit?.message ||
+              'Partner SUCCESS but wallet was not credited',
+          )
+        } else if (result?.data?.statusChanged) {
           toast.success(result.message)
+        } else if (creditOutcome === 'ALREADY_CREDITED') {
+          toast.success(result.message || 'Wallet already credited')
         }
       })
       .catch((error: any) => {

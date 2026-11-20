@@ -81,6 +81,13 @@ export function StatusCheckModal({
   const partnerSuccess = partnerResponse?.success
   const hasResult = !!data || !!error
   const displayCurrency = transaction?.currency || 'UGX'
+  const preCheckMeta = (transaction?.metadata || {}) as Record<string, unknown>
+  const preCheckCredited = preCheckMeta.walletCredited === true
+  const isCollectionType =
+    transaction?.type === 'MNO_TO_WALLET' ||
+    transaction?.type === 'WALLET_TOPUP_PULL' ||
+    String(preCheckMeta.mode || '').includes('COLLECT')
+  const walletCredit = data?.walletCredit
 
   // Request descriptor: top-level partnerRequestBody + any nested partnerRequestInfo (URL/headers from partner)
   const requestBody = data?.partnerRequestBody as Record<string, any> | undefined
@@ -111,10 +118,10 @@ export function StatusCheckModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-semibold">
             <RefreshCcw className="h-4 w-4 text-gray-500" />
-            Partner Status Check
+            Partner status &amp; merchant credit
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Check the real-time status of this transaction with the external payment partner
+            Check partner status and whether the merchant wallet was credited
           </DialogDescription>
         </DialogHeader>
 
@@ -135,6 +142,20 @@ export function StatusCheckModal({
               <span className="text-gray-500">Current Status</span>
               {statusBadge(transaction.status)}
             </div>
+            {isCollectionType && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Wallet credited</span>
+                <span
+                  className={`text-xs font-semibold ${
+                    preCheckCredited ? 'text-green-700' : 'text-amber-700'
+                  }`}
+                >
+                  {preCheckCredited
+                    ? `Yes${preCheckMeta.creditSource ? ` (${String(preCheckMeta.creditSource)})` : ''}`
+                    : 'No — merchant may be missing funds'}
+                </span>
+              </div>
+            )}
             {transaction.amount !== undefined && (
               <div className="flex items-center justify-between">
                 <span className="text-gray-500">Amount</span>
@@ -150,15 +171,23 @@ export function StatusCheckModal({
         {!isLoading && !hasResult && (
           <div className="rounded-md border border-dashed border-blue-200 bg-blue-50 px-4 py-5 text-center space-y-3">
             <p className="text-sm text-blue-700">
-              Click the button below to query the partner for the latest status of this transaction.
-              If the status has changed, the transaction and wallet will be updated automatically.
+              Query the partner for the latest status. For collections, this also checks whether the
+              merchant wallet was credited and credits it if partner confirms SUCCESS but funds are missing.
             </p>
+            {isCollectionType && !preCheckCredited && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                This collection looks uncredited. Running the check can recover the merchant balance
+                if the partner still reports SUCCESS.
+              </p>
+            )}
             <Button
               onClick={onCheck}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <RefreshCcw className="h-4 w-4 mr-2" />
-              Check Status with Partner
+              {isCollectionType && !preCheckCredited
+                ? 'Check partner & recover credit'
+                : 'Check Status with Partner'}
             </Button>
           </div>
         )}
@@ -167,7 +196,11 @@ export function StatusCheckModal({
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-10 gap-3 text-gray-500">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-            <span className="text-sm">Querying partner for latest status…</span>
+            <span className="text-sm">
+              {isCollectionType
+                ? 'Checking partner status and wallet credit…'
+                : 'Querying partner for latest status…'}
+            </span>
           </div>
         )}
 
@@ -222,6 +255,81 @@ export function StatusCheckModal({
                 </div>
               )}
             </div>
+
+            {/* Wallet credit audit (collections) */}
+            {walletCredit && (
+              <div
+                className={`rounded-md border p-4 space-y-2 ${
+                  walletCredit.outcome === 'CREDITED_NOW' ||
+                  walletCredit.outcome === 'ALREADY_CREDITED'
+                    ? 'bg-green-50 border-green-200'
+                    : walletCredit.outcome === 'CREDIT_FAILED'
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5" />
+                  Merchant Wallet Credit
+                </p>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  {walletCredit.walletCredited ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-600" />
+                  )}
+                  <span
+                    className={
+                      walletCredit.walletCredited ? 'text-green-800' : 'text-red-800'
+                    }
+                  >
+                    {walletCredit.walletCredited
+                      ? walletCredit.outcome === 'CREDITED_NOW'
+                        ? 'Credited now'
+                        : 'Already credited'
+                      : 'Not credited'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-700">{walletCredit.message}</p>
+                {walletCredit.error && (
+                  <p className="text-xs text-red-700 whitespace-pre-wrap">
+                    {walletCredit.error}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  <div>
+                    <span className="text-gray-500">Source: </span>
+                    <span className="font-medium">
+                      {walletCredit.creditSource || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Amount: </span>
+                    <span className="font-medium">
+                      {walletCredit.creditAmount != null
+                        ? `${displayCurrency} ${Number(walletCredit.creditAmount).toLocaleString()}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Bal. before: </span>
+                    <span className="font-medium">
+                      {walletCredit.balanceBefore != null
+                        ? Number(walletCredit.balanceBefore).toLocaleString()
+                        : '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Bal. after: </span>
+                    <span className="font-medium">
+                      {walletCredit.balanceAfter != null
+                        ? Number(walletCredit.balanceAfter).toLocaleString()
+                        : '—'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Wallet adjustment */}
             {data.walletAction && (

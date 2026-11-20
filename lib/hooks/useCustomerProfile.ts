@@ -197,7 +197,12 @@ export const useCustomerProfile = (
   }, [selectedWalletId, type, allUserWallets])
 
   // Fetch transactions (wallet-scoped when selected/effective walletId is present)
-  const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useWalletTransactions(
+  const {
+    data: transactionsData,
+    isLoading: transactionsLoading,
+    error: transactionsError,
+    refetch: refetchTransactions,
+  } = useWalletTransactions(
     transactionUserId,
     currentPage,
     pageLimit,
@@ -319,6 +324,7 @@ export const useCustomerProfile = (
     transactionsData,
     transactionsLoading,
     transactionsError,
+    refetchTransactions,
     partnerTransactionsData,
     partnerTransactionsLoading,
     
