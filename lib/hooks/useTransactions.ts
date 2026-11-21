@@ -152,11 +152,34 @@ export interface ManualStatusCheckResult {
       amount: number
       reason: string
     } | null
+    /** Explicit collection wallet-credit audit from manual status check */
+    walletCredit?: {
+      outcome:
+        | 'ALREADY_CREDITED'
+        | 'CREDITED_NOW'
+        | 'CREDIT_FAILED'
+        | 'NOT_NEEDED'
+        | 'PARTNER_NOT_SUCCESS'
+        | 'NO_WALLET'
+        | 'NOT_COLLECTION'
+      walletCredited: boolean
+      creditSource: string | null
+      creditAmount: number | null
+      balanceBefore: number | null
+      balanceAfter: number | null
+      message: string
+      error?: string
+    } | null
     checkedAt: string
     /** Subscriber / PIN context from backend (e.g. still in progress at operator, or PIN hinted in partner payload) */
     subscriberActionNote?: string
   }
 }
+
+// Partner enquiry + optional wallet credit can exceed the default 10s axios timeout
+// (Airtel/MTN latency, lock waits). Without this the UI shows "Request timeout"
+// while the server may still be finishing the recheck.
+const MANUAL_STATUS_CHECK_TIMEOUT_MS = 120_000
 
 // Hook to manually check transaction status with external partner (admin use)
 export const useManualTransactionStatusCheck = () => {
@@ -166,9 +189,7 @@ export const useManualTransactionStatusCheck = () => {
       apiFetch(`/transactions/manual-status-check`, {
         method: 'POST',
         data: { transactionId },
-        // Airtel/MTN enquiry can take up to 60s. The default 10s axios timeout
-        // shows "Request timeout" while the server is still finishing the check.
-        timeout: 120000,
+        timeout: MANUAL_STATUS_CHECK_TIMEOUT_MS,
       }),
     onSuccess: (data, transactionId) => {
       // Helpful debug log for partner responses (ABC, Airtel, MTN, Pegasus, etc.)
@@ -186,6 +207,10 @@ export const useManualTransactionStatusCheck = () => {
       // Invalidate queries so table re-fetches with latest status/balances
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transactions })
       queryClient.invalidateQueries({ queryKey: transactionQueryKeys.list })
+      // Wallet cards must refresh after a credit from uncredited SUCCESS settles.
+      queryClient.invalidateQueries({ queryKey: ['wallets'] })
+      queryClient.invalidateQueries({ queryKey: ['wallet'] })
+      queryClient.invalidateQueries({ queryKey: ['customer'] })
       if (transactionId) {
         queryClient.invalidateQueries({ queryKey: transactionQueryKeys.transaction(transactionId) })
       }

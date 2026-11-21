@@ -79,6 +79,16 @@ function computeRunningBalance(list: any[]): any[] {
     const hasBefore = tx.balanceBefore != null && tx.balanceBefore !== ''
     const hasAfter = tx.balanceAfter != null && tx.balanceAfter !== ''
     const isFailed = (tx.status || '').toUpperCase() === 'FAILED'
+    const meta = (tx.metadata || {}) as Record<string, unknown>
+    const statusUpper = String(tx.status || '').toUpperCase()
+    // SUCCESS collection that never hit the merchant wallet — do not invent Bal. After.
+    const isUncreditedCollection =
+      statusUpper === 'SUCCESS' &&
+      meta.walletCredited !== true &&
+      (tx.type === 'MNO_TO_WALLET' ||
+        tx.type === 'WALLET_TOPUP_PULL' ||
+        meta.paymentType === 'MERCHANT_COLLECTION' ||
+        String(meta.mode || '').includes('COLLECT'))
 
     // For failed transactions, balance did not change — never trust API balanceAfter for running total
     if (hasBefore && hasAfter && !isFailed) {
@@ -90,6 +100,17 @@ function computeRunningBalance(list: any[]): any[] {
       const before = Number(tx.balanceBefore)
       runningByWallet.set(walletKey, before)
       return { ...tx, balanceBefore: before, balanceAfter: before }
+    }
+
+    if (isUncreditedCollection) {
+      const balanceBefore = hasBefore ? Number(tx.balanceBefore) : running
+      runningByWallet.set(walletKey, balanceBefore)
+      return {
+        ...tx,
+        balanceBefore: hasBefore ? tx.balanceBefore : balanceBefore,
+        // Keep empty so statement doesn't look settled when wallet was never credited.
+        balanceAfter: hasAfter ? tx.balanceAfter : null,
+      }
     }
 
     const net =

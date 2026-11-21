@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,11 +24,35 @@ import {
   Eye,
   ChevronDown,
   Receipt,
+  RefreshCw,
+  Loader2,
+  Wallet,
 } from 'lucide-react'
 import type { Transaction } from '@/lib/types/api'
 import { getDisplayNetAmount } from '@/lib/utils/transactionNetDisplay'
 import { downloadProofOfPayment } from '@/lib/utils/proofOfPaymentPdf'
+import { useManualTransactionStatusCheck } from '@/lib/hooks/useTransactions'
 import toast from 'react-hot-toast'
+
+function isCollectionTxn(tx: Transaction | any): boolean {
+  const meta = (tx?.metadata || {}) as Record<string, unknown>
+  return (
+    tx?.type === 'MNO_TO_WALLET' ||
+    tx?.type === 'WALLET_TOPUP_PULL' ||
+    meta.paymentType === 'MERCHANT_COLLECTION' ||
+    String(meta.mode || '').includes('COLLECT')
+  )
+}
+
+function isUncreditedCollection(tx: Transaction | any): boolean {
+  const meta = (tx?.metadata || {}) as Record<string, unknown>
+  const status = String(tx?.status || '').toUpperCase()
+  return (
+    isCollectionTxn(tx) &&
+    status === 'SUCCESS' &&
+    meta.walletCredited !== true
+  )
+}
 
 interface CustomerTransactionsProps {
   transactions: Transaction[]
@@ -46,6 +70,8 @@ interface CustomerTransactionsProps {
   transactionUserId?: string
   onExportWalletTransactions?: (walletId: string | undefined, label: string) => Promise<void>
   onGenerateStatement?: () => void
+  /** Refetch statement rows after a credit recovery */
+  onTransactionsRefresh?: () => void | Promise<void>
 }
 
 function walletRowLabel(w: any): string {
@@ -70,7 +96,81 @@ const CustomerTransactions = ({
   transactionUserId,
   onExportWalletTransactions,
   onGenerateStatement,
+  onTransactionsRefresh,
 }: CustomerTransactionsProps) => {
+  const statusCheck = useManualTransactionStatusCheck()
+  const [creditingId, setCreditingId] = useState<string | null>(null)
+  const [bulkCrediting, setBulkCrediting] = useState(false)
+
+  const uncreditedCollections = useMemo(
+    () => transactions.filter(isUncreditedCollection),
+    [transactions],
+  )
+
+  const creditCollection = async (tx: Transaction) => {
+    setCreditingId(tx.id)
+    try {
+      const result = await statusCheck.mutateAsync(tx.id)
+      const outcome = result?.data?.walletCredit?.outcome
+      if (outcome === 'CREDITED_NOW') {
+        toast.success(
+          result.message ||
+            `Credited ${Number(result?.data?.walletCredit?.creditAmount || 0).toLocaleString()} UGX to merchant wallet`,
+        )
+      } else if (outcome === 'ALREADY_CREDITED') {
+        toast.success(result.message || 'Merchant wallet already credited')
+      } else if (outcome === 'CREDIT_FAILED') {
+        toast.error(
+          result?.data?.walletCredit?.error ||
+            result?.data?.walletCredit?.message ||
+            'Partner SUCCESS but merchant wallet was not credited',
+        )
+      } else {
+        toast.success(result?.message || 'Status checked')
+      }
+      await onTransactionsRefresh?.()
+    } catch (err: any) {
+      toast.error(
+        err?.message ||
+          err?.response?.data?.message ||
+          'Could not check/credit this collection',
+      )
+    } finally {
+      setCreditingId(null)
+    }
+  }
+
+  const creditAllMissing = async () => {
+    if (!uncreditedCollections.length) return
+    setBulkCrediting(true)
+    let credited = 0
+    let failed = 0
+    try {
+      for (const tx of uncreditedCollections) {
+        try {
+          const result = await statusCheck.mutateAsync(tx.id)
+          const outcome = result?.data?.walletCredit?.outcome
+          if (outcome === 'CREDITED_NOW' || outcome === 'ALREADY_CREDITED') {
+            credited += 1
+          } else if (outcome === 'CREDIT_FAILED') {
+            failed += 1
+          }
+        } catch {
+          failed += 1
+        }
+      }
+      if (credited > 0) {
+        toast.success(`Credited/confirmed ${credited} collection(s)`)
+      }
+      if (failed > 0) {
+        toast.error(`${failed} collection(s) still uncredited`)
+      }
+      await onTransactionsRefresh?.()
+    } finally {
+      setBulkCrediting(false)
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
@@ -228,6 +328,22 @@ const CustomerTransactions = ({
             <Button variant="outline" size="sm" onClick={onGenerateStatement}>
               <FileText className="h-4 w-4 mr-2" />
               Generate statement
+            </Button>
+          )}
+          {uncreditedCollections.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100"
+              disabled={bulkCrediting || !!creditingId}
+              onClick={creditAllMissing}
+            >
+              {bulkCrediting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Wallet className="h-4 w-4 mr-2" />
+              )}
+              Credit missing ({uncreditedCollections.length})
             </Button>
           )}
           {canExportByWallet ? (
@@ -401,8 +517,13 @@ const CustomerTransactions = ({
               <TableBody>
                 {transactions.map((transaction) => {
                   const netDisplay = getDisplayNetAmount(transaction)
+                  const uncredited = isUncreditedCollection(transaction)
+                  const busy = creditingId === transaction.id || bulkCrediting
                   return (
-                  <TableRow key={transaction.id}>
+                  <TableRow
+                    key={transaction.id}
+                    className={uncredited ? 'bg-amber-50/60' : undefined}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getTransactionTypeIcon(transaction.type)}
@@ -445,7 +566,14 @@ const CustomerTransactions = ({
                         : <span className="text-gray-300">—</span>}
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(transaction.status)}
+                      <div className="flex flex-col gap-1 items-start">
+                        {getStatusBadge(transaction.status)}
+                        {uncredited && (
+                          <Badge className="bg-amber-100 text-amber-900 border-amber-200 text-[10px]">
+                            Wallet not credited
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {formatDate(transaction.createdAt)}
@@ -477,6 +605,26 @@ const CustomerTransactions = ({
                         <Button variant="ghost" size="sm" title="View details">
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {isCollectionTxn(transaction) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={
+                              uncredited
+                                ? 'Check partner & credit merchant wallet'
+                                : 'Re-check partner status / wallet credit'
+                            }
+                            disabled={busy}
+                            className={uncredited ? 'text-amber-700' : undefined}
+                            onClick={() => creditCollection(transaction)}
+                          >
+                            {creditingId === transaction.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"

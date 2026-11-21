@@ -856,7 +856,7 @@ const Navbar = () => {
                     <Link 
                       href="/dashboard/settings" 
                       className={`block px-4 py-2 text-sm transition-colors ${
-                        isActive('/dashboard/settings') && !isActive('/dashboard/carousel') && !isActive('/dashboard/mini-apps') && !isActive('/dashboard/settings/app-config') && !isActive('/dashboard/settings/mobile-app-versions')
+                        isActive('/dashboard/settings') && !isActive('/dashboard/carousel') && !isActive('/dashboard/mini-apps') && !isActive('/dashboard/settings/app-config') && !isActive('/dashboard/settings/data-bundle-packages') && !isActive('/dashboard/settings/mobile-app-versions')
                           ? 'text-[#08163d] bg-[#08163d]/10'
                           : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
                       }`}
@@ -915,6 +915,19 @@ const Navbar = () => {
                       onClick={() => setIsSettingsDropdownOpen(false)}
                     >
                       App Configuration
+                    </Link>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.TARIFF_VIEW}>
+                    <Link
+                      href="/dashboard/settings/data-bundle-packages"
+                      className={`block px-4 py-2 text-sm transition-colors ${
+                        isActive('/dashboard/settings/data-bundle-packages')
+                          ? 'text-[#08163d] bg-[#08163d]/10'
+                          : 'text-gray-700 hover:text-[#08163d] hover:bg-[#08163d]/5'
+                      }`}
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    >
+                      Data Bundle Packages
                     </Link>
                   </PermissionGuard>
                   <PermissionGuard permission={PERMISSIONS.SYSTEM_CONFIGURE}>

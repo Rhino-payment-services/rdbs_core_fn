@@ -39,6 +39,7 @@ interface CustomerProfileContentProps {
   transactions: any[]
   transactionsLoading: boolean
   transactionsError: any
+  onTransactionsRefresh?: () => void | Promise<void>
   totalPages: number
   currentPage: number
   onPageChange: (page: number) => void
@@ -83,6 +84,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
   transactions,
   transactionsLoading,
   transactionsError,
+  onTransactionsRefresh,
   totalPages,
   currentPage,
   onPageChange,
@@ -450,6 +452,7 @@ export const CustomerProfileContent: React.FC<CustomerProfileContentProps> = ({
                 onGenerateStatement={
                   transactionUserId ? () => setStatementOpen(true) : undefined
                 }
+                onTransactionsRefresh={onTransactionsRefresh}
               />
             </>
           )}

@@ -56,6 +56,7 @@ const CustomerProfilePage = () => {
     transactionsData,
     transactionsLoading,
     transactionsError,
+    refetchTransactions,
     partnerTransactionsData,
     partnerTransactionsLoading,
     activityLogsData,
@@ -378,6 +379,9 @@ const CustomerProfilePage = () => {
             transactions={transactions}
             transactionsLoading={finalTransactionsLoading}
             transactionsError={transactionsError}
+            onTransactionsRefresh={async () => {
+              await refetchTransactions?.()
+            }}
             totalPages={totalPages}
             currentPage={currentPage}
             onPageChange={setCurrentPage}
