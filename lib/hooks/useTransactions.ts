@@ -166,6 +166,9 @@ export const useManualTransactionStatusCheck = () => {
       apiFetch(`/transactions/manual-status-check`, {
         method: 'POST',
         data: { transactionId },
+        // Airtel/MTN enquiry can take up to 60s. The default 10s axios timeout
+        // shows "Request timeout" while the server is still finishing the check.
+        timeout: 120000,
       }),
     onSuccess: (data, transactionId) => {
       // Helpful debug log for partner responses (ABC, Airtel, MTN, Pegasus, etc.)
