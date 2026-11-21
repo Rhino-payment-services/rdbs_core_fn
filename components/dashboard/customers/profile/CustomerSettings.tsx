@@ -124,6 +124,10 @@ interface CustomerSettingsProps {
   collectionCustomerSharePercent?: number
   collectionTotalFeePercent?: number | null
   collectionMnoPartnerFeePercent?: number | null
+  collectionTotalFeePercentMtn?: number | null
+  collectionMnoPartnerFeePercentMtn?: number | null
+  collectionTotalFeePercentAirtel?: number | null
+  collectionMnoPartnerFeePercentAirtel?: number | null
   /** All wallets for this user (from wallet service). When set, Wallet Management shows each wallet and manual tx can target a chosen wallet. */
   allUserWallets?: WalletItem[]
   /** When false, wallet creation is disabled for this user. */
@@ -156,6 +160,10 @@ const CustomerSettings = ({
   collectionCustomerSharePercent = 0,
   collectionTotalFeePercent = null,
   collectionMnoPartnerFeePercent = null,
+  collectionTotalFeePercentMtn = null,
+  collectionMnoPartnerFeePercentMtn = null,
+  collectionTotalFeePercentAirtel = null,
+  collectionMnoPartnerFeePercentAirtel = null,
   allUserWallets = [],
   canHaveWallet = true,
 }: CustomerSettingsProps) => {
@@ -332,13 +340,69 @@ const CustomerSettings = ({
   const [mnoFeePercent, setMnoFeePercent] = useState<string>(
     collectionMnoPartnerFeePercent != null ? String(collectionMnoPartnerFeePercent) : '',
   )
+  const [totalFeePercentMtn, setTotalFeePercentMtn] = useState<string>(
+    collectionTotalFeePercentMtn != null ? String(collectionTotalFeePercentMtn) : '',
+  )
+  const [mnoFeePercentMtn, setMnoFeePercentMtn] = useState<string>(
+    collectionMnoPartnerFeePercentMtn != null ? String(collectionMnoPartnerFeePercentMtn) : '',
+  )
+  const [totalFeePercentAirtel, setTotalFeePercentAirtel] = useState<string>(
+    collectionTotalFeePercentAirtel != null ? String(collectionTotalFeePercentAirtel) : '',
+  )
+  const [mnoFeePercentAirtel, setMnoFeePercentAirtel] = useState<string>(
+    collectionMnoPartnerFeePercentAirtel != null
+      ? String(collectionMnoPartnerFeePercentAirtel)
+      : '',
+  )
+  const [showNetworkFeeOverrides, setShowNetworkFeeOverrides] = useState(
+    () =>
+      collectionTotalFeePercentMtn != null ||
+      collectionMnoPartnerFeePercentMtn != null ||
+      collectionTotalFeePercentAirtel != null ||
+      collectionMnoPartnerFeePercentAirtel != null,
+  )
 
   useEffect(() => {
     if (collectionFeeMode) setCollectionMode(collectionFeeMode)
     if (collectionCustomerSharePercent != null) setCustomerSharePercent(Number(collectionCustomerSharePercent))
     setTotalFeePercent(collectionTotalFeePercent != null ? String(collectionTotalFeePercent) : '')
     setMnoFeePercent(collectionMnoPartnerFeePercent != null ? String(collectionMnoPartnerFeePercent) : '')
-  }, [collectionFeeMode, collectionCustomerSharePercent, collectionTotalFeePercent, collectionMnoPartnerFeePercent])
+    setTotalFeePercentMtn(
+      collectionTotalFeePercentMtn != null ? String(collectionTotalFeePercentMtn) : '',
+    )
+    setMnoFeePercentMtn(
+      collectionMnoPartnerFeePercentMtn != null
+        ? String(collectionMnoPartnerFeePercentMtn)
+        : '',
+    )
+    setTotalFeePercentAirtel(
+      collectionTotalFeePercentAirtel != null
+        ? String(collectionTotalFeePercentAirtel)
+        : '',
+    )
+    setMnoFeePercentAirtel(
+      collectionMnoPartnerFeePercentAirtel != null
+        ? String(collectionMnoPartnerFeePercentAirtel)
+        : '',
+    )
+    if (
+      collectionTotalFeePercentMtn != null ||
+      collectionMnoPartnerFeePercentMtn != null ||
+      collectionTotalFeePercentAirtel != null ||
+      collectionMnoPartnerFeePercentAirtel != null
+    ) {
+      setShowNetworkFeeOverrides(true)
+    }
+  }, [
+    collectionFeeMode,
+    collectionCustomerSharePercent,
+    collectionTotalFeePercent,
+    collectionMnoPartnerFeePercent,
+    collectionTotalFeePercentMtn,
+    collectionMnoPartnerFeePercentMtn,
+    collectionTotalFeePercentAirtel,
+    collectionMnoPartnerFeePercentAirtel,
+  ])
 
   // Merchant feature flags state
   const [featureFlags, setFeatureFlags] = useState({
@@ -850,18 +914,79 @@ const CustomerSettings = ({
       }
     }
 
-    const parsedTotal = totalFeePercent.trim() === '' ? null : Number(totalFeePercent)
-    const parsedMno = mnoFeePercent.trim() === '' ? null : Number(mnoFeePercent)
-    if (parsedTotal != null && (Number.isNaN(parsedTotal) || parsedTotal <= 0 || parsedTotal > 50)) {
-      toast.error('Total collection fee % must be between 0.01 and 50.')
+    const parseOptionalPercent = (raw: string, label: string, allowZero = false) => {
+      if (raw.trim() === '') return { ok: true as const, value: null }
+      const n = Number(raw)
+      if (Number.isNaN(n) || n > 50 || (allowZero ? n < 0 : n <= 0)) {
+        return {
+          ok: false as const,
+          error: `${label} must be between ${allowZero ? '0' : '0.01'} and 50.`,
+        }
+      }
+      return { ok: true as const, value: n }
+    }
+
+    const parsedTotal = parseOptionalPercent(totalFeePercent, 'Total collection fee %')
+    if (!parsedTotal.ok) {
+      toast.error(parsedTotal.error)
       return
     }
-    if (parsedMno != null && (Number.isNaN(parsedMno) || parsedMno < 0 || parsedMno > 50)) {
-      toast.error('MNO fee % must be between 0 and 50.')
+    const parsedMno = parseOptionalPercent(mnoFeePercent, 'MNO fee %', true)
+    if (!parsedMno.ok) {
+      toast.error(parsedMno.error)
       return
     }
-    if (parsedTotal != null && parsedMno != null && parsedMno > parsedTotal) {
+    if (
+      parsedTotal.value != null &&
+      parsedMno.value != null &&
+      parsedMno.value > parsedTotal.value
+    ) {
       toast.error('MNO fee % cannot exceed total collection fee %.')
+      return
+    }
+
+    const parsedTotalMtn = parseOptionalPercent(totalFeePercentMtn, 'MTN total fee %')
+    if (!parsedTotalMtn.ok) {
+      toast.error(parsedTotalMtn.error)
+      return
+    }
+    const parsedMnoMtn = parseOptionalPercent(mnoFeePercentMtn, 'MTN MNO fee %', true)
+    if (!parsedMnoMtn.ok) {
+      toast.error(parsedMnoMtn.error)
+      return
+    }
+    if (
+      parsedTotalMtn.value != null &&
+      parsedMnoMtn.value != null &&
+      parsedMnoMtn.value > parsedTotalMtn.value
+    ) {
+      toast.error('MTN MNO fee % cannot exceed MTN total fee %.')
+      return
+    }
+
+    const parsedTotalAirtel = parseOptionalPercent(
+      totalFeePercentAirtel,
+      'Airtel total fee %',
+    )
+    if (!parsedTotalAirtel.ok) {
+      toast.error(parsedTotalAirtel.error)
+      return
+    }
+    const parsedMnoAirtel = parseOptionalPercent(
+      mnoFeePercentAirtel,
+      'Airtel MNO fee %',
+      true,
+    )
+    if (!parsedMnoAirtel.ok) {
+      toast.error(parsedMnoAirtel.error)
+      return
+    }
+    if (
+      parsedTotalAirtel.value != null &&
+      parsedMnoAirtel.value != null &&
+      parsedMnoAirtel.value > parsedTotalAirtel.value
+    ) {
+      toast.error('Airtel MNO fee % cannot exceed Airtel total fee %.')
       return
     }
 
@@ -869,8 +994,12 @@ const CustomerSettings = ({
     try {
       const payload: Record<string, unknown> = {
         collectionFeeMode: collectionMode,
-        collectionTotalFeePercent: parsedTotal,
-        collectionMnoPartnerFeePercent: parsedMno,
+        collectionTotalFeePercent: parsedTotal.value,
+        collectionMnoPartnerFeePercent: parsedMno.value,
+        collectionTotalFeePercentMtn: parsedTotalMtn.value,
+        collectionMnoPartnerFeePercentMtn: parsedMnoMtn.value,
+        collectionTotalFeePercentAirtel: parsedTotalAirtel.value,
+        collectionMnoPartnerFeePercentAirtel: parsedMnoAirtel.value,
       }
       if (collectionMode === 'CUSTOMER_PAYS_PARTIAL') {
         payload.collectionCustomerSharePercent = customerSharePercent
@@ -883,9 +1012,29 @@ const CustomerSettings = ({
       if (data?.collectionFeeMode) setCollectionMode(data.collectionFeeMode)
       if (data?.collectionCustomerSharePercent != null) setCustomerSharePercent(Number(data.collectionCustomerSharePercent))
       if (data?.collectionTotalFeePercent != null) setTotalFeePercent(String(data.collectionTotalFeePercent))
-      else if (parsedTotal === null) setTotalFeePercent('')
+      else if (parsedTotal.value === null) setTotalFeePercent('')
       if (data?.collectionMnoPartnerFeePercent != null) setMnoFeePercent(String(data.collectionMnoPartnerFeePercent))
-      else if (parsedMno === null) setMnoFeePercent('')
+      else if (parsedMno.value === null) setMnoFeePercent('')
+      if (data?.collectionTotalFeePercentMtn != null) {
+        setTotalFeePercentMtn(String(data.collectionTotalFeePercentMtn))
+      } else if (parsedTotalMtn.value === null) {
+        setTotalFeePercentMtn('')
+      }
+      if (data?.collectionMnoPartnerFeePercentMtn != null) {
+        setMnoFeePercentMtn(String(data.collectionMnoPartnerFeePercentMtn))
+      } else if (parsedMnoMtn.value === null) {
+        setMnoFeePercentMtn('')
+      }
+      if (data?.collectionTotalFeePercentAirtel != null) {
+        setTotalFeePercentAirtel(String(data.collectionTotalFeePercentAirtel))
+      } else if (parsedTotalAirtel.value === null) {
+        setTotalFeePercentAirtel('')
+      }
+      if (data?.collectionMnoPartnerFeePercentAirtel != null) {
+        setMnoFeePercentAirtel(String(data.collectionMnoPartnerFeePercentAirtel))
+      } else if (parsedMnoAirtel.value === null) {
+        setMnoFeePercentAirtel('')
+      }
 
       toast.success('Merchant collection fee mode updated successfully.')
       onActionComplete?.()
@@ -1118,7 +1267,7 @@ const CustomerSettings = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="totalFeePercent">Total collection fee (%)</Label>
+                  <Label htmlFor="totalFeePercent">Total collection fee (%) — both networks</Label>
                   <Input
                     id="totalFeePercent"
                     type="number"
@@ -1130,11 +1279,11 @@ const CustomerSettings = ({
                     placeholder="Default 2.5"
                   />
                   <p className="text-xs text-gray-500">
-                    Custom rate for this merchant (e.g. 2.8). Leave empty for platform default.
+                    Shared rate for MTN and Airtel unless a network override is set below.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mnoFeePercent">MNO / partner share (%)</Label>
+                  <Label htmlFor="mnoFeePercent">MNO / partner share (%) — both networks</Label>
                   <Input
                     id="mnoFeePercent"
                     type="number"
@@ -1149,6 +1298,96 @@ const CustomerSettings = ({
                     Rukapay share = total − MNO. Leave empty to scale from default ratio.
                   </p>
                 </div>
+              </div>
+
+              <div className="rounded-lg border p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Customize by network (optional)</p>
+                    <p className="text-xs text-gray-500">
+                      Leave empty to keep using the shared rates above for that network.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNetworkFeeOverrides((v) => !v)}
+                  >
+                    {showNetworkFeeOverrides ? 'Hide' : 'Show'}
+                  </Button>
+                </div>
+
+                {showNetworkFeeOverrides && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        MTN
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="totalFeePercentMtn">MTN total fee (%)</Label>
+                          <Input
+                            id="totalFeePercentMtn"
+                            type="number"
+                            min={0.01}
+                            max={50}
+                            step={0.01}
+                            value={totalFeePercentMtn}
+                            onChange={(e) => setTotalFeePercentMtn(e.target.value)}
+                            placeholder="Use shared / default"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mnoFeePercentMtn">MTN MNO share (%)</Label>
+                          <Input
+                            id="mnoFeePercentMtn"
+                            type="number"
+                            min={0}
+                            max={50}
+                            step={0.01}
+                            value={mnoFeePercentMtn}
+                            onChange={(e) => setMnoFeePercentMtn(e.target.value)}
+                            placeholder="Use shared / default"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Airtel
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="totalFeePercentAirtel">Airtel total fee (%)</Label>
+                          <Input
+                            id="totalFeePercentAirtel"
+                            type="number"
+                            min={0.01}
+                            max={50}
+                            step={0.01}
+                            value={totalFeePercentAirtel}
+                            onChange={(e) => setTotalFeePercentAirtel(e.target.value)}
+                            placeholder="Use shared / default"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mnoFeePercentAirtel">Airtel MNO share (%)</Label>
+                          <Input
+                            id="mnoFeePercentAirtel"
+                            type="number"
+                            min={0}
+                            max={50}
+                            step={0.01}
+                            value={mnoFeePercentAirtel}
+                            onChange={(e) => setMnoFeePercentAirtel(e.target.value)}
+                            placeholder="Use shared / default"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {collectionMode === 'CUSTOMER_PAYS_PARTIAL' && (
