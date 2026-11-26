@@ -25,6 +25,7 @@ import toast from 'react-hot-toast'
 import {
   downloadTextFile,
   fetchAllWalletTransactionsForUser,
+  formatExportProgress,
   transactionsToCsv,
 } from '@/lib/utils/exportWalletTransactions'
 
@@ -199,9 +200,13 @@ const CustomerProfilePage = () => {
       return
     }
 
-    const toastId = toast.loading('Fetching transactions for export…')
+    const toastId = toast.loading('Downloading… 0 transactions')
     try {
-      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, walletId)
+      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, walletId, {
+        pageSize: 1000,
+        timeoutMs: 120_000,
+        onProgress: (p) => toast.loading(formatExportProgress(p), { id: toastId }),
+      })
       const csv = transactionsToCsv(rows)
       const safeLabel = label.replace(/[^\w\s-]+/g, '').replace(/\s+/g, '_').slice(0, 48) || 'wallet'
       downloadTextFile(`transactions_${safeLabel}_${Date.now()}.csv`, csv)
@@ -232,11 +237,12 @@ const CustomerProfilePage = () => {
       toast.error('Unable to fetch full transaction history for this profile.')
       return
     }
-    const toastId = toast.loading('Preparing full transaction export…')
+    const toastId = toast.loading('Downloading… 0 transactions')
     try {
       const rows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId, {
         pageSize: 1000,
         timeoutMs: 120_000,
+        onProgress: (p) => toast.loading(formatExportProgress(p), { id: toastId }),
       })
       downloadTransactionsCsv(rows, 'overall')
       toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'}`, { id: toastId })
@@ -258,7 +264,7 @@ const CustomerProfilePage = () => {
       return
     }
 
-    const toastId = toast.loading('Preparing date range export…')
+    const toastId = toast.loading('Downloading… 0 transactions')
     try {
       let rows: any[] = []
       if (transactionUserId) {
@@ -268,6 +274,7 @@ const CustomerProfilePage = () => {
           endDate,
           pageSize: 1000,
           timeoutMs: 120_000,
+          onProgress: (p) => toast.loading(formatExportProgress(p), { id: toastId }),
         })
       } else {
         const sourceRows = transactions || []

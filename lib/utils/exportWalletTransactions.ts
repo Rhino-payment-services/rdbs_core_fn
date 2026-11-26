@@ -15,6 +15,15 @@ function parseListResponse(data: unknown): { transactions: any[]; total: number 
   return { transactions, total }
 }
 
+export type ExportFetchProgress = {
+  page: number
+  fetched: number
+  /** Known total from first-page COUNT, or null when unknown */
+  total: number | null
+  /** 0–100 when total is known; null otherwise */
+  percent: number | null
+}
+
 export type FetchAllWalletTransactionsOptions = {
   /** YYYY-MM-DD — pushed to SQL via GET /wallet/:userId/transactions */
   startDate?: string
@@ -23,6 +32,23 @@ export type FetchAllWalletTransactionsOptions = {
   pageSize?: number
   /** Per-request axios timeout ms (export loops need more than the global 10s). */
   timeoutMs?: number
+  /** Called after each page so the UI can show download progress. */
+  onProgress?: (progress: ExportFetchProgress) => void
+}
+
+function reportProgress(
+  onProgress: FetchAllWalletTransactionsOptions['onProgress'],
+  page: number,
+  fetched: number,
+  total: number,
+) {
+  if (!onProgress) return
+  const knownTotal = Number.isFinite(total) && total >= 0 ? total : null
+  const percent =
+    knownTotal != null && knownTotal > 0
+      ? Math.min(100, Math.round((fetched / knownTotal) * 100))
+      : null
+  onProgress({ page, fetched, total: knownTotal, percent })
 }
 
 /**
@@ -41,7 +67,6 @@ export async function fetchAllWalletTransactionsForUser(
 
   const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 200
   const timeoutMs = opts.timeoutMs && opts.timeoutMs > 0 ? opts.timeoutMs : 120_000
-  const hasDateFilter = Boolean(opts.startDate || opts.endDate)
 
   const all: any[] = []
   let page = 1
@@ -61,8 +86,8 @@ export async function fetchAllWalletTransactionsForUser(
     if (opts.endDate) {
       params.set('endDate', opts.endDate)
     }
-    // Export paging: skip COUNT(*) after we know dates (or always for multi-page export).
-    if (hasDateFilter || page > 1) {
+    // First page runs COUNT so progress can show "X of Y"; later pages skip COUNT.
+    if (page > 1) {
       params.set('skipCount', 'true')
     }
 
@@ -76,10 +101,12 @@ export async function fetchAllWalletTransactionsForUser(
     }
 
     if (!transactions.length) {
+      reportProgress(opts.onProgress, page, all.length, total)
       break
     }
 
     all.push(...transactions)
+    reportProgress(opts.onProgress, page, all.length, total)
 
     if (transactions.length < pageSize) {
       break
@@ -96,6 +123,15 @@ export async function fetchAllWalletTransactionsForUser(
   }
 
   return all
+}
+
+/** Format progress for toast / UI copy. */
+export function formatExportProgress(progress: ExportFetchProgress): string {
+  const fetchedLabel = progress.fetched.toLocaleString()
+  if (progress.total != null && progress.percent != null) {
+    return `Downloading… ${fetchedLabel} of ${progress.total.toLocaleString()} (${progress.percent}%)`
+  }
+  return `Downloading… ${fetchedLabel} transactions (page ${progress.page})`
 }
 
 /** Build the query string used by fetchAllWalletTransactionsForUser (for unit tests). */

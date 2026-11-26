@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildWalletTransactionsExportQuery } from './exportWalletTransactions'
+import {
+  buildWalletTransactionsExportQuery,
+  formatExportProgress,
+} from './exportWalletTransactions'
 
 describe('buildWalletTransactionsExportQuery', () => {
   it('includes startDate and endDate when provided', () => {
@@ -29,5 +32,19 @@ describe('buildWalletTransactionsExportQuery', () => {
     expect(params.has('startDate')).toBe(false)
     expect(params.has('endDate')).toBe(false)
     expect(params.has('skipCount')).toBe(false)
+  })
+})
+
+describe('formatExportProgress', () => {
+  it('shows percent when total is known', () => {
+    expect(
+      formatExportProgress({ page: 2, fetched: 2000, total: 5000, percent: 40 }),
+    ).toBe('Downloading… 2,000 of 5,000 (40%)')
+  })
+
+  it('falls back to page when total unknown', () => {
+    expect(
+      formatExportProgress({ page: 3, fetched: 3000, total: null, percent: null }),
+    ).toBe('Downloading… 3,000 transactions (page 3)')
   })
 })
