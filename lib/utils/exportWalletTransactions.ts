@@ -15,15 +15,34 @@ function parseListResponse(data: unknown): { transactions: any[]; total: number 
   return { transactions, total }
 }
 
+export type FetchAllWalletTransactionsOptions = {
+  /** YYYY-MM-DD — pushed to SQL via GET /wallet/:userId/transactions */
+  startDate?: string
+  /** YYYY-MM-DD */
+  endDate?: string
+  pageSize?: number
+  /** Per-request axios timeout ms (export loops need more than the global 10s). */
+  timeoutMs?: number
+}
+
 /**
  * Fetches every page of `/wallet/:userId/transactions` for admin export.
  * When `walletId` is omitted, returns all wallets for the user (combined).
+ * Pass `startDate`/`endDate` so the server filters by createdAt (do not fetch all-time then filter client-side).
  */
 export async function fetchAllWalletTransactionsForUser(
   userId: string,
   walletId: string | undefined,
-  pageSize = 200,
+  options: number | FetchAllWalletTransactionsOptions = 200,
 ): Promise<any[]> {
+  // Back-compat: third arg used to be pageSize number
+  const opts: FetchAllWalletTransactionsOptions =
+    typeof options === 'number' ? { pageSize: options } : options || {}
+
+  const pageSize = opts.pageSize && opts.pageSize > 0 ? opts.pageSize : 200
+  const timeoutMs = opts.timeoutMs && opts.timeoutMs > 0 ? opts.timeoutMs : 120_000
+  const hasDateFilter = Boolean(opts.startDate || opts.endDate)
+
   const all: any[] = []
   let page = 1
   let total = Infinity
@@ -36,10 +55,25 @@ export async function fetchAllWalletTransactionsForUser(
     if (walletId && walletId.trim() !== '') {
       params.set('walletId', walletId)
     }
+    if (opts.startDate) {
+      params.set('startDate', opts.startDate)
+    }
+    if (opts.endDate) {
+      params.set('endDate', opts.endDate)
+    }
+    // Export paging: skip COUNT(*) after we know dates (or always for multi-page export).
+    if (hasDateFilter || page > 1) {
+      params.set('skipCount', 'true')
+    }
 
-    const res = await api.get(`/wallet/${userId}/transactions?${params.toString()}`)
+    const res = await api.get(`/wallet/${userId}/transactions?${params.toString()}`, {
+      timeout: timeoutMs,
+    })
     const { transactions, total: reportedTotal } = parseListResponse(res.data)
-    total = reportedTotal
+
+    if (reportedTotal >= 0 && total === Infinity) {
+      total = reportedTotal
+    }
 
     if (!transactions.length) {
       break
@@ -51,10 +85,39 @@ export async function fetchAllWalletTransactionsForUser(
       break
     }
 
+    // When skipCount returns total=-1, stop only via short page; keep looping.
+    if (total === Infinity || total < 0) {
+      // no-op — rely on short page
+    } else if (all.length >= total) {
+      break
+    }
+
     page += 1
   }
 
   return all
+}
+
+/** Build the query string used by fetchAllWalletTransactionsForUser (for unit tests). */
+export function buildWalletTransactionsExportQuery(params: {
+  page: number
+  pageSize: number
+  walletId?: string
+  startDate?: string
+  endDate?: string
+  skipCount?: boolean
+}): string {
+  const q = new URLSearchParams({
+    page: String(params.page),
+    limit: String(params.pageSize),
+  })
+  if (params.walletId && params.walletId.trim() !== '') {
+    q.set('walletId', params.walletId)
+  }
+  if (params.startDate) q.set('startDate', params.startDate)
+  if (params.endDate) q.set('endDate', params.endDate)
+  if (params.skipCount) q.set('skipCount', 'true')
+  return q.toString()
 }
 
 function escapeCsvCell(v: unknown): string {

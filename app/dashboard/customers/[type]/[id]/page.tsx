@@ -234,7 +234,10 @@ const CustomerProfilePage = () => {
     }
     const toastId = toast.loading('Preparing full transaction export…')
     try {
-      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId)
+      const rows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId, {
+        pageSize: 1000,
+        timeoutMs: 120_000,
+      })
       downloadTransactionsCsv(rows, 'overall')
       toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'}`, { id: toastId })
     } catch (err: unknown) {
@@ -257,16 +260,22 @@ const CustomerProfilePage = () => {
 
     const toastId = toast.loading('Preparing date range export…')
     try {
-      let sourceRows: any[] = []
+      let rows: any[] = []
       if (transactionUserId) {
-        sourceRows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId)
+        // Server filters by createdAt — do not download all-time history first.
+        rows = await fetchAllWalletTransactionsForUser(transactionUserId, effectiveWalletId, {
+          startDate,
+          endDate,
+          pageSize: 1000,
+          timeoutMs: 120_000,
+        })
       } else {
-        sourceRows = transactions || []
+        const sourceRows = transactions || []
+        rows = sourceRows.filter((tx: any) => {
+          const txDate = new Date(tx?.createdAt || tx?.updatedAt || 0).getTime()
+          return Number.isFinite(txDate) && txDate >= start.getTime() && txDate <= end.getTime()
+        })
       }
-      const rows = sourceRows.filter((tx: any) => {
-        const txDate = new Date(tx?.createdAt || tx?.updatedAt || 0).getTime()
-        return Number.isFinite(txDate) && txDate >= start.getTime() && txDate <= end.getTime()
-      })
       downloadTransactionsCsv(rows, `${startDate}_to_${endDate}`)
       toast.success(`Exported ${rows.length} transaction${rows.length === 1 ? '' : 's'} in selected range`, { id: toastId })
     } catch (err: unknown) {
